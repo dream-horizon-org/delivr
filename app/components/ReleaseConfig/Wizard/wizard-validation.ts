@@ -211,6 +211,15 @@ export const validateWorkflows = (
         p.environment === BUILD_ENVIRONMENTS.REGRESSION && 
         p.enabled
     );
+    const hasAndroidAAB = workflows.some(
+      (p: Workflow) => 
+        p.platform === PLATFORMS.ANDROID && 
+        p.environment === BUILD_ENVIRONMENTS.AAB_BUILD && 
+        p.enabled
+    );
+    if(!hasAndroidAAB) {
+      errors.push('Android AAB workflow is required for Play Store distribution');
+    }
     if (!hasAndroidRegression) {
       errors.push('Android Regression workflow is required for Play Store distribution');
     }

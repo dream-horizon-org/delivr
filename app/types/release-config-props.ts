@@ -107,6 +107,7 @@ export interface FixedPipelineCategoriesProps {
   };
   selectedPlatforms: Platform[];
   tenantId: string;
+  showValidation?: boolean;
 }
 
 export interface PipelineCategoryConfig {

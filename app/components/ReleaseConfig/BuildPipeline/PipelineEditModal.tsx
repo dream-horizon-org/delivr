@@ -4,7 +4,7 @@
  * Uses WorkflowCreateModal internally for creating new workflows
  */
 
-import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { Modal, Button, Stack, Group, Alert, Text } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import type { 
@@ -23,7 +23,7 @@ import {
   PLATFORM_LABELS,
   ENVIRONMENT_LABELS,
 } from '~/constants/release-config-ui';
-import { apiPost, getApiErrorMessage } from '~/utils/api-client';
+import { apiPost, apiGet, getApiErrorMessage } from '~/utils/api-client';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
 import { workflowTypeToEnvironment } from '~/types/workflow-mappings';
 import { WorkflowModeSelector } from './WorkflowModeSelector';
@@ -88,6 +88,8 @@ function PipelineEditModalComponent({
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | undefined>();
   const [workflowCreateModalOpened, setWorkflowCreateModalOpened] = useState(false);
   const [isCreatingWorkflow, setIsCreatingWorkflow] = useState(false);
+  // Use ref to prevent duplicate submissions (more reliable than state for race conditions)
+  const isCreatingRef = useRef(false);
   
   // Filter workflows by platform and environment
   // System supports: PRE_REGRESSION, REGRESSION, TESTFLIGHT (iOS only), AAB_BUILD (Android)
@@ -127,7 +129,7 @@ function PipelineEditModalComponent({
   }, [availableIntegrations]);
   
 
-  // Reset form when modal opens
+  // Reset form when modal opens/closes
   useEffect(() => {
     if (opened) {
       // If editing existing pipeline, check if it references a workflow
@@ -154,14 +156,28 @@ function PipelineEditModalComponent({
         setSelectedWorkflowId(undefined);
       }
       setWorkflowCreateModalOpened(false);
+    } else {
+      // Reset creation state when modal closes
+      isCreatingRef.current = false;
+      setIsCreatingWorkflow(false);
     }
   }, [opened, pipeline, relevantWorkflows.length, workflows, workflowTypeToEnvironment]);
 
   // Handle creating a new workflow via WorkflowCreateModal
   const handleCreateWorkflow = useCallback(async (workflowData: any) => {
-    if (!tenantId) return;
+    if (!tenantId) {
+      return;
+    }
     
+    // Prevent double submission using ref (more reliable than state for race conditions)
+    if (isCreatingRef.current) {
+      return;
+    }
+    
+    // Set both ref and state immediately to prevent race conditions
+    isCreatingRef.current = true;
     setIsCreatingWorkflow(true);
+    
     try {
       // Create workflow via API
       const result = await apiPost<{ success: boolean; error?: string; workflow?: CICDWorkflow }>(
@@ -172,19 +188,96 @@ function PipelineEditModalComponent({
       if (result.success) {
         showSuccessToast({ title: 'Success', message: 'Workflow created successfully' });
         
+        // The API doesn't return the workflow ID, so we need to fetch it
+        // by matching the newly created workflow's properties
+        let workflowId = result.data?.workflow?.id;
+        
+        if (!workflowId) {
+          // Retry mechanism: The workflow might not be immediately available in the list
+          // Try up to 3 times with increasing delays
+          const maxRetries = 3;
+          const retryDelays = [200, 500, 1000]; // ms
+          
+          for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+              // Wait before fetching (except first attempt)
+              if (attempt > 0) {
+                await new Promise(resolve => setTimeout(resolve, retryDelays[attempt - 1]));
+              }
+              
+              // Fetch workflows and find the one we just created
+              const workflowsResult = await apiGet<{ workflows?: CICDWorkflow[] }>(
+                `/api/v1/tenants/${tenantId}/workflows`
+              );
+              
+              if (workflowsResult.success && workflowsResult.data?.workflows) {
+                // Find the workflow by matching displayName, workflowUrl, and providerType
+                const matchingWorkflow = workflowsResult.data.workflows.find((wf: CICDWorkflow) => 
+                  wf.displayName === workflowData.displayName &&
+                  wf.workflowUrl === workflowData.workflowUrl &&
+                  wf.providerType === workflowData.providerType
+                );
+                
+                if (matchingWorkflow) {
+                  workflowId = matchingWorkflow.id;
+                  break; // Found it, exit retry loop
+                }
+              }
+            } catch (fetchError) {
+              // Continue to next retry attempt
+              if (attempt === maxRetries - 1) {
+                // Last attempt failed
+              }
+            }
+          }
+        }
+        
+        // Ensure providerIdentifiers includes workflowFileName for GitHub Actions
+        let providerIdentifiers = workflowData.providerIdentifiers || null;
+        if (workflowData.providerType === BUILD_PROVIDERS.GITHUB_ACTIONS && workflowData.workflowUrl) {
+          // Extract workflow file name from URL if not already present
+          if (!providerIdentifiers?.workflowFileName) {
+            const fileNameMatch = workflowData.workflowUrl.match(/\/([^/]+\.ya?ml)$/);
+            if (fileNameMatch) {
+              providerIdentifiers = {
+                ...(providerIdentifiers || {}),
+                workflowPath: workflowData.workflowUrl,
+                workflowFileName: fileNameMatch[1],
+              };
+            } else {
+              providerIdentifiers = {
+                ...(providerIdentifiers || {}),
+                workflowPath: workflowData.workflowUrl,
+              };
+            }
+          }
+        }
+        
+        // CRITICAL: We must have a workflow ID to prevent duplicate creation
+        // If we couldn't fetch the ID after retries, show an error and don't proceed
+        if (!workflowId) {
+          showErrorToast({ 
+            title: 'Error', 
+            message: 'Workflow was created but we could not retrieve its ID. Please refresh the page and try adding it again, or contact support if the issue persists.' 
+          });
+          
+          // Don't close modals - let user try again or manually add the workflow
+          return;
+        }
+        
         const createdWorkflow: CICDWorkflow = {
-          id: "", // Backend generates ID but doesn't return it - will be populated after refresh
+          id: workflowId,
           tenantId,
           providerType: workflowData.providerType,
           integrationId: workflowData.integrationId,
           displayName: workflowData.displayName,
           workflowUrl: workflowData.workflowUrl,
-          providerIdentifiers: workflowData.providerIdentifiers || null,
+          providerIdentifiers: providerIdentifiers,
           platform: workflowData.platform,
           workflowType: workflowData.workflowType,
           parameters: workflowData.parameters || null,
-          createdAt: "", // Placeholder - set by database, not used by convertCICDWorkflowToWorkflow
-          updatedAt: "", // Placeholder - set by database, not used by convertCICDWorkflowToWorkflow
+          createdAt: result.data?.workflow?.createdAt || "",
+          updatedAt: result.data?.workflow?.updatedAt || "",
         };
         
         // Convert to Workflow and attach to pipeline config
@@ -205,13 +298,15 @@ function PipelineEditModalComponent({
       } else {
         showErrorToast({ 
           title: 'Error', 
-          message: result.data?.error || 'Failed to create workflow' 
+          message: result.error || 'Failed to create workflow' 
         });
       }
     } catch (error) {
       const errorMessage = getApiErrorMessage(error, 'Failed to create workflow');
       showErrorToast({ title: 'Error', message: errorMessage });
     } finally {
+      // Reset both ref and state
+      isCreatingRef.current = false;
       setIsCreatingWorkflow(false);
     }
   }, [tenantId, fixedPlatform, fixedEnvironment, onSave, onClose]);

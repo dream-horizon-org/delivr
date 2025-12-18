@@ -57,21 +57,51 @@ export const loader = authenticateLoaderRequest(async ({ params, request }: Load
         }
       }
     );
+   
+    // Extract workflow from the nested structure
+    const workflow = result.data?.workflow;
     
-    if (result.data) {
-      existingWorkflow = result.data;
-    } else {
-      fetchError = 'Workflow not found';
+    if (workflow && workflow.id) {
+      // Ensure workflow has an ID - use the one from URL params if missing
+      if (!workflow.id && workflowId) {
+        workflow.id = workflowId;
+      }
+      
+      existingWorkflow = workflow;
+     
+      } else {
+        
+        fetchError = result.error || 'Workflow not found';
+      }
+    } catch (error: any) {
+      
+      fetchError = getApiErrorMessage(error, 'Failed to load workflow');
     }
-  } catch (error: any) {
-    fetchError = getApiErrorMessage(error, 'Failed to load workflow');
+  
+  // Fetch workflows for duplicate name validation
+  let workflows: CICDWorkflow[] = [];
+  try {
+    const url = new URL(request.url);
+    const result = await apiGet<{ workflows?: CICDWorkflow[] }>(
+      `${url.protocol}//${url.host}/api/v1/tenants/${org}/workflows`,
+      {
+        headers: {
+          'Cookie': request.headers.get('Cookie') || '',
+        }
+      }
+    );
+    workflows = result.data?.workflows || [];
+  } catch (error) {
+    // Silently fail - workflows list is optional for validation
   }
   
   return json({
     organizationId: org,
+    workflowId, // Include workflowId from URL params as fallback
     existingWorkflow,
     isEditMode: true,
     fetchError,
+    workflows,
   });
 });
 
@@ -88,7 +118,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
 export default function EditWorkflowPage() {
   const theme = useMantineTheme();
-  const { organizationId, existingWorkflow, isEditMode, fetchError } = useLoaderData<typeof loader>();
+  const { organizationId, existingWorkflow, isEditMode, fetchError, workflows } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const navigation = useNavigation();
   const { getConnectedIntegrations } = useConfig();
@@ -211,6 +241,7 @@ export default function EditWorkflowPage() {
         availableIntegrations={availableIntegrations}
         existingWorkflow={existingWorkflow}
         isEditMode={isEditMode}
+        workflows={workflows}
       />
     </Box>
   );

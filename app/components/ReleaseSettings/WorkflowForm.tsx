@@ -67,6 +67,7 @@ export interface WorkflowFormProps {
   existingWorkflow?: CICDWorkflow | null;
   isEditMode?: boolean;
   workflowId?: string; // Fallback workflow ID from URL params
+  workflows?: CICDWorkflow[]; // Optional: for duplicate name validation
 }
 
 export function WorkflowForm({
@@ -77,6 +78,7 @@ export function WorkflowForm({
   existingWorkflow,
   isEditMode = false,
   workflowId,
+  workflows = [],
 }: WorkflowFormProps) {
   const theme = useMantineTheme();
 
@@ -108,12 +110,7 @@ export function WorkflowForm({
   // Initialize form from existing workflow
   useEffect(() => {
     if (existingWorkflow) {
-      console.log('[WorkflowForm] Initializing form from existing workflow:', {
-        displayName: existingWorkflow.displayName,
-        platform: existingWorkflow.platform,
-        workflowType: existingWorkflow.workflowType,
-        providerType: existingWorkflow.providerType,
-      });
+      
       
       setName(existingWorkflow.displayName || '');
       
@@ -137,14 +134,12 @@ export function WorkflowForm({
       
       setEnvironment(validEnvironment);
       
-      console.log('[WorkflowForm] Set form values:', {
-        platform: validPlatform,
-        environment: validEnvironment,
-        mappedFromWorkflowType: existingWorkflow.workflowType,
-        validEnvironmentsForPlatform,
-      });
-      
-      setProvider((existingWorkflow.providerType || defaultProvider) as BuildProvider);
+     const workflowProvider = existingWorkflow.providerType as BuildProvider;
+     if(workflowProvider && (workflowProvider===BUILD_PROVIDERS.JENKINS || workflowProvider === BUILD_PROVIDERS.GITHUB_ACTIONS) ){
+      setProvider(workflowProvider);
+     }else{
+      setProvider(defaultProvider);
+     }
 
       // Reconstruct providerConfig from workflow data
       if (existingWorkflow.providerType === BUILD_PROVIDERS.JENKINS) {
@@ -181,6 +176,9 @@ export function WorkflowForm({
 
   // Reset provider config when provider changes and auto-inject integrationId
   useEffect(() => {
+    if (existingWorkflow) {
+      return;
+    }
     if (provider === BUILD_PROVIDERS.JENKINS) {
       const jenkinsIntegrations = availableIntegrations.jenkins || [];
       const autoIntegrationId = jenkinsIntegrations.length === 1 
@@ -219,6 +217,18 @@ export function WorkflowForm({
 
     if (!name || !name.trim()) {
       newErrors.name = 'Workflow name is required';
+    } else if (workflows && workflows.length > 0) {
+      // Check for duplicate display names (exclude current workflow if editing)
+      const trimmedName = name.trim();
+      const duplicateWorkflow = workflows.find(
+        (wf) => 
+          wf.displayName.toLowerCase() === trimmedName.toLowerCase() &&
+          (!existingWorkflow || wf.id !== existingWorkflow.id)
+      );
+      
+      if (duplicateWorkflow) {
+        newErrors.name = 'A workflow with this name already exists. Please use a different name.';
+      }
     }
 
     if (provider === BUILD_PROVIDERS.JENKINS) {
@@ -246,7 +256,7 @@ export function WorkflowForm({
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [name, provider, providerConfig]);
+  }, [name, provider, providerConfig, workflows, existingWorkflow]);
 
   const handleSave = useCallback(async () => {
     if (!validate()) {

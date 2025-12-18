@@ -194,6 +194,17 @@ function WorkflowCreateModalComponent({
 
     if (!name || !name.trim()) {
       newErrors.name = 'Workflow name is required';
+    }else{
+      // Check for duplicate display names (exclude current workflow if editing)
+      const trimmedName = name.trim();
+      const duplicateWorkflow = workflows.find(
+        (wf) => 
+          wf.displayName.toLowerCase() === trimmedName.toLowerCase() &&
+        (!existingWorkflow || wf.id !== existingWorkflow.id)
+      );
+      if(duplicateWorkflow){
+        newErrors.name = 'A workflow with this name already exists. Please use a different name.';
+      }
     }
 
     if (provider === BUILD_PROVIDERS.JENKINS) {
@@ -221,25 +232,28 @@ function WorkflowCreateModalComponent({
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [name, provider, providerConfig]);
+  }, [name, provider, providerConfig, existingWorkflow, workflows]);
 
   const handleSave = useCallback(async () => {
     if (!validate()) {
       return;
     }
 
-    if (isSaving) return;
+    // Prevent double submission
+    if (isSaving) {
+      return;
+    }
 
     setIsSaving(true);
     try {
       // Build workflow data for backend API
-    const workflowData: any = {
-      providerType: provider,
-      integrationId: providerConfig.integrationId,
-      displayName: name.trim(),
-      platform: platform,
-      workflowType: environmentToWorkflowType[environment] || 'REGRESSION_BUILD',
-    };
+      const workflowData: any = {
+        providerType: provider,
+        integrationId: providerConfig.integrationId,
+        displayName: name.trim(),
+        platform: platform,
+        workflowType: environmentToWorkflowType[environment] || 'REGRESSION_BUILD',
+      };
 
     if (provider === BUILD_PROVIDERS.JENKINS) {
       workflowData.workflowUrl = providerConfig.jobUrl;
@@ -280,7 +294,6 @@ function WorkflowCreateModalComponent({
       await onSave(workflowData);
       // Modal will be closed by parent component after successful save
     } catch (error) {
-      console.error('Error saving workflow:', error);
       // Error will be handled by parent component via toast
       setIsSaving(false);
     }

@@ -9,6 +9,8 @@ import { useMemo } from 'react';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { useConfig } from '~/contexts/ConfigContext';
 import { WorkflowForm } from '~/components/ReleaseSettings/WorkflowForm';
+import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
+import { apiGet } from '~/utils/api-client';
 import {
   Box,
   Skeleton,
@@ -22,11 +24,29 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
     throw new Response('Organization not found', { status: 404 });
   }
   
+  // Fetch workflows for duplicate name validation
+  let workflows: CICDWorkflow[] = [];
+  try {
+    const url = new URL(request.url);
+    const result = await apiGet<{ workflows?: CICDWorkflow[] }>(
+      `${url.protocol}//${url.host}/api/v1/tenants/${org}/workflows`,
+      {
+        headers: {
+          'Cookie': request.headers.get('Cookie') || '',
+        }
+      }
+    );
+    workflows = result.data?.workflows || [];
+  } catch (error) {
+    // Silently fail - workflows list is optional for validation
+  }
+  
   return json({
     organizationId: org,
     existingWorkflow: null,
     isEditMode: false,
     fetchError: null,
+    workflows,
   });
 });
 
@@ -42,7 +62,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function CreateWorkflowPage() {
-  const { organizationId, existingWorkflow, isEditMode, fetchError } = useLoaderData<typeof loader>();
+  const { organizationId, existingWorkflow, isEditMode, fetchError, workflows } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const navigation = useNavigation();
   const { getConnectedIntegrations } = useConfig();
@@ -100,6 +120,7 @@ export default function CreateWorkflowPage() {
         availableIntegrations={availableIntegrations}
         existingWorkflow={existingWorkflow}
         isEditMode={isEditMode}
+        workflows={workflows}
       />
     </Box>
   );
