@@ -95,7 +95,7 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
       // Backend will extract user ID from authenticated session
       // The BFF route uses authenticateActionRequest which provides user context
       await approveMutation.mutateAsync({
-        approvedBy: '', // Backend extracts from session, this field may be optional
+        approvedBy: userId, // Backend extracts from session, this field may be optional
         comments: comments || undefined,
       });
       

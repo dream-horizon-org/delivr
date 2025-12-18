@@ -18,7 +18,7 @@ import { IntegrationsStatusSidebar } from '~/components/ReleaseProcess/Integrati
 import { ReleaseNotFound } from '~/components/Releases/ReleaseNotFound';
 import { useRelease } from '~/hooks/useRelease';
 import { useKickoffStage, useRegressionStage, usePreReleaseStage } from '~/hooks/useReleaseProcess';
-import { Phase, TaskStage } from '~/types/release-process-enums';
+import { Phase, TaskStage, StageStatus } from '~/types/release-process-enums';
 import { BUTTON_LABELS } from '~/constants/release-process-ui';
 import {
   determineReleasePhase,
@@ -72,12 +72,19 @@ export default function ReleaseDetailsPage() {
   const regressionData = useRegressionStage(org, releaseId, shouldPollRegression);
   const preReleaseData = usePreReleaseStage(org, releaseId, shouldPollPreRelease);
 
+  // Check if kickoff stage is completed
+  const isKickoffCompleted = kickoffData.data?.stageStatus === StageStatus.COMPLETED;
+
   // Always land on active stage when release loads or current stage changes
+  // If kickoff is completed, automatically navigate to REGRESSION stage
   useEffect(() => {
-    if (currentStage) {
+    if (isKickoffCompleted && currentStage === TaskStage.KICKOFF) {
+      // Kickoff is completed, navigate to REGRESSION
+      setSelectedStage(TaskStage.REGRESSION);
+    } else if (currentStage) {
       setSelectedStage(currentStage);
     }
-  }, [currentStage]);
+  }, [currentStage, isKickoffCompleted]);
 
   // Debug logging for development only
   useEffect(() => {
@@ -228,6 +235,7 @@ export default function ReleaseDetailsPage() {
             currentStage={currentStage}
             selectedStage={selectedStage}
             onStageSelect={handleStageSelect}
+            kickoffStageCompleted={isKickoffCompleted}
           />
 
             {/* Integration Status Sidebar - Real-time status from individual APIs */}

@@ -73,7 +73,8 @@ export function ConfigurationWizard({
       ttl: 30 * 24 * 60 * 60 * 1000,
       enableMetadata: true,
     },
-    isEditMode && existingConfig ? existingConfig : createDefaultConfig(tenantId)
+    createDefaultConfig(tenantId), // initialData - always default
+    isEditMode && existingConfig ? existingConfig : undefined // existingData - only in edit mode (skips draft loading)
   );
   
   const [currentStep, setCurrentStep] = useState(0);

@@ -6,7 +6,7 @@
 
 import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { apiGet, apiPost, apiPut, apiDelete, getApiErrorMessage } from '~/utils/api-client';
+import { apiGet, apiPost, apiPut, apiDelete, getApiErrorMessage, apiUpload } from '~/utils/api-client';
 import { TaskStage, Platform, BuildUploadStage } from '~/types/release-process-enums';
 import { filterValidTaskTypes } from '~/utils/task-filtering';
 import type {
@@ -274,26 +274,19 @@ export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
       const formData = new FormData();
       formData.append('file', file);
 
-      // Use BFF route with stage and platform in path
+      // Use centralized upload function with 5-minute timeout
       // BFF route will map BuildUploadStage to TaskStage and forward to backend
-      // API contract specifies PUT, but we use POST for compatibility
-      const response = await fetch(
+      const result = await apiUpload<BuildUploadResponse>(
         `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/${stage}/builds/${platform}`,
-        {
-          method: 'PUT', // API contract specifies PUT
-          body: formData,
-        }
+        formData
       );
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Upload failed' }));
-        throw new Error(error.error || error.message || 'Upload failed');
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Upload failed');
       }
 
-      const data = await response.json();
       // Backend returns { success: true, data: {...} }
-      // Return the data field if present, otherwise return the whole response
-      return data.data || data;
+      return result.data;
     },
     {
       onSuccess: (_, variables) => {
