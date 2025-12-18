@@ -102,8 +102,14 @@ import {
   createDistributionModel,
   createIosSubmissionBuildModel,
   createAndroidSubmissionBuildModel,
-  createSubmissionActionHistoryModel
+  createSubmissionActionHistoryModel,
+  DistributionRepository,
+  AndroidSubmissionBuildRepository,
+  IosSubmissionBuildRepository,
+  SubmissionActionHistoryRepository
 } from "../models/distribution";
+import { SubmissionService } from "../services/distribution";
+import { DistributionService } from "../services/distribution/distribution.service";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
@@ -807,6 +813,14 @@ export class S3Storage implements storage.Storage {
     public commConfigService!: CommConfigService;// Communication config service
     public buildRepository!: BuildRepository;
     public scmService!: SCMService; // SCM service for Git operations
+    
+    // Distribution - Repositories and Services
+    public distributionRepository!: DistributionRepository;  // Distribution repository
+    public androidSubmissionRepository!: AndroidSubmissionBuildRepository;  // Android submission repository
+    public iosSubmissionRepository!: IosSubmissionBuildRepository;  // iOS submission repository
+    public submissionActionHistoryRepository!: SubmissionActionHistoryRepository;  // Submission action history repository
+    public submissionService!: SubmissionService;  // Submission service
+    public distributionService!: DistributionService;  // Distribution service
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -1208,6 +1222,40 @@ export class S3Storage implements storage.Storage {
           // Initialize Build Artifact Service (needs S3Storage)
           this.buildArtifactService = new BuildArtifactService(this);
           console.log("Build Artifact Service initialized");
+          
+          // Initialize Distribution Repositories
+          this.distributionRepository = new DistributionRepository(models.Distribution);
+          console.log("Distribution Repository initialized");
+          
+          this.androidSubmissionRepository = new AndroidSubmissionBuildRepository(models.AndroidSubmissionBuild);
+          console.log("Android Submission Repository initialized");
+          
+          this.iosSubmissionRepository = new IosSubmissionBuildRepository(models.IosSubmissionBuild);
+          console.log("iOS Submission Repository initialized");
+          
+          this.submissionActionHistoryRepository = new SubmissionActionHistoryRepository(models.SubmissionActionHistory);
+          console.log("Submission Action History Repository initialized");
+          
+          // Initialize Distribution Services
+          this.submissionService = new SubmissionService(
+            this.androidSubmissionRepository,
+            this.iosSubmissionRepository,
+            this.submissionActionHistoryRepository,
+            this.distributionRepository,
+            this.buildArtifactService  // Already initialized above
+          );
+          console.log("Submission Service initialized");
+          
+          this.distributionService = new DistributionService(
+            this.distributionRepository,
+            this.iosSubmissionRepository,
+            this.androidSubmissionRepository,
+            this.submissionActionHistoryRepository,
+            this.releaseRepository,
+            this.buildRepository,
+            this.releasePlatformTargetMappingRepository
+          );
+          console.log("Distribution Service initialized");
           
           // return this.sequelize.sync();
         })

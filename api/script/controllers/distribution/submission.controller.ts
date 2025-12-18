@@ -723,29 +723,14 @@ const getSubmissionArtifactDownloadHandler = (service: SubmissionService) =>
         return;
       }
 
-      // Get artifact path from service (validates tenant ownership)
-      const artifactPath = await service.getSubmissionArtifactPath(
+      // Call service to get presigned URL (validates tenant ownership, generates URL with expiry)
+      const result = await service.getSubmissionArtifactDownloadUrl(
         submissionId,
         platformUpper as 'ANDROID' | 'IOS',
         tenantId
       );
 
-      // Instantiate BuildArtifactService to generate presigned URL
-      // Note: Requires storage object - need to pass it from route
-      // For now, using dynamic import pattern
-      const { BuildArtifactService } = await import('~services/release/build');
-      const { getStorage } = await import('~storage/storage-instance');
-      const storage = getStorage();
-      const buildArtifactService = new BuildArtifactService(storage);
-      
-      const url = await buildArtifactService.generatePresignedUrl(artifactPath);
-      
-      // Calculate expiry (1 hour)
-      const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
-
-      res.status(HTTP_STATUS.OK).json(
-        successResponse({ url, expiresAt })
-      );
+      res.status(HTTP_STATUS.OK).json(successResponse(result));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       

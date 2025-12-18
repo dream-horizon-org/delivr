@@ -24,6 +24,7 @@ import { StoreType, IntegrationStatus } from '../../storage/integrations/store/s
 import { validateIntegrationStatus } from '../../controllers/integrations/store-controllers';
 import { BUILD_PLATFORM, STORE_TYPE } from '~types/release-management/builds/build.constants';
 import { PLAY_STORE_UPLOAD_ERROR_MESSAGES } from '../../constants/store';
+import type { BuildArtifactService } from '~services/release/build';
 
 /**
  * Submission response format for API
@@ -126,6 +127,7 @@ export class SubmissionService {
     private readonly iosSubmissionRepository: IosSubmissionBuildRepository,
     private readonly actionHistoryRepository: SubmissionActionHistoryRepository,
     private readonly distributionRepository: DistributionRepository,
+    private readonly buildArtifactService: BuildArtifactService,
     private readonly appleAppStoreConnectService?: AppleAppStoreConnectService
   ) {}
 
@@ -1813,6 +1815,37 @@ export class SubmissionService {
 
     // Step 6: Return artifact path
     return submission.artifactPath;
+  }
+
+  /**
+   * Get presigned download URL for submission artifact
+   * Complete flow: validates tenant ownership, generates presigned URL with expiry
+   * 
+   * @param submissionId - The submission ID
+   * @param platform - Platform (ANDROID or IOS)
+   * @param tenantId - Tenant ID for ownership validation
+   * @returns Object with presigned URL and expiry timestamp
+   * @throws Error if submission not found, doesn't belong to tenant, or artifact unavailable
+   */
+  async getSubmissionArtifactDownloadUrl(
+    submissionId: string,
+    platform: 'ANDROID' | 'IOS',
+    tenantId: string
+  ): Promise<{ url: string; expiresAt: string }> {
+    // Step 1: Get artifact path (validates tenant ownership and platform)
+    const artifactPath = await this.getSubmissionArtifactPath(
+      submissionId,
+      platform,
+      tenantId
+    );
+
+    // Step 2: Generate presigned URL
+    const url = await this.buildArtifactService.generatePresignedUrl(artifactPath);
+
+    // Step 3: Calculate expiry (1 hour)
+    const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
+
+    return { url, expiresAt };
   }
 
   /**
