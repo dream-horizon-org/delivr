@@ -1751,6 +1751,71 @@ export class SubmissionService {
   }
 
   /**
+   * Get submission artifact path for download.
+   * Validates submission exists, belongs to tenant, and has artifact available.
+   * 
+   * Note: Only Android submissions have downloadable artifacts (AAB files).
+   * iOS submissions reference TestFlight builds which cannot be downloaded.
+   * 
+   * Steps:
+   * 1. Validate platform is ANDROID (iOS not supported)
+   * 2. Query Android submission
+   * 3. Validate submission exists
+   * 4. Get distribution and validate tenant ownership
+   * 5. Validate artifact path exists
+   * 6. Return artifact path for presigned URL generation
+   * 
+   * @param submissionId - The submission ID
+   * @param platform - Platform (must be ANDROID)
+   * @param tenantId - Tenant ID for ownership validation
+   * @returns The S3 artifact path
+   * @throws Error if submission not found, doesn't belong to tenant, or artifact unavailable
+   */
+  async getSubmissionArtifactPath(
+    submissionId: string,
+    platform: 'ANDROID' | 'IOS',
+    tenantId: string
+  ): Promise<string> {
+    // Step 1: Validate platform is ANDROID
+    // iOS submissions don't have downloadable artifacts (only TestFlight reference)
+    if (platform === 'IOS') {
+      throw new Error('Artifact download not supported for iOS submissions. iOS builds are uploaded directly to TestFlight.');
+    }
+
+    // Step 2: Query Android submission
+    const submission = await this.androidSubmissionRepository.findById(submissionId);
+
+    // Step 3: Validate submission exists
+    const submissionNotFound = !submission;
+    if (submissionNotFound) {
+      throw new Error(SUBMISSION_ERROR_MESSAGES.SUBMISSION_NOT_FOUND);
+    }
+
+    // Step 4: Get distribution and validate tenant ownership
+    const distribution = await this.distributionRepository.findById(submission.distributionId);
+    
+    const distributionNotFound = !distribution;
+    if (distributionNotFound) {
+      throw new Error(`Distribution not found for submission ${submissionId}`);
+    }
+
+    // Security: Don't leak submission existence if tenant mismatch
+    const tenantMismatch = distribution.tenantId !== tenantId;
+    if (tenantMismatch) {
+      throw new Error(SUBMISSION_ERROR_MESSAGES.SUBMISSION_NOT_FOUND);
+    }
+
+    // Step 5: Validate artifact path exists
+    const artifactPathMissing = !submission.artifactPath;
+    if (artifactPathMissing) {
+      throw new Error('Artifact not available for this submission');
+    }
+
+    // Step 6: Return artifact path
+    return submission.artifactPath;
+  }
+
+  /**
    * Cancel iOS submission (iOS only)
    * Deletes the app store review submission in Apple App Store Connect
    * Updates submission status to CANCELLED in database

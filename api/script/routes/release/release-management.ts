@@ -20,6 +20,7 @@ import { ManualUploadService } from "../../services/release/manual-upload.servic
 import { UploadValidationService } from "../../services/release/upload-validation.service";
 import { BuildArtifactService } from "../../services/release/build/build-artifact.service";
 import { createBuildListArtifactsHandler } from "~controllers/release-management/builds/list-artifacts.controller";
+import { createBuildDownloadArtifactHandler } from "~controllers/release-management/builds/download-artifact.controller";
 import { createCiTestflightVerifyHandler } from "~controllers/release-management/builds/testflight-ci-verify.controller";
 import { createCiArtifactUploadHandler } from "~controllers/release-management/builds/ci-artifact-upload.controller";
 import { HTTP_STATUS } from "../../constants/http";
@@ -484,6 +485,15 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     "/tenants/:tenantId/releases/:releaseId/builds/artifacts",
     tenantPermissions.requireOwner({ storage }),
     createBuildListArtifactsHandler(storage)
+  );
+
+  // Download build artifact
+  // GET /tenants/:tenantId/builds/:buildId/artifact
+  // Returns presigned download URL with expiry timestamp
+  router.get(
+    "/tenants/:tenantId/builds/:buildId/artifact",
+    tenantPermissions.requireOwner({ storage }),
+    createBuildDownloadArtifactHandler(storage)
   );
 
   return router;

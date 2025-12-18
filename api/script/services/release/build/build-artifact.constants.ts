@@ -9,6 +9,7 @@
 export const BUILD_ARTIFACT_ERROR_CODE = {
   BUILD_NOT_FOUND: 'BUILD_NOT_FOUND',
   BUILD_NOT_FOUND_BY_ID: 'BUILD_NOT_FOUND_BY_ID',
+  ARTIFACT_NOT_AVAILABLE: 'ARTIFACT_NOT_AVAILABLE',
   S3_UPLOAD_FAILED: 'S3_UPLOAD_FAILED',
   PRESIGNED_URL_FAILED: 'PRESIGNED_URL_FAILED',
   DB_CREATE_FAILED: 'DB_CREATE_FAILED',
@@ -34,6 +35,7 @@ export const BUILD_ARTIFACT_ERROR_CODE = {
 export const BUILD_ARTIFACT_ERROR_MESSAGES = {
   BUILD_NOT_FOUND: 'Build not found for provided ciRunId',
   BUILD_NOT_FOUND_BY_ID: 'Build not found for provided buildId',
+  ARTIFACT_NOT_AVAILABLE: 'Artifact not available for this build',
   S3_UPLOAD_FAILED: 'Build upload failed: could not upload artifact to storage',
   PRESIGNED_URL_FAILED: 'Failed to generate presigned download URL',
   DB_CREATE_FAILED: 'Build upload failed: could not save build record',

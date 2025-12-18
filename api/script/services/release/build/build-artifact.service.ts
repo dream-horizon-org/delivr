@@ -501,6 +501,71 @@ export class BuildArtifactService {
   };
 
   /**
+   * Get build artifact download URL with expiry timestamp.
+   * Validates build exists, belongs to tenant, and has artifact available.
+   *
+   * Steps:
+   * 1. Find build by buildId
+   * 2. Validate build exists and belongs to tenant
+   * 3. Validate artifact is available
+   * 4. Generate presigned download URL
+   * 5. Calculate expiry timestamp
+   *
+   * @param buildId - The build ID
+   * @param tenantId - The tenant ID (for ownership validation)
+   * @returns Object with presigned URL and expiry timestamp
+   * @throws BuildArtifactError if build not found, doesn't belong to tenant, or artifact unavailable
+   */
+  getBuildArtifactDownloadUrl = async (
+    buildId: string,
+    tenantId: string
+  ): Promise<{ url: string; expiresAt: string }> => {
+    // Step 1: Find build by buildId
+    const build = await executeOperation(
+      () => this.buildRepository.findById(buildId),
+      BUILD_ARTIFACT_ERROR_CODE.DB_QUERY_FAILED,
+      BUILD_ARTIFACT_ERROR_MESSAGES.DB_QUERY_FAILED
+    );
+
+    // Step 2: Validate build exists
+    const buildNotFound = !build;
+    if (buildNotFound) {
+      throw new BuildArtifactError(
+        BUILD_ARTIFACT_ERROR_CODE.BUILD_NOT_FOUND,
+        BUILD_ARTIFACT_ERROR_MESSAGES.BUILD_NOT_FOUND
+      );
+    }
+
+    // Step 3: Validate tenant ownership (security: don't leak build existence)
+    const tenantMismatch = build.tenantId !== tenantId;
+    if (tenantMismatch) {
+      throw new BuildArtifactError(
+        BUILD_ARTIFACT_ERROR_CODE.BUILD_NOT_FOUND,
+        BUILD_ARTIFACT_ERROR_MESSAGES.BUILD_NOT_FOUND
+      );
+    }
+
+    // Step 4: Validate artifact is available
+    const artifactPathMissing = !build.artifactPath;
+    if (artifactPathMissing) {
+      throw new BuildArtifactError(
+        BUILD_ARTIFACT_ERROR_CODE.ARTIFACT_NOT_AVAILABLE,
+        BUILD_ARTIFACT_ERROR_MESSAGES.ARTIFACT_NOT_AVAILABLE
+      );
+    }
+
+    // Step 5: Generate presigned URL
+    const url = await this.generatePresignedUrl(build.artifactPath);
+
+    // Step 6: Calculate expiry timestamp
+    const expiresAt = new Date(
+      Date.now() + BUILD_ARTIFACT_DEFAULTS.PRESIGNED_URL_EXPIRES_SECONDS * 1000
+    ).toISOString();
+
+    return { url, expiresAt };
+  };
+
+  /**
    * Internal helper to upload artifact to S3 and generate presigned URL.
    *
    * Steps:

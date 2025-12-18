@@ -251,6 +251,25 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
     submissionController.getSubmissionDetails
   );
 
+  /**
+   * GET /tenants/:tenantId/submissions/:submissionId/artifact?platform={android|ios}
+   * 
+   * Get presigned download URL for submission artifact.
+   * 
+   * Query Parameters:
+   * - platform: string (required) - "android" or "ios" (case-insensitive)
+   * 
+   * Response:
+   * - url: string - Presigned S3 download URL (expires in 1 hour)
+   * - expiresAt: string - ISO 8601 timestamp when URL expires
+   * 
+   * Use Case: Download submission artifact for local testing or review
+   */
+  router.get(
+    "/tenants/:tenantId/submissions/:submissionId/artifact",
+    submissionController.getSubmissionArtifactDownload
+  );
+
   // ============================================================================
   // SUBMISSION - UPDATE ROLLOUT PERCENTAGE
   // ============================================================================
