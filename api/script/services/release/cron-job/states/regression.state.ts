@@ -374,6 +374,14 @@ export class RegressionState implements ICronJobState {
           status: RegressionCycleStatus.DONE
         });
       } else {
+        // Update cycle to IN_PROGRESS if it's still NOT_STARTED
+        if (latestCycle.status === RegressionCycleStatus.NOT_STARTED) {
+          await regressionCycleRepo.update(latestCycle.id, {
+            status: RegressionCycleStatus.IN_PROGRESS
+          });
+          console.log(`[${instanceId}] [RegressionState] Cycle ${latestCycle.id} status updated to IN_PROGRESS`);
+        }
+        
         // Execute pending tasks
         const orderedTasks = getOrderedTasks(cycleTasks, TaskStage.REGRESSION);
         

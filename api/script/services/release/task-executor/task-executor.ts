@@ -557,9 +557,9 @@ export class TaskExecutor {
       throw new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
     }
 
-    // Generate release branch name (e.g., release/v1.0.0)
-    const version = getReleaseVersion(release, platformTargetMappings);
-    const releaseBranch = `release/v${version}`;
+    // Use the branch name stored in the database (set during release creation)
+    // Fallback to generating it if not set (for backward compatibility)
+    const releaseBranch = release.branch ?? `release/v${getReleaseVersion(release, platformTargetMappings)}`;
     const baseBranch = release.baseBranch || 'master';
 
     // Call SCM integration
@@ -626,6 +626,7 @@ export class TaskExecutor {
     }
 
     const ticketIds: string[] = [];
+    const failedPlatforms: Array<{ platform: string; error: string }> = [];
 
     // Create ticket for EACH platform and store result in mapping
     const version = getReleaseVersion(release, platformMappings);
@@ -656,7 +657,21 @@ export class TaskExecutor {
             { where: { id: mapping.id } }
           );
         }
+      } else {
+        // Track failed platform (same pattern as BUILD tasks)
+        const error = ticketResult?.error ?? 'Failed to create ticket - no ticket ID returned';
+        failedPlatforms.push({ platform: platformName, error });
       }
+    }
+
+    // Fail if ANY platform failed (same as getTaskBuildStatus pattern)
+    if (failedPlatforms.length > 0) {
+      const failureDetails = failedPlatforms
+        .map(f => `${f.platform}: ${f.error}`)
+        .join('; ');
+      throw new Error(
+        `Failed to create tickets for ${failedPlatforms.length}/${platformMappings.length} platforms. ${failureDetails}`
+      );
     }
     
     // Category A: Return comma-separated ticket IDs
@@ -702,6 +717,7 @@ export class TaskExecutor {
     }
 
     const runIds: string[] = [];
+    const failedPlatforms: Array<{ platform: string; error: string }> = [];
     const version = getReleaseVersion(release, platformMappings);
 
     // Create test run for EACH platform and store result in mapping
@@ -729,7 +745,23 @@ export class TaskExecutor {
             { where: { id: mapping.id } }
           );
         }
+      } else {
+        // Track failed platform (same pattern as BUILD tasks)
+        const error = platformResult && 'error' in platformResult 
+          ? platformResult.error 
+          : 'Failed to create test run - no run ID returned';
+        failedPlatforms.push({ platform: platformName, error });
       }
+    }
+
+    // Fail if ANY platform failed (same as getTaskBuildStatus pattern)
+    if (failedPlatforms.length > 0) {
+      const failureDetails = failedPlatforms
+        .map(f => `${f.platform}: ${f.error}`)
+        .join('; ');
+      throw new Error(
+        `Failed to create test runs for ${failedPlatforms.length}/${platformMappings.length} platforms. ${failureDetails}`
+      );
     }
     
     return runIds.length > 0 ? runIds.join(',') : 'no-runs-created';
