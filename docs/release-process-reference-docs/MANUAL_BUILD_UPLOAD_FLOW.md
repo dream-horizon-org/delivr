@@ -913,7 +913,7 @@ Body: { stage, platform, file }
 
 | Transition | Type |
 |------------|------|
-| Stage 1 → 2 | **AUTOMATIC** (no approval gate) |
+| Stage 1 → 2 | **AFTER_APPROVAL** (no approval gate) |
 | Stage 2 → 3 | **APPROVAL GATE** required |
 | Stage 3 → 4 | **APPROVAL GATE** required |
 

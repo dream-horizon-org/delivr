@@ -1,414 +1,529 @@
 /**
- * Submission Details Page
- * Shows detailed information about a specific store submission
- * 
+ * Submission Detail Page
+ * Full view of a single submission with rollout controls and history
  * Route: /dashboard/:org/releases/:releaseId/submissions/:submissionId
- * 
- * Features:
- * - Submission status and metadata
- * - Rollout controls (pause/resume/halt/update)
- * - Full event history
- * - Error details (if rejected)
- * - Retry submission
  */
 
-import { Badge, Button, Card, Container, Group, Stack, Text, Title } from '@mantine/core';
-import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
-import { useFetcher, useLoaderData, useNavigate, useRevalidator } from '@remix-run/react';
-import { IconArrowLeft, IconRefresh } from '@tabler/icons-react';
+import {
+    Alert,
+    Badge,
+    Button,
+    Card,
+    Container,
+    Divider,
+    Group,
+    Loader,
+    Modal,
+    NumberInput,
+    Paper,
+    Progress,
+    Stack,
+    Text,
+    Textarea,
+    ThemeIcon,
+    Title
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import { json, type LoaderFunctionArgs } from '@remix-run/node';
+import { Link, useFetcher, useLoaderData, useNavigation } from '@remix-run/react';
+import {
+    IconAlertCircle,
+    IconArrowLeft,
+    IconBrandAndroid,
+    IconBrandApple,
+    IconPlayerPause,
+    IconRotateClockwise,
+    IconX
+} from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
+import { RolloutService } from '~/.server/services/Rollout';
+import { CancelSubmissionDialog } from '~/components/Distribution/CancelSubmissionDialog';
+import { ResubmissionDialog } from '~/components/Distribution/ResubmissionDialog';
+import { ROLLOUT_COMPLETE_PERCENT, SUBMISSION_STATUS_LABELS } from '~/constants/distribution/distribution.constants';
 import {
-  ERROR_MESSAGES,
-  LOG_CONTEXT,
-} from '~/constants/distribution-api.constants';
-import {
-  BUTTON_LABELS,
-  PLATFORM_LABELS,
-  ROLLOUT_COMPLETE_PERCENT,
-  SUBMISSION_STATUS_COLORS,
-  SUBMISSION_STATUS_LABELS,
-} from '~/constants/distribution.constants';
-import type {
-  Submission,
-  SubmissionHistoryResponse,
-} from '~/types/distribution.types';
-import { HaltSeverity, Platform, SubmissionAction, SubmissionStatus } from '~/types/distribution.types';
-import {
-  createValidationError,
-  handleAxiosError,
-  isValidPercentage,
-  logApiError,
-  validateRequired,
-} from '~/utils/api-route-helpers';
-import { authenticateActionRequest, authenticateLoaderRequest } from '~/utils/authenticate';
+    Platform,
+    SubmissionStatus,
+    type Submission,
+} from '~/types/distribution/distribution.types';
+import { authenticateActionRequest, authenticateLoaderRequest, type AuthenticatedActionFunction } from '~/utils/authenticate';
 
-// Components
-import {
-  HaltRolloutDialog,
-  RolloutControls,
-  SubmissionCard,
-  SubmissionHistoryPanel,
-} from '~/components/distribution';
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-type SubmissionLoaderData = {
-  submission: Submission;
-  history: SubmissionHistoryResponse['data'];
-  releaseId: string;
+interface LoaderData {
   org: string;
-};
-
-// ============================================================================
-// LOADER
-// ============================================================================
+  releaseId: string;
+  submission: Submission;
+  error?: string;
+}
 
 export const loader = authenticateLoaderRequest(
-  async ({ params }: LoaderFunctionArgs & { user: User }) => {
-    const { submissionId, releaseId, org } = params;
+  async ({ params, request, user }: LoaderFunctionArgs & { user: User }) => {
+    const { org, releaseId, submissionId } = params;
 
-    if (!validateRequired(submissionId, ERROR_MESSAGES.SUBMISSION_ID_REQUIRED)) {
-      return createValidationError(ERROR_MESSAGES.SUBMISSION_ID_REQUIRED);
+    if (!org || !releaseId || !submissionId) {
+      throw new Response('Missing required parameters', { status: 404 });
     }
 
-    if (!validateRequired(releaseId, ERROR_MESSAGES.RELEASE_ID_REQUIRED)) {
-      return createValidationError(ERROR_MESSAGES.RELEASE_ID_REQUIRED);
+    // Extract platform from query string
+    const url = new URL(request.url);
+    const platform = url.searchParams.get('platform');
+
+    if (!platform || (platform !== Platform.ANDROID && platform !== Platform.IOS)) {
+      return json<LoaderData>({
+        org,
+        releaseId,
+        submission: {} as Submission,
+        error: 'Platform query parameter is required and must be either ANDROID or IOS',
+      });
     }
 
     try {
-      // Fetch submission details and history
-      const [submissionResponse, historyResponse] = await Promise.all([
-        DistributionService.getSubmission(submissionId),
-        DistributionService.getSubmissionHistory(submissionId, 50, 0),
-      ]);
+      // Fetch submission details
+      const submissionResponse = await DistributionService.getSubmission(submissionId, platform as Platform);
+      const submission = submissionResponse.data;
 
-      const loaderData: SubmissionLoaderData = {
-        submission: submissionResponse.data,
-        history: historyResponse.data,
-        releaseId: releaseId!,
-        org: org!,
-      };
-
-      return json(loaderData);
+      return json<LoaderData>({
+        org,
+        releaseId,
+        submission,
+      });
     } catch (error) {
-      logApiError('[Submission Details Loader]', error);
-      return handleAxiosError(error, ERROR_MESSAGES.FAILED_TO_FETCH_SUBMISSION);
+      console.error('[Submission Detail] Failed to fetch:', error);
+      return json<LoaderData>({
+        org,
+        releaseId,
+        submission: {} as Submission,
+        error: 'Failed to fetch submission details',
+      });
     }
   }
 );
 
-// ============================================================================
-// ACTION
-// ============================================================================
+// Actions
+const updateRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
+  const { submissionId } = params;
+  if (!submissionId) {
+    return json({ error: 'Submission ID required' }, { status: 400 });
+  }
+
+  const formData = await request.formData();
+  const rolloutPercentage = parseInt(formData.get('rolloutPercentage') as string);
+  const platform = formData.get('platform') as Platform;
+
+  if (!platform || (platform !== Platform.ANDROID && platform !== Platform.IOS)) {
+    return json({ error: 'Platform is required' }, { status: 400 });
+  }
+
+  try {
+    await RolloutService.updateRollout(submissionId, { rolloutPercentage }, platform);
+    return json({ success: true });
+  } catch (error) {
+    return json({ error: 'Failed to update rollout' }, { status: 500 });
+  }
+};
+
+const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
+  const { submissionId } = params;
+  if (!submissionId) {
+    return json({ error: 'Submission ID required' }, { status: 400 });
+  }
+
+  const formData = await request.formData();
+  const reason = formData.get('reason') as string;
+  const platform = formData.get('platform') as Platform;
+
+  if (!platform) {
+    return json({ error: 'Platform is required' }, { status: 400 });
+  }
+
+  try {
+    await RolloutService.pauseRollout(submissionId, reason ? { reason } : undefined, platform);
+    return json({ success: true });
+  } catch (error) {
+    return json({ error: 'Failed to pause rollout' }, { status: 500 });
+  }
+};
+
+const resumeRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
+  const { submissionId } = params;
+  if (!submissionId) {
+    return json({ error: 'Submission ID required' }, { status: 400 });
+  }
+
+  const formData = await request.formData();
+  const platform = formData.get('platform') as Platform;
+
+  if (!platform) {
+    return json({ error: 'Platform is required' }, { status: 400 });
+  }
+
+  try {
+    await RolloutService.resumeRollout(submissionId, platform);
+    return json({ success: true });
+  } catch (error) {
+    return json({ error: 'Failed to resume rollout' }, { status: 500 });
+  }
+};
+
+const haltRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
+  const { submissionId } = params;
+  if (!submissionId) {
+    return json({ error: 'Submission ID required' }, { status: 400 });
+  }
+
+  const formData = await request.formData();
+  const reason = formData.get('reason') as string;
+  const platform = formData.get('platform') as Platform;
+
+  if (!platform || (platform !== Platform.ANDROID && platform !== Platform.IOS)) {
+    return json({ error: 'Platform is required' }, { status: 400 });
+  }
+
+  try {
+    await RolloutService.haltRollout(submissionId, { reason }, platform);
+    return json({ success: true });
+  } catch (error) {
+    return json({ error: 'Failed to halt rollout' }, { status: 500 });
+  }
+};
 
 export const action = authenticateActionRequest({
-  POST: async ({ request, params }: ActionFunctionArgs & { user: User }) => {
-    const { submissionId } = params;
-
-    if (!validateRequired(submissionId, ERROR_MESSAGES.SUBMISSION_ID_REQUIRED)) {
-      return createValidationError(ERROR_MESSAGES.SUBMISSION_ID_REQUIRED);
-    }
-
-    try {
-      const formData = await request.formData();
-      const actionType = formData.get('_action') as string;
-
-      switch (actionType) {
-        case 'update-rollout':
-          return await handleUpdateRollout(submissionId, formData);
-        
-        case 'pause-rollout':
-          return await handlePauseRollout(submissionId, formData);
-        
-        case 'resume-rollout':
-          return await handleResumeRollout(submissionId);
-        
-        case 'halt-rollout':
-          return await handleHaltRollout(submissionId, formData);
-        
-        case 'retry-submission':
-          return await handleRetrySubmission(submissionId, formData);
-        
-        default:
-          return createValidationError('Invalid action type');
-      }
-    } catch (error) {
-      logApiError('[Submission Action]', error);
-      return handleAxiosError(error, 'Action failed');
+  POST: async (args) => {
+    const formData = await args.request.formData();
+    const action = formData.get('_action');
+    
+    switch (action) {
+      case 'updateRollout':
+        return updateRollout(args);
+      case 'pauseRollout':
+        return pauseRollout(args);
+      case 'resumeRollout':
+        return resumeRollout(args);
+      case 'haltRollout':
+        return haltRollout(args);
+      default:
+        return json({ error: 'Invalid action' }, { status: 400 });
     }
   },
 });
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
+// Helper functions
+function getStatusColor(status: string): string {
+  const colors: Record<string, string> = {
+    IN_REVIEW: 'yellow',
+    APPROVED: 'cyan',
+    LIVE: 'green',
+    REJECTED: 'red',
+    HALTED: 'orange',
+  };
+  return colors[status] ?? 'gray';
+}
 
-export default function SubmissionDetailsPage() {
-  const data = useLoaderData<SubmissionLoaderData>();
-  const navigate = useNavigate();
-  const fetcher = useFetcher();
-  const revalidator = useRevalidator();
+function formatStatus(status: string): string {
+  return status.replace(/_/g, ' ');
+}
 
-  const { submission, history, org, releaseId } = data;
+function formatDate(dateString: string | null | undefined): string {
+  if (!dateString) return '-';
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
-  // Halt dialog state
-  const [showHaltDialog, setShowHaltDialog] = useState(false);
-
-  // Determine state
-  const isAndroid = submission.platform === Platform.ANDROID;
-  const isRejected = submission.submissionStatus === SubmissionStatus.REJECTED;
-  const isReleased = submission.submissionStatus === SubmissionStatus.LIVE && submission.exposurePercent === ROLLOUT_COMPLETE_PERCENT;
-  const showRolloutControls = isAndroid && 
-    (submission.submissionStatus === SubmissionStatus.LIVE ||
-     submission.submissionStatus === SubmissionStatus.APPROVED);
-
-  const isLoading = fetcher.state === 'submitting';
-
-  // Handlers
-  const handleUpdateRollout = useCallback((percentage: number) => {
-    const formData = new FormData();
-    formData.append('_action', 'update-rollout');
-    formData.append('percentage', percentage.toString());
-    fetcher.submit(formData, { method: 'post' });
-  }, [fetcher]);
-
-  const handlePause = useCallback(() => {
-    const formData = new FormData();
-    formData.append('_action', 'pause-rollout');
-    fetcher.submit(formData, { method: 'post' });
-  }, [fetcher]);
-
-  const handleResume = useCallback(() => {
-    const formData = new FormData();
-    formData.append('_action', 'resume-rollout');
-    fetcher.submit(formData, { method: 'post' });
-  }, [fetcher]);
-
-  const handleHalt = useCallback((reason: string, severity: HaltSeverity) => {
-    const formData = new FormData();
-    formData.append('_action', 'halt-rollout');
-    formData.append('reason', reason);
-    formData.append('severity', severity);
-    fetcher.submit(formData, { method: 'post' });
-    setShowHaltDialog(false);
-  }, [fetcher]);
-
-  const handleRetry = useCallback(() => {
-    const formData = new FormData();
-    formData.append('_action', 'retry-submission');
-    fetcher.submit(formData, { method: 'post' });
-  }, [fetcher]);
-
-  const handleLoadMoreHistory = useCallback(() => {
-    // This would fetch more history - for now just revalidate
-    revalidator.revalidate();
-  }, [revalidator]);
-
-  return (
-    <Container size="xl" className="py-8">
-      {/* Header */}
-      <Group justify="space-between" mb="xl">
-        <div>
-          <Button
-            variant="subtle"
-            leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate(`/dashboard/${org}/releases/${releaseId}/distribution`)}
-          >
-            Back to Distribution
-          </Button>
-          <Title order={2} mt="md">
-            {PLATFORM_LABELS[submission.platform as Platform]} Submission
-          </Title>
-          <Text c="dimmed" size="sm">
-            Version {submission.versionName} ({submission.versionCode})
-          </Text>
-        </div>
-
-        <Badge 
-          color={SUBMISSION_STATUS_COLORS[submission.submissionStatus as SubmissionStatus]} 
-          size="xl"
-          variant="light"
-        >
-          {SUBMISSION_STATUS_LABELS[submission.submissionStatus as SubmissionStatus]}
-        </Badge>
-      </Group>
-
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Submission Details + Rollout */}
-        <div className="lg:col-span-2">
-      <Stack gap="lg">
-            {/* Submission Card */}
-            <SubmissionCard submission={submission} />
-          
-            {/* Rollout Controls (Android only, if approved) */}
-            {showRolloutControls && (
-              <RolloutControls
-                submissionId={submission.id}
-                currentPercentage={submission.exposurePercent}
-                status={submission.submissionStatus}
-                platform={submission.platform}
-                isLoading={isLoading}
-                availableActions={submission.availableActions.filter(
-                  (action) => action.action !== SubmissionAction.RETRY
-                ) as any}
-                onUpdateRollout={handleUpdateRollout}
-                onPause={handlePause}
-                onResume={handleResume}
-                onHalt={() => setShowHaltDialog(true)}
-              />
-        )}
-
-            {/* Rejection Details */}
-            {isRejected && submission.rejectionReason && (
-              <Card shadow="sm" padding="lg" radius="md" withBorder className="border-red-300">
-                <Title order={3} mb="md" c="red.7">
-              Rejection Details
-            </Title>
-            
-                <Stack gap="md">
-                  <div>
-                    <Text size="sm" c="dimmed">Reason</Text>
-                    <Text fw={500}>{submission.rejectionReason}</Text>
-                  </div>
-              
-              {submission.rejectionDetails && (
-                    <>
-                      {submission.rejectionDetails.guideline && (
-                        <div>
-                          <Text size="sm" c="dimmed">Guideline Violated</Text>
-                          <Text>{submission.rejectionDetails.guideline}</Text>
-                        </div>
-                      )}
-                      
-                      {submission.rejectionDetails.description && (
-                        <div>
-                          <Text size="sm" c="dimmed">Description</Text>
-                          <Text>{submission.rejectionDetails.description}</Text>
-                        </div>
-                      )}
-                    </>
-              )}
-
-                  <Button 
-                    color="red" 
-                    leftSection={<IconRefresh size={16} />}
-                    onClick={handleRetry}
-                    loading={isLoading}
-                  >
-                    {BUTTON_LABELS.RETRY}
-              </Button>
-            </Stack>
-          </Card>
-            )}
-          </Stack>
-        </div>
-
-        {/* Right Column - History */}
-        <div className="lg:col-span-1">
-          <SubmissionHistoryPanel
-            events={history.events}
-            hasMore={history.pagination.hasMore}
-            isLoadingMore={revalidator.state === 'loading'}
-            onLoadMore={handleLoadMoreHistory}
-          />
-        </div>
-      </div>
-
-      {/* Halt Dialog */}
-      <HaltRolloutDialog
-        opened={showHaltDialog}
-        submissionId={submission.id}
-        platform={submission.platform as Platform}
-        isHalting={isLoading}
-        onHalt={handleHalt}
-        onClose={() => setShowHaltDialog(false)}
-      />
-    </Container>
+function getPlatformIcon(platform: Platform, size: number = 24) {
+  return platform === Platform.ANDROID ? (
+    <IconBrandAndroid size={size} stroke={2} />
+  ) : (
+    <IconBrandApple size={size} stroke={2} />
   );
 }
 
-// ============================================================================
-// ACTION HANDLERS
-// ============================================================================
+// Components
+function SubmissionHeader({ submission, org }: { submission: Submission; org: string }) {
+  const platformName = submission.platform === Platform.ANDROID ? 'Android' : 'iOS';
+  const platformColor = submission.platform === Platform.ANDROID ? 'green' : 'blue';
 
-async function handleUpdateRollout(submissionId: string, formData: FormData) {
-  const percentageStr = formData.get('percentage') as string;
-  const percentage = parseFloat(percentageStr);
-
-  if (!isValidPercentage(percentage)) {
-    return createValidationError(ERROR_MESSAGES.PERCENTAGE_REQUIRED);
-  }
-
-  try {
-    const requestData = { submissionId, exposurePercent: percentage };
-    const response = await DistributionService.updateRollout(submissionId, requestData);
-    return json(response.data);
-  } catch (error) {
-    logApiError(LOG_CONTEXT.UPDATE_ROLLOUT_API, error);
-    return handleAxiosError(error, ERROR_MESSAGES.FAILED_TO_UPDATE_ROLLOUT);
-  }
+  return (
+    <Paper shadow="sm" p="lg" radius="md" withBorder>
+      <Group justify="space-between" align="flex-start">
+        <Group>
+          <ThemeIcon size="xl" variant="light" color={platformColor} radius="md">
+            {getPlatformIcon(submission.platform, 32)}
+          </ThemeIcon>
+          <div>
+            <Title order={3}>{platformName} Submission</Title>
+            <Text size="sm" c="dimmed">{submission.storeType}</Text>
+          </div>
+        </Group>
+        <Badge 
+          color={getStatusColor(submission.status)} 
+          variant="dot"
+          size="xl"
+          radius="sm"
+        >
+          {formatStatus(submission.status)}
+        </Badge>
+      </Group>
+    </Paper>
+  );
 }
 
-async function handlePauseRollout(submissionId: string, formData: FormData) {
-  const reason = formData.get('reason') as string;
+function RolloutControlPanel({ submission }: { submission: Submission }) {
+  const [targetPercent, setTargetPercent] = useState(submission.rolloutPercentage);
+  const fetcher = useFetcher();
+  const isUpdating = fetcher.state === 'submitting';
 
-  try {
-    const requestData = { submissionId, reason };
-    const response = await DistributionService.pauseRollout(submissionId, requestData);
-    return json(response.data);
-  } catch (error) {
-    logApiError(LOG_CONTEXT.PAUSE_ROLLOUT_API, error);
-    return handleAxiosError(error, ERROR_MESSAGES.FAILED_TO_PAUSE_ROLLOUT);
+  const handleUpdateRollout = useCallback(() => {
+    fetcher.submit(
+      { _action: 'updateRollout', rolloutPercentage: targetPercent.toString(), platform: submission.platform },
+      { method: 'post' }
+    );
+  }, [targetPercent, submission.platform, fetcher]);
+
+  const canIncrease = submission.status === SubmissionStatus.LIVE && 
+                       submission.rolloutPercentage < ROLLOUT_COMPLETE_PERCENT;
+
+  if (!canIncrease) {
+    return null;
   }
+
+  return (
+    <Card shadow="sm" padding="lg" radius="md" withBorder>
+      <Stack gap="md">
+        <Group justify="space-between">
+          <Text fw={600} size="lg">Rollout Control</Text>
+          <Badge color="blue" variant="light">Active</Badge>
+        </Group>
+
+        <Divider />
+
+        <div>
+          <Group justify="space-between" mb="xs">
+            <Text size="sm" c="dimmed">Current Exposure</Text>
+            <Text size="lg" fw={700}>{submission.rolloutPercentage}%</Text>
+          </Group>
+          <Progress value={submission.rolloutPercentage} size="xl" color="blue" />
+        </div>
+
+        <NumberInput
+          label="Target Percentage"
+          description="Increase rollout to reach more users"
+          value={targetPercent}
+          onChange={(val) => setTargetPercent(Number(val))}
+          min={submission.rolloutPercentage}
+          max={100}
+          step={5}
+          suffix="%"
+          disabled={isUpdating}
+        />
+
+        <Button
+          onClick={handleUpdateRollout}
+          disabled={targetPercent <= submission.rolloutPercentage || isUpdating}
+          loading={isUpdating}
+          fullWidth
+          color="blue"
+        >
+          Update Rollout
+        </Button>
+      </Stack>
+    </Card>
+  );
 }
 
-async function handleResumeRollout(submissionId: string) {
-  try {
-    const response = await DistributionService.resumeRollout(submissionId);
-    return json(response.data);
-  } catch (error) {
-    logApiError(LOG_CONTEXT.RESUME_ROLLOUT_API, error);
-    return handleAxiosError(error, ERROR_MESSAGES.FAILED_TO_RESUME_ROLLOUT);
-  }
+function HaltDialog({ 
+  opened, 
+  onClose, 
+  submissionId,
+  platform
+}: { 
+  opened: boolean; 
+  onClose: () => void; 
+  submissionId: string;
+  platform: Platform;
+}) {
+  const [reason, setReason] = useState('');
+  const fetcher = useFetcher();
+
+  const handleSubmit = useCallback(() => {
+    fetcher.submit(
+      { _action: 'haltRollout', reason, platform },
+      { method: 'post' }
+    );
+    onClose();
+  }, [reason, platform, fetcher, onClose]);
+
+  return (
+    <Modal opened={opened} onClose={onClose} title="Emergency Halt" size="md" centered>
+      <Stack gap="md">
+        <Alert color="red" icon={<IconAlertCircle />}>
+          This will immediately halt the rollout. Users who already have the update will keep it,
+          but no new users will receive it.
+        </Alert>
+
+        <Textarea
+          label="Reason"
+          placeholder="Describe why this rollout needs to be halted..."
+          value={reason}
+          onChange={(e) => setReason(e.currentTarget.value)}
+          minRows={3}
+          required
+        />
+
+        <Group justify="flex-end">
+          <Button variant="subtle" onClick={onClose}>Cancel</Button>
+          <Button color="red" onClick={handleSubmit} disabled={!reason.trim()}>
+            Halt Rollout
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
 }
 
-async function handleHaltRollout(submissionId: string, formData: FormData) {
-  const reason = formData.get('reason') as string;
-  const severity = formData.get('severity') as HaltSeverity;
 
-  if (!reason) {
-    return createValidationError(ERROR_MESSAGES.REASON_REQUIRED);
+export default function SubmissionDetailPage() {
+  const { org, releaseId, submission, error } = useLoaderData<LoaderData>();
+  const navigation = useNavigation();
+  const [haltDialogOpened, { open: openHaltDialog, close: closeHaltDialog }] = useDisclosure(false);
+  const [retryDialogOpened, { open: openRetryDialog, close: closeRetryDialog }] = useDisclosure(false);
+  const [cancelDialogOpened, { open: openCancelDialog, close: closeCancelDialog }] = useDisclosure(false);
+  
+  const isLoading = navigation.state === 'loading';
+  const canRetry = submission.status === SubmissionStatus.REJECTED;
+  const canCancel = [
+    SubmissionStatus.IN_REVIEW,
+    SubmissionStatus.APPROVED,
+  ].includes(submission.status as SubmissionStatus);
+  const canHalt = submission.status === SubmissionStatus.LIVE;
+
+  if (error || !submission.id) {
+    return (
+      <Container size="lg" className="py-8">
+        <Alert color="red" icon={<IconAlertCircle />} title="Error">
+          {error || 'Submission not found'}
+        </Alert>
+      </Container>
+    );
   }
 
-  try {
-    const requestData = { submissionId, reason, severity };
-    const response = await DistributionService.haltRollout(submissionId, requestData);
-    return json(response.data);
-  } catch (error) {
-    logApiError(LOG_CONTEXT.HALT_ROLLOUT_API, error);
-    return handleAxiosError(error, ERROR_MESSAGES.FAILED_TO_HALT_ROLLOUT);
-  }
-}
+  return (
+    <Container size="lg" className="py-8">
+      {/* Header */}
+      <Paper shadow="sm" p="md" radius="md" withBorder className="mb-6">
+        <Group justify="space-between">
+          <Group>
+            <Button
+              component={Link}
+              to={`/dashboard/${org}/distributions/${submission.distributionId}`}
+              variant="subtle"
+              leftSection={<IconArrowLeft size={16} />}
+              size="sm"
+            >
+              Back
+            </Button>
+            <Divider orientation="vertical" />
+            <Title order={2}>Submission Details</Title>
+          </Group>
+          {isLoading && <Loader size="sm" />}
+        </Group>
+      </Paper>
 
-async function handleRetrySubmission(submissionId: string, formData: FormData) {
-  const updatesRaw = formData.get('updates');
-  const newBuildId = formData.get('newBuildId');
+      {/* Submission Header */}
+      <SubmissionHeader submission={submission} org={org} />
 
-  try {
-    const requestData = {
-      submissionId,
-      ...(updatesRaw && typeof updatesRaw === 'string' && { updates: JSON.parse(updatesRaw) }),
-      ...(newBuildId && typeof newBuildId === 'string' && { newBuildId }),
-    };
-    const response = await DistributionService.retrySubmission(submissionId, requestData);
-    return json(response.data);
-  } catch (error) {
-    logApiError(LOG_CONTEXT.RETRY_SUBMISSION_API, error);
-    return handleAxiosError(error, ERROR_MESSAGES.FAILED_TO_RETRY_SUBMISSION);
-  }
+      {/* Main Content */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', 
+        gap: '1rem',
+        marginTop: '1.5rem'
+      }}>
+        {/* Rollout Control */}
+        <RolloutControlPanel submission={submission} />
+
+        {/* Actions Card */}
+        <Card shadow="sm" padding="lg" radius="md" withBorder>
+          <Stack gap="md">
+            <Text fw={600} size="lg">Actions</Text>
+            <Divider />
+            
+            {canRetry && (
+              <Button
+                color="blue"
+                variant="light"
+                fullWidth
+                leftSection={<IconRotateClockwise size={16} />}
+                onClick={openRetryDialog}
+              >
+                Retry Submission
+              </Button>
+            )}
+            
+            {canCancel && (
+              <Button
+                color="orange"
+                variant="light"
+                fullWidth
+                leftSection={<IconX size={16} />}
+                onClick={openCancelDialog}
+              >
+                Cancel Submission
+              </Button>
+            )}
+            
+            {canHalt && (
+              <Button
+                color="red"
+                variant="light"
+                fullWidth
+                leftSection={<IconPlayerPause size={16} />}
+                onClick={openHaltDialog}
+              >
+                Emergency Halt
+              </Button>
+            )}
+
+            {!canRetry && !canCancel && !canHalt && (
+              <Text size="sm" c="dimmed" ta="center">
+                No actions available for current status
+              </Text>
+            )}
+          </Stack>
+        </Card>
+      </div>
+
+      {/* Timeline */}
+
+      {/* Halt Dialog */}
+      <HaltDialog
+        opened={haltDialogOpened}
+        onClose={closeHaltDialog}
+        submissionId={submission.id}
+        platform={submission.platform}
+      />
+
+      {/* Resubmission Dialog */}
+      <ResubmissionDialog
+        opened={retryDialogOpened}
+        onClose={closeRetryDialog}
+        distributionId={submission.distributionId}
+        previousSubmission={submission}
+      />
+
+      {/* Cancel Dialog */}
+      <CancelSubmissionDialog
+        opened={cancelDialogOpened}
+        onClose={closeCancelDialog}
+        submissionId={submission.id}
+        platform={submission.platform === Platform.ANDROID ? 'Android' : 'iOS'}
+        version={submission.version}
+        currentStatus={SUBMISSION_STATUS_LABELS[submission.status as SubmissionStatus]}
+      />
+    </Container>
+  );
 }

@@ -3,6 +3,7 @@
  */
 
 import { Button, Tooltip } from '@mantine/core';
+import { DIST_BUTTON_PROPS } from '~/constants/distribution/distribution-design.constants';
 
 export type ActionButtonProps = {
   icon: React.ReactNode;
@@ -25,9 +26,8 @@ export function ActionButton({
 }: ActionButtonProps) {
   const button = (
     <Button
-      variant="light"
+      {...DIST_BUTTON_PROPS.SECONDARY}
       color={color}
-      size="sm"
       leftSection={icon}
       onClick={onClick}
       disabled={disabled}

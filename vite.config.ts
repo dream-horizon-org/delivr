@@ -33,6 +33,8 @@ export default defineConfig({
     noExternal: ['@tabler/icons-react'],
   },
   optimizeDeps: {
+    // Pre-bundle icons to reduce network requests
+    // Icons will be bundled into optimized chunks
     include: ['@tabler/icons-react'],
   },
 });

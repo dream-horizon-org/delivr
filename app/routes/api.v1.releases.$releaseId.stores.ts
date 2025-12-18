@@ -11,7 +11,7 @@
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
-import { ERROR_MESSAGES, LOG_CONTEXT } from '~/constants/distribution-api.constants';
+import { ERROR_MESSAGES, LOG_CONTEXT } from '~/constants/distribution/distribution-api.constants';
 import {
   createValidationError,
   handleAxiosError,

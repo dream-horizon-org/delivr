@@ -6,7 +6,7 @@
 import { json } from '@remix-run/node';
 import { CodepushService } from '~/.server/services/Codepush';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
-import { STORE_TYPES, ALLOWED_PLATFORMS } from '~/types/app-distribution';
+import { STORE_TYPES, ALLOWED_PLATFORMS } from '~/types/distribution/app-distribution';
 
 export const loader = authenticateLoaderRequest(async ({ user }) => {
   try {

@@ -15,8 +15,8 @@ import {
   ThemeIcon,
 } from '@mantine/core';
 import {
-  IconChevronDown,
   IconCheck,
+  IconChevronDown,
   IconClock,
   IconRefresh,
   IconX,
@@ -27,18 +27,18 @@ import {
   getTaskStatusLabel,
   getTaskTypeLabel,
 } from '~/constants/release-process-ui';
-import type { Task, BuildInfo } from '~/types/release-process.types';
 import { TaskStatus, TaskType } from '~/types/release-process-enums';
+import type { BuildInfo, Task } from '~/types/release-process.types';
 import { BuildTaskDetails } from './BuildTaskDetails';
 import {
-  ForkBranchTaskDetails,
-  ProjectManagementTaskDetails,
-  CreateTestSuiteTaskDetails,
-  ResetTestSuiteTaskDetails,
+  CreateFinalReleaseNotesTaskDetails,
   CreateRcTagTaskDetails,
   CreateReleaseNotesTaskDetails,
   CreateReleaseTagTaskDetails,
-  CreateFinalReleaseNotesTaskDetails,
+  CreateTestSuiteTaskDetails,
+  ForkBranchTaskDetails,
+  ProjectManagementTaskDetails,
+  ResetTestSuiteTaskDetails,
 } from './task-details';
 
 interface TaskCardProps {

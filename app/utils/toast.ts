@@ -23,9 +23,40 @@ export function showSuccessToast(options: ToastOptions) {
     title: options.title || 'Success',
     message: options.message,
     color: 'green',
-    icon: React.createElement(IconCheck, { size: 18 }),
+    icon: React.createElement(IconCheck, { size: 20, strokeWidth: 2.5 }),
     autoClose: options.duration || 4000,
-    position: options.position || 'bottom-right',
+    position: options.position || 'top-right',
+    withBorder: true,
+    style: {
+      boxShadow: '0 4px 12px rgba(34, 197, 94, 0.15)',
+    },
+    styles: {
+      root: {
+        backgroundColor: '#f0fdf4',
+        borderColor: '#86efac',
+        padding: '16px',
+      },
+      title: {
+        color: '#14532d',
+        fontWeight: 600,
+        fontSize: '14px',
+      },
+      description: {
+        color: '#166534',
+        fontSize: '13px',
+        marginTop: '4px',
+      },
+      icon: {
+        backgroundColor: '#dcfce7',
+        color: '#16a34a',
+      },
+      closeButton: {
+        color: '#14532d',
+        '&:hover': {
+          backgroundColor: '#dcfce7',
+        },
+      },
+    },
   });
 }
 
@@ -37,9 +68,40 @@ export function showErrorToast(options: ToastOptions) {
     title: options.title || 'Error',
     message: options.message,
     color: 'red',
-    icon: React.createElement(IconX, { size: 18 }),
+    icon: React.createElement(IconX, { size: 20, strokeWidth: 2.5 }),
     autoClose: options.duration || 6000,
-    position: options.position || 'bottom-right',
+    position: options.position || 'top-right',
+    withBorder: true,
+    style: {
+      boxShadow: '0 4px 12px rgba(220, 38, 38, 0.15)',
+    },
+    styles: {
+      root: {
+        backgroundColor: '#fef2f2',
+        borderColor: '#fca5a5',
+        padding: '16px',
+      },
+      title: {
+        color: '#991b1b',
+        fontWeight: 600,
+        fontSize: '14px',
+      },
+      description: {
+        color: '#7f1d1d',
+        fontSize: '13px',
+        marginTop: '4px',
+      },
+      icon: {
+        backgroundColor: '#fee2e2',
+        color: '#dc2626',
+      },
+      closeButton: {
+        color: '#991b1b',
+        '&:hover': {
+          backgroundColor: '#fee2e2',
+        },
+      },
+    },
   });
 }
 
@@ -51,9 +113,40 @@ export function showInfoToast(options: ToastOptions) {
     title: options.title || 'Info',
     message: options.message,
     color: 'blue',
-    icon: React.createElement(IconInfoCircle, { size: 18 }),
+    icon: React.createElement(IconInfoCircle, { size: 20, strokeWidth: 2.5 }),
     autoClose: options.duration || 4000,
-    position: options.position || 'bottom-right',
+    position: options.position || 'top-right',
+    withBorder: true,
+    style: {
+      boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)',
+    },
+    styles: {
+      root: {
+        backgroundColor: '#eff6ff',
+        borderColor: '#93c5fd',
+        padding: '16px',
+      },
+      title: {
+        color: '#1e3a8a',
+        fontWeight: 600,
+        fontSize: '14px',
+      },
+      description: {
+        color: '#1e40af',
+        fontSize: '13px',
+        marginTop: '4px',
+      },
+      icon: {
+        backgroundColor: '#dbeafe',
+        color: '#2563eb',
+      },
+      closeButton: {
+        color: '#1e3a8a',
+        '&:hover': {
+          backgroundColor: '#dbeafe',
+        },
+      },
+    },
   });
 }
 
@@ -65,9 +158,40 @@ export function showWarningToast(options: ToastOptions) {
     title: options.title || 'Warning',
     message: options.message,
     color: 'yellow',
-    icon: React.createElement(IconAlertTriangle, { size: 18 }),
+    icon: React.createElement(IconAlertTriangle, { size: 20, strokeWidth: 2.5 }),
     autoClose: options.duration || 5000,
-    position: options.position || 'bottom-right',
+    position: options.position || 'top-right',
+    withBorder: true,
+    style: {
+      boxShadow: '0 4px 12px rgba(234, 179, 8, 0.15)',
+    },
+    styles: {
+      root: {
+        backgroundColor: '#fefce8',
+        borderColor: '#fde047',
+        padding: '16px',
+      },
+      title: {
+        color: '#713f12',
+        fontWeight: 600,
+        fontSize: '14px',
+      },
+      description: {
+        color: '#854d0e',
+        fontSize: '13px',
+        marginTop: '4px',
+      },
+      icon: {
+        backgroundColor: '#fef9c3',
+        color: '#ca8a04',
+      },
+      closeButton: {
+        color: '#713f12',
+        '&:hover': {
+          backgroundColor: '#fef9c3',
+        },
+      },
+    },
   });
 }
 

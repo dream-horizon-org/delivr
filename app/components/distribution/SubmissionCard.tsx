@@ -5,27 +5,46 @@
  * - Platform and store info
  * - Version and track details
  * - Status with timeline
+ * - Submission history audit trail (actionHistory)
  * - Clickable for navigation
  */
 
-import { Badge, Card, Group, Stack, Text, ThemeIcon, UnstyledButton } from '@mantine/core';
+import { Badge, Button, Card, Group, Stack, Text, ThemeIcon, UnstyledButton } from '@mantine/core';
 import {
   IconBrandAndroid,
   IconBrandApple,
   IconCheck,
   IconChevronRight,
   IconClock,
+  IconHistory,
+  IconPlayerPause,
   IconX,
 } from '@tabler/icons-react';
+import { useMemo, useState } from 'react';
 import {
+  DIST_BADGE_PROPS,
+  DIST_BUTTON_PROPS,
+  DIST_CARD_PROPS,
+  DIST_FONT_WEIGHTS,
+  DIST_ICON_PROPS,
+  DIST_ICON_SIZES,
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution/distribution-design.constants';
+import {
+  DISTRIBUTION_UI_LABELS,
   PLATFORM_LABELS,
+  STORE_NAMES,
   SUBMISSION_STATUS_COLORS,
   SUBMISSION_STATUS_LABELS,
-} from '~/constants/distribution.constants';
-import { Platform, SubmissionStatus } from '~/types/distribution.types';
+  SUBMISSION_TIMELINE_LABEL_WIDTH,
+} from '~/constants/distribution/distribution.constants';
+import { Platform, SubmissionStatus } from '~/types/distribution/distribution.types';
+import { getRolloutDisplayStatus } from '~/utils/distribution';
 import { RolloutProgressBar } from './RolloutProgressBar';
-import type { SubmissionCardProps } from './distribution.types';
-import { getRolloutDisplayStatus } from './distribution.utils';
+import { SubmissionHistoryPanel, type HistoryEvent } from './SubmissionHistoryPanel';
+import type { SubmissionCardProps } from '~/types/distribution/distribution-component.types';
 
 // ============================================================================
 // LOCAL HELPER - Returns JSX (must stay in component file)
@@ -33,12 +52,15 @@ import { getRolloutDisplayStatus } from './distribution.utils';
 
 function getSubmissionStatusIcon(status: SubmissionStatus) {
   if (status === SubmissionStatus.LIVE || status === SubmissionStatus.APPROVED) {
-    return <IconCheck size={14} />;
+    return <IconCheck size={DIST_ICON_SIZES.SM} />;
   }
-  if (status === SubmissionStatus.REJECTED || status === SubmissionStatus.HALTED) {
-    return <IconX size={14} />;
+  if (status === SubmissionStatus.PAUSED) {
+    return <IconPlayerPause size={DIST_ICON_SIZES.SM} />;
   }
-  return <IconClock size={14} />;
+  if (status === SubmissionStatus.REJECTED || status === SubmissionStatus.HALTED || status === SubmissionStatus.CANCELLED) {
+    return <IconX size={DIST_ICON_SIZES.SM} />;
+  }
+  return <IconClock size={DIST_ICON_SIZES.SM} />;
 }
 
 // ============================================================================
@@ -54,12 +76,14 @@ function PlatformIcon({ platform }: PlatformIconProps) {
   
   return (
     <ThemeIcon 
-      size="md" 
-      radius="md" 
-      variant="light" 
-      color={isAndroid ? 'green' : 'blue'}
+      {...DIST_ICON_PROPS.DEFAULT}
+      color={isAndroid ? DS_COLORS.PLATFORM.ANDROID : DS_COLORS.PLATFORM.IOS}
     >
-      {isAndroid ? <IconBrandAndroid size={18} /> : <IconBrandApple size={18} />}
+      {isAndroid ? (
+        <IconBrandAndroid size={DIST_ICON_SIZES.LG} />
+      ) : (
+        <IconBrandApple size={DIST_ICON_SIZES.LG} />
+      )}
     </ThemeIcon>
   );
 }
@@ -69,28 +93,20 @@ type SubmissionTimelineProps = {
 };
 
 function SubmissionTimeline({ submission }: SubmissionTimelineProps) {
-  const { submittedAt, approvedAt, releasedAt } = submission;
+  const { submittedAt } = submission;
+  // Note: approvedAt and releasedAt are not in the API spec
   
   return (
-    <Stack gap={4}>
+    <Stack gap={DS_SPACING.XS}>
       {submittedAt && (
-        <Group gap="xs">
-          <Text size="xs" c="dimmed" w={70}>Submitted:</Text>
-          <Text size="xs">{new Date(submittedAt).toLocaleDateString()}</Text>
+        <Group gap={DS_SPACING.XS}>
+          <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.SECONDARY} w={SUBMISSION_TIMELINE_LABEL_WIDTH}>
+            {DISTRIBUTION_UI_LABELS.TIMELINE_SUBMITTED}
+          </Text>
+          <Text size={DS_TYPOGRAPHY.SIZE.XS}>{new Date(submittedAt).toLocaleDateString()}</Text>
         </Group>
       )}
-      {approvedAt && (
-        <Group gap="xs">
-          <Text size="xs" c="dimmed" w={70}>Approved:</Text>
-          <Text size="xs">{new Date(approvedAt).toLocaleDateString()}</Text>
-        </Group>
-      )}
-      {releasedAt && (
-        <Group gap="xs">
-          <Text size="xs" c="dimmed" w={70}>Released:</Text>
-          <Text size="xs">{new Date(releasedAt).toLocaleDateString()}</Text>
-        </Group>
-      )}
+      {/* approvedAt and releasedAt are not available in API spec */}
     </Stack>
   );
 }
@@ -99,105 +115,125 @@ function SubmissionTimeline({ submission }: SubmissionTimelineProps) {
 // MAIN COMPONENT
 // ============================================================================
 
-export function SubmissionCard(props: SubmissionCardProps) {
-  const { 
-    submission, 
-    compact = false,
-    onClick,
-    className,
-  } = props;
+export function SubmissionCard({ 
+  submission, 
+  compact = false,
+  onClick,
+  className,
+}: SubmissionCardProps) {
 
   const {
     platform,
-    submissionStatus,
-    versionName,
-    versionCode,
-    track,
-    exposurePercent,
-    rejectionReason,
+    status,
+    version,
+    rolloutPercentage,
+    actionHistory,
   } = submission;
+  
+  // Extract platform-specific fields
+  const versionCode = submission.platform === Platform.ANDROID && 'versionCode' in submission 
+    ? submission.versionCode 
+    : null;
 
-  const isRejected = submissionStatus === SubmissionStatus.REJECTED;
-  const storeName = platform === Platform.ANDROID ? 'Play Store' : 'App Store';
+  const [showHistory, setShowHistory] = useState(false);
+
+  const isRejected = status === SubmissionStatus.REJECTED;
+  const storeName = STORE_NAMES[platform];
+  const rolloutStatus = useMemo(
+    () => getRolloutDisplayStatus(rolloutPercentage, status),
+    [rolloutPercentage, status]
+  );
+
+  // Transform actionHistory into HistoryEvent format for the panel
+  const historyEvents: HistoryEvent[] = useMemo(() => {
+    if (!actionHistory || actionHistory.length === 0) return [];
+    
+    return actionHistory.map((historyItem) => ({
+      id: `${historyItem.action}-${historyItem.createdAt}`,
+      timestamp: historyItem.createdAt,
+      action: historyItem.action,  // PAUSED, RESUMED, CANCELLED, HALTED
+      actor: historyItem.createdBy,  // Email of user who performed the action
+      actorType: 'user' as const,
+      metadata: historyItem.reason ? { reason: historyItem.reason } : undefined,
+    }));
+  }, [actionHistory]);
 
   const CardWrapper = onClick ? UnstyledButton : 'div';
+  const cardWrapperClass = `w-full ${onClick ? 'hover:bg-gray-50 transition-colors' : ''}`;
 
   return (
     <CardWrapper 
       onClick={onClick}
-      className={`w-full ${onClick ? 'hover:bg-gray-50 transition-colors' : ''}`}
+      className={cardWrapperClass}
     >
       <Card 
-        shadow="sm" 
-        padding={compact ? 'md' : 'lg'} 
-        radius="md" 
-        withBorder 
+        {...(compact ? DIST_CARD_PROPS.COMPACT : DIST_CARD_PROPS.DEFAULT)}
         className={className}
         data-testid={`submission-card-${platform.toLowerCase()}`}
       >
         {/* Header */}
-        <Group justify="space-between" mb={compact ? 'sm' : 'md'}>
-          <Group gap="sm">
+        <Group justify="space-between" mb={compact ? DS_SPACING.SM : DS_SPACING.MD}>
+          <Group gap={DS_SPACING.SM}>
             <PlatformIcon platform={platform} />
             <div>
-              <Group gap="xs">
-                <Text fw={600} size={compact ? 'sm' : 'md'}>
+              <Group gap={DS_SPACING.XS}>
+                <Text fw={DIST_FONT_WEIGHTS.SEMIBOLD} size={compact ? DS_TYPOGRAPHY.SIZE.SM : DS_TYPOGRAPHY.SIZE.MD}>
                   {PLATFORM_LABELS[platform]}
                 </Text>
-                {track && (
-                  <Badge size="xs" variant="outline">{track}</Badge>
-                )}
+                {/* track field is not in API spec */}
               </Group>
-              <Text size="xs" c="dimmed">{storeName}</Text>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.SECONDARY}>{storeName}</Text>
             </div>
           </Group>
           
-          <Group gap="sm">
+          <Group gap={DS_SPACING.SM}>
             <Badge 
-              color={SUBMISSION_STATUS_COLORS[submissionStatus]} 
-              variant="light"
-              leftSection={getSubmissionStatusIcon(submissionStatus)}
+              color={SUBMISSION_STATUS_COLORS[status]} 
+              {...DIST_BADGE_PROPS.DEFAULT}
+              leftSection={getSubmissionStatusIcon(status)}
             >
-              {SUBMISSION_STATUS_LABELS[submissionStatus]}
+              {SUBMISSION_STATUS_LABELS[status]}
             </Badge>
             
             {onClick && (
-              <IconChevronRight size={16} className="text-gray-400" />
+              <IconChevronRight size={DIST_ICON_SIZES.MD} className="text-gray-400" />
             )}
           </Group>
         </Group>
 
         {/* Version Info */}
-        <Group gap="lg" mb={compact ? 'sm' : 'md'}>
+        <Group gap={DS_SPACING.LG} mb={compact ? DS_SPACING.SM : DS_SPACING.MD}>
           <div>
-            <Text size="xs" c="dimmed">Version</Text>
-            <Text size="sm" fw={500}>{versionName}</Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.SECONDARY}>{DISTRIBUTION_UI_LABELS.VERSION_LABEL}</Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.MEDIUM}>{version}</Text>
           </div>
+          {versionCode && (
+            <div>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.SECONDARY}>{DISTRIBUTION_UI_LABELS.BUILD_LABEL}</Text>
+              <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.MEDIUM}>{versionCode}</Text>
+            </div>
+          )}
           <div>
-            <Text size="xs" c="dimmed">Build</Text>
-            <Text size="sm" fw={500}>{versionCode}</Text>
-          </div>
-          <div>
-            <Text size="xs" c="dimmed">Exposure</Text>
-            <Text size="sm" fw={500}>{exposurePercent}%</Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.SECONDARY}>{DISTRIBUTION_UI_LABELS.EXPOSURE_LABEL}</Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.MEDIUM}>{rolloutPercentage}%</Text>
           </div>
         </Group>
 
         {/* Rollout Progress (if not compact) */}
         {!compact && (
           <RolloutProgressBar
-            percentage={exposurePercent}
-            status={getRolloutDisplayStatus(exposurePercent, submissionStatus)}
+            percentage={rolloutPercentage}
+            status={rolloutStatus}
             showLabel={false}
             size="sm"
           />
         )}
 
-        {/* Rejection Warning */}
-        {isRejected && rejectionReason && (
+        {/* Rejection Warning - rejectionReason not in API spec */}
+        {isRejected && (
           <div className={`${compact ? 'mt-2' : 'mt-3'} p-2 bg-red-50 rounded border border-red-200`}>
-            <Text size="xs" c="red.7" lineClamp={compact ? 1 : 2}>
-              <Text span fw={500}>Rejection:</Text> {rejectionReason}
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.STATUS.ERROR} lineClamp={compact ? 1 : 2}>
+              <Text span fw={DIST_FONT_WEIGHTS.MEDIUM}>{DISTRIBUTION_UI_LABELS.REJECTION_LABEL}:</Text> Submission was rejected
             </Text>
           </div>
         )}
@@ -206,9 +242,35 @@ export function SubmissionCard(props: SubmissionCardProps) {
         {!compact && (
           <div className="mt-3 pt-3 border-t">
             <SubmissionTimeline submission={submission} />
+            
+            {/* View History Button - Shows action history (PAUSED, RESUMED, HALTED, CANCELLED) */}
+            {historyEvents.length > 0 && (
+              <Group justify="flex-end" mt={DS_SPACING.SM}>
+                <Button
+                  {...DIST_BUTTON_PROPS.SUBTLE}
+                  leftSection={<IconHistory size={DIST_ICON_SIZES.SM} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowHistory(true);
+                  }}
+                >
+                  View History
+                </Button>
+              </Group>
+            )}
           </div>
         )}
       </Card>
+
+      {/* History Panel - Shows action history from actionHistory array */}
+      <SubmissionHistoryPanel
+        opened={showHistory}
+        onClose={() => setShowHistory(false)}
+        submissionId={submission.id}
+        platform={platform}
+        version={version}
+        events={historyEvents}
+      />
     </CardWrapper>
   );
 }

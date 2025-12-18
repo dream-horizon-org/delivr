@@ -8,40 +8,45 @@
  */
 
 import {
-  Alert,
-  Button,
-  Group,
-  Paper,
-  Stack,
-  Text,
-  TextInput,
+    Alert,
+    Button,
+    Group,
+    Paper,
+    Stack,
+    Text,
+    TextInput,
 } from '@mantine/core';
 import { IconAlertCircle, IconBrandApple, IconCheck } from '@tabler/icons-react';
 import { useCallback, useEffect } from 'react';
 import {
-  BUTTON_LABELS,
-  VALIDATION_RULES,
-} from '~/constants/distribution.constants';
-import type { VerifyTestFlightFormProps } from './distribution.types';
-import { useVerifyState } from './useVerifyState';
+    DS_COLORS,
+    DS_SPACING,
+    DS_TYPOGRAPHY,
+} from '~/constants/distribution/distribution-design.constants';
+import {
+    BUTTON_LABELS,
+    VALIDATION_RULES,
+} from '~/constants/distribution/distribution.constants';
+import { useVerifyState } from '~/hooks/distribution';
+import type { VerifyTestFlightFormProps } from '~/types/distribution/distribution-component.types';
 
 // ============================================================================
 // SUB-COMPONENTS
 // ============================================================================
 
-type VerificationSuccessProps = {
+export type VerificationSuccessProps = {
   buildNumber: string;
   versionName: string;
 };
 
 function VerificationSuccess({ buildNumber, versionName }: VerificationSuccessProps) {
   return (
-    <Paper p="md" withBorder radius="md" className="border-green-500 bg-green-50">
-      <Group gap="sm">
+    <Paper p={DS_SPACING.MD} withBorder radius={DS_SPACING.BORDER_RADIUS} className="border-green-500 bg-green-50">
+      <Group gap={DS_SPACING.SM}>
         <IconCheck size={24} className="text-green-600" />
         <div>
-          <Text fw={500} c="green.7">TestFlight Build Verified</Text>
-          <Text size="sm" c="dimmed">
+          <Text fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} c={DS_COLORS.STATUS.SUCCESS}>TestFlight Build Verified</Text>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>
             Build #{buildNumber} (v{versionName}) is ready for App Store submission.
           </Text>
         </div>
@@ -54,15 +59,14 @@ function VerificationSuccess({ buildNumber, versionName }: VerificationSuccessPr
 // MAIN COMPONENT
 // ============================================================================
 
-export function VerifyTestFlightForm(props: VerifyTestFlightFormProps) {
-  const { 
-    releaseId, 
-    expectedVersion,
-    onVerifyComplete, 
-    onVerifyError, 
-    onClose,
-    className,
-  } = props;
+export function VerifyTestFlightForm({ 
+  releaseId, 
+  expectedVersion,
+  onVerifyComplete, 
+  onVerifyError, 
+  onClose,
+  className,
+}: VerifyTestFlightFormProps) {
 
   const {
     buildNumber,
@@ -99,7 +103,7 @@ export function VerifyTestFlightForm(props: VerifyTestFlightFormProps) {
 
     const formData = new FormData();
     formData.append('_action', 'verify-testflight');
-    formData.append('testflightBuildNumber', buildNumber);
+    formData.append('testflightNumber', buildNumber);  // Renamed from testflightBuildNumber
     formData.append('versionName', versionName);
 
     fetcher.submit(formData, { method: 'post' });
@@ -115,14 +119,14 @@ export function VerifyTestFlightForm(props: VerifyTestFlightFormProps) {
   }
 
   return (
-    <Stack gap="md" className={className}>
+    <Stack gap={DS_SPACING.MD} className={className}>
       {/* Header Info */}
-      <Paper p="md" withBorder radius="md" bg="blue.0">
-        <Group gap="sm">
+      <Paper p={DS_SPACING.MD} withBorder radius={DS_SPACING.BORDER_RADIUS} bg={DS_COLORS.BACKGROUND.INFO_LIGHT}>
+        <Group gap={DS_SPACING.SM}>
           <IconBrandApple size={24} className="text-blue-600" />
           <div>
-            <Text fw={500}>Verify TestFlight Build</Text>
-            <Text size="sm" c="dimmed">
+            <Text fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>Verify TestFlight Build</Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>
               Enter the TestFlight build number to verify it exists and is ready for App Store submission.
             </Text>
           </div>
@@ -133,7 +137,7 @@ export function VerifyTestFlightForm(props: VerifyTestFlightFormProps) {
       {verifyError && (
         <Alert 
           icon={<IconAlertCircle size={16} />} 
-          color="red" 
+          color={DS_COLORS.STATUS.ERROR} 
           title="Verification Failed"
           variant="light"
         >
@@ -173,7 +177,7 @@ export function VerifyTestFlightForm(props: VerifyTestFlightFormProps) {
           />
 
           {/* Action Buttons */}
-          <Group justify="flex-end" mt="md">
+          <Group justify="flex-end" mt={DS_SPACING.LG}>
             {onClose && (
               <Button 
                 variant="subtle" 

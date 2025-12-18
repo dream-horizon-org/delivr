@@ -4,19 +4,18 @@
  */
 
 import { json } from '@remix-run/node';
-import type { ActionFunctionArgs } from '@remix-run/node';
-import { authenticateActionRequest, AuthenticatedActionFunction } from '~/utils/authenticate';
 import { DistributionService } from '~/.server/services/Distribution';
+import {
+  ERROR_MESSAGES,
+  LOG_CONTEXT,
+} from '~/constants/distribution/distribution-api.constants';
 import {
   createValidationError,
   handleAxiosError,
   logApiError,
   validateRequired,
 } from '~/utils/api-route-helpers';
-import {
-  ERROR_MESSAGES,
-  LOG_CONTEXT,
-} from '~/constants/distribution-api.constants';
+import { authenticateActionRequest, AuthenticatedActionFunction } from '~/utils/authenticate';
 
 const verifyTestFlight: AuthenticatedActionFunction = async ({ params, request, user }) => {
   const { releaseId } = params;
@@ -27,9 +26,9 @@ const verifyTestFlight: AuthenticatedActionFunction = async ({ params, request, 
 
   try {
     const body = await request.json();
-    const { testflightBuildNumber, versionName } = body;
+    const { testflightNumber, versionName } = body;
 
-    if (!testflightBuildNumber) {
+    if (!testflightNumber) {
       return createValidationError(ERROR_MESSAGES.TESTFLIGHT_BUILD_NUMBER_REQUIRED);
     }
 
@@ -39,7 +38,7 @@ const verifyTestFlight: AuthenticatedActionFunction = async ({ params, request, 
 
     const requestData = {
       releaseId,
-      testflightBuildNumber,
+      testflightNumber,
       versionName,
     };
 

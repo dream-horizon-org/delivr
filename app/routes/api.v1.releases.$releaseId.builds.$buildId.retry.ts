@@ -18,7 +18,7 @@ import {
 import {
   ERROR_MESSAGES,
   LOG_CONTEXT,
-} from '~/constants/distribution-api.constants';
+} from '~/constants/distribution/distribution-api.constants';
 
 const retryBuild: AuthenticatedActionFunction = async ({ params, user }) => {
   const { releaseId, buildId } = params;

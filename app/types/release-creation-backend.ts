@@ -7,7 +7,6 @@
  * Backend Endpoint: POST /tenants/:tenantId/releases
  */
 
-import type { Platform, TargetPlatform } from '~/types/release-config';
 
 // ============================================================================
 // Core Types
@@ -202,9 +201,9 @@ export interface UpdateReleaseBackendRequest {
 export interface UpdateReleaseState {
   // Basic Info
   type?: ReleaseType;
-  branch?: string;
-  baseBranch?: string;
-  baseReleaseId?: string;
+  branch?: string | null;
+  baseBranch?: string | null;
+  baseReleaseId?: string | null;
 
   // Dates (can be separate date + time in UI, converted to ISO on submit)
   kickOffDate?: string; // Date string (YYYY-MM-DD)
@@ -220,7 +219,7 @@ export interface UpdateReleaseState {
 
   // Cron Config
   cronConfig?: CronConfig;
-  upcomingRegressions?: RegressionBuildSlotBackend[];
+  upcomingRegressions?: RegressionBuildSlotBackend[] | null;
 
   // Other
   hasManualBuildUpload?: boolean;

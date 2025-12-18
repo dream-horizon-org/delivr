@@ -8,7 +8,7 @@ interface ApiClientOptions extends RequestInit {
   timeout?: number;
 }
 
-interface ApiResponse<T = unknown> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;

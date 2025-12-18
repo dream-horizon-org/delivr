@@ -4,7 +4,7 @@ import { Flex, Box, useMantineTheme } from '@mantine/core';
 import { OrgsPage } from "~/components/Pages/components/OrgsPage";
 import { CodepushService } from '~/.server/services/Codepush';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
-import { STORE_TYPES, ALLOWED_PLATFORMS } from '~/types/app-distribution';
+import { STORE_TYPES, ALLOWED_PLATFORMS } from '~/types/distribution/app-distribution';
 import type { SystemMetadataBackend } from '~/types/system-metadata';
 import { AuthErrorFallback } from '~/components/Auth/AuthErrorFallback';
 
