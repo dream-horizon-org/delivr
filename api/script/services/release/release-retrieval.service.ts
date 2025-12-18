@@ -33,6 +33,7 @@ import { ReleaseConfiguration } from '~types/release-configs';
 import { SCMService } from '../integrations/scm/scm.service';
 import { ProjectManagementTicketService } from '../integrations/project-management/ticket/ticket.service';
 import { TestManagementRunService } from '../integrations/test-management/test-run/test-run.service';
+import { TestPlatform } from '~types/integrations/test-management';
 import { Platform as PMPlatform } from '~types/integrations/project-management';
 import * as storageTypes from '../../storage/storage';
 import { getAccountDetails as getAccountDetailsUtil } from '../../utils/account.utils';
@@ -1058,7 +1059,8 @@ export class ReleaseRetrievalService {
         try {
           const runUrl = await this.testRunService.getRunUrl({
             runId: mapping.testManagementRunId,
-            testManagementConfigId: testConfigId
+            testManagementConfigId: testConfigId,
+            platform: mapping.platform as TestPlatform  // Cast to TestPlatform enum type
           });
 
           platforms.push({

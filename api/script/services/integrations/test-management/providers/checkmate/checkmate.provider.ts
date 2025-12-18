@@ -329,13 +329,24 @@ export class CheckmateProvider implements ITestManagementProvider {
 
   /**
    * Get the URL for a test run
+   * Requires projectId to construct the proper URL
    */
   getRunUrl = async (
     config: TenantTestManagementIntegrationConfig,
-    runId: string
+    runId: string,
+    projectId: number
   ): Promise<string> => {
     const checkmateConfig = this.getCheckmateConfig(config);
-    return this.buildSimpleRunUrl(checkmateConfig.baseUrl, runId);
+    
+    // Validate projectId
+    const projectIdMissing = !projectId;
+    
+    if (projectIdMissing) {
+      throw new Error(CHECKMATE_ERROR_MESSAGES.PROJECT_ID_REQUIRED);
+    }
+    
+    // Use buildRunUrl (with projectId) instead of buildSimpleRunUrl
+    return this.buildRunUrl(checkmateConfig.baseUrl, projectId, runId);
   };
 
   /**

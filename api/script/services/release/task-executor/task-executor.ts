@@ -421,7 +421,8 @@ export class TaskExecutor {
         try {
           const runUrl = await this.testRunService.getRunUrl({
             runId: mapping.testManagementRunId,
-            testManagementConfigId: testConfigId
+            testManagementConfigId: testConfigId,
+            platform: mapping.platform as TestPlatform  // Cast to TestPlatform enum type
           });
           links.push(runUrl);
         } catch (error) {

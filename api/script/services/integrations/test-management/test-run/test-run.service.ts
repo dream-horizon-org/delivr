@@ -8,6 +8,7 @@ import type {
   ResetTestRunResponse,
   TestReportResponse,
   TestRunActionRequest,
+  TestRunURLRequest,
   TestStatusResponse
 } from '~types/integrations/test-management';
 import { TestRunStatus } from '~types/integrations/test-management';
@@ -252,29 +253,46 @@ export class TestManagementRunService {
   /**
    * Get test run URL from provider
    * 
-   * Input: runId + testManagementConfigId
+   * Input: runId + testManagementConfigId + platform
    * Output: Full URL to the test run
+   * 
+   * Follows the same pattern as createTestRuns - extracts platform-specific
+   * parameters (projectId) and passes them to the provider
    */
-  async getRunUrl(request: TestRunActionRequest): Promise<string> {
-    const { runId, testManagementConfigId } = request;
+  async getRunUrl(request: TestRunURLRequest): Promise<string> {
+    const { runId, testManagementConfigId, platform } = request;
 
-    // Get config to find integration
+    // 1. Get test management config
     const config = await this.configRepo.findById(testManagementConfigId);
     if (!config) {
       throw new Error(`Test management config not found: ${testManagementConfigId}`);
     }
 
-    // Get integration
+    // 2. Get integration (credentials)
     const integration = await this.integrationRepo.findById(config.integrationId);
     if (!integration) {
       throw new Error(`Integration not found: ${config.integrationId}`);
     }
 
-    // Get provider
+    // 3. Find platform configuration (same pattern as createTestRuns line 70-74)
+    const platformConfig = config.platformConfigurations.find(pc => pc.platform === platform);
+    
+    if (!platformConfig) {
+      throw new Error(`Platform not found in config: ${platform}`);
+    }
+
+    // 4. Extract projectId from platform parameters
+    const projectId = platformConfig.parameters.projectId;
+    
+    if (!projectId) {
+      throw new Error(`projectId not found for platform: ${platform}`);
+    }
+
+    // 5. Get provider
     const provider = ProviderFactory.getProvider(integration.providerType);
 
-    // Get URL from provider
-    return await provider.getRunUrl(integration.config, runId);
+    // 6. Get URL from provider (pass projectId directly)
+    return await provider.getRunUrl(integration.config, runId, projectId);
   }
 
   /**
