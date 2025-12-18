@@ -13,13 +13,15 @@ import { useNavigate } from '@remix-run/react';
 import { showErrorToast, showWarningToast, showSuccessToast } from '~/utils/toast';
 import { RELEASE_MESSAGES, getErrorMessage } from '~/constants/toast-messages';
 import { useConfig } from '~/contexts/ConfigContext';
-import { useDraftStorage } from '~/hooks/useDraftStorage';
+import { useReleases } from '~/hooks/useReleases';
+import { useVersionSuggestions } from '~/hooks/useVersionSuggestions';
 import { ConfigurationSelector } from './ConfigurationSelector';
 import { ReleaseDetailsForm } from './ReleaseDetailsForm';
 import { ReleaseSchedulingPanel } from './ReleaseSchedulingPanel';
 import { ReleaseReviewModal } from './ReleaseReviewModal';
 import type { ReleaseCreationState, CronConfig } from '~/types/release-creation-backend';
 import type { ReleaseConfiguration } from '~/types/release-config';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { validateReleaseCreationState } from '~/utils/release-creation-validation';
 import { 
   convertStateToBackendRequest, 
@@ -29,13 +31,15 @@ import {
 import { DEFAULT_KICKOFF_TIME, DEFAULT_RELEASE_TIME } from '~/constants/release-creation';
 import { getReleaseActiveStatus } from '~/utils/release-utils';
 import { RELEASE_ACTIVE_STATUS } from '~/constants/release-ui';
+import { applyVersionSuggestions } from '~/utils/release-version-suggestions';
+import { clearErrorsForFields } from '~/utils/form-error-utils';
 
 interface CreateReleaseFormProps {
   org: string;
   userId: string;
   onSubmit: (request: ReturnType<typeof convertStateToBackendRequest>) => Promise<void>;
   // Edit mode props
-  existingRelease?: any; // BackendReleaseResponse
+  existingRelease?: BackendReleaseResponse;
   isEditMode?: boolean;
   onUpdate?: (request: ReturnType<typeof convertUpdateStateToBackendRequest>) => Promise<void>;
   onCancel?: () => void;
@@ -55,6 +59,9 @@ export function CreateReleaseForm({
   const hasConfigurations = activeReleaseConfigs.length > 0;
   const navigate = useNavigate();
   const theme = useMantineTheme();
+  
+  // Get all releases for version suggestions (only for create mode)
+  const { releases } = useReleases(org);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -65,47 +72,25 @@ export function CreateReleaseForm({
   const initialReleaseState: Partial<ReleaseCreationState> = isEditMode && existingRelease
     ? convertReleaseToFormState(existingRelease)
     : {
-    type: 'MINOR',
+    // type is not set here - let ReleaseDetailsForm set it from config
     platformTargets: [],
     baseBranch: '',
+    branch: '', // Start with empty branch - will be populated by version suggestions
     kickOffDate: '',
     kickOffTime: DEFAULT_KICKOFF_TIME,
     targetReleaseDate: '',
     targetReleaseTime: DEFAULT_RELEASE_TIME,
   };
 
-  const {
-    formData: state,
-    setFormData: setState,
-    isDraftRestored,
-    markSaveSuccessful,
-  } = useDraftStorage<Partial<ReleaseCreationState>>(
-    {
-      storageKey: isEditMode ? `release-edit-draft-${org}-${existingRelease?.id}` : `release-creation-draft-${org}`,
-      sensitiveFields: [], // No sensitive fields in release creation
-      shouldSaveDraft: (data) => {
-        // Don't save draft in edit mode
-        if (isEditMode) return false;
-        // Save draft if user has filled in meaningful data
-        return !!(
-          data.baseBranch ||
-          data.platformTargets?.length ||
-          data.kickOffDate ||
-          data.targetReleaseDate ||
-          data.releaseConfigId
-        );
-      },
-      ttl: 7 * 24 * 60 * 60 * 1000, // 7 days
-      enableMetadata: false,
-    },
-    initialReleaseState
-  );
+  // Direct state management
+  const [state, setState] = useState<Partial<ReleaseCreationState>>(initialReleaseState);
+  const isDraftRestored = false; // Always false since draft is disabled
+  const markSaveSuccessful = () => {}; // No-op since draft is disabled
 
   // Get active status to determine what can be edited
   const activeStatus = existingRelease ? getReleaseActiveStatus(existingRelease) : null;
   const isUpcoming = activeStatus === RELEASE_ACTIVE_STATUS.UPCOMING;
   const isAfterKickoff = activeStatus === RELEASE_ACTIVE_STATUS.RUNNING || activeStatus === RELEASE_ACTIVE_STATUS.PAUSED;
-  console.log('state in create release form', state);
 
   // Release creation state
   const [selectedConfigId, setSelectedConfigId] = useState<string | undefined>();
@@ -180,26 +165,38 @@ export function CreateReleaseForm({
 
   // Restore selectedConfigId from draft, existing release, or use default (runs only once on mount)
   useEffect(() => {
-    // Only run this logic once on mount or when key dependencies change
+    // Only run this logic once on mount or when draft is restored
+    // Don't reset if user has already selected a config manually
+    if (selectedConfigId && !isDraftRestored && !isEditMode) {
+      return; // User has manually selected a config, don't override
+    }
+    
     if (isEditMode && existingRelease?.releaseConfigId) {
       // In edit mode, use the release's config ID
       setSelectedConfigId(existingRelease.releaseConfigId);
     } else if (isDraftRestored && state.releaseConfigId) {
       // Restore from draft first
       setSelectedConfigId(state.releaseConfigId);
-    } else if (defaultReleaseConfig) {
-      // Fallback to default config if no draft
-      console.log('[CreateReleaseForm] Auto-selecting default config:', defaultReleaseConfig.id, defaultReleaseConfig.name);
+    } else if (defaultReleaseConfig && !selectedConfigId) {
+      // Fallback to default config if no draft AND no manual selection yet
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[CreateReleaseForm] Auto-selecting default config:', defaultReleaseConfig.id, defaultReleaseConfig.name);
+      }
       setSelectedConfigId(defaultReleaseConfig.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditMode, existingRelease?.releaseConfigId, isDraftRestored, state.releaseConfigId, defaultReleaseConfig?.id]);
+  }, [isEditMode, existingRelease?.releaseConfigId, isDraftRestored, defaultReleaseConfig?.id]);
+  // Removed state.releaseConfigId from dependencies - it causes the reset issue
 
   // Load the full configuration when a config is selected
   useEffect(() => {
     if (selectedConfigId) {
       const config = configurations.find((c) => c.id === selectedConfigId);
       if (config) {
+        const prevConfig = selectedConfig;
+        const configChanged = prevConfig?.id !== config.id;
+        const releaseConfigIdChanged = state.releaseConfigId !== config.id;
+        
         // Only update if config actually changed (prevent flickering)
         setSelectedConfig((prev) => {
           // Check if config is actually different
@@ -209,11 +206,15 @@ export function CreateReleaseForm({
           return config;
         });
         
-        // Only update state if releaseConfigId is different
-        if (state.releaseConfigId !== config.id) {
+        // Update state when config changes
+        if (releaseConfigIdChanged || configChanged) {
           setState((prev) => ({
             ...prev,
             releaseConfigId: config.id,
+            // Reset versions and branch when config changes to trigger new suggestions
+            // But don't reset in edit mode - preserve existing values
+            platformTargets: (configChanged && !isEditMode) ? [] : prev.platformTargets,
+            branch: (configChanged && !isEditMode) ? '' : prev.branch,
           }));
         }
       }
@@ -222,6 +223,43 @@ export function CreateReleaseForm({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConfigId, configurations.length]); // Use configurations.length instead of full array
+
+  // Use version suggestions hook
+  const { suggestions, needsVersionSuggestions, shouldUpdateBranch } = useVersionSuggestions({
+    releases,
+    releaseType: state.type,
+    platformTargets: state.platformTargets,
+    currentBranch: state.branch,
+    isEditMode,
+  });
+
+  // Apply version suggestions when available
+  useEffect(() => {
+    if (isEditMode || !suggestions || !needsVersionSuggestions) {
+      return;
+    }
+
+    const updatedPlatformTargets = applyVersionSuggestions(
+      state.platformTargets!,
+      suggestions.suggestions
+    );
+
+    setState((prev) => {
+      const versionsChanged = JSON.stringify(prev.platformTargets) !== JSON.stringify(updatedPlatformTargets);
+      const updateBranch = shouldUpdateBranch(suggestions.branchName, versionsChanged);
+
+      if (!versionsChanged && !updateBranch) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        platformTargets: updatedPlatformTargets,
+        branch: updateBranch ? suggestions.branchName : prev.branch,
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestions, needsVersionSuggestions, shouldUpdateBranch, isEditMode]);
 
   // Handler to create new configuration
   const handleCreateNewConfig = () => {
@@ -241,52 +279,7 @@ export function CreateReleaseForm({
     
     // Clear errors for fields that are being updated (user is fixing them)
     const updatedFields = Object.keys(updates);
-    const clearedErrors = { ...errors };
-    
-    updatedFields.forEach((field) => {
-      // Clear direct field errors
-      if (clearedErrors[field]) {
-        delete clearedErrors[field];
-      }
-      
-      // Clear nested errors for regressionBuildSlots when slots are updated
-      if (field === 'regressionBuildSlots') {
-        Object.keys(clearedErrors).forEach((errorKey) => {
-          if (errorKey.startsWith('regressionBuildSlots[')) {
-            delete clearedErrors[errorKey];
-          }
-        });
-      }
-      
-      // Clear nested errors for platformTargets when targets are updated
-      if (field === 'platformTargets') {
-        Object.keys(clearedErrors).forEach((errorKey) => {
-          if (errorKey.startsWith('platformTargets') || errorKey.startsWith('version-')) {
-            delete clearedErrors[errorKey];
-          }
-        });
-      }
-      
-      // Clear date/time related errors
-      if (field === 'kickOffDate' || field === 'kickOffTime') {
-        if (clearedErrors.kickOffDate) delete clearedErrors.kickOffDate;
-        if (clearedErrors.kickOffTime) delete clearedErrors.kickOffTime;
-        // Also clear targetReleaseDate error if it was about being before kickoff
-        if (clearedErrors.targetReleaseDate?.includes('after kickoff')) {
-          delete clearedErrors.targetReleaseDate;
-        }
-      }
-      
-      if (field === 'targetReleaseDate' || field === 'targetReleaseTime') {
-        if (clearedErrors.targetReleaseDate) delete clearedErrors.targetReleaseDate;
-        if (clearedErrors.targetReleaseTime) delete clearedErrors.targetReleaseTime;
-      }
-      
-      if (field === 'kickOffReminderDate' || field === 'kickOffReminderTime') {
-        if (clearedErrors.kickOffReminderDate) delete clearedErrors.kickOffReminderDate;
-        if (clearedErrors.kickOffReminderTime) delete clearedErrors.kickOffReminderTime;
-      }
-    });
+    const clearedErrors = clearErrorsForFields(errors, updatedFields);
     
     // Update errors (only cleared errors, no new validation)
     setErrors(clearedErrors);
@@ -334,8 +327,10 @@ export function CreateReleaseForm({
     // Validate before opening modal
     const validation = validateReleaseCreationState(state, isEditMode, activeStatus || undefined);
     if (!validation.isValid) {
-      console.error('[CreateRelease] Validation Errors:', validation.errors);
-      console.error('[CreateRelease] Current State:', state);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[CreateRelease] Validation Errors:', validation.errors);
+        console.error('[CreateRelease] Current State:', state);
+      }
       setErrors(validation.errors);
       showWarningToast(RELEASE_MESSAGES.VALIDATION_ERRORS);
       return;
@@ -413,7 +408,9 @@ export function CreateReleaseForm({
         }
 
         const updateRequest = convertUpdateStateToBackendRequest(updateState);
-        console.log('[UpdateRelease] Update Request:', JSON.stringify(updateRequest, null, 2));
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[UpdateRelease] Update Request:', JSON.stringify(updateRequest, null, 2));
+        }
         await onUpdate(updateRequest);
       } else {
         // Create mode: convert to create request
@@ -424,8 +421,10 @@ export function CreateReleaseForm({
           configReleaseType
         );
 
-        console.log('[CreateRelease] Backend Request:', JSON.stringify(backendRequest, null, 2));
-        console.log('[CreateRelease] Using release type from config:', configReleaseType);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[CreateRelease] Backend Request:', JSON.stringify(backendRequest, null, 2));
+          console.log('[CreateRelease] Using release type from config:', configReleaseType);
+        }
 
         // Add cron config (auto-generated from config)
         const cronConfig = getCronConfig();
@@ -433,12 +432,14 @@ export function CreateReleaseForm({
           backendRequest.cronConfig = cronConfig as CronConfig;
         }
 
-        console.log('[CreateRelease] Submitting to backend:', JSON.stringify(backendRequest, null, 2));
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[CreateRelease] Submitting to backend:', JSON.stringify(backendRequest, null, 2));
+        }
 
         await onSubmit(backendRequest);
 
         // Mark draft as successfully saved (prevents auto-save on unmount)
-        markSaveSuccessful();
+        // markSaveSuccessful(); // Commented out - draft functionality disabled
         showSuccessToast(RELEASE_MESSAGES.CREATE_SUCCESS);
         setReviewModalOpened(false);
       }
@@ -456,7 +457,6 @@ export function CreateReleaseForm({
 
   // Get all validation errors for display
   const hasValidationErrors = Object.keys(errors).length > 0;
-  console.log('[CreateRelease] Errors:', errors);
 
   return (
     <Box>
