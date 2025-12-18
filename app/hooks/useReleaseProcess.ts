@@ -530,6 +530,8 @@ export function useApproveRegression(tenantId?: string, releaseId?: string) {
           // Invalidate both REGRESSION (current) and PRE_RELEASE (next stage that gets triggered)
           queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.REGRESSION));
           queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.PRE_RELEASE));
+          // Invalidate release query so phase gets recalculated and navigation happens
+          queryClient.invalidateQueries(['release', tenantId, releaseId]);
           // Invalidate releases list to reflect stage transition
           queryClient.invalidateQueries(['releases', tenantId]);
           // Invalidate activity logs to show approval action
@@ -568,6 +570,8 @@ export function useCompletePreReleaseStage(tenantId?: string, releaseId?: string
       onSuccess: () => {
         if (tenantId && releaseId) {
           queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.PRE_RELEASE));
+          // Invalidate release query so phase gets recalculated and navigation happens
+          queryClient.invalidateQueries(['release', tenantId, releaseId]);
           // Invalidate releases list to reflect stage completion
           queryClient.invalidateQueries(['releases', tenantId]);
           // Invalidate activity logs to show completion action

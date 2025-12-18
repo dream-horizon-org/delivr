@@ -40,6 +40,17 @@ class Distribution {
     timeout: 10000,
   });
 
+  /**
+   * Build headers with userId for authentication
+   * Backend accepts 'userid' header as fallback when Authorization token is not present
+   */
+  private buildHeaders(userId: string, additionalHeaders?: Record<string, string>) {
+    return {
+      'userid': userId,
+      ...(additionalHeaders || {}),
+    };
+  }
+
   // ======================
   // Pre-Release Stage APIs
   // ======================
@@ -215,9 +226,12 @@ class Distribution {
    * Returns full distribution object with all submissions and artifacts
    * Reference: DISTRIBUTION_API_SPEC.md - Line 303
    */
-  async getReleaseDistribution(releaseId: string) {
+  async getReleaseDistribution(releaseId: string, userId: string) {
     return this.__client.get<null, AxiosResponse<APISuccessResponse<DistributionWithSubmissions>>>(
-      `/api/v1/releases/${releaseId}/distribution`
+      `/api/v1/releases/${releaseId}/distribution`,
+      {
+        headers: this.buildHeaders(userId)
+      }
     );
   }
 

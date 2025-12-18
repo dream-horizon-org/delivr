@@ -140,34 +140,37 @@ export function IntegrationsStatusSidebar({
               'platforms' in testManagementStatus.data ? (
                 // All platforms response
                 <Stack gap="xs">
-                  {testManagementStatus.data.platforms.map((platform) => (
-                    <Group key={platform.platform} gap="xs" justify="space-between">
-                      <Text size="xs" c="dimmed">
-                        {platform.platform}
-                      </Text>
-                      {platform.status === 'PASSED' ? (
-                        <Badge color="green" size="sm">
-                          <Group gap={4}>
-                            <IconCheck size={12} />
-                            Passed
-                          </Group>
-                        </Badge>
-                      ) : (
-                        <Badge color="red" size="sm">
-                          {platform.status || 'Pending'}
-                        </Badge>
-                      )}
-                    </Group>
-                  ))}
+                  {testManagementStatus.data.platforms.map((platform) => {
+                    const isCompleted = platform.status === 'PASSED' || platform.status === 'COMPLETED';
+                    return (
+                      <Group key={platform.platform} gap="xs" justify="space-between">
+                        <Text size="xs" c="dimmed">
+                          {platform.platform}
+                        </Text>
+                        {isCompleted ? (
+                          <Badge color="green" size="sm">
+                            <Group gap={4}>
+                              <IconCheck size={12} />
+                              {platform.status === 'COMPLETED' ? 'Completed' : 'Passed'}
+                            </Group>
+                          </Badge>
+                        ) : (
+                          <Badge color="red" size="sm">
+                            {platform.status || 'Pending'}
+                          </Badge>
+                        )}
+                      </Group>
+                    );
+                  })}
                 </Stack>
               ) : (
                 // Single platform response
                 <Group gap="xs">
-                  {testManagementStatus.data.status === 'PASSED' ? (
+                  {(testManagementStatus.data.status === 'PASSED' || testManagementStatus.data.status === 'COMPLETED') ? (
                     <>
                       <IconCheck size={16} color="green" />
                       <Text size="sm" c="green" fw={500}>
-                        Passed
+                        {testManagementStatus.data.status === 'COMPLETED' ? 'Completed' : 'Passed'}
                       </Text>
                     </>
                   ) : (

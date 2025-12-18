@@ -22,7 +22,7 @@ import {
   getCycleStatusColor,
   getCycleStatusLabel,
 } from '~/constants/release-process-ui';
-import type { RegressionCycle, Task } from '~/types/release-process.types';
+import type { RegressionCycle, Task, BuildInfo } from '~/types/release-process.types';
 import { RegressionCycleStatus } from '~/types/release-process-enums';
 import { formatReleaseDateTime } from '~/utils/release-process-date';
 import { TaskCard } from './TaskCard';
@@ -34,6 +34,7 @@ interface RegressionCycleCardProps {
   tenantId: string;
   releaseId: string;
   onRetryTask?: (taskId: string) => void;
+  uploadedBuilds?: BuildInfo[]; // Stage-level uploaded builds (for tasks that haven't consumed builds yet)
   isExpanded?: boolean; // For past cycles - whether to show expanded by default
   className?: string;
   isInsideAccordion?: boolean; // Explicitly mark if this is inside an Accordion
@@ -45,6 +46,7 @@ export function RegressionCycleCard({
   tenantId,
   releaseId,
   onRetryTask,
+  uploadedBuilds = [],
   isExpanded = false,
   className,
   isInsideAccordion = false,
@@ -100,9 +102,7 @@ export function RegressionCycleCard({
                 tenantId={tenantId}
                 releaseId={releaseId}
                 onRetry={onRetryTask}
-                // Note: For regression, uploadedBuilds are for upcoming slot (next cycle)
-                // Current cycle tasks use task.builds when cycle is IN_PROGRESS
-                // No need to pass uploadedBuilds here - they're stage-level for upcoming slot
+                uploadedBuilds={uploadedBuilds}
               />
             ))}
           </Stack>

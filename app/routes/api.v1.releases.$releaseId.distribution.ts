@@ -39,7 +39,7 @@ export const loader = authenticateLoaderRequest(
     }
 
     try {
-      const response = await DistributionService.getReleaseDistribution(releaseId);
+      const response = await DistributionService.getReleaseDistribution(releaseId, user.user.id);
       return json(response.data);
     } catch (error) {
       logApiError(LOG_CONTEXT.DISTRIBUTION_STATUS_API, error);

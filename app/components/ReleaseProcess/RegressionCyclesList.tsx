@@ -156,6 +156,7 @@ export function RegressionCyclesList({
             tenantId={tenantId}
             releaseId={releaseId}
             onRetryTask={onRetryTask}
+            uploadedBuilds={uploadedBuilds}
           />
         </Stack>
       )}
@@ -267,6 +268,7 @@ export function RegressionCyclesList({
                   tenantId={tenantId}
                   releaseId={releaseId}
                   onRetryTask={onRetryTask}
+                  uploadedBuilds={uploadedBuilds}
                   isExpanded={false}
                   isInsideAccordion={true}
                 />
