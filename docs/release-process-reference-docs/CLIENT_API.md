@@ -57,7 +57,7 @@ interface Task {
 
 type TaskType =
   // Stage 1: Kickoff
-  | 'PRE_KICK_OFF_REMINDER'
+  | 'PRE_KICKOFF_REMINDER'
   | 'FORK_BRANCH'
   | 'CREATE_PROJECT_MANAGEMENT_TICKET'
   | 'CREATE_TEST_SUITE'
@@ -292,7 +292,7 @@ interface BuildInfo {
   tenantId: string;
   releaseId: string;
   platform: 'ANDROID' | 'IOS' | 'WEB';
-  buildStage: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
+  buildStage: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE';
   artifactPath: string | null;
   internalTrackLink: string | null;     // Play Store Internal Track Link
   testflightNumber: string | null;      // TestFlight build number
@@ -606,7 +606,7 @@ GET /api/v1/tenants/{tenantId}/releases/{releaseId}/builds
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `stage` | string | No | Filter by build stage: `KICK_OFF`, `REGRESSION`, or `PRE_RELEASE` |
+| `stage` | string | No | Filter by build stage: `KICKOFF`, `REGRESSION`, or `PRE_RELEASE` |
 | `platform` | string | No | Filter by platform: `IOS`, `ANDROID`, or `WEB` |
 | `status` | string | No | Filter by upload status: `PENDING`, `UPLOADED`, or `FAILED` |
 

@@ -67,8 +67,8 @@ export function ManualBuildUploadWidget({
   // Map BuildUploadStage to backend stage format for filtering
   const backendStage = useMemo(() => {
     const taskStage = mapBuildUploadStageToTaskStage(stage);
-    // Backend uses KICK_OFF, REGRESSION, PRE_RELEASE
-    return taskStage === TaskStage.KICKOFF ? 'KICK_OFF' : taskStage === TaskStage.PRE_RELEASE ? 'PRE_RELEASE' : taskStage;
+    // Backend uses KICKOFF, REGRESSION, PRE_RELEASE
+    return taskStage === TaskStage.KICKOFF ? TaskStage.KICKOFF : taskStage === TaskStage.PRE_RELEASE ? TaskStage.PRE_RELEASE : taskStage;
   }, [stage]);
 
   // Fetch artifacts for this stage

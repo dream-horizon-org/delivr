@@ -136,7 +136,7 @@ COMPLETED
 
 ### Build Upload Flow (Manual Mode)
 
-1. **User uploads build** → `PUT /stages/KICK_OFF/builds/{platform}`
+1. **User uploads build** → `PUT /stages/KICKOFF/builds/{platform}`
    - File stored in S3
    - Entry created in `release_uploads` staging table
    - `isUsed: false`, `usedByTaskId: null`

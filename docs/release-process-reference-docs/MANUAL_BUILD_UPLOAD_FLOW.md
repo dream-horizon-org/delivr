@@ -144,7 +144,7 @@ KICK-OFF DATE ARRIVES (2024-01-15T10:00:00Z)
 |   2. CREATE_PROJECT_MANAGEMENT_TICKET                                |
 |   3. CREATE_TEST_SUITE                                               |
 |   4. TRIGGER_PRE_REGRESSION_BUILDS  <-- NEEDS BUILDS                 |
-|   5. SEND_KICK_OFF_MESSAGE                                           |
+|   5. SEND_KICKOFF_MESSAGE                                           |
 +---------------------------------------------------------------------+
                                    |
                                    v
@@ -189,7 +189,7 @@ KICK-OFF DATE ARRIVES (2024-01-15T10:00:00Z)
 | |    | taskId: task-789                                   |     |   |
 | |    | platform: ANDROID                                  |     |   |
 | |    | storeType: PLAY_STORE                              |     |   |
-| |    | buildStage: KICK_OFF                               |     |   |
+| |    | buildStage: KICKOFF                               |     |   |
 | |    | buildType: CI_CD                                   |     |   |
 | |    | queueLocation: queue-url-from-cicd                 |     |   |
 | |    | ciRunId: NULL (CI/CD updates when it starts)       |     |   |
@@ -224,7 +224,7 @@ KICK-OFF DATE ARRIVES (2024-01-15T10:00:00Z)
 | |    | taskId: task-789                                   |     |   |
 | |    | platform: ANDROID                                  |     |   |
 | |    | storeType: PLAY_STORE                              |     |   |
-| |    | buildStage: KICK_OFF                               |     |   |
+| |    | buildStage: KICKOFF                               |     |   |
 | |    | buildType: MANUAL  <-- MANUAL TYPE                 |     |   |
 | |    | queueLocation: NULL                                |     |   |
 | |    | ciRunId: NULL                                      |     |   |
@@ -289,7 +289,7 @@ KICK-OFF DATE ARRIVES (2024-01-15T10:00:00Z)
                                    |
                                    v
 +---------------------------------------------------------------------+
-| 5. SEND_KICK_OFF_MESSAGE                                             |
+| 5. SEND_KICKOFF_MESSAGE                                             |
 |    -> Send Slack message with build links                            |
 |    -> Status: COMPLETED ✅                                            |
 +---------------------------------------------------------------------+
@@ -975,7 +975,7 @@ CREATE TABLE builds (
   taskId VARCHAR(255) NULL,
   platform ENUM('ANDROID', 'IOS', 'WEB') NOT NULL,
   storeType VARCHAR(50),
-  buildStage ENUM('KICK_OFF', 'REGRESSION', 'PRE_RELEASE'),
+  buildStage ENUM('KICKOFF', 'REGRESSION', 'PRE_RELEASE'),
   buildType ENUM('CI_CD', 'MANUAL') NOT NULL,
   buildNumber VARCHAR(50),
   queueLocation VARCHAR(1024),

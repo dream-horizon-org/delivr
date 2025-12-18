@@ -69,9 +69,9 @@ export function getStageFromPhase(phase: Phase): TaskStage | null {
     case Phase.AWAITING_REGRESSION:
     case Phase.REGRESSION:
     case Phase.REGRESSION_AWAITING_NEXT_CYCLE:
+    case Phase.AWAITING_PRE_RELEASE: // Keep user on regression until pre-release starts
       return TaskStageEnum.REGRESSION;
-    case Phase.AWAITING_PRE_RELEASE:
-    case Phase.PRE_RELEASE:
+    case Phase.PRE_RELEASE: // Only show pre-release when stage3Status === 'IN_PROGRESS'
       return TaskStageEnum.PRE_RELEASE;
     case Phase.AWAITING_SUBMISSION:
     case Phase.SUBMISSION:

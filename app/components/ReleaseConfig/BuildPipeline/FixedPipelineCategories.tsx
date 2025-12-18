@@ -46,6 +46,7 @@ export function FixedPipelineCategories({
   const needsAndroid = selectedPlatforms.includes(PLATFORMS.ANDROID);
   const needsIOS = selectedPlatforms.includes(PLATFORMS.IOS);
   
+  console.log("pipelines", pipelines, "selectedPlatforms", selectedPlatforms, "needsAndroid", needsAndroid, "needsIOS", needsIOS);
   // Fetch workflows when component mounts
   useEffect(() => {
     if (tenantId) {
@@ -86,7 +87,7 @@ export function FixedPipelineCategories({
   // Find pipeline for a category
   const getPipelineForCategory = (category: PipelineCategoryConfig): Workflow | undefined => {
     return pipelines.find(
-      p => p.platform === category.platform && p.environment === category.environment
+      p => p.platform.toUpperCase() === category.platform.toUpperCase() && p.environment === category.environment
     );
   };
 
@@ -213,6 +214,7 @@ export function FixedPipelineCategories({
       <Stack gap="md">
         {categoriesToShow.map(category => {
           const pipeline = getPipelineForCategory(category);
+          console.log("pipeline", pipeline, "category", category);
           const isConfigured = !!pipeline;
 
           return (

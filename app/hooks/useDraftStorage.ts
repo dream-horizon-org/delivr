@@ -301,7 +301,7 @@ export function useDraftStorage<T extends Record<string, any>>(
       }
     };
   }, [formData, saveDraft, shouldSaveDraft]);
-
+  console.log("formData", formData, "isDraftRestored", isDraftRestored);
   return {
     formData, // Current form data state
     setFormData, // Update form data

@@ -96,19 +96,19 @@ function getBuildsForTask(task, db, releaseId) {
     // Frontend doesn't depend on it anymore - uses platform + testflightNumber/internalTrackLink instead
     const storeType = build.storeType || null;
     
-    // Determine buildStage (must be one of: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE')
-    // API contract: buildStage must be one of: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE'
+    // Determine buildStage (must be one of: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE')
+    // API contract: buildStage must be one of: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE'
     let mappedBuildStage = build.buildStage;
-    if (!mappedBuildStage || !['KICK_OFF', 'REGRESSION', 'PRE_RELEASE'].includes(mappedBuildStage)) {
+    if (!mappedBuildStage || !['KICKOFF', 'REGRESSION', 'PRE_RELEASE'].includes(mappedBuildStage)) {
       // Map from taskStage or buildStage parameter
-      if (buildStage === 'PRE_REGRESSION' || buildStage === 'KICKOFF' || buildStage === 'KICK_OFF') {
-        mappedBuildStage = 'KICK_OFF';
+      if (buildStage === 'PRE_REGRESSION' || buildStage === 'KICKOFF' || buildStage === 'KICKOFF') {
+        mappedBuildStage = 'KICKOFF';
       } else if (buildStage === 'REGRESSION') {
         mappedBuildStage = 'REGRESSION';
       } else if (buildStage === 'PRE_RELEASE') {
         mappedBuildStage = 'PRE_RELEASE';
       } else {
-        mappedBuildStage = 'KICK_OFF'; // Default fallback
+        mappedBuildStage = 'KICKOFF'; // Default fallback
       }
     }
 
@@ -119,7 +119,7 @@ function getBuildsForTask(task, db, releaseId) {
       tenantId: build.tenantId || defaultTenantId, // Must be string, never null
       releaseId: build.releaseId || releaseId, // Must be release.id (UUID), not release.releaseId
       platform: platform,
-      buildStage: mappedBuildStage, // Must be one of: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE'
+      buildStage: mappedBuildStage, // Must be one of: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE'
       artifactPath: build.artifactPath || null, // Mandatory field (can be null)
       internalTrackLink: build.internalTrackLink || (platform === 'ANDROID' && taskStage === 'PRE_RELEASE' ? 'https://play.google.com/apps/internaltest/...' : null), // Mandatory field (can be null)
       testflightNumber: build.testflightNumber || (platform === 'IOS' && taskStage === 'PRE_RELEASE' ? build.buildNumber : null), // Mandatory field (can be null)
@@ -155,7 +155,7 @@ function getUploadedBuilds(releaseId, buildStage, db) {
   // Map buildStage to staging table stage format
   // Staging table uses: 'PRE_REGRESSION' for KICKOFF, 'REGRESSION' for REGRESSION, 'PRE_RELEASE' for PRE_RELEASE
   let stagingStage = null;
-  if (buildStage === 'KICKOFF' || buildStage === 'PRE_REGRESSION' || buildStage === 'KICK_OFF') {
+  if (buildStage === 'KICKOFF' || buildStage === 'PRE_REGRESSION' || buildStage === 'KICKOFF') {
     stagingStage = 'PRE_REGRESSION'; // Staging table uses PRE_REGRESSION for KICKOFF builds
   } else if (buildStage === 'REGRESSION') {
     stagingStage = 'REGRESSION';
@@ -184,10 +184,10 @@ function getUploadedBuilds(releaseId, buildStage, db) {
     const platform = build.platform || 'ANDROID';
     
     // Map staging stage to response buildStage
-    // API contract: buildStage must be one of: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE'
+    // API contract: buildStage must be one of: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE'
     let responseBuildStage = 'PRE_RELEASE';
     if (stagingStage === 'PRE_REGRESSION') {
-      responseBuildStage = 'KICK_OFF'; // API contract uses 'KICK_OFF', not 'KICKOFF'
+      responseBuildStage = 'KICKOFF'; // API contract uses 'KICKOFF', not 'KICKOFF'
     } else if (stagingStage === 'REGRESSION') {
       responseBuildStage = 'REGRESSION';
     } else if (stagingStage === 'PRE_RELEASE') {
@@ -201,7 +201,7 @@ function getUploadedBuilds(releaseId, buildStage, db) {
       tenantId: build.tenantId || defaultTenantId, // Must be string, never null
       releaseId: build.releaseId || releaseId, // Must be release.id (UUID), not release.releaseId
       platform: platform,
-      buildStage: responseBuildStage, // Must be one of: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE'
+      buildStage: responseBuildStage, // Must be one of: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE'
       artifactPath: build.artifactPath || null, // Mandatory field (can be null)
       internalTrackLink: build.internalTrackLink || null, // Mandatory field (can be null)
       testflightNumber: build.testflightNumber || null, // Mandatory field (can be null)
@@ -974,7 +974,7 @@ function createReleaseProcessMiddleware(router) {
         data: {
           uploadId,
           platform,
-          stage: buildUploadStage === 'PRE_REGRESSION' ? 'KICK_OFF' : buildUploadStage === 'REGRESSION' ? 'REGRESSION' : 'PRE_RELEASE',
+          stage: buildUploadStage === 'PRE_REGRESSION' ? 'KICKOFF' : buildUploadStage === 'REGRESSION' ? 'REGRESSION' : 'PRE_RELEASE',
           downloadUrl,
           internalTrackLink: platform === 'ANDROID' && allPlatformsReady ? 'https://play.google.com/apps/internaltest/...' : null,
           uploadedPlatforms,
@@ -1065,7 +1065,7 @@ function createReleaseProcessMiddleware(router) {
           uploadId,
           releaseId,
           platform: 'IOS',
-          stage: buildUploadStage === 'PRE_REGRESSION' ? 'KICK_OFF' : buildUploadStage === 'REGRESSION' ? 'REGRESSION' : 'PRE_RELEASE',
+          stage: buildUploadStage === 'PRE_REGRESSION' ? 'KICKOFF' : buildUploadStage === 'REGRESSION' ? 'REGRESSION' : 'PRE_RELEASE',
           testflightNumber,
           versionName,
           verified: true,
@@ -1096,7 +1096,7 @@ function createReleaseProcessMiddleware(router) {
       const mappedStagingBuilds = stagingBuilds.map(staging => {
         const stage = staging.stage;
         const buildStageValue = 
-          stage === 'PRE_REGRESSION' ? 'KICK_OFF' :
+          stage === 'PRE_REGRESSION' ? 'KICKOFF' :
           stage === 'REGRESSION' ? 'REGRESSION' :
           stage === 'PRE_RELEASE' ? 'PRE_RELEASE' :
           stage;
@@ -1145,7 +1145,7 @@ function createReleaseProcessMiddleware(router) {
         releaseId: artifact.releaseId,
         platform: artifact.platform,
         storeType: artifact.storeType || (artifact.testflightNumber ? 'TESTFLIGHT' : null),
-        buildStage: artifact.buildStage || (artifact.stage === 'PRE_REGRESSION' ? 'KICK_OFF' : artifact.stage === 'REGRESSION' ? 'REGRESSION' : 'PRE_RELEASE'),
+        buildStage: artifact.buildStage || (artifact.stage === 'PRE_REGRESSION' ? 'KICKOFF' : artifact.stage === 'REGRESSION' ? 'REGRESSION' : 'PRE_RELEASE'),
         buildType: artifact.buildType || 'MANUAL',
         buildUploadStatus: artifact.buildUploadStatus || 'UPLOADED',
         workflowStatus: artifact.workflowStatus || null,

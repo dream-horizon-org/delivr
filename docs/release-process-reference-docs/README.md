@@ -62,7 +62,7 @@ Historical, deprecated, and duplicate documents have been moved to `docs/release
 
 According to the API contract, KICKOFF stage should have these 5 tasks:
 
-1. `PRE_KICK_OFF_REMINDER` - Pre-kickoff reminder notification
+1. `PRE_KICKOFF_REMINDER` - Pre-kickoff reminder notification
 2. `FORK_BRANCH` - Fork/create the release branch
 3. `CREATE_PROJECT_MANAGEMENT_TICKET` - Create Jira/ticket in project management
 4. `CREATE_TEST_SUITE` - Create test suite in test management

@@ -197,7 +197,7 @@ enum ReleaseStatus {
 ```typescript
 enum TaskType {
   // Pre-Kickoff
-  PRE_KICK_OFF_REMINDER = 'PRE_KICK_OFF_REMINDER',
+  PRE_KICKOFF_REMINDER = 'PRE_KICKOFF_REMINDER',
   
   // Kickoff
   FORK_BRANCH = 'FORK_BRANCH',
@@ -250,7 +250,7 @@ interface BuildArtifact {
   releaseId: string;                       // This is release.id (UUID primary key), NOT release.releaseId (user-facing identifier)
   platform: 'ANDROID' | 'IOS' | 'WEB';    // Platform
   storeType: string | null;                // Target store: `APP_STORE`, `PLAY_STORE`, `TESTFLIGHT`, `WEB`
-  buildStage: string;                      // Stage: `KICK_OFF`, `REGRESSION`, `PRE_RELEASE`
+  buildStage: string;                      // Stage: `KICKOFF`, `REGRESSION`, `PRE_RELEASE`
   buildType: 'MANUAL' | 'CI_CD';          // Type: `MANUAL` or `CI_CD`
   buildUploadStatus: string;               // Upload status: `PENDING`, `UPLOADING`, `UPLOADED`, `FAILED`
   workflowStatus: string | null;            // CI/CD workflow status (`null` for manual builds)
@@ -283,7 +283,7 @@ interface BuildInfo {
   tenantId: string;
   releaseId: string;                    // This is release.id (UUID primary key), NOT release.releaseId (user-facing identifier)
   platform: 'ANDROID' | 'IOS' | 'WEB';
-  buildStage: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
+  buildStage: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE';
   artifactPath: string | null;
   internalTrackLink: string | null;     // Play Store Internal Track Link
   testflightNumber: string | null;      // TestFlight build number
@@ -371,7 +371,7 @@ interface StageTasksResponse {
 - `tasks`: Array of Task objects - **Task objects do NOT have a `releaseId` field** - they are associated with the release via the response-level `releaseId` field
 
 **Expected Tasks for KICKOFF:**
-- `PRE_KICK_OFF_REMINDER`
+- `PRE_KICKOFF_REMINDER`
 - `FORK_BRANCH`
 - `CREATE_PROJECT_MANAGEMENT_TICKET`
 - `CREATE_TEST_SUITE`
@@ -866,7 +866,7 @@ interface ReleaseSubmissionStatusResponse {
 - `releaseId` (string, required): Release UUID (primary key in DB)
 
 **Query Parameters:**
-- `stage` (string, optional): Filter by build stage: `KICK_OFF`, `REGRESSION`, or `PRE_RELEASE`
+- `stage` (string, optional): Filter by build stage: `KICKOFF`, `REGRESSION`, or `PRE_RELEASE`
 - `platform` (string, optional): Filter by platform: `IOS`, `ANDROID`, or `WEB`
 - `status` (string, optional): Filter by upload status: `PENDING`, `UPLOADED`, or `FAILED`
 
@@ -915,7 +915,7 @@ Used when `hasManualBuildUpload = true` on a release. This endpoint allows users
 |-------------|--------|----------|-------------|
 | `tenantId`  | string | Yes      | Unique tenant identifier |
 | `releaseId` | string | Yes      | Unique release identifier (UUID) |
-| `stage`     | string | Yes      | Release stage: `KICK_OFF`, `REGRESSION`, or `PRE_RELEASE` |
+| `stage`     | string | Yes      | Release stage: `KICKOFF`, `REGRESSION`, or `PRE_RELEASE` |
 | `platform`  | string | Yes      | Platform: `IOS`, `ANDROID`, or `WEB` |
 
 **Request:**
@@ -936,7 +936,7 @@ multipart/form-data
 
 ```bash
 curl -X PUT \
-  'https://api.example.com/release-management/tenants/{tenantId}/releases/{releaseId}/stages/KICK_OFF/builds/IOS' \
+  'https://api.example.com/release-management/tenants/{tenantId}/releases/{releaseId}/stages/KICKOFF/builds/IOS' \
   -H 'Authorization: Bearer <token>' \
   -H 'Content-Type: multipart/form-data' \
   -F 'artifact=@/path/to/build.ipa'
@@ -952,7 +952,7 @@ curl -X PUT \
   "data": {
     "uploadId": "uuid-v4-upload-id",
     "platform": "IOS",
-    "stage": "KICK_OFF",
+    "stage": "KICKOFF",
     "downloadUrl": "https://s3.amazonaws.com/bucket/path/to/artifact.ipa",
     "internalTrackLink": null,
     "uploadedPlatforms": ["IOS"],
@@ -970,7 +970,7 @@ curl -X PUT \
   "data": {
     "uploadId": "uuid-v4-upload-id",
     "platform": "ANDROID",
-    "stage": "KICK_OFF",
+    "stage": "KICKOFF",
     "downloadUrl": "https://s3.amazonaws.com/bucket/path/to/artifact.apk",
     "internalTrackLink": "https://play.google.com/apps/internaltest/...",
     "uploadedPlatforms": ["IOS", "ANDROID", "WEB"],
@@ -996,7 +996,7 @@ curl -X PUT \
 
 **Notes:**
 - Maximum file size: **500MB**
-- Supported stages: `KICK_OFF`, `REGRESSION`, `PRE_RELEASE`
+- Supported stages: `KICKOFF`, `REGRESSION`, `PRE_RELEASE`
 - Supported platforms: `IOS`, `ANDROID`, `WEB`
 - For Android AAB files, an `internalTrackLink` may be returned
 - **Staging Table**: Uploads are stored in `release_uploads` staging table, NOT directly in `builds` table
@@ -1015,7 +1015,7 @@ curl -X PUT \
 ```json
 {
   "success": false,
-  "error": "Stage is required (KICK_OFF, REGRESSION, PRE_RELEASE)"
+  "error": "Stage is required (KICKOFF, REGRESSION, PRE_RELEASE)"
 }
 ```
 
@@ -1030,7 +1030,7 @@ curl -X PUT \
 ```json
 {
   "success": false,
-  "error": "Invalid buildStage: invalid_stage. Must be one of: KICK_OFF, REGRESSION, PRE_RELEASE"
+  "error": "Invalid buildStage: invalid_stage. Must be one of: KICKOFF, REGRESSION, PRE_RELEASE"
 }
 ```
 
@@ -1068,7 +1068,7 @@ curl -X PUT \
 ```json
 {
   "success": false,
-  "error": "Cannot upload to stage REGRESSION - current stage is KICK_OFF"
+  "error": "Cannot upload to stage REGRESSION - current stage is KICKOFF"
 }
 ```
 
@@ -1153,7 +1153,7 @@ This is used for manual TestFlight uploads where the user uploads their build to
 |-------------|--------|----------|-------------|
 | `tenantId`  | string | Yes      | Unique tenant identifier |
 | `releaseId` | string | Yes      | Unique release identifier (UUID) |
-| `stage`     | string | Yes      | Release stage: `KICK_OFF`, `REGRESSION`, or `PRE_RELEASE` |
+| `stage`     | string | Yes      | Release stage: `KICKOFF`, `REGRESSION`, or `PRE_RELEASE` |
 
 **Request:**
 
@@ -1248,7 +1248,7 @@ Upon successful verification, a staging entry is created in the `release_uploads
 | `data.uploadId` | string | Unique ID of the staging entry in `release_uploads` |
 | `data.releaseId` | string | UUID of the associated release |
 | `data.platform` | string | Always `IOS` for TestFlight builds |
-| `data.stage` | string | Release stage (`KICK_OFF`, `REGRESSION`, `PRE_RELEASE`) |
+| `data.stage` | string | Release stage (`KICKOFF`, `REGRESSION`, `PRE_RELEASE`) |
 | `data.testflightNumber` | string | The verified TestFlight build number |
 | `data.versionName` | string | Version string of the build |
 | `data.verified` | boolean | Always `true` on success (TestFlight verification passed) |
@@ -1268,7 +1268,7 @@ When verification succeeds, a record is created in the `release_uploads` **stagi
 | `tenantId` | From path parameter |
 | `releaseId` | From path parameter |
 | `platform` | `IOS` |
-| `stage` | From path parameter (`KICK_OFF`, `REGRESSION`, `PRE_RELEASE`) |
+| `stage` | From path parameter (`KICKOFF`, `REGRESSION`, `PRE_RELEASE`) |
 | `artifactPath` | `null` (artifact is in TestFlight, not S3) |
 | `testflightNumber` | `testflightBuildNumber` from request |
 | `versionName` | `versionName` from request |
@@ -1445,7 +1445,7 @@ When the task (e.g., `TRIGGER_TEST_FLIGHT_BUILD`) executes:
 
 **Query Parameters (all optional):**
 - `platform` (string): Filter by platform: `IOS`, `ANDROID`, `WEB`
-- `buildStage` (string): Filter by stage: `KICK_OFF`, `REGRESSION`, `PRE_RELEASE`
+- `buildStage` (string): Filter by stage: `KICKOFF`, `REGRESSION`, `PRE_RELEASE`
 - `storeType` (string): Filter by store: `APP_STORE`, `PLAY_STORE`, `TESTFLIGHT`, `WEB`
 - `buildType` (string): Filter by type: `MANUAL` or `CI_CD`
 - `regressionId` (string): Filter by regression cycle ID

@@ -36,6 +36,7 @@ interface RegressionSlotsManagerProps {
   config?: ReleaseConfiguration; // For pre-filling
   errors?: Record<string, string>;
   isAfterKickoff?: boolean; // Whether release has already kicked off
+  disableAddSlot?: boolean; // Whether to disable adding new slots (e.g., when regression is completed)
 }
 
 export function RegressionSlotsManager({
@@ -48,6 +49,7 @@ export function RegressionSlotsManager({
   config,
   errors = {},
   isAfterKickoff = false,
+  disableAddSlot = false,
 }: RegressionSlotsManagerProps) {
   const theme = useMantineTheme();
   const [editingSlotIndex, setEditingSlotIndex] = useState<number | null>(null);
@@ -255,7 +257,8 @@ export function RegressionSlotsManager({
             size="sm"
             onClick={handleAddSlot}
             color="brand"
-            disabled={!!pendingSlot} // Disable if there's a pending slot
+            disabled={!!pendingSlot || disableAddSlot} // Disable if there's a pending slot or pre-release stage is in progress
+            title={disableAddSlot ? 'Pre-release stage is in progress. Cannot add new regression slots.' : undefined}
           >
             Add Slot
           </Button>

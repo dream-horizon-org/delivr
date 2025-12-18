@@ -109,8 +109,18 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
 
   // Check if approval button should be enabled (combine requirements with permissions)
   const canApprove = useMemo(() => {
+    // Disable if pre-release is already in progress or completed
+    // Pre-release only gets triggered when approval is given, so if it's already started,
+    // the approval button should be disabled
+    const isPreReleaseInProgress = release?.cronJob?.stage3Status === 'IN_PROGRESS' || 
+                                    release?.cronJob?.stage3Status === 'COMPLETED';
+    
+    if (isPreReleaseInProgress) {
+      return false;
+    }
+    
     return approvalStatus?.canApprove === true && canPerform;
-  }, [approvalStatus, canPerform]);
+  }, [approvalStatus, canPerform, release?.cronJob?.stage3Status]);
 
   // Get approval requirements status
   const approvalRequirements = approvalStatus?.approvalRequirements;

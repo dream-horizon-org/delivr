@@ -59,7 +59,7 @@ interface Task {
 
 type TaskType =
   // Stage 1: Kickoff
-  | 'PRE_KICK_OFF_REMINDER'
+  | 'PRE_KICKOFF_REMINDER'
   | 'FORK_BRANCH'
   | 'CREATE_PROJECT_MANAGEMENT_TICKET'
   | 'CREATE_TEST_SUITE'
@@ -296,7 +296,7 @@ interface BuildInfo {
   ciRunId: string | null;
   buildUploadStatus: 'PENDING' | 'UPLOADED' | 'FAILED';
   buildType: 'MANUAL' | 'CI_CD';
-  buildStage: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
+  buildStage: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE';
   queueLocation: string | null;
   workflowStatus: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | null;
   ciRunType: 'JENKINS' | 'GITHUB_ACTIONS' | 'CIRCLE_CI' | 'GITLAB_CI' | null;
@@ -592,7 +592,7 @@ GET /api/v1/tenants/{tenantId}/releases/{releaseId}/builds
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `stage` | string | No | Filter by build stage: `KICK_OFF`, `REGRESSION`, or `PRE_RELEASE` |
+| `stage` | string | No | Filter by build stage: `KICKOFF`, `REGRESSION`, or `PRE_RELEASE` |
 | `platform` | string | No | Filter by platform: `IOS`, `ANDROID`, or `WEB` |
 | `status` | string | No | Filter by upload status: `PENDING`, `UPLOADED`, or `FAILED` |
 

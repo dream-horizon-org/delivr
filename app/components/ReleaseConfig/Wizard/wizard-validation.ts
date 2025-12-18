@@ -207,7 +207,7 @@ export const validateWorkflows = (
   if (needsAndroid) {
     const hasAndroidRegression = workflows.some(
       (p: Workflow) => 
-        p.platform === PLATFORMS.ANDROID && 
+        p.platform.toUpperCase() === PLATFORMS.ANDROID.toUpperCase() && 
         p.environment === BUILD_ENVIRONMENTS.REGRESSION && 
         p.enabled
     );
@@ -219,13 +219,13 @@ export const validateWorkflows = (
   if (needsIOS) {
     const hasIOSRegression = workflows.some(
       (p: Workflow) => 
-        p.platform === PLATFORMS.IOS && 
+        p.platform.toUpperCase() === PLATFORMS.IOS.toUpperCase() && 
         p.environment === BUILD_ENVIRONMENTS.REGRESSION && 
         p.enabled
     );
     const hasTestFlight = workflows.some(
       (p: Workflow) => 
-        p.platform === PLATFORMS.IOS && 
+        p.platform.toUpperCase() === PLATFORMS.IOS.toUpperCase() && 
         p.environment === BUILD_ENVIRONMENTS.TESTFLIGHT && 
         p.enabled
     );
@@ -263,6 +263,7 @@ export const canProceedFromStep = (
     case STEP_INDEX.PIPELINES:
       // Use the validation helper function for workflows
       const workflowErrors = validateWorkflows(config);
+      console.log("workflowErrors", workflowErrors);
       return workflowErrors.length === 0;
       
     case STEP_INDEX.TESTING:

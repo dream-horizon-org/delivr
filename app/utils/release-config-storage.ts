@@ -103,7 +103,7 @@ export function validateBuildPipelines(
   // Android requirements: Regression is mandatory
   if (needsAndroid) {
     const hasAndroidRegression = workflows.some(
-      (p: Workflow) => p.platform === PLATFORMS.ANDROID && p.environment === BUILD_ENVIRONMENTS.REGRESSION && p.enabled
+      (p: Workflow) => p.platform.toUpperCase() === PLATFORMS.ANDROID.toUpperCase() && p.environment === BUILD_ENVIRONMENTS.REGRESSION && p.enabled
     );
     
     if (!hasAndroidRegression) {
@@ -114,10 +114,10 @@ export function validateBuildPipelines(
   // iOS requirements: Regression + TestFlight are mandatory
   if (needsIOS) {
     const hasIOSRegression = workflows.some(
-      (p: Workflow) => p.platform === PLATFORMS.IOS && p.environment === BUILD_ENVIRONMENTS.REGRESSION && p.enabled
+      (p: Workflow) => p.platform.toUpperCase() === PLATFORMS.IOS.toUpperCase() && p.environment === BUILD_ENVIRONMENTS.REGRESSION && p.enabled
     );
     const hasTestFlight = workflows.some(
-      (p: Workflow) => p.platform === PLATFORMS.IOS && p.environment === BUILD_ENVIRONMENTS.TESTFLIGHT && p.enabled
+      (p: Workflow) => p.platform.toUpperCase() === PLATFORMS.IOS.toUpperCase() && p.environment === BUILD_ENVIRONMENTS.TESTFLIGHT && p.enabled
     );
     
     if (!hasIOSRegression) {
@@ -155,7 +155,7 @@ export function validateBuildPipelines(
  * Note: Scheduling is optional. Only validate if user has started filling it out.
  */
 export function validateScheduling(
-  scheduling: ReleaseConfiguration['scheduling']
+  scheduling: ReleaseConfiguration['releaseSchedule']
 ): string[] {
   const errors: string[] = [];
   

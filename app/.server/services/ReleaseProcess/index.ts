@@ -380,7 +380,7 @@ class ReleaseProcess {
     tenantId: string,
     releaseId: string,
     userId: string,
-    filters?: { stage?: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE'; platform?: Platform; status?: 'PENDING' | 'UPLOADED' | 'FAILED' }
+    filters?: { stage?: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE'; platform?: Platform; status?: 'PENDING' | 'UPLOADED' | 'FAILED' }
   ) {
     const params = filters || {};
     return this.__client.get<null, AxiosResponse<GetBuildsResponse>>(

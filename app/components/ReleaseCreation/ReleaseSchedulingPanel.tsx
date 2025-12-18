@@ -80,6 +80,15 @@ export function ReleaseSchedulingPanel({
   // Pre-fill kickoff reminder time from config if available
   const kickOffReminderTimeValue = kickOffReminderTime || config?.releaseSchedule?.kickoffReminderTime || '';
 
+  // Check if pre-release stage is in progress
+  // Disable adding regression slots only when stage3Status === 'IN_PROGRESS' (PRE_RELEASE stage)
+  // Users can still add slots when phase is AWAITING_PRE_RELEASE (regression completed, approval pending)
+  const isPreReleaseInProgress = useMemo(() => {
+    if (!isEditMode || !existingRelease || !existingRelease.cronJob) return false;
+    const stage3Status = (existingRelease.cronJob as any).stage3Status;
+    return stage3Status === 'IN_PROGRESS';
+  }, [isEditMode, existingRelease]);
+
   // Check if kickoff reminder is enabled
   const isKickoffReminderEnabled = !!(
     (kickOffReminderDate && kickOffReminderTime) ||
@@ -565,6 +574,7 @@ export function ReleaseSchedulingPanel({
           config={config}
           errors={errors}
           isAfterKickoff={showOnlyTargetDateAndSlots}
+          disableAddSlot={isPreReleaseInProgress}
         />
       )}
 
