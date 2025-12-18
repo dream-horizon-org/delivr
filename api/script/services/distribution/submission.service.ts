@@ -17,10 +17,13 @@ import { v4 as uuidv4 } from 'uuid';
 import type { AppleAppStoreConnectService } from './apple-app-store-connect.service';
 import type { MockAppleAppStoreConnectService } from './apple-app-store-connect.mock';
 import { createAppleServiceFromIntegration } from './apple-app-store-connect.service';
+import { createGoogleServiceFromIntegration, GooglePlayStoreService } from './google-play-store.service';
 import { getStorage } from '../../storage/storage-instance';
 import { StoreIntegrationController } from '../../storage/integrations/store/store-controller';
 import { StoreType, IntegrationStatus } from '../../storage/integrations/store/store-types';
 import { validateIntegrationStatus } from '../../controllers/integrations/store-controllers';
+import { BUILD_PLATFORM, STORE_TYPE } from '~types/release-management/builds/build.constants';
+import { PLAY_STORE_UPLOAD_ERROR_MESSAGES } from '../../constants/store';
 
 /**
  * Submission response format for API
@@ -28,7 +31,7 @@ import { validateIntegrationStatus } from '../../controllers/integrations/store-
 export type SubmissionDetailsResponse = {
   id: string;
   distributionId: string;
-  platform: 'ANDROID' | 'IOS';
+  platform: typeof BUILD_PLATFORM.ANDROID | typeof BUILD_PLATFORM.IOS;
   storeType: string;
   status: string;
   version: string;
@@ -161,7 +164,7 @@ export class SubmissionService {
     return {
       id: submission.id,
       distributionId: submission.distributionId,
-      platform: 'ANDROID',
+      platform: BUILD_PLATFORM.ANDROID,
       storeType: submission.storeType,
       status: submission.status,
       version: submission.version,
@@ -197,7 +200,7 @@ export class SubmissionService {
     return {
       id: submission.id,
       distributionId: submission.distributionId,
-      platform: 'IOS',
+      platform: BUILD_PLATFORM.IOS,
       storeType: submission.storeType,
       status: submission.status,
       version: submission.version,
@@ -306,7 +309,7 @@ export class SubmissionService {
 
     const integrations = await storeIntegrationController.findAll({
       tenantId,
-      platform: 'IOS',
+      platform: BUILD_PLATFORM.IOS,
       storeType: mappedStoreType
     });
 
@@ -351,7 +354,7 @@ export class SubmissionService {
         // Version doesn't exist (+ button scenario) - create new version
         console.log(`[SubmissionService] Version ${versionString} not found, creating new version`);
         
-        const createResponse = await appleService.createAppStoreVersion(targetAppId, versionString, 'IOS');
+        const createResponse = await appleService.createAppStoreVersion(targetAppId, versionString, BUILD_PLATFORM.IOS);
         versionData = (createResponse as any).data;
         
         console.log(`[SubmissionService] Created new version ${versionString}, ID: ${versionData.id}`);
@@ -530,10 +533,10 @@ export class SubmissionService {
     const currentDistributionStatus = distribution.status;
 
     // Check if only iOS is configured
-    const onlyIOS = configuredPlatforms.length === 1 && configuredPlatforms.includes('IOS');
+    const onlyIOS = configuredPlatforms.length === 1 && configuredPlatforms.includes(BUILD_PLATFORM.IOS);
     
     // Check if both platforms are configured
-    const bothPlatforms = configuredPlatforms.includes('IOS') && configuredPlatforms.includes('ANDROID');
+    const bothPlatforms = configuredPlatforms.includes(BUILD_PLATFORM.IOS) && configuredPlatforms.includes(BUILD_PLATFORM.ANDROID);
 
     let newDistributionStatus = currentDistributionStatus;
 
@@ -569,12 +572,36 @@ export class SubmissionService {
   }
 
   /**
+   * Helper function to parse releaseNotes from XML-like format to array format
+   * Converts: "<en-US>Text</en-US><en-GB>Text</en-GB>" 
+   * To: [{ language: "en-US", text: "Text" }, { language: "en-GB", text: "Text" }]
+   */
+  private parseReleaseNotes(releaseNotes: string): Array<{ language: string; text: string }> {
+    if (!releaseNotes || releaseNotes.trim().length === 0) {
+      return [];
+    }
+
+    // Pattern to match: <language-code>text content</language-code>
+    const pattern = /<([a-z]{2}(?:-[A-Z]{2})?)>([^<]*)<\/\1>/gi;
+    const parsed: Array<{ language: string; text: string }> = [];
+    let match;
+
+    while ((match = pattern.exec(releaseNotes)) !== null) {
+      const language = match[1];
+      const text = match[2].trim();
+      if (text.length > 0) {
+        parsed.push({ language, text });
+      }
+    }
+
+    return parsed;
+  }
+
+  /**
    * Submit existing Android submission to Play Store for review
    * 1. Saves data to database (updates submission details)
    * 2. Calls Google Play Console API to submit for review
    * 3. If successful, changes status to SUBMITTED
-   * 
-   * TODO: Android implementation to be completed later
    */
   async submitExistingAndroidSubmission(
     submissionId: string,
@@ -616,28 +643,141 @@ export class SubmissionService {
       throw new Error('Failed to update submission');
     }
 
-    // Step 2: Call Google Play Console API to submit for review
-    // TODO: Implement Google Play API call (to be done later)
-    // Parameters to use:
-    // - artifactPath: updatedSubmission.artifactPath
-    // - versionCode: updatedSubmission.versionCode
-    // - releaseNotes: updatedSubmission.releaseNotes
-    // - rolloutPercent: updatedSubmission.rolloutPercentage
-    // - inAppPriority: updatedSubmission.inAppUpdatePriority
-
-    // Step 3: If Google API call is successful, update status to SUBMITTED
-    const finalSubmission = await this.androidSubmissionRepository.update(submissionId, {
-      status: SUBMISSION_STATUS.SUBMITTED
-    });
-
-    if (!finalSubmission) {
-      throw new Error('Failed to update submission status to SUBMITTED');
+    // Step 2: Get distribution to retrieve tenantId
+    const distribution = await this.distributionRepository.findById(updatedSubmission.distributionId);
+    
+    if (!distribution) {
+      throw new Error(`Distribution not found for submission ${submissionId}`);
     }
 
-    // Get action history
-    const actionHistory = await this.actionHistoryRepository.findBySubmissionId(submissionId);
+    const tenantId = distribution.tenantId;
 
-    return this.mapAndroidSubmissionToResponse(finalSubmission, actionHistory);
+    // Step 3: Get store integration and credentials
+    const storeIntegrationController = getStoreIntegrationController();
+    const integrations = await storeIntegrationController.findAll({
+      tenantId,
+      storeType: StoreType.PLAY_STORE,
+      platform: BUILD_PLATFORM.ANDROID,
+    });
+
+    if (integrations.length === 0) {
+      throw new Error(PLAY_STORE_UPLOAD_ERROR_MESSAGES.INTEGRATION_NOT_FOUND_FOR_UPLOAD);
+    }
+
+    // Use first integration found
+    const integration = integrations[0];
+
+    // Step 4: Validate integration status is VERIFIED
+    validateIntegrationStatus(integration);
+
+    // Step 5: Create Google service (decrypts credentials, generates access token)
+    let googleService: GooglePlayStoreService;
+    try {
+      googleService = await createGoogleServiceFromIntegration(integration.id);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to load Google Play Store credentials: ${errorMessage}`);
+    }
+
+    // Step 6: Create edit
+    const editData = await googleService.createEdit();
+    const editId = editData.id;
+
+    console.log(`[SubmitAndroidSubmission] Created edit with ID: ${editId}`);
+
+    try {
+      // Step 7: Get current production state
+      const productionStateData = await googleService.getProductionTrack(editId);
+      
+      console.log('[SubmitAndroidSubmission] Current production state:', JSON.stringify(productionStateData, null, 2));
+
+      // Step 8: Parse releaseNotes from XML-like format to array format
+      const parsedReleaseNotes = this.parseReleaseNotes(updatedSubmission.releaseNotes ?? '');
+      
+      // Determine status and userFraction based on rolloutPercentage
+      const rolloutPercentage = updatedSubmission.rolloutPercentage;
+      const isFullRollout = rolloutPercentage === 100;
+      const status = isFullRollout ? 'completed' : 'inProgress';
+      
+      // Calculate userFraction (minimum 0.0001 if rolloutPercentage < 100)
+      // rolloutPercentage 0.01 = userFraction 0.0001
+      // rolloutPercentage 1 = userFraction 0.01
+      // rolloutPercentage 10 = userFraction 0.1
+      const userFraction = isFullRollout ? undefined : Math.max(0.0001, rolloutPercentage / 100);
+
+      // Build new release object
+      const newRelease: {
+        name: string;
+        versionCodes: string[];
+        status: string;
+        inAppUpdatePriority: number;
+        releaseNotes: Array<{ language: string; text: string }>;
+        userFraction?: number;
+      } = {
+        name: updatedSubmission.version,
+        versionCodes: [String(updatedSubmission.versionCode)],
+        status: status,
+        inAppUpdatePriority: updatedSubmission.inAppUpdatePriority,
+        releaseNotes: parsedReleaseNotes.length > 0 ? parsedReleaseNotes : [
+          {
+            language: 'en-US',
+            text: updatedSubmission.releaseNotes ?? 'Release notes'
+          }
+        ],
+      };
+
+      // Add userFraction only if not full rollout
+      if (!isFullRollout && userFraction !== undefined) {
+        newRelease.userFraction = userFraction;
+      }
+
+      // Build track update payload - preserve existing releases and add new one
+      const trackUpdatePayload = {
+        track: 'production',
+        releases: [
+          newRelease,
+          ...(productionStateData.releases || [])
+        ],
+      };
+
+      // Step 9: Update track (promotion)
+      await googleService.updateProductionTrack(editId, trackUpdatePayload);
+      console.log('[SubmitAndroidSubmission] Track updated successfully');
+
+      // Step 10: Validate the edit (optional dry run)
+      try {
+        await googleService.validateEdit(editId);
+        console.log('[SubmitAndroidSubmission] Edit validation successful');
+      } catch (validationError) {
+        // Validation failed - get error details and throw
+        const errorMessage = validationError instanceof Error ? validationError.message : String(validationError);
+        console.error('[SubmitAndroidSubmission] Validation failed:', errorMessage);
+        throw new Error(`Edit validation failed: ${errorMessage}`);
+      }
+
+      // Step 11: Commit edit
+      const commitResult = await googleService.commitEdit(editId);
+      console.log('[SubmitAndroidSubmission] Edit committed successfully:', JSON.stringify(commitResult, null, 2));
+
+      // Step 12: If Google API call is successful, update status to SUBMITTED
+      const finalSubmission = await this.androidSubmissionRepository.update(submissionId, {
+        status: SUBMISSION_STATUS.SUBMITTED
+      });
+
+      if (!finalSubmission) {
+        throw new Error('Failed to update submission status to SUBMITTED');
+      }
+
+      // Get action history
+      const actionHistory = await this.actionHistoryRepository.findBySubmissionId(submissionId);
+
+      return this.mapAndroidSubmissionToResponse(finalSubmission, actionHistory);
+    } catch (error) {
+      // Clean up: Delete edit if it was created
+      console.log(`[SubmitAndroidSubmission] Error occurred, deleting edit ${editId}`);
+      await googleService.deleteEdit(editId);
+      throw error;
+    }
   }
 
   /**
@@ -739,7 +879,7 @@ export class SubmissionService {
       testflightNumber: data.testflightNumber,
       version: data.version,
       buildType: 'MANUAL', // Resubmissions are always manual
-      storeType: 'APP_STORE',
+      storeType: STORE_TYPE.APP_STORE,
       status: SUBMISSION_STATUS.PENDING, // Will be updated to SUBMITTED after API call
       releaseNotes: data.releaseNotes,
       phasedRelease: data.phasedRelease,
@@ -760,7 +900,7 @@ export class SubmissionService {
 
     const integrations = await storeIntegrationController.findAll({
       tenantId,
-      platform: 'IOS',
+      platform: BUILD_PLATFORM.IOS,
       storeType: mappedStoreType
     });
 
@@ -1083,7 +1223,7 @@ export class SubmissionService {
 
     const integrations = await storeIntegrationController.findAll({
       tenantId,
-      platform: 'IOS',
+      platform: BUILD_PLATFORM.IOS,
       storeType: mappedStoreType
     });
 
@@ -1247,15 +1387,15 @@ export class SubmissionService {
     // Validate storeType is APP_STORE (only supported type for iOS)
     const storeTypeUpper = iosSubmission.storeType.toUpperCase();
     
-    if (storeTypeUpper !== 'APP_STORE') {
-      throw new Error(`Invalid iOS store type: ${iosSubmission.storeType}. Only APP_STORE is supported.`);
+    if (storeTypeUpper !== STORE_TYPE.APP_STORE) {
+      throw new Error(`Invalid iOS store type: ${iosSubmission.storeType}. Only ${STORE_TYPE.APP_STORE} is supported.`);
     }
     
     const mappedStoreType = StoreType.APP_STORE;
 
     const integrations = await storeIntegrationController.findAll({
       tenantId,
-      platform: 'IOS',
+      platform: BUILD_PLATFORM.IOS,
       storeType: mappedStoreType
     });
 
@@ -1440,15 +1580,15 @@ export class SubmissionService {
     // Validate storeType is APP_STORE (only supported type for iOS)
     const storeTypeUpper = iosSubmission.storeType.toUpperCase();
     
-    if (storeTypeUpper !== 'APP_STORE') {
-      throw new Error(`Invalid iOS store type: ${iosSubmission.storeType}. Only APP_STORE is supported.`);
+    if (storeTypeUpper !== STORE_TYPE.APP_STORE) {
+      throw new Error(`Invalid iOS store type: ${iosSubmission.storeType}. Only ${STORE_TYPE.APP_STORE} is supported.`);
     }
     
     const mappedStoreType = StoreType.APP_STORE;
 
     const integrations = await storeIntegrationController.findAll({
       tenantId,
-      platform: 'IOS',
+      platform: BUILD_PLATFORM.IOS,
       storeType: mappedStoreType
     });
 
@@ -1664,7 +1804,7 @@ export class SubmissionService {
 
     const integrations = await storeIntegrationController.findAll({
       tenantId,
-      platform: 'IOS',
+      platform: BUILD_PLATFORM.IOS,
       storeType: mappedStoreType
     });
 
