@@ -173,42 +173,43 @@ export function ReleaseDetailsForm({
   }, [config?.targets]);
 
   // Pre-fill release type from config or default to MINOR
+  // Update release type whenever config changes (not just on initial load)
   useEffect(() => {
-    if (!state.type) {
-      // Default to MINOR (regular release)
-      let releaseType: ReleaseType = RELEASE_TYPE_CONSTANTS.MINOR;
-      
-      if (config) {
-        // Backend now uses same types as config (MAJOR/MINOR/HOTFIX)
-        // No mapping needed - pass through directly
-        if (config.releaseType === RELEASE_TYPE_CONSTANTS.MAJOR) {
-          releaseType = RELEASE_TYPE_CONSTANTS.MAJOR;
-        } else if (config.releaseType === RELEASE_TYPE_CONSTANTS.HOTFIX) {
-          releaseType = RELEASE_TYPE_CONSTANTS.HOTFIX;
-        } else {
-          // MINOR or any other type defaults to MINOR
-          releaseType = RELEASE_TYPE_CONSTANTS.MINOR;
-        }
+    console.log('[ReleaseDetailsForm] useEffect [config] state:', state.type, 'config:', config);
+    
+    // Default to MINOR (regular release)
+    let releaseType: ReleaseType = RELEASE_TYPE_CONSTANTS.MINOR;
+    
+    if (config) {
+      // Backend now uses same types as config (MAJOR/MINOR/HOTFIX)
+      // No mapping needed - pass through directly
+      if (config.releaseType === RELEASE_TYPE_CONSTANTS.MAJOR) {
+        releaseType = RELEASE_TYPE_CONSTANTS.MAJOR;
+      } else if (config.releaseType === RELEASE_TYPE_CONSTANTS.HOTFIX) {
+        releaseType = RELEASE_TYPE_CONSTANTS.HOTFIX;
+      } else {
+        // MINOR or any other type defaults to MINOR
+        releaseType = RELEASE_TYPE_CONSTANTS.MINOR;
       }
+    }
 
+    // Always update release type when config changes (even if type was already set)
+    // This ensures switching configs updates the release type
+    if (state.type !== releaseType) {
       onChange({
         ...state,
         type: releaseType,
       });
     }
+    
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config]);
+  }, [config?.id, config?.releaseType]); // Depend on config.id and releaseType to detect config changes
 
   // Get default version for platformTargetsSelector
   const getDefaultVersion = (): string => {
-    if (latestVersion) {
-      return incrementVersion(latestVersion);
-    }
-    // Use version from first platformTarget if available
-    if (state.platformTargets && state.platformTargets.length > 0) {
-      return state.platformTargets[0].version;
-    }
-    return 'v1.0.0';
+    // Return empty string - let version suggestions utility handle it
+    // This ensures versions are populated from actual releases, not hardcoded values
+    return '';
   };
 
   const isReleaseTypeDisabled = !!config; // Disabled if from config
@@ -271,14 +272,17 @@ export function ReleaseDetailsForm({
         />
       </Stack>
 
-      <PlatformTargetsSelector
-        platformTargets={state.platformTargets || []}
-        onChange={(platformTargets) => onChange({ ...state, platformTargets })}
-        config={config}
-        defaultVersion={getDefaultVersion()}
-        errors={errors}
-        disabled={disablePlatformTargets}
-      />
+      {/* Hide platform targets selector completely in edit mode before kickoff */}
+      {!disablePlatformTargets && (
+        <PlatformTargetsSelector
+          platformTargets={state.platformTargets || []}
+          onChange={(platformTargets) => onChange({ ...state, platformTargets })}
+          config={config}
+          defaultVersion={getDefaultVersion()}
+          errors={errors}
+          disabled={disablePlatformTargets}
+        />
+      )}
     </Stack>
   );
 }

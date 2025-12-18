@@ -12,3 +12,4 @@ export { CreateReleaseNotesTaskDetails } from './CreateReleaseNotesTaskDetails';
 export { CreateReleaseTagTaskDetails } from './CreateReleaseTagTaskDetails';
 export { CreateFinalReleaseNotesTaskDetails } from './CreateFinalReleaseNotesTaskDetails';
 
+

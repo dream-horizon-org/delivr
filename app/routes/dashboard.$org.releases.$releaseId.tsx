@@ -8,30 +8,36 @@
  * - Phase-based rendering of stage components
  */
 
-import { Container, Group, Stack } from '@mantine/core';
-import { useParams } from '@remix-run/react';
+import { Button, Container, Group, Stack } from '@mantine/core';
+import { Link, useNavigate, useParams, useSearchParams } from '@remix-run/react';
+import { IconArrowLeft } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { PageLoader } from '~/components/Common/PageLoader';
 import { DistributionStage, KickoffStage, PreKickoffStage, PreReleaseStage, RegressionStage, ReleaseProcessHeader, ReleaseProcessSidebar } from '~/components/ReleaseProcess';
 import { IntegrationsStatusSidebar } from '~/components/ReleaseProcess/IntegrationsStatusSidebar';
 import { ReleaseNotFound } from '~/components/Releases/ReleaseNotFound';
-import { useConfig } from '~/contexts/ConfigContext';
+import { BUTTON_LABELS } from '~/constants/release-process-ui';
 import { useRelease } from '~/hooks/useRelease';
 import { useKickoffStage, usePreReleaseStage, useRegressionStage } from '~/hooks/useReleaseProcess';
-import { Phase, TaskStage } from '~/types/release-process-enums';
+import { Phase, StageStatus, TaskStage } from '~/types/release-process-enums';
 import {
-    determineReleasePhase,
-    getReleaseVersion,
-    getStageFromPhase,
+  determineReleasePhase,
+  getReleaseVersion,
+  getStageFromPhase,
 } from '~/utils/release-process-utils';
 
 export default function ReleaseDetailsPage() {
   const params = useParams();
   const org = params.org || '';
   const releaseId = params.releaseId || '';
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  // Get tenant config (for integration checks if needed)
-  const { tenantConfig } = useConfig();
+  // Get returnTo params from URL to restore filters and tab when going back
+  const returnTo = searchParams.get('returnTo');
+  const backUrl = returnTo 
+    ? `/dashboard/${org}/releases?${returnTo}`
+    : `/dashboard/${org}/releases`;
 
   // Use cached hook - no refetching on navigation if data is fresh
   // IMPORTANT: Call hook only once at the top level (before any early returns)
@@ -41,6 +47,9 @@ export default function ReleaseDetailsPage() {
     error,
     refetch,
   } = useRelease(org, releaseId);
+
+  // Track refetch state to show loading during retry
+  const [isRetrying, setIsRetrying] = useState(false);
 
   // Use releasePhase from API if available, otherwise derive (fallback)
   const currentPhase: Phase = release 
@@ -52,17 +61,30 @@ export default function ReleaseDetailsPage() {
   // Initialize to null, will be set to currentStage when release loads
   const [selectedStage, setSelectedStage] = useState<TaskStage | null>(null);
 
-  // Fetch stage data for console logging
-  const kickoffData = useKickoffStage(org, releaseId);
-  const regressionData = useRegressionStage(org, releaseId);
-  const preReleaseData = usePreReleaseStage(org, releaseId);
+  // Determine which stage should poll based on current active stage
+  // Only poll the stage that is currently active (not the selected/viewing stage)
+  const shouldPollKickoff = currentStage === TaskStage.KICKOFF;
+  const shouldPollRegression = currentStage === TaskStage.REGRESSION;
+  const shouldPollPreRelease = currentStage === TaskStage.PRE_RELEASE;
+
+  // Fetch stage data - only current active stage will poll every 30 seconds
+  const kickoffData = useKickoffStage(org, releaseId, shouldPollKickoff);
+  const regressionData = useRegressionStage(org, releaseId, shouldPollRegression);
+  const preReleaseData = usePreReleaseStage(org, releaseId, shouldPollPreRelease);
+
+  // Check if kickoff stage is completed
+  const isKickoffCompleted = kickoffData.data?.stageStatus === StageStatus.COMPLETED;
 
   // Always land on active stage when release loads or current stage changes
+  // If kickoff is completed, automatically navigate to REGRESSION stage
   useEffect(() => {
-    if (currentStage) {
+    if (isKickoffCompleted && currentStage === TaskStage.KICKOFF) {
+      // Kickoff is completed, navigate to REGRESSION
+      setSelectedStage(TaskStage.REGRESSION);
+    } else if (currentStage) {
       setSelectedStage(currentStage);
     }
-  }, [currentStage]);
+  }, [currentStage, isKickoffCompleted]);
 
   // Debug logging for development only
   useEffect(() => {
@@ -87,14 +109,53 @@ export default function ReleaseDetailsPage() {
     }
   }, [selectedStage, release, releaseId, kickoffData.data, regressionData.data, preReleaseData.data]);
 
-  // Loading State
-  if (isLoading) {
-    return <PageLoader message="Loading release..." />;
+  // Handle navigation to distribution stage
+  useEffect(() => {
+    if (selectedStage === 'DISTRIBUTION') {
+      navigate(`/dashboard/${org}/releases/${releaseId}/distribution`);
+    }
+  }, [selectedStage, navigate, org, releaseId]);
+
+  // Handle retry with loading state
+  const handleRetry = async () => {
+    setIsRetrying(true);
+    try {
+      const result = await refetch();
+      // If refetch succeeds, React Query will update the data and clear error
+      // The component will re-render with the new data
+      if (result.data?.release) {
+        // Success - component will re-render and show release
+        return;
+      }
+    } catch (err) {
+      // Error persists - component will re-render with error state
+      console.error('[ReleaseDetailsPage] Retry failed:', err);
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
+  // Loading State (including retry state)
+  if (isLoading || isRetrying) {
+    return <PageLoader message={isRetrying ? "Retrying..." : "Loading release..."} />;
   }
 
-  // Error State
-  if (error || !release) {
-    return <ReleaseNotFound org={org} error={error} />;
+  // Error State - Only show if we have an error AND no release data
+  // After successful refetch, error will be cleared and release will be available
+  if (error && !release) {
+    return (
+      <ReleaseNotFound 
+        org={org} 
+        error={error} 
+        onRetry={handleRetry}
+        isRetrying={isRetrying}
+      />
+    );
+  }
+
+  // If no release but no error, still show not found (release might not exist)
+  if (!release) {
+    return <ReleaseNotFound org={org} />;
   }
 
   const releaseVersion = getReleaseVersion(release);
@@ -139,8 +200,17 @@ export default function ReleaseDetailsPage() {
   };
 
   return (
-    <Container size="xl" className="py-8">
-      <Stack gap="lg">
+    <Container size="xl" className="py-4">
+      <Stack gap="md">
+        {/* Back Button - Between main header and release header */}
+        <Group>
+          <Link to={backUrl}>
+            <Button variant="subtle" leftSection={<IconArrowLeft size={16} />}>
+              {BUTTON_LABELS.BACK}
+            </Button>
+          </Link>
+        </Group>
+
         {/* Header with Actions */}
         <ReleaseProcessHeader
           release={release}
@@ -164,6 +234,7 @@ export default function ReleaseDetailsPage() {
             currentStage={currentStage}
             selectedStage={selectedStage}
             onStageSelect={handleStageSelect}
+            kickoffStageCompleted={isKickoffCompleted}
           />
 
             {/* Integration Status Sidebar - Real-time status from individual APIs */}

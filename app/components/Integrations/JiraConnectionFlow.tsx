@@ -274,9 +274,14 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
       )}
 
       {isVerified && (
-        <ConnectionAlert color="green" title={ALERT_MESSAGES.VERIFICATION_SUCCESS}>
-          <Text size="sm">{JIRA_LABELS.VERIFIED_MESSAGE}</Text>
-        </ConnectionAlert>
+        <Alert 
+          icon={<IconCheck size={16} />} 
+          color="green"
+          variant="light"
+          radius="md"
+        >
+          {JIRA_LABELS.VERIFIED_MESSAGE}
+        </Alert>
       )}
 
       {!isEditMode && !isVerified ? (

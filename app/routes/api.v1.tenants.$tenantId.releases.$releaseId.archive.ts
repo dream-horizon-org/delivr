@@ -13,6 +13,9 @@ import {
   type AuthenticatedActionFunction,
 } from '~/utils/authenticate';
 import { ReleaseProcessService } from '~/.server/services/ReleaseProcess';
+import { getReleaseById } from '~/.server/services/ReleaseManagement';
+import { PermissionService } from '~/utils/permissions.server';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 import {
   createValidationError,
   handleAxiosError,
@@ -42,6 +45,23 @@ const archiveRelease: AuthenticatedActionFunction = async ({ params, request, us
   }
 
   try {
+    // Fetch release to check permissions
+    const releaseResult = await getReleaseById(releaseId, tenantId, user.user.id);
+    if (!releaseResult.success || !releaseResult.release) {
+      return json({ error: 'Release not found' }, { status: 404 });
+    }
+
+    const release = releaseResult.release as BackendReleaseResponse;
+
+    // Check if user is release pilot - only release pilot can archive
+    const isPilot = PermissionService.isReleasePilot(release.releasePilotAccountId, user.user.id);
+    if (!isPilot) {
+      return json(
+        { error: 'Only the release pilot can archive this release' },
+        { status: 403 }
+      );
+    }
+
     console.log(`[BFF] Archiving release:`, releaseId);
     
     const response = await ReleaseProcessService.archiveRelease(tenantId, releaseId, user.user.id);

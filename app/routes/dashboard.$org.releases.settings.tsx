@@ -3,11 +3,12 @@
  * Manage release configurations
  */
 
-import { json } from '@remix-run/node';
+import { json, redirect } from '@remix-run/node';
 import { useLoaderData, Link } from '@remix-run/react';
 import type { LoaderFunctionArgs } from '@remix-run/node';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { useConfig } from '~/contexts/ConfigContext';
+import { PermissionService } from '~/utils/permissions.server';
 import {
   Box,
   Title,
@@ -36,6 +37,17 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
   
   if (!org) {
     throw new Response('Organization not found', { status: 404 });
+  }
+
+  // Check if user is owner - only owners can access config settings
+  try {
+    const isOwner = await PermissionService.isTenantOwner(org, user.user.id);
+    if (!isOwner) {
+      throw redirect(`/dashboard/${org}/releases`);
+    }
+  } catch (error) {
+    console.error('[ReleaseSettings] Permission check failed:', error);
+    throw redirect(`/dashboard/${org}/releases`);
   }
   
   return json({ org, user });

@@ -178,10 +178,14 @@ class ReleaseProcess {
     // Note: Don't set Content-Type header manually - axios will set it automatically
     // with the correct boundary for multipart/form-data
         // API contract specifies PUT for upload
+        // Use longer timeout (5 minutes) for file uploads
         return this.__client.put<FormData, AxiosResponse<BuildUploadResponse>>(
           `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/${backendStage}/builds/${platform}`,
           formData,
-          { headers: this.buildHeaders(userId) }
+          { 
+            headers: this.buildHeaders(userId),
+            timeout: 5 * 60 * 1000, // 5 minutes for large file uploads
+          }
         );
   }
 

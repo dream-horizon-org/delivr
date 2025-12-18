@@ -7,15 +7,23 @@
 
 import type { ReleaseCreationState, ValidationResult } from '~/types/release-creation-backend';
 import { combineDateAndTime } from './release-creation-converter';
+import { RELEASE_ACTIVE_STATUS } from '~/constants/release-ui';
 
 /**
  * Validate release creation state
  * Returns validation result with errors for each invalid field
+ * 
+ * @param state - The release creation state to validate
+ * @param isEditMode - Whether we're in edit mode (default: false)
+ * @param activeStatus - The active status of the release (UPCOMING, RUNNING, PAUSED, COMPLETED)
  */
 export function validateReleaseCreationState(
-  state: Partial<ReleaseCreationState>
+  state: Partial<ReleaseCreationState>,
+  isEditMode: boolean = false,
+  activeStatus?: string
 ): ValidationResult {
   const errors: Record<string, string> = {};
+  const isAfterKickoff = activeStatus === RELEASE_ACTIVE_STATUS.RUNNING || activeStatus === RELEASE_ACTIVE_STATUS.PAUSED;
 
   // Required fields validation
   if (!state.type) {
@@ -24,9 +32,11 @@ export function validateReleaseCreationState(
     errors.type = 'Release type must be MAJOR, MINOR, or HOTFIX';
   }
 
-  if (!state.platformTargets || state.platformTargets.length === 0) {
-    errors.platformTargets = 'At least one platform target must be selected';
-  } else {
+  // Skip platform targets validation in edit mode post-kickoff (not editable)
+  if (!isAfterKickoff) {
+    if (!state.platformTargets || state.platformTargets.length === 0) {
+      errors.platformTargets = 'At least one platform target must be selected';
+    } else {
     // Validate each platform target
     state.platformTargets.forEach((pt, index) => {
       if (!pt.platform || !pt.target || !pt.version) {
@@ -64,18 +74,28 @@ export function validateReleaseCreationState(
         }
       }
     });
+    }
   }
 
-  if (!state.releaseConfigId) {
-    errors.releaseConfigId = 'Release configuration ID is required';
+  // Skip releaseConfigId validation in edit mode (not editable)
+  if (!isEditMode) {
+    if (!state.releaseConfigId) {
+      errors.releaseConfigId = 'Release configuration ID is required';
+    }
   }
 
-  if (!state.baseBranch) {
-    errors.baseBranch = 'Base branch is required';
+  // Skip baseBranch validation in edit mode post-kickoff (not editable)
+  if (!isAfterKickoff) {
+    if (!state.baseBranch) {
+      errors.baseBranch = 'Base branch is required';
+    }
   }
 
-  if (!state.branch || state.branch.trim() === '') {
-    errors.branch = 'Release branch name is required';
+  // Skip branch validation in edit mode post-kickoff (not editable)
+  if (!isAfterKickoff) {
+    if (!state.branch || state.branch.trim() === '') {
+      errors.branch = 'Release branch name is required';
+    }
   }
 
   // Date validation
@@ -139,13 +159,16 @@ export function validateReleaseCreationState(
     errors.targetReleaseTime = 'Target release time is required';
   }
 
-  // Kickoff time is required
-  if (!state.kickOffTime) {
-    errors.kickOffTime = 'Kickoff time is required';
+  // Skip kickoff time validation in edit mode post-kickoff (not editable)
+  if (!isAfterKickoff) {
+    if (!state.kickOffTime) {
+      errors.kickOffTime = 'Kickoff time is required';
+    }
   }
 
   // Validate kickoff reminder date and time (if provided)
-  if (state.kickOffReminderDate || state.kickOffReminderTime) {
+  // Skip in edit mode post-kickoff (not editable)
+  if (!isAfterKickoff && (state.kickOffReminderDate || state.kickOffReminderTime)) {
     // Both date and time should be provided together
     if (!state.kickOffReminderDate) {
       errors.kickOffReminderDate = 'Kickoff reminder date is required when reminder time is set';

@@ -10,7 +10,7 @@
  * - Cache invalidation: Automatically handled after release creation
  */
 
-import { json } from '@remix-run/node';
+import { json, redirect } from '@remix-run/node';
 import { useLoaderData, useNavigate } from '@remix-run/react';
 import { Container, Paper } from '@mantine/core';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
@@ -22,12 +22,25 @@ import { invalidateReleases } from '~/utils/cache-invalidation';
 import type { CreateReleaseBackendRequest } from '~/types/release-creation-backend';
 import { NoConfigurationAlert } from '~/components/Releases/NoConfigurationAlert';
 import { FormPageHeader } from '~/components/Common/FormPageHeader';
+import { PermissionService } from '~/utils/permissions.server';
 
 export const loader = authenticateLoaderRequest(async ({ params, user, request }) => {
   const { org } = params;
 
   if (!org) {
     throw new Response('Organization not found', { status: 404 });
+  }
+  console.log('create release page loader', org, user);
+
+  // Check if user is editor or owner - only editors/owners can create releases
+  try {
+    const isEditor = await PermissionService.isTenantEditor(org, user.user.id);
+    if (!isEditor) {
+      throw redirect(`/dashboard/${org}/releases`);
+    }
+  } catch (error) {
+    console.error('[CreateRelease] Permission check failed:', error);
+    throw redirect(`/dashboard/${org}/releases`);
   }
 
   // Check if returnTo query param exists (user came back from config creation)
@@ -42,12 +55,14 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
 
 export default function CreateReleasePage() {
   const loaderData = useLoaderData<typeof loader>();
+  console.log('create release page', loaderData);
   const org = (loaderData as { org: string }).org;
   const userId = ((loaderData as { user?: { id: string } }).user?.id) || '';
   const { activeReleaseConfigs } = useConfig();
   const hasConfigurations = activeReleaseConfigs.length > 0;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  console.log('create release page', org, userId, hasConfigurations);
 
   // Handle form submission - use BFF route (same pattern as release-config and integrations)
   const handleSubmit = async (backendRequest: CreateReleaseBackendRequest): Promise<void> => {

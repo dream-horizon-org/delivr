@@ -44,6 +44,9 @@ async function apiRequest<T = unknown>(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+  // Detect FormData to skip Content-Type header (browser will set it with boundary)
+  const isFormData = fetchOptions.body instanceof FormData;
+
   // Log request for release-config endpoints
   const isReleaseConfigRequest = endpoint.includes('/release-config');
   if (isReleaseConfigRequest) {
@@ -55,7 +58,8 @@ async function apiRequest<T = unknown>(
       ...fetchOptions,
       credentials: 'include', // Send cookies with requests
       headers: {
-        'Content-Type': 'application/json',
+        // Only set Content-Type for non-FormData requests
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...headers,
       },
       signal: controller.signal,
@@ -231,6 +235,23 @@ export async function apiPatch<T = unknown>(
     ...options,
     method: 'PATCH',
     body: data ? JSON.stringify(data) : undefined,
+  });
+}
+
+/**
+ * Upload helper - same as apiPut but with longer timeout for file uploads
+ * Handles FormData properly (no Content-Type header, browser sets it with boundary)
+ */
+export async function apiUpload<T = unknown>(
+  endpoint: string,
+  formData: FormData,
+  options: Omit<ApiClientOptions, 'method' | 'body'> = {}
+): Promise<ApiResponse<T>> {
+  return apiRequest<T>(endpoint, {
+    ...options,
+    method: 'PUT',
+    body: formData,
+    timeout: options.timeout ?? 5 * 60 * 1000, // 5 minutes default for uploads
   });
 }
 

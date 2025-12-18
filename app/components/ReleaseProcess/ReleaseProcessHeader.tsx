@@ -12,15 +12,17 @@
  * - Stage status from stage API responses
  */
 
-import { Button, Group, Paper, Stack } from '@mantine/core';
+import { Button, Group, Paper, Stack, Box } from '@mantine/core';
 import { Link, useSearchParams } from '@remix-run/react';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useQueryClient } from 'react-query';
+import { useRouteLoaderData } from '@remix-run/react';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { BUTTON_LABELS } from '~/constants/release-process-ui';
 import { RELEASE_MESSAGES } from '~/constants/toast-messages';
 import { usePauseResumeRelease } from '~/hooks/useReleaseProcess';
+import { usePermissions } from '~/hooks/usePermissions';
 import { Phase, ReleaseStatus, PauseType } from '~/types/release-process-enums';
 import type { TaskStage } from '~/types/release-process-enums';
 import type { MessageTypeEnum } from '~/types/release-process.types';
@@ -28,6 +30,7 @@ import type { UpdateReleaseBackendRequest } from '~/types/release-creation-backe
 import { apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { invalidateReleases } from '~/utils/cache-invalidation';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
+import type { OrgLayoutLoaderData } from '~/routes/dashboard.$org';
 import { ReleaseHeaderTitle, ReleaseHeaderInfo } from './shared/ReleaseHeaderInfo';
 import { ReleaseHeaderActions } from './shared/ReleaseHeaderActions';
 import { ReleaseHeaderModals } from './shared/ReleaseHeaderModals';
@@ -60,14 +63,16 @@ export function ReleaseProcessHeader({
   const [slackMessageModalOpened, setSlackMessageModalOpened] = useState(false);
   const [selectedMessageType, setSelectedMessageType] = useState<MessageTypeEnum | null>(null);
   const [pauseConfirmModalOpened, setPauseConfirmModalOpened] = useState(false);
-  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
 
-  // Get returnTo params from URL to restore filters and tab when going back
-  const returnTo = searchParams.get('returnTo');
-  const backUrl = returnTo 
-    ? `/dashboard/${org}/releases?${returnTo}`
-    : `/dashboard/${org}/releases`;
+  // Get user data from parent route loader
+  const orgLayoutData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
+  const userId = orgLayoutData?.user?.user?.id || '';
+
+  // Check permissions
+  const { canPerformReleaseAction } = usePermissions(org, userId);
+  const canPerform = canPerformReleaseAction(release.releasePilotAccountId);
+
 
   // Use API data directly - no derivation
   const releaseStatus: ReleaseStatus = release.status;
@@ -142,31 +147,25 @@ export function ReleaseProcessHeader({
     <>
       <Paper shadow="sm" p="lg" radius="md" withBorder className={className}>
         <Stack gap="md">
-          {/* Top Section: Back Button */}
-          <Group>
-            <Link to={backUrl}>
-              <Button variant="subtle" leftSection={<IconArrowLeft size={16} />}>
-                {BUTTON_LABELS.BACK}
-              </Button>
-            </Link>
-          </Group>
-
           {/* Release Title, Status Badges, and Platform Badges */}
-          <ReleaseHeaderTitle release={release} />
-
-          {/* Info Section and Action Buttons */}
-          <Group justify="space-between" align="center" wrap="wrap">
-            {/* Info Section - Left Side */}
-            <ReleaseHeaderInfo
+          <ReleaseHeaderInfo
               release={release}
               releaseVersion={releaseVersion}
               currentStage={currentStage}
             />
+          
 
+          {/* Info Section and Action Buttons */}
+          <Group justify="space-between" align="center" wrap="wrap">
+            {/* Info Section - Left Side */}
+            
+            <ReleaseHeaderTitle release={release} />
             {/* Action Buttons - Right Side */}
+
             <ReleaseHeaderActions
               release={release}
               isPaused={isPaused}
+              canPerformReleaseAction={canPerform}
               onEditClick={() => setEditModalOpened(true)}
               onPauseClick={handlePauseClick}
               onResumeClick={handleResumeClick}

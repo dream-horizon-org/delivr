@@ -7,15 +7,18 @@
 import { Stack, Group, Text, Badge } from '@mantine/core';
 import { IconCheck, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
+import { useRouteLoaderData } from '@remix-run/react';
 import { usePreReleaseStage, useProjectManagementStatus, useCompletePreReleaseStage } from '~/hooks/useReleaseProcess';
 import { useTaskHandlers } from '~/hooks/useTaskHandlers';
 import { useConfig } from '~/contexts/ConfigContext';
 import { useRelease } from '~/hooks/useRelease';
+import { usePermissions } from '~/hooks/usePermissions';
 import type { Task } from '~/types/release-process.types';
 import { TaskStage, TaskStatus } from '~/types/release-process-enums';
 import { validateStageProps } from '~/utils/prop-validation';
 import { handleStageError } from '~/utils/stage-error-handling';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
+import type { OrgLayoutLoaderData } from '~/routes/dashboard.$org';
 import { StageErrorBoundary } from './shared/StageErrorBoundary';
 import { PreReleaseTasksList } from './stages/PreReleaseTasksList';
 import { StageApprovalSection, type ApprovalRequirement } from './shared/StageApprovalSection';
@@ -35,6 +38,12 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
   
   // Get release data to access releaseConfigId
   const { release } = useRelease(tenantId, releaseId);
+
+  // Get user data and check permissions
+  const orgLayoutData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
+  const userId = orgLayoutData?.user?.user?.id || '';
+  const { canPerformReleaseAction } = usePermissions(tenantId, userId);
+  const canPerform = canPerformReleaseAction(release?.releasePilotAccountId || null);
   
   // Get cached release configs from ConfigContext
   const { releaseConfigs } = useConfig();
@@ -152,10 +161,10 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
     return requirements.filter((r) => !r.passed).length;
   }, [requirements]);
 
-  // Calculate promotion readiness - all PRE_RELEASE tasks must be completed
+  // Calculate promotion readiness - all PRE_RELEASE tasks must be completed AND user has permission
   const canPromote = useMemo(() => {
-    return requirements.every((r) => r.passed);
-  }, [requirements]);
+    return requirements.every((r) => r.passed) && canPerform;
+  }, [requirements, canPerform]);
 
   const handleApproveClick = useCallback(() => {
     if (!canPromote) {

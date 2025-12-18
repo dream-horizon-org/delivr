@@ -3,7 +3,7 @@
  * Displays release configurations with proper loading, error, and empty states
  */
 
-import { memo, useMemo, useCallback, useState } from 'react';
+import { memo, useMemo, useCallback, useState, useEffect } from 'react';
 import { 
   Box, 
   Text, 
@@ -60,6 +60,13 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const {updateReleaseConfigInCache} = useConfig()
 
+  // Clear statusFilter if it's set to DRAFT (since Draft filter is removed)
+  useEffect(() => {
+    if (statusFilter === CONFIG_STATUS.DRAFT) {
+      setStatusFilter(null);
+    }
+  }, [statusFilter]);
+
   // Merge backend configs with localStorage draft
   const configurations = useMemo(() => {
     const backendConfigs = releaseConfigs;
@@ -106,7 +113,6 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
         config.description?.toLowerCase().includes(searchQuery.toLowerCase());
       
       const matchesStatus = !statusFilter || 
-        (statusFilter === CONFIG_STATUS.DRAFT && config.status === CONFIG_STATUS.DRAFT) ||
         (statusFilter === CONFIG_STATUS.ACTIVE && config.isActive === true) ||
         (statusFilter === CONFIG_STATUS.ARCHIVED && config.isActive === false && config.status !== CONFIG_STATUS.DRAFT);
       
@@ -404,7 +410,6 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
           onChange={setStatusFilter}
           data={[
             { value: CONFIG_STATUS.ACTIVE, label: 'Active' },
-            { value: CONFIG_STATUS.DRAFT, label: 'Draft' },
             { value: CONFIG_STATUS.ARCHIVED, label: 'Archived' },
           ]}
           clearable

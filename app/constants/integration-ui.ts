@@ -75,7 +75,7 @@ export const INTEGRATION_MODAL_LABELS = {
 export const SLACK_LABELS = {
   // Alert Titles
   READY_TO_CONNECT: 'Ready to Connect',
-  TOKEN_VERIFIED: '✓ Token Verified Successfully',
+  TOKEN_VERIFIED: 'Token Verified Successfully',
   
   // Messages
   CONNECTION_DESCRIPTION: 'Connect your Slack workspace to receive release notifications and updates.',
@@ -208,7 +208,7 @@ export const GITHUB_LABELS = {
   ] as const,
   
   // Success
-  REPO_VERIFIED: '✓ Repository Verified',
+  REPO_VERIFIED: 'Repository Verified',
   VERIFY_BUTTON: 'Verify Repository',
   CONNECT_BUTTON: 'Connect GitHub',
 } as const;
@@ -384,7 +384,7 @@ export const APP_DISTRIBUTION_LABELS = {
 // ============================================================================
 
 export const ALERT_MESSAGES = {
-  VERIFICATION_SUCCESS: '✓ Verification Successful',
+  VERIFICATION_SUCCESS: 'Verification Successful',
   VERIFICATION_FAILED: '✗ Verification Failed',
   CONNECTION_FAILED: '✗ Connection Failed',
   CONNECTING: 'Connecting...',

@@ -73,12 +73,14 @@ export function ConfigurationWizard({
       ttl: 30 * 24 * 60 * 60 * 1000,
       enableMetadata: true,
     },
-    isEditMode && existingConfig ? existingConfig : createDefaultConfig(tenantId)
+    createDefaultConfig(tenantId), // initialData - always default
+    isEditMode && existingConfig ? existingConfig : undefined // existingData - only in edit mode (skips draft loading)
   );
   
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [attemptedSteps, setAttemptedSteps] = useState<Set<number>>(new Set());
   
   // Track if draft restoration has already happened (to prevent infinite loop)
   const hasRestoredDraft = useRef(false);
@@ -106,6 +108,9 @@ export function ConfigurationWizard({
   }, [currentStep, isEditMode, updateMetadata]);
   
   const handleNext = () => {
+    // Mark this step as attempted
+    setAttemptedSteps(new Set([...attemptedSteps, currentStep]));
+    
     if (canProceedFromStep(currentStep, config)) {
       setCompletedSteps(new Set([...completedSteps, currentStep]));
       
@@ -294,6 +299,7 @@ export function ConfigurationWizard({
             scheduling={config.releaseSchedule}
             onChange={(releaseSchedule) => setConfig({ ...config, releaseSchedule })}
             selectedPlatforms={config.platforms || []}
+            showValidation={attemptedSteps.has(STEP_INDEX.SCHEDULING)}
           />
         );
         

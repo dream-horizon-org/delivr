@@ -18,6 +18,7 @@ import { BUTTON_LABELS } from '~/constants/release-process-ui';
 interface ReleaseHeaderActionsProps {
   release: BackendReleaseResponse;
   isPaused: boolean;
+  canPerformReleaseAction: boolean;
   onEditClick: () => void;
   onPauseClick: () => void;
   onResumeClick: () => void;
@@ -28,6 +29,7 @@ interface ReleaseHeaderActionsProps {
 export function ReleaseHeaderActions({
   release,
   isPaused,
+  canPerformReleaseAction,
   onEditClick,
   onPauseClick,
   onResumeClick,
@@ -38,16 +40,19 @@ export function ReleaseHeaderActions({
 
   return (
     <Group gap="sm" wrap="wrap">
-      <Button 
-        variant="outline" 
-        leftSection={<IconEdit size={16} />}
-        onClick={onEditClick}
-      >
-        {BUTTON_LABELS.EDIT_RELEASE}
-      </Button>
+      {/* Edit - Only visible to release pilot or org owner */}
+      {canPerformReleaseAction && (
+        <Button 
+          variant="outline" 
+          leftSection={<IconEdit size={16} />}
+          onClick={onEditClick}
+        >
+          {BUTTON_LABELS.EDIT_RELEASE}
+        </Button>
+      )}
       
-      {/* Pause/Resume - Only show if release is in progress or paused */}
-      {(releaseStatus === ReleaseStatus.IN_PROGRESS || releaseStatus === ReleaseStatus.PAUSED) && (
+      {/* Pause/Resume - Only show if release is in progress or paused AND user has permission */}
+      {canPerformReleaseAction && (releaseStatus === ReleaseStatus.IN_PROGRESS || releaseStatus === ReleaseStatus.PAUSED) && (
         <Button
           variant="outline"
           color={isPaused ? 'green' : 'orange'}
@@ -58,6 +63,7 @@ export function ReleaseHeaderActions({
         </Button>
       )}
       
+      {/* Activity Log - Always visible (accessible to viewers) */}
       <Button
         variant="outline"
         leftSection={<IconHistory size={16} />}
@@ -66,13 +72,16 @@ export function ReleaseHeaderActions({
         {BUTTON_LABELS.ACTIVITY_LOG}
       </Button>
       
-      <Button
-        variant="outline"
-        leftSection={<IconMessageCircle size={16} />}
-        onClick={onSlackMessageClick}
-      >
-        {BUTTON_LABELS.POST_SLACK_MESSAGE}
-      </Button>
+      {/* Notify - Only visible to release pilot or org owner */}
+      {canPerformReleaseAction && (
+        <Button
+          variant="outline"
+          leftSection={<IconMessageCircle size={16} />}
+          onClick={onSlackMessageClick}
+        >
+          {BUTTON_LABELS.NOTIFY}
+        </Button>
+      )}
     </Group>
   );
 }

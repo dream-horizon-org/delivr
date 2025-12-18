@@ -131,12 +131,12 @@ export const BUTTON_LABELS = {
   SEND_MESSAGE: 'Send Message',
   CLOSE: 'Close',
   CANCEL: 'Cancel',
-  EDIT_RELEASE: 'Edit Release',
+  EDIT_RELEASE: 'Modify',
   PAUSE: 'Pause',
   RESUME: 'Resume',
   ARCHIVE: 'Archive Release',
-  ACTIVITY_LOG: 'Activity Log',
-  POST_SLACK_MESSAGE: 'Post Slack Message',
+  ACTIVITY_LOG: 'Activity',
+  NOTIFY: 'Notify',
   
   // Slack Message Types
   SLACK_MESSAGE_TYPES: {
@@ -151,7 +151,7 @@ export const BUTTON_LABELS = {
       description: 'Send pre-kickoff reminder to Slack',
     },
   },
-  BACK: 'Back',
+  BACK: 'Go back to releases',
 } as const;
 
 // ============================================================================
@@ -180,6 +180,7 @@ export const HEADER_LABELS = {
   RELEASE_VERSION: 'Version',
   RELEASE_BRANCH: 'Branch',
   RELEASE_STARTED_AT: 'Release started at',
+  RELEASE_TYPE: 'Type',
   STATUS: 'Status',
   NO_BRANCH: 'No branch',
   NOT_AVAILABLE: 'N/A',
@@ -187,6 +188,17 @@ export const HEADER_LABELS = {
   BUILD_MODE: 'Build Mode',
   MANUAL_BUILD: 'Manual Build',
   CI_CD_BUILD: 'CI/CD Build',
+} as const;
+
+// ============================================================================
+// Badge Tooltips
+// ============================================================================
+
+export const BADGE_TOOLTIPS = {
+  RELEASE_TYPE: 'Release type: Major, Minor, or Hotfix',
+  PHASE: 'Current phase of the release process',
+  STATUS: 'Overall release status',
+  PAUSED: 'Release is currently paused',
 } as const;
 
 // ============================================================================

@@ -6,7 +6,7 @@
 
 import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { apiGet, apiPost, apiPut, apiDelete, getApiErrorMessage } from '~/utils/api-client';
+import { apiGet, apiPost, apiPut, apiDelete, getApiErrorMessage, apiUpload } from '~/utils/api-client';
 import { TaskStage, Platform, BuildUploadStage } from '~/types/release-process-enums';
 import { filterValidTaskTypes } from '~/utils/task-filtering';
 import type {
@@ -51,10 +51,14 @@ const QUERY_KEYS = {
 /**
  * Get kickoff stage data
  */
-export function useKickoffStage(tenantId?: string, releaseId?: string) {
+export function useKickoffStage(
+  tenantId?: string, 
+  releaseId?: string,
+  shouldPoll: boolean = false
+) {
   const isEnabled = !!tenantId && !!releaseId;
   
-  console.log('[useKickoffStage] Hook called with:', { tenantId, releaseId, isEnabled });
+  console.log('[useKickoffStage] Hook called with:', { tenantId, releaseId, isEnabled, shouldPoll });
   
   return useQuery<KickoffStageResponse, Error>(
     QUERY_KEYS.stage(tenantId || '', releaseId || '', TaskStage.KICKOFF),
@@ -93,6 +97,8 @@ export function useKickoffStage(tenantId?: string, releaseId?: string) {
       refetchOnWindowFocus: true,
       refetchOnMount: true, // Changed to true to ensure it fetches
       retry: 1,
+      refetchInterval: (shouldPoll && isEnabled) ? 30000 : false, // Poll every 30 seconds if shouldPoll is true
+      refetchIntervalInBackground: false, // Stop polling when tab is in background
     }
   );
 }
@@ -100,10 +106,14 @@ export function useKickoffStage(tenantId?: string, releaseId?: string) {
 /**
  * Get regression stage data
  */
-export function useRegressionStage(tenantId?: string, releaseId?: string) {
+export function useRegressionStage(
+  tenantId?: string, 
+  releaseId?: string,
+  shouldPoll: boolean = false
+) {
   const isEnabled = !!tenantId && !!releaseId;
   
-  // console.log('[useRegressionStage] Hook called with:', { tenantId, releaseId, isEnabled });
+  // console.log('[useRegressionStage] Hook called with:', { tenantId, releaseId, isEnabled, shouldPoll });
   
   return useQuery<RegressionStageResponse, Error>(
     QUERY_KEYS.stage(tenantId || '', releaseId || '', TaskStage.REGRESSION),
@@ -140,6 +150,8 @@ export function useRegressionStage(tenantId?: string, releaseId?: string) {
       refetchOnWindowFocus: true,
       refetchOnMount: true, // Changed to true to ensure it fetches
       retry: 1,
+      refetchInterval: (shouldPoll && isEnabled) ? 30000 : false, // Poll every 30 seconds if shouldPoll is true
+      refetchIntervalInBackground: false, // Stop polling when tab is in background
     }
   );
 }
@@ -147,7 +159,13 @@ export function useRegressionStage(tenantId?: string, releaseId?: string) {
 /**
  * Get pre-release stage data
  */
-export function usePreReleaseStage(tenantId?: string, releaseId?: string) {
+export function usePreReleaseStage(
+  tenantId?: string, 
+  releaseId?: string,
+  shouldPoll: boolean = false
+) {
+  const isEnabled = !!tenantId && !!releaseId;
+  
   return useQuery<PreReleaseStageResponse, Error>(
     QUERY_KEYS.stage(tenantId || '', releaseId || '', TaskStage.PRE_RELEASE),
     async () => {
@@ -172,12 +190,14 @@ export function usePreReleaseStage(tenantId?: string, releaseId?: string) {
       return filteredData;
     },
     {
-      enabled: !!tenantId && !!releaseId,
+      enabled: isEnabled,
       staleTime: 2 * 60 * 1000,
       cacheTime: 10 * 60 * 1000,
       refetchOnWindowFocus: true,
       refetchOnMount: false,
       retry: 1,
+      refetchInterval: (shouldPoll && isEnabled) ? 30000 : false, // Poll every 30 seconds if shouldPoll is true
+      refetchIntervalInBackground: false, // Stop polling when tab is in background
     }
   );
 }
@@ -254,26 +274,19 @@ export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
       const formData = new FormData();
       formData.append('file', file);
 
-      // Use BFF route with stage and platform in path
+      // Use centralized upload function with 5-minute timeout
       // BFF route will map BuildUploadStage to TaskStage and forward to backend
-      // API contract specifies PUT, but we use POST for compatibility
-      const response = await fetch(
+      const result = await apiUpload<BuildUploadResponse>(
         `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/${stage}/builds/${platform}`,
-        {
-          method: 'PUT', // API contract specifies PUT
-          body: formData,
-        }
+        formData
       );
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Upload failed' }));
-        throw new Error(error.error || error.message || 'Upload failed');
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Upload failed');
       }
 
-      const data = await response.json();
       // Backend returns { success: true, data: {...} }
-      // Return the data field if present, otherwise return the whole response
-      return data.data || data;
+      return result.data;
     },
     {
       onSuccess: (_, variables) => {

@@ -108,7 +108,7 @@ export function TestManagementSelector({
               size={40}
               radius="md"
               variant={isEnabled ? 'filled' : 'light'}
-              color={isEnabled ? 'grape' : 'gray'}
+              color={isEnabled ? 'blue' : 'gray'}
             >
               <IconTestPipe size={22} />
             </ThemeIcon>
@@ -118,7 +118,7 @@ export function TestManagementSelector({
                   Enable Test Management Integration
                 </Text>
                 {isEnabled && (
-                  <ThemeIcon size={20} radius="xl" color="grape">
+                  <ThemeIcon size={20} radius="xl" color="blue">
                     <IconCheck size={12} />
                   </ThemeIcon>
                 )}
@@ -132,7 +132,7 @@ export function TestManagementSelector({
             checked={isEnabled}
             onChange={(e) => handleToggle(e.currentTarget.checked)}
             size="md"
-            color="grape"
+            color="blue"
           />
         </Group>
       </Paper>

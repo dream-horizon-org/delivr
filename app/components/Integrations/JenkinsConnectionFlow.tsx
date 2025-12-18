@@ -336,12 +336,14 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
       )}
 
       {verificationResult && (
-        <ConnectionAlert
+        <Alert
+          icon={verificationResult.success ? <IconCheck size={16} /> : <IconAlertCircle size={16} />}
           color={verificationResult.success ? 'green' : 'red'}
-          title={verificationResult.success ? ALERT_MESSAGES.VERIFICATION_SUCCESS : ALERT_MESSAGES.VERIFICATION_FAILED}
+          variant="light"
+          radius="md"
         >
-          <Text size="sm">{verificationResult.message}</Text>
-        </ConnectionAlert>
+          {verificationResult.message}
+        </Alert>
       )}
 
       {!isEditMode ? (

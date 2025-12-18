@@ -27,6 +27,8 @@ interface ReleaseProcessSidebarProps {
   selectedStage?: TaskStage | null;
   onStageSelect?: (stage: TaskStage | null) => void;
   className?: string;
+  // Optional: stage data to check completion status
+  kickoffStageCompleted?: boolean; // True if kickoff stage is completed
 }
 
 // Stage definition type
@@ -101,6 +103,7 @@ export function ReleaseProcessSidebar({
   selectedStage,
   onStageSelect,
   className,
+  kickoffStageCompleted = false,
 }: ReleaseProcessSidebarProps) {
   // All stages are always visible
   const stages = RELEASE_PROCESS_STAGES;
@@ -121,14 +124,18 @@ export function ReleaseProcessSidebar({
     (stepIndex: number) => {
       const stage = stages[stepIndex];
 
-      // Standard progression: can only access stages up to current stage
-      const isAccessible = currentStageIndex === -1 || stepIndex <= currentStageIndex;
+      // Allow REGRESSION stage (index 1) if kickoff is completed, even if currentStage is still KICKOFF
+      const isRegressionStage = stage.key === TaskStageEnum.REGRESSION;
+      const isAccessible = 
+        currentStageIndex === -1 || 
+        stepIndex <= currentStageIndex ||
+        (isRegressionStage && kickoffStageCompleted);
 
       if (isAccessible && stage.isNavigable && onStageSelect) {
         onStageSelect(stage.key as TaskStage);
       }
     },
-    [stages, currentStageIndex, onStageSelect]
+    [stages, currentStageIndex, onStageSelect, kickoffStageCompleted]
   );
 
   return (
@@ -165,7 +172,12 @@ export function ReleaseProcessSidebar({
             const isComplete = currentStageIndex >= 0 && index < currentStageIndex;
             const isCurrent = index === currentStageIndex;
             const isSelected = index === selectedStageIndex;
-            const isAccessible = currentStageIndex === -1 || index <= currentStageIndex;
+            // Allow REGRESSION stage (index 1) if kickoff is completed, even if currentStage is still KICKOFF
+            const isRegressionStage = stage.key === TaskStageEnum.REGRESSION;
+            const isAccessible = 
+              currentStageIndex === -1 || 
+              index <= currentStageIndex ||
+              (isRegressionStage && kickoffStageCompleted);
             const canNavigate = isAccessible && stage.isNavigable && onStageSelect;
             const StageIcon = ICON_MAP[stage.iconName] ?? IconGitBranch;
 

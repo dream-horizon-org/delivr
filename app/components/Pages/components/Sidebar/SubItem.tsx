@@ -1,7 +1,9 @@
 import { Box, Text, UnstyledButton, useMantineTheme, Group } from "@mantine/core";
-import { Link } from "@remix-run/react";
+import { Link, useRouteLoaderData } from "@remix-run/react";
 import type { SubItem as SubItemType } from "./navigation-data";
 import type { Organization } from "./types";
+import { usePermissions } from "~/hooks/usePermissions";
+import type { OrgLayoutLoaderData } from "~/routes/dashboard.$org";
 
 interface SubItemProps {
   subItem: SubItemType;
@@ -13,8 +15,14 @@ export function SubItem({ subItem, org, isActive }: SubItemProps) {
   const theme = useMantineTheme();
   const Icon = subItem.icon;
 
+  // Get user data and check permissions
+  const orgLayoutData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
+  const userId = orgLayoutData?.user?.user?.id || '';
+  const { isOwner } = usePermissions(org.id, userId);
+
   // Hide owner-only items if not owner
-  if (subItem.isOwnerOnly && !org.isAdmin) {
+  // Use permission hook for consistency, fallback to org.isAdmin if hook data not available
+  if (subItem.isOwnerOnly && !isOwner && !org.isAdmin) {
     return null;
   }
 

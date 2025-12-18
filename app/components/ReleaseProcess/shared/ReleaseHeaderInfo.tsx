@@ -3,8 +3,9 @@
  * Displays release title, status badges, and platform badges
  */
 
-import { Badge, Group, Text, Title } from '@mantine/core';
-import { IconGitBranch, IconTag, IconClock } from '@tabler/icons-react';
+import { Badge, Group, Text, Title, Tooltip, Box, Stack } from '@mantine/core';
+import React, { useRef, useState, useEffect } from 'react';
+import { IconGitBranch, IconTag, IconClock, IconFlag } from '@tabler/icons-react';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { Phase, ReleaseStatus, PauseType } from '~/types/release-process-enums';
 import type { TaskStage } from '~/types/release-process-enums';
@@ -15,8 +16,10 @@ import {
   getReleaseStatusColor,
   getReleaseStatusLabel,
   STAGE_LABELS,
+  BADGE_TOOLTIPS,
 } from '~/constants/release-process-ui';
 import { formatReleaseDateTime } from '~/utils/release-process-date';
+import { PlatformIcon } from '~/components/Releases/PlatformIcon';
 
 interface PlatformTargetMapping {
   platform: string;
@@ -26,6 +29,47 @@ interface PlatformTargetMapping {
 
 interface ReleaseHeaderTitleProps {
   release: BackendReleaseResponse;
+}
+
+/**
+ * Component that conditionally shows tooltip only when text is truncated
+ */
+function ConditionalTooltip({ 
+  children, 
+  label, 
+  ...props 
+}: { 
+  children: React.ReactElement; 
+  label: string;
+  [key: string]: any;
+}) {
+  const textRef = useRef<HTMLElement>(null);
+  const [isTruncated, setIsTruncated] = useState(false);
+
+  useEffect(() => {
+    const checkTruncation = () => {
+      if (textRef.current) {
+        const element = textRef.current;
+        setIsTruncated(element.scrollWidth > element.clientWidth);
+      }
+    };
+
+    checkTruncation();
+    window.addEventListener('resize', checkTruncation);
+    return () => window.removeEventListener('resize', checkTruncation);
+  }, [label]);
+
+  const childWithRef = React.cloneElement(children, { ref: textRef });
+
+  if (isTruncated) {
+    return (
+      <Tooltip label={label} withArrow color="gray" {...props}>
+        {childWithRef}
+      </Tooltip>
+    );
+  }
+
+  return childWithRef;
 }
 
 export function ReleaseHeaderTitle({ release }: ReleaseHeaderTitleProps) {
@@ -53,30 +97,58 @@ export function ReleaseHeaderTitle({ release }: ReleaseHeaderTitleProps) {
   const isPaused = !!(pauseType && pauseType !== PauseType.NONE);
 
   return (
-    <Group justify="space-between" align="center" wrap="wrap">
-      <Group gap="md" align="center">
-        {release.branch ? (
-          <Title order={2} className="font-mono">
-            {release.branch}
-          </Title>
-        ) : (
-          <Title order={2}>
-            {HEADER_LABELS.NO_BRANCH}
-          </Title>
-        )}
+    <Group gap="lg" align="center" wrap="wrap">
+      {/* {release.branch ? (
+        <Title order={2} className="font-mono" size={"h4"}>
+          {release.branch}
+        </Title>
+      ) : (
+        <Title order={2}>
+          {HEADER_LABELS.NO_BRANCH}
+        </Title>
+      )} */}
 
-        {/* Status Badges - Next to Title - Consistent with ReleaseCard */}
-        <Group gap="sm">
-          <Badge
-            color={getReleaseTypeColor(release.type)}
-            variant="light"
-            size="md"
-            style={{ fontSize: '0.7rem', textTransform: 'capitalize' }}
-          >
-            {release.type.toLowerCase()}
-          </Badge>
+      {/* All Badges in Same Line - Phase and Platform Only */}
+      <Group gap="sm" align="center" wrap="wrap">
+        {/* Platform Badges - Cleaner Format with Icons */}
+        {platformMappings.map((mapping, idx) => {
+          // Format target: "PLAY_STORE" -> "Play Store"
+          const formattedTarget = mapping.target
+            .split('_')
+            .map(word => word.charAt(0) + word.slice(1).toLowerCase())
+            .join(' ');
           
-          {releasePhase && (
+          // Format version: "v1.0.0" or "1.0.0" -> "v1.0.0"
+          const formattedVersion = mapping.version 
+            ? (mapping.version.startsWith('v') ? mapping.version : `v${mapping.version}`)
+            : null;
+
+          return (
+            <Badge 
+              key={idx} 
+              size="md" 
+              variant="light" 
+              color="brand"
+              leftSection={<PlatformIcon platform={mapping.platform} size={16} />}
+            >
+              <span style={{ marginRight: '4px' }}>{formattedTarget}</span>
+              {formattedVersion && (
+                <span style={{ fontWeight: 600, opacity: 0.9 }}>{formattedVersion}</span>
+              )}
+            </Badge>
+          );
+        })}
+        
+        {releasePhase && (
+          <Tooltip 
+            label={BADGE_TOOLTIPS.PHASE} 
+            withArrow
+            styles={{
+              tooltip: {
+                padding: '10px 14px',
+              },
+            }}
+          >
             <Badge
               color={getPhaseColor(releasePhase)}
               variant="light"
@@ -85,51 +157,20 @@ export function ReleaseHeaderTitle({ release }: ReleaseHeaderTitleProps) {
             >
               {getPhaseLabel(releasePhase)}
             </Badge>
-          )}
-          
-          {releaseStatus && !isPaused && (
-            <Badge
-              color={getReleaseStatusColor(releaseStatus)}
-              variant="light"
-              size="md"
-              style={{ fontSize: '0.7rem' }}
-            >
-              {getReleaseStatusLabel(releaseStatus)}
-            </Badge>
-          )}
-          
-          {isPaused && (
-            <Badge
-              color="orange"
-              variant="light"
-              size="md"
-              style={{ fontSize: '0.7rem' }}
-            >
-              Paused
-            </Badge>
-          )}
-        </Group>
+          </Tooltip>
+        )}
       </Group>
-
-      {/* Platform Badges - Right Side */}
-      {platformMappings.length > 0 && (
-        <Group gap="xs">
-          {platformMappings.map((mapping, idx) => (
-            <Badge key={idx} size="md" variant="light" color="brand">
-              {mapping.platform} {HEADER_LABELS.PLATFORM_SEPARATOR} {mapping.target}
-              {mapping.version && <span style={{ fontWeight: 700 }}> ({mapping.version})</span>}
-            </Badge>
-          ))}
-        </Group>
-      )}
     </Group>
   );
 }
 
 /**
  * ReleaseHeaderInfo Component
- * Displays release version, branch, and current stage information
+ * Displays release type, status, branch, started time, and current stage information
+ * Uses data-driven mapping for easy maintenance and UI consistency
  */
+
+import type { ReactNode } from 'react';
 
 interface ReleaseHeaderInfoProps {
   release: BackendReleaseResponse;
@@ -137,65 +178,100 @@ interface ReleaseHeaderInfoProps {
   currentStage: TaskStage | null;
 }
 
+interface InfoItemConfig {
+  key: string;
+  icon?: ReactNode;
+  label: string;
+  getValue: (props: ReleaseHeaderInfoProps & { releaseStatus: ReleaseStatus; isPaused: boolean }) => string | null;
+  shouldShow: (props: ReleaseHeaderInfoProps & { releaseStatus: ReleaseStatus; isPaused: boolean }) => boolean;
+  valueClassName?: string;
+  valueStyle?: React.CSSProperties;
+}
+
 export function ReleaseHeaderInfo({
   release,
   releaseVersion,
   currentStage,
 }: ReleaseHeaderInfoProps) {
+  const releaseStatus: ReleaseStatus = release.status;
+  const pauseType = release.cronJob?.pauseType;
+  const isPaused = !!(pauseType && pauseType !== PauseType.NONE);
+
+  const props = {
+    release,
+    releaseVersion,
+    currentStage,
+    releaseStatus,
+    isPaused,
+  };
+  const infoItems: InfoItemConfig[] = [
+
+    {
+      key: 'branch',
+      icon: <IconGitBranch size={18} className="text-slate-600" />,
+      label: HEADER_LABELS.RELEASE_BRANCH,
+      getValue: () => release.branch || null,
+      shouldShow: () => !!release.branch,
+      valueClassName: 'font-mono',
+    },
+    {
+      key: 'startedAt',
+      icon: <IconClock size={18} className="text-slate-600" />,
+      label: HEADER_LABELS.RELEASE_STARTED_AT,
+      getValue: () => release.kickOffDate ? formatReleaseDateTime(release.kickOffDate) : null,
+      shouldShow: () => !!release.kickOffDate,
+    },
+    {
+      key: 'currentStage',
+      label: HEADER_LABELS.CURRENT_STAGE,
+      getValue: ({ currentStage }) => currentStage ? STAGE_LABELS[currentStage] : null,
+      shouldShow: ({ currentStage }) => !!currentStage,
+    },
+        {
+      key: 'type',
+      icon: <IconTag size={18} className="text-slate-600" />,
+      label: HEADER_LABELS.RELEASE_TYPE,
+      getValue: () => release.type.charAt(0).toUpperCase() + release.type.slice(1).toLowerCase(),
+      shouldShow: () => true,
+      valueStyle: { textTransform: 'capitalize' },
+    },
+    {
+      key: 'status',
+      icon: <IconFlag size={18} className="text-slate-600" />,
+      label: HEADER_LABELS.STATUS,
+      getValue: ({ isPaused, releaseStatus }) => isPaused ? 'Paused' : getReleaseStatusLabel(releaseStatus),
+      shouldShow: () => true,
+    },
+  ];
+
+  // Filter and render items
+  const visibleItems = infoItems.filter(item => item.shouldShow(props));
+
   return (
     <Group gap="xl">
-      <Group gap="xs">
-        <IconTag size={18} className="text-brand-600" />
-        <div>
-          <Text size="xs" c="dimmed">
-            {HEADER_LABELS.RELEASE_VERSION}
-          </Text>
-          <Text fw={600} size="sm">
-            {releaseVersion}
-          </Text>
-        </div>
-      </Group>
+      {visibleItems.map((item) => {
+        const value = item.getValue(props);
+        if (!value) return null;
 
-      {release.branch && (
-        <Group gap="xs">
-          <IconGitBranch size={18} className="text-slate-600" />
-          <div>
-            <Text size="xs" c="dimmed">
-              {HEADER_LABELS.RELEASE_BRANCH}
-            </Text>
-            <Text fw={600} size="sm" className="font-mono">
-              {release.branch}
-            </Text>
-          </div>
-        </Group>
-      )}
-
-      {release.kickOffDate && (
-        <Group gap="xs">
-          <IconClock size={18} className="text-slate-600" />
-          <div>
-            <Text size="xs" c="dimmed">
-              {HEADER_LABELS.RELEASE_STARTED_AT}
-            </Text>
-            <Text fw={600} size="sm">
-              {formatReleaseDateTime(release.kickOffDate)}
-            </Text>
-          </div>
-        </Group>
-      )}
-
-      {currentStage && (
-        <Group gap="xs">
-          <div>
-            <Text size="xs" c="dimmed">
-              {HEADER_LABELS.CURRENT_STAGE}
-            </Text>
-            <Text fw={600} size="sm">
-              {STAGE_LABELS[currentStage]}
-            </Text>
-          </div>
-        </Group>
-      )}
+        return (
+          <Group key={item.key} gap="xs">
+            {item.icon && item.icon}
+            <div>
+              <Text size="xs" c="dimmed">
+                {item.label}
+              </Text>
+              <Text 
+                fw={600} 
+                size="sm" 
+                className={item.valueClassName}
+                style={item.valueStyle}
+              >
+                {value}
+              </Text>
+            </div>
+          </Group>
+        );
+      })}
     </Group>
   );
 }

@@ -274,12 +274,14 @@ export interface SchedulingStepWrapperProps {
   scheduling: SchedulingConfig | undefined;
   onChange: (scheduling: SchedulingConfig | undefined) => void;
   selectedPlatforms: Platform[];
+  showValidation?: boolean;
 }
 
 export interface SchedulingConfigProps {
   config: SchedulingConfig;
   onChange: (config: SchedulingConfig) => void;
   selectedPlatforms: Platform[];
+  showValidation?: boolean;
 }
 
 export interface ReleaseFrequencySelectorProps {

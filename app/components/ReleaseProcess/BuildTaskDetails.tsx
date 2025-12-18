@@ -87,14 +87,11 @@ export function BuildTaskDetails({
 
   // Determine expected platforms based on task type and release config
   const expectedPlatforms = useMemo(() => {
-    if (task.taskType === TaskType.TRIGGER_PRE_REGRESSION_BUILDS) {
+    if (task.taskType === TaskType.TRIGGER_PRE_REGRESSION_BUILDS || task.taskType === TaskType.TRIGGER_REGRESSION_BUILDS) {
       // Pre-Regression: All platforms from release config
       return release?.platformTargetMappings
         ?.map(m => m.platform)
         .filter((p, i, arr) => arr.indexOf(p) === i) || [];
-    } else if (task.taskType === TaskType.TRIGGER_REGRESSION_BUILDS) {
-      // Regression: Android and iOS
-      return [Platform.ANDROID, Platform.IOS];
     } else if (task.taskType === TaskType.TRIGGER_TEST_FLIGHT_BUILD) {
       // Pre-Release TestFlight: iOS only
       return [Platform.IOS];

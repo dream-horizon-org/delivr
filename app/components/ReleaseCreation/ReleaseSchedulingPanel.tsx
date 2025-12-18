@@ -80,8 +80,20 @@ export function ReleaseSchedulingPanel({
   // Pre-fill kickoff reminder time from config if available
   const kickOffReminderTimeValue = kickOffReminderTime || config?.releaseSchedule?.kickoffReminderTime || '';
 
+  // Check if kickoff reminder is enabled
+  const isKickoffReminderEnabled = !!(
+    (kickOffReminderDate && kickOffReminderTime) ||
+    (state.cronConfig?.kickOffReminder ?? config?.releaseSchedule?.kickoffReminderEnabled ?? false)
+  );
+
   // Validate kickoff reminder date/time is before kickoff date/time
+  // Only validate if kickoff reminder is enabled
   const reminderValidation = useMemo(() => {
+    // Skip validation if kickoff reminder is not enabled
+    if (!isKickoffReminderEnabled) {
+      return { hasError: false, message: '' };
+    }
+    
     // Use the actual values (with defaults) for validation
     const reminderTime = kickOffReminderTime || kickOffReminderTimeValue;
     
@@ -132,7 +144,7 @@ export function ReleaseSchedulingPanel({
     }
 
     return { hasError: false, message: '' };
-  }, [kickOffReminderDate, kickOffReminderTime, kickOffReminderTimeValue, kickOffDate, kickOffTimeValue]);
+  }, [isKickoffReminderEnabled, kickOffReminderDate, kickOffReminderTime, kickOffReminderTimeValue, kickOffDate, kickOffTimeValue, state.cronConfig?.kickOffReminder, config?.releaseSchedule?.kickoffReminderEnabled]);
 
   // Calculate default kickoff date (RD - DEFAULT_KICKOFF_OFFSET_DAYS) and pre-fill times from config
   useEffect(() => {
@@ -297,7 +309,8 @@ export function ReleaseSchedulingPanel({
             />
           )}
 
-          {kickOffDate && targetReleaseDate && (
+          {/* Hide "Branch will fork off" message in edit mode */}
+          {!isEditMode && kickOffDate && targetReleaseDate && (
             <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
               <Text size="xs">
                 Branch will fork off on{' '}
@@ -365,10 +378,8 @@ export function ReleaseSchedulingPanel({
               />
             </Group>
             
-            {/* Show date/time fields when reminder toggle is enabled */}
-            {(state.cronConfig?.kickOffReminder === true || 
-              (!state.cronConfig?.kickOffReminder && 
-               (kickOffReminderDate || config?.releaseSchedule?.kickoffReminderEnabled))) && (
+            {/* Show date/time fields only when reminder toggle is enabled */}
+            {isKickoffReminderEnabled && (
               <DateTimeInput
                 dateLabel="Kickoff Reminder Date"
                 timeLabel="Kickoff Reminder Time"

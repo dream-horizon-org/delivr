@@ -12,7 +12,6 @@ import {
   ActionIcon,
   Tooltip,
   Menu,
-  Button,
   Box,
   Stack,
   Paper,
@@ -99,7 +98,28 @@ export function ConfigurationListItem({
   };
 
   return (
-    <Card shadow="sm" padding={0} radius="md" withBorder>
+    <Card 
+      shadow="sm" 
+      padding={0} 
+      radius="md" 
+      withBorder
+      style={{
+        cursor: 'pointer',
+        transition: 'all 200ms ease',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-2px)';
+        e.currentTarget.style.boxShadow = theme.shadows.md;
+        e.currentTarget.style.borderColor = theme.colors.brand[4];
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.boxShadow = theme.shadows.sm;
+        e.currentTarget.style.borderColor = theme.colors.slate[2];
+      }}
+    >
       {/* Header */}
       <Paper
         p="md"
@@ -314,23 +334,13 @@ export function ConfigurationListItem({
         </Group>
 
         {/* Footer */}
-        <Group justify="space-between" pt="sm" style={{ borderTop: `1px solid ${theme.colors.slate[2]}` }}>
-          {config.updatedAt && (
+        {config.updatedAt && (
+          <Box pt="sm" style={{ borderTop: `1px solid ${theme.colors.slate[2]}` }}>
             <Text size="xs" c={theme.colors.slate[5]}>
               Updated {formatRelativeTime(config.updatedAt)}
             </Text>
-          )}
-
-          <Button
-            size="xs"
-            variant="light"
-            color="brand"
-            leftSection={<IconEdit size={14} />}
-            onClick={onEdit}
-          >
-            Edit
-          </Button>
-        </Group>
+          </Box>
+        )}
       </Stack>
 
       <ConfigurationPreviewModal

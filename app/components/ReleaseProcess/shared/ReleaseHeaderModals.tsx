@@ -106,7 +106,7 @@ export function ReleaseHeaderModals({
           onSlackMessageModalClose();
           onSelectedMessageTypeChange(null);
         }}
-        title={BUTTON_LABELS.POST_SLACK_MESSAGE}
+        title={BUTTON_LABELS.NOTIFY}
         size="md"
       >
         <Stack gap="md">

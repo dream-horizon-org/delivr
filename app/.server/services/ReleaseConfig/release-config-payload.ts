@@ -660,14 +660,31 @@ export async function transformFromBackend(
   }
 
   // ========================================================================
-  // 5. Reverse releaseSchedule.releaseFrequency (uppercase)
+  // 5. Reverse releaseSchedule.releaseFrequency (uppercase) + Transform initialVersions
   // Backend: lowercase ("weekly") → UI: uppercase ("WEEKLY")
   // Field name: releaseSchedule (not scheduling)
+  // initialVersions: Backend uses array [{ platform, target, version }], UI expects object { ANDROID: "1.0.0" }
   // ========================================================================
   if (backendConfig.releaseSchedule?.releaseFrequency) {
+    // Transform initialVersions from array to object format
+    let transformedInitialVersions: Partial<Record<string, string>> | undefined;
+    
+    if (backendConfig.releaseSchedule.initialVersions && Array.isArray(backendConfig.releaseSchedule.initialVersions)) {
+      transformedInitialVersions = {};
+      
+      // Convert array format [{ platform: "ANDROID", target: "PLAY_STORE", version: "1.0.0" }] to object { ANDROID: "1.0.0" }
+      backendConfig.releaseSchedule.initialVersions.forEach((item: any) => {
+        if (item.platform && item.version) {
+          transformedInitialVersions![item.platform] = item.version;
+        }
+      });
+    }
+    
     frontendConfig.releaseSchedule = {
       ...backendConfig.releaseSchedule,
       releaseFrequency: backendConfig.releaseSchedule.releaseFrequency.toUpperCase(),
+      // Replace initialVersions array with object format
+      ...(transformedInitialVersions !== undefined && { initialVersions: transformedInitialVersions }),
     };
   }
 
