@@ -33,7 +33,7 @@ import {
 import { ConfigurationListItem } from '~/components/ReleaseSettings/ConfigurationListItem';
 import { ConfirmationModal } from '~/components/Common/ConfirmationModal';
 import { apiDelete, apiPut, getApiErrorMessage } from '~/utils/api-client';
-import { showErrorToast, showInfoToast } from '~/utils/toast';
+import { showErrorToast, showInfoToast, showSuccessToast } from '~/utils/toast';
 import { RELEASE_CONFIG_MESSAGES, getErrorMessage } from '~/constants/toast-messages';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { CONFIG_STATUS, RELEASE_TYPE } from '~/constants/release-config-ui';
@@ -328,7 +328,6 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
       }));
       
       // First, unset the previous default (if exists)
-      // Send the FULL config object to prevent backend from wiping out other fields
       if (currentDefault && currentDefault.id !== configId) {
         console.log('[ConfigurationsTab] Unsetting previous default:', currentDefault.id);
         const unsetResult = await apiPut(
@@ -342,6 +341,10 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
           updateReleaseConfigInCache(currentDefault.id, (config) => ({
             ...config,
             isDefault: true,
+          }));
+          updateReleaseConfigInCache(configId, (config) => ({
+            ...config,
+            isDefault: false,
           }));
           showErrorToast(getErrorMessage(
             unsetResult.error || 'Failed to unset previous default',
@@ -362,7 +365,9 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
         // Success! The optimistic update is already applied
         showSuccessToast(RELEASE_CONFIG_MESSAGES.SET_DEFAULT_SUCCESS);
         // Invalidate to ensure we're in sync with backend
-        invalidateReleaseConfigs();
+        setTimeout(() => {
+          invalidateReleaseConfigs();
+        }, 100);
       } else {
         // Rollback optimistic update
         updateReleaseConfigInCache(configId, (config) => ({
