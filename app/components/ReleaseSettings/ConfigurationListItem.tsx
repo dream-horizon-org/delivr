@@ -161,6 +161,16 @@ export function ConfigurationListItem({
                   Release Train
                 </Badge>
               )}
+              {config.releaseSchedule && (
+                <Badge 
+                  size="sm" 
+                  variant="light" 
+                  color="cyan"
+                  leftSection={<IconCalendar size={12} />}
+                >
+                  Scheduling
+                </Badge>
+              )}
             </Group>
           </Box>
 
