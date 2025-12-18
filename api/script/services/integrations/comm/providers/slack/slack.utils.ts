@@ -174,7 +174,10 @@ export const buildSlackMessage = (
   const showTitle = result.metadata.showTitle ?? true;
 
   if (showTitle) {
-    return `${result.metadata.emoji} ${result.metadata.name}\n\n${result.message}`;
+    const titlePrefix = result.metadata.emoji 
+      ? `${result.metadata.emoji} ` 
+      : '';
+    return `${titlePrefix}${result.metadata.name}\n\n${result.message}`;
   }
 
   return result.message;

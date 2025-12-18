@@ -89,6 +89,13 @@ export type UpdateCronicleJobRequest = Partial<Omit<CreateCronicleJobRequest, 'i
   id: string;  // ID is required for updates
 };
 
+export type GetJobsRequest = {
+  category?: string;    // Filter by category ID (e.g., 'general', 'release-scheduling')
+  enabled?: 0 | 1;      // Filter by enabled status (0 = disabled, 1 = enabled)
+  offset?: number;      // Pagination offset (default: 0)
+  limit?: number;       // Results per page (default: 50)
+};
+
 // ─────────────────────────────────────────────────────────────
 // API Response Types
 // ─────────────────────────────────────────────────────────────
@@ -177,6 +184,7 @@ export type CronicleService = {
   updateJob: (request: UpdateCronicleJobRequest) => Promise<void>;
   deleteJob: (jobId: string) => Promise<void>;
   getJob: (jobId: string) => Promise<CronicleJobInfo | null>;
+  getJobs: (filter?: GetJobsRequest) => Promise<CronicleJobInfo[]>;
   
   // Job control
   setJobEnabled: (jobId: string, enabled: boolean) => Promise<void>;

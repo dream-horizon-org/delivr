@@ -5,7 +5,6 @@
  * These are service-layer validations that go beyond simple request format validation.
  */
 
-import { ReleaseConfigService } from '../release-configs/release-config.service';
 import { ReleaseVersionService } from './release-version.service';
 import type { CreateReleasePayload, Platform, Target } from '~types/release';
 import type { ReleaseConfiguration } from '~types/release-configs';
@@ -165,11 +164,11 @@ export const validateVersions = async (
 /**
  * Master validation function that runs all service-layer validations.
  * 
- * Fetches the release config once and reuses it for all config-related validations.
+ * Accepts a pre-fetched release config to avoid redundant database calls.
  */
 export const validateReleaseCreation = async (
   payload: CreateReleasePayload,
-  releaseConfigService: ReleaseConfigService,
+  releaseConfig: ReleaseConfiguration | null,
   releaseRepo: any,
   releaseVersionService: ReleaseVersionService
 ): Promise<ServiceValidationResult> => {
@@ -177,9 +176,6 @@ export const validateReleaseCreation = async (
   const hasReleaseConfig = Boolean(payload.releaseConfigId);
   
   if (hasReleaseConfig) {
-    // Fetch config once for all config-related validations
-    const releaseConfig = await releaseConfigService.getConfigById(payload.releaseConfigId!);
-    
     // Validate config exists and is valid
     const configValidation = validateReleaseConfigExists(releaseConfig, payload);
     if (!configValidation.isValid) {

@@ -59,7 +59,10 @@ export const createWorkflowPollingRoutes = (storage: Storage): Router => {
     storage.buildRepository,
     storage.releaseTaskRepository,
     storage.releaseRepository,
-    storage.cronJobRepository
+    storage.cronJobRepository,
+    storage.releaseRetrievalService,
+    storage.releaseNotificationService,
+    storage.buildArtifactService
   );
 
   const pollingService = new WorkflowPollingService(

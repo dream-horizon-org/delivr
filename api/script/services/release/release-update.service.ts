@@ -29,8 +29,11 @@ import { CronJobService } from './cron-job/cron-job.service';
 import { 
   validateTargetDateChange, 
   validateSlotsArray, 
-  logTargetDateChangeAudit 
+  logTargetDateChangeAudit,
+  TargetDateAuditInfo
 } from '../../controllers/release/release-validation';
+import { ReleaseNotificationService } from '../release-notification/release-notification.service';
+import { NotificationType } from '~types/release-notification';
 
 export interface UpdateReleasePayload {
   releaseId: string;
@@ -75,7 +78,8 @@ export class ReleaseUpdateService {
     private readonly cronJobService: CronJobService,
     private readonly taskRepository?: ReleaseTaskRepository,
     private readonly buildRepository?: BuildRepository,
-    private readonly regressionCycleRepository?: RegressionCycleRepository
+    private readonly regressionCycleRepository?: RegressionCycleRepository,
+    private readonly releaseNotificationService?: ReleaseNotificationService
   ) {}
 
   // Repository getters for manual upload flow
@@ -161,6 +165,14 @@ export class ReleaseUpdateService {
           // Log audit if date changed
           if (dateValidation.shouldLogAudit && dateValidation.auditInfo) {
             logTargetDateChangeAudit(releaseId, dateValidation.auditInfo, accountId);
+            
+            // Send notification
+            await this.notifyReleaseTargetDateChange(
+              releaseId,
+              currentRelease,
+              dateValidation.auditInfo,
+              accountId
+            );
           }
         }
         
@@ -251,11 +263,16 @@ export class ReleaseUpdateService {
   private validateUpdatePermissions(release: Release, _updates: UpdateReleaseRequestBody): ReleaseUpdateValidationResult {
     const now = new Date();
 
-    // Only IN_PROGRESS releases can be edited
-    if (release.status !== 'IN_PROGRESS') {
+    // Cannot edit COMPLETED, SUBMITTED, or ARCHIVED releases
+    const isCompleted = release.status === ReleaseStatus.COMPLETED;
+    const isSubmitted = release.status === ReleaseStatus.SUBMITTED;
+    const isArchived = release.status === ReleaseStatus.ARCHIVED;
+    const isFinalized = isCompleted || isSubmitted || isArchived;
+    
+    if (isFinalized) {
       return {
         isValid: false,
-        error: 'Only IN_PROGRESS releases can be edited'
+        error: 'Cannot edit COMPLETED, SUBMITTED, or ARCHIVED releases'
       };
     }
 
@@ -654,6 +671,38 @@ export class ReleaseUpdateService {
       previousStatus,
       newStatus: TaskStatus.PENDING
     };
+  }
+
+  /**
+   * Send TARGET_DATE_CHANGED notification
+   */
+  private async notifyReleaseTargetDateChange(
+    releaseId: string,
+    release: Release,
+    auditInfo: TargetDateAuditInfo,
+    accountId: string
+  ): Promise<void> {
+    if (!this.releaseNotificationService) {
+      console.log('[ReleaseUpdateService] ReleaseNotificationService not available, skipping notification');
+      return;
+    }
+
+    try {
+      await this.releaseNotificationService.notify({
+        type: NotificationType.TARGET_DATE_CHANGED,
+        tenantId: release.tenantId,
+        releaseId: releaseId,
+        previousDate: auditInfo.oldDate.toISOString(),
+        newDate: auditInfo.newDate.toISOString(),
+        isSystemGenerated: false,
+        userId: accountId
+      });
+
+      console.log(`[ReleaseUpdateService] Sent TARGET_DATE_CHANGED notification for release ${releaseId}`);
+    } catch (error) {
+      console.error(`[ReleaseUpdateService] Error sending TARGET_DATE_CHANGED notification:`, error);
+      // Don't fail the update if notification fails
+    }
   }
 
   /**

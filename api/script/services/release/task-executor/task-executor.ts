@@ -32,6 +32,8 @@ import { TestPlatform } from '../../../types/integrations/test-management/platfo
 import { MessagingService } from '../../integrations/comm/messaging/messaging.service';
 import type { ReleaseConfigRepository } from '../../../models/release-configs/release-config.repository';
 import { RELEASE_ERROR_MESSAGES, RELEASE_DEFAULTS, CICD_JOB_BUILD_TYPE } from '../release.constants';
+import { ReleaseNotificationService } from '../../release-notification/release-notification.service';
+import { NotificationType } from '~types/release-notification';
 import { ReleaseUploadsRepository } from '../../../models/release/release-uploads.repository';
 import { PlatformName } from '../../../models/release/release.interface';
 import {
@@ -132,7 +134,8 @@ export class TaskExecutor {
     releaseTaskRepo: ReleaseTaskRepository,
     releaseRepo: ReleaseRepository,
     releaseUploadsRepo?: ReleaseUploadsRepository | null,
-    cronJobRepo?: CronJobRepository | null
+    cronJobRepo?: CronJobRepository | null,
+    private releaseNotificationService?: ReleaseNotificationService
   ) {
     this.releaseTaskRepo = releaseTaskRepo;
     this.releaseRepo = releaseRepo;
@@ -262,6 +265,188 @@ export class TaskExecutor {
   }
 
   /**
+   * Send notification based on task type (dispatcher)
+   * 
+   * Note: Build tasks (TRIGGER_PRE_REGRESSION_BUILDS, TRIGGER_REGRESSION_BUILDS, 
+   * TRIGGER_TEST_FLIGHT_BUILD, CREATE_AAB_BUILD) are NOT handled here because they
+   * complete asynchronously via CI/CD callbacks in build-callback.service.ts
+   */
+  private async notifyTaskCompletion(
+    taskType: TaskType,
+    context: TaskExecutionContext,
+    externalData: Record<string, unknown> | null,
+    externalId: string | null
+  ): Promise<void> {
+    if (!this.releaseNotificationService) {
+      console.log('[TaskExecutor] ReleaseNotificationService not available, skipping notification');
+      return;
+    }
+
+    try {
+      switch (taskType) {
+        case TaskType.FORK_BRANCH:
+          await this.notifyBranchForkout(context, externalData, externalId);
+          break;
+
+        case TaskType.CREATE_PROJECT_MANAGEMENT_TICKET:
+          await this.notifyProjectManagementLinks(context, externalData, externalId);
+          break;
+
+        case TaskType.CREATE_TEST_SUITE:
+          await this.notifyTestManagementLinks(context, externalData, externalId);
+          break;
+
+        default:
+          // No notification for other task types yet
+          console.log(`[TaskExecutor] No notification configured for task type: ${taskType}`);
+      }
+    } catch (error) {
+      console.error(`[TaskExecutor] Error sending notification for ${taskType}:`, error);
+      // Don't fail the task if notification fails
+    }
+  }
+
+  /**
+   * Send BRANCH_FORKOUT notification
+   */
+  private async notifyBranchForkout(
+    context: TaskExecutionContext,
+    externalData: Record<string, unknown> | null,
+    _externalId: string | null
+  ): Promise<void> {
+    if (!externalData || !externalData.branchName) {
+      console.log('[TaskExecutor] Missing branch name in externalData, skipping notification');
+      return;
+    }
+
+    const { tenantId, releaseId, release, platformTargetMappings } = context;
+    const branchName = String(externalData.branchName);
+
+    await this.releaseNotificationService!.notify({
+      type: NotificationType.BRANCH_FORKOUT,
+      tenantId,
+      releaseId,
+      branch: branchName,
+      isSystemGenerated: true
+    });
+
+    console.log(`[TaskExecutor] Sent BRANCH_FORKOUT notification for release ${releaseId}`);
+  }
+
+  /**
+   * Send PROJECT_MANAGEMENT_LINKS notification
+   */
+  private async notifyProjectManagementLinks(
+    context: TaskExecutionContext,
+    _externalData: Record<string, unknown> | null,
+    _externalId: string | null
+  ): Promise<void> {
+    const { tenantId, releaseId, release, platformTargetMappings } = context;
+
+    if (!platformTargetMappings || platformTargetMappings.length === 0) {
+      console.log('[TaskExecutor] No platform mappings, skipping PM notification');
+      return;
+    }
+
+    // Get release config
+    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
+    const pmConfigId = releaseConfig?.projectManagementConfigId;
+    
+    if (!pmConfigId) {
+      console.log('[TaskExecutor] No PM config ID, skipping PM notification');
+      return;
+    }
+
+    // Fetch ticket URLs for each platform
+    const links: string[] = [];
+    for (const mapping of platformTargetMappings) {
+      if (mapping.projectManagementRunId) {
+        try {
+          const ticketUrl = await this.pmTicketService.getTicketUrl({
+            pmConfigId,
+            platform: mapping.platform as Platform,
+            ticketKey: mapping.projectManagementRunId
+          });
+          links.push(ticketUrl);
+        } catch (error) {
+          console.error(`[TaskExecutor] Error getting ticket URL for ${mapping.platform}:`, error);
+        }
+      }
+    }
+
+    if (links.length === 0) {
+      console.log('[TaskExecutor] No ticket URLs found, skipping PM notification');
+      return;
+    }
+
+    await this.releaseNotificationService!.notify({
+      type: NotificationType.PROJECT_MANAGEMENT_LINKS,
+      tenantId,
+      releaseId,
+      links,
+      isSystemGenerated: true
+    });
+
+    console.log(`[TaskExecutor] Sent PROJECT_MANAGEMENT_LINKS notification for release ${releaseId}`);
+  }
+
+  /**
+   * Send TEST_MANAGEMENT_LINKS notification
+   */
+  private async notifyTestManagementLinks(
+    context: TaskExecutionContext,
+    _externalData: Record<string, unknown> | null,
+    _externalId: string | null
+  ): Promise<void> {
+    const { tenantId, releaseId, release, platformTargetMappings } = context;
+
+    if (!platformTargetMappings || platformTargetMappings.length === 0) {
+      console.log('[TaskExecutor] No platform mappings, skipping test management notification');
+      return;
+    }
+
+    // Get release config
+    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
+    const testConfigId = releaseConfig?.testManagementConfigId;
+    
+    if (!testConfigId) {
+      console.log('[TaskExecutor] No test config ID, skipping test management notification');
+      return;
+    }
+
+    // Fetch run URLs for each platform
+    const links: string[] = [];
+    for (const mapping of platformTargetMappings) {
+      if (mapping.testManagementRunId) {
+        try {
+          const runUrl = await this.testRunService.getRunUrl({
+            runId: mapping.testManagementRunId,
+            testManagementConfigId: testConfigId
+          });
+          links.push(runUrl);
+        } catch (error) {
+          console.error(`[TaskExecutor] Error getting run URL for ${mapping.platform}:`, error);
+        }
+      }
+    }
+
+    if (links.length === 0) {
+      console.log('[TaskExecutor] No run URLs found, skipping test management notification');
+      return;
+    }
+
+    await this.releaseNotificationService!.notify({
+      type: NotificationType.TEST_MANAGEMENT_LINKS,
+      tenantId,
+      releaseId,
+      links,
+      isSystemGenerated: true
+    });
+
+    console.log(`[TaskExecutor] Sent TEST_MANAGEMENT_LINKS notification for release ${releaseId}`);
+  }
+
+  /**
    * Execute a single task
    * 
    * @param context - Task execution context
@@ -342,7 +527,17 @@ export class TaskExecutor {
         console.error(`[TaskExecutor] Expected: COMPLETED, Got: ${verifyTask?.taskStatus}`);
       } else {
         console.log(`[TaskExecutor] ✅ Task ${task.taskType} status COMPLETED and persisted successfully`);
+        
+        // 🆕 Send notification after task completion (mirrors executeTaskByType pattern)
+        await this.notifyTaskCompletion(
+          task.taskType,
+          context,
+          externalData,
+          externalId
+        );
       }
+
+      
 
       return {
         success: true,

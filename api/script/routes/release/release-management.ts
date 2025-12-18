@@ -122,7 +122,10 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
       storageWithServices.buildRepository,
       storageWithServices.releaseTaskRepository,
       storageWithServices.releaseRepository,
-      storageWithServices.cronJobRepository
+      storageWithServices.cronJobRepository,
+      storageWithServices.releaseRetrievalService,
+      storageWithServices.releaseNotificationService,
+      storageWithServices.buildArtifactService
     );
     buildCallbackController = new BuildCallbackController(buildCallbackService);
   }

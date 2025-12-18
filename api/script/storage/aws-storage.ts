@@ -80,7 +80,7 @@ import { ReleaseVersionService } from "../services/release/release-version.servi
 import { SCMService } from "../services/integrations/scm/scm.service";
 import { ReleaseActivityLogService } from "../services/release/release-activity-log.service";
 import { CronJobService } from "../services/release/cron-job/cron-job.service";
-import { getCronJobService } from "../services/release/cron-job/cron-job-service.factory";
+import { BuildArtifactService } from "../services/release/build/build-artifact.service";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { 
@@ -796,6 +796,8 @@ export class S3Storage implements storage.Storage {
     public releaseUpdateService!: ReleaseUpdateService;
     public releaseStatusService!: ReleaseStatusService;
     public releaseActivityLogService!: ReleaseActivityLogService;  // Release activity log service
+    public cronJobService!: CronJobService;  // Cron job service
+    public buildArtifactService!: BuildArtifactService;  // Build artifact service
     public activityLogRepository!: ActivityLogRepository;  // Activity log repository
     public commIntegrationRepository!: CommIntegrationRepository;  // Comm integration repository
     public commConfigRepository!: CommConfigRepository;  // Comm config repository
@@ -805,7 +807,6 @@ export class S3Storage implements storage.Storage {
     public commConfigService!: CommConfigService;// Communication config service
     public buildRepository!: BuildRepository;
     public scmService!: SCMService; // SCM service for Git operations
-    public cronJobService!: CronJobService | null; // Cron job service for release automation
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -1173,11 +1174,18 @@ export class S3Storage implements storage.Storage {
           this.releaseRetrievalService.setReleaseStatusService(this.releaseStatusService);
           console.log("Release Status Service injected into Release Retrieval Service");
           
-          // Initialize CronJobService using factory (with all dependencies)
-          this.cronJobService = getCronJobService(this);
-          if (!this.cronJobService) {
-            throw new Error('Failed to initialize CronJobService - Sequelize not available');
-          }
+          // Initialize CronJobService (needed by ReleaseUpdateService)
+          this.cronJobService = new CronJobService(
+            this.cronJobRepository,
+            this.releaseRepository,
+            this.releaseTaskRepository,
+            this.regressionCycleRepository,
+            this.releasePlatformTargetMappingRepository,
+            this,  // storage
+            this.releaseUploadsRepository,
+            this.cronicleService,
+            this.releaseActivityLogService
+          );
           console.log("Cron Job Service initialized");
           
           // Set ReleaseStatusService in CronJobService (circular dependency resolution)
@@ -1189,12 +1197,17 @@ export class S3Storage implements storage.Storage {
             this.cronJobRepository, // Use class property for consistency
             this.releasePlatformTargetMappingRepository,
             this.releaseActivityLogService,
-            this.cronJobService,
-            this.releaseTaskRepository, // Use class property for consistency
+            this.cronJobService,  // ✅ Proper instance!
+            this.releaseTaskRepository,
             this.buildRepository,
-            this.regressionCycleRepository
+            this.regressionCycleRepository,
+            this.releaseNotificationService
           );
           console.log("Release Update Service initialized");
+          
+          // Initialize Build Artifact Service (needs S3Storage)
+          this.buildArtifactService = new BuildArtifactService(this);
+          console.log("Build Artifact Service initialized");
           
           // return this.sequelize.sync();
         })

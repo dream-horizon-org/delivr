@@ -12,6 +12,7 @@ import type { ReleaseStatusService } from '../../services/release/release-status
 import type { ReleaseUpdateService } from '../../services/release/release-update.service';
 import type { ReleaseActivityLogService } from '../../services/release/release-activity-log.service';
 import type { ReleaseNotificationService } from '../../services/release-notification/release-notification.service';
+import type { BuildArtifactService } from '../../services/release/build/build-artifact.service';
 import type { ReleaseRepository } from '../../models/release/release.repository';
 import type { ReleaseUploadsRepository } from '../../models/release/release-uploads.repository';
 import type { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
@@ -35,6 +36,7 @@ export type StorageWithReleaseServices = storageTypes.Storage & {
   releaseUpdateService: ReleaseUpdateService;
   releaseActivityLogService: ReleaseActivityLogService;
   releaseNotificationService: ReleaseNotificationService;
+  buildArtifactService: BuildArtifactService;
 
   // Repositories
   releaseRepository: ReleaseRepository;
