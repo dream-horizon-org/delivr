@@ -107,6 +107,8 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
         return;
       }
 
+      // Check if credentials for submissionId -> distributionId -> tenantId -> platform & Store_type -> store_credentials status is VERIFIED
+
       let result;
 
       if (platformUpper === 'IOS') {
