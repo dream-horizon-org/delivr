@@ -29,6 +29,26 @@ export const RELEASE_CONFIG_MESSAGES = {
     title: 'Archive Failed',
     message: 'Unable to archive the configuration',
   },
+  UNARCHIVE_SUCCESS: {
+    title: 'Configuration Unarchived',
+    message: 'Configuration has been restored successfully',
+  },
+  UNARCHIVE_ERROR: {
+    title: 'Unarchive Failed',
+    message: 'Unable to unarchive the configuration',
+  },
+  DELETE_SUCCESS: {
+    title: 'Configuration Deleted',
+    message: 'Configuration has been permanently deleted',
+  },
+  DELETE_ERROR: {
+    title: 'Delete Failed',
+    message: 'Unable to delete the configuration',
+  },
+  DELETE_IN_USE_ERROR: {
+    title: 'Cannot Delete Configuration',
+    message: 'This configuration is being used by one or more releases. Please archive it instead, or wait until all related releases are completed or deleted.',
+  },
   SET_DEFAULT_SUCCESS: {
     title: 'Default Set',
     message: 'Configuration set as default successfully',

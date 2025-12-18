@@ -159,8 +159,13 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
     }
     
     try {
-      const result = await apiDelete<{ message?: string }>(
-        `/api/v1/tenants/${org}/release-config/${configId}`
+      // Archive by updating isActive and status via PUT (not DELETE)
+      const result = await apiPut<{ success: boolean; data?: any; error?: string }>(
+        `/api/v1/tenants/${org}/release-config/${configId}`,
+        {
+          isActive: false,
+          status: CONFIG_STATUS.ARCHIVED,
+        }
       );
       
       if (result.success) {
@@ -171,6 +176,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
         updateReleaseConfigInCache(configId, (config) => ({
           ...config,
           isActive: true,
+          status: CONFIG_STATUS.ACTIVE,
         }));
         showErrorToast(getErrorMessage(
           result.error || 'Unknown error',
@@ -182,6 +188,98 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
       showErrorToast(getErrorMessage(errorMessage, RELEASE_CONFIG_MESSAGES.ARCHIVE_ERROR.title));
     }
   }, [org, configurations, invalidateReleaseConfigs, updateReleaseConfigInCache]);
+  
+  const handleUnarchive = useCallback(async (configId: string) => {
+    const config = configurations.find((c: any) => c.id === configId);
+    
+    if (!confirm('Are you sure you want to unarchive this configuration?')) {
+      return;
+    }
+    
+    try {
+      // Unarchive by updating isActive and status via PUT
+      const result = await apiPut<{ success: boolean; data?: any; error?: string }>(
+        `/api/v1/tenants/${org}/release-config/${configId}`,
+        {
+          isActive: true,
+          status: CONFIG_STATUS.ACTIVE,
+        }
+      );
+      
+      if (result.success) {
+        invalidateReleaseConfigs();
+        showSuccessToast(RELEASE_CONFIG_MESSAGES.UNARCHIVE_SUCCESS);
+      } else {
+        // Rollback optimistic update on failure
+        updateReleaseConfigInCache(configId, (config) => ({
+          ...config,
+          isActive: false,
+          status: CONFIG_STATUS.ARCHIVED,
+        }));
+        showErrorToast(getErrorMessage(
+          result.error || 'Unknown error',
+          RELEASE_CONFIG_MESSAGES.UNARCHIVE_ERROR.title
+        ));
+      }
+    } catch (error) {
+      const errorMessage = getApiErrorMessage(error, 'Failed to unarchive configuration');
+      showErrorToast(getErrorMessage(errorMessage, RELEASE_CONFIG_MESSAGES.UNARCHIVE_ERROR.title));
+    }
+  }, [org, configurations, invalidateReleaseConfigs, updateReleaseConfigInCache]);
+  
+  const handleDelete = useCallback(async (configId: string) => {
+    const config = configurations.find((c: any) => c.id === configId);
+    
+    if (!config) {
+      showErrorToast(RELEASE_CONFIG_MESSAGES.DELETE_ERROR);
+      return;
+    }
+    
+    if (!confirm(`Are you sure you want to permanently delete "${config.name}"? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      const result = await apiDelete<{ success: boolean; error?: string }>(
+        `/api/v1/tenants/${org}/release-config/${configId}`
+      );
+      
+      if (result.success) {
+        invalidateReleaseConfigs();
+        showSuccessToast(RELEASE_CONFIG_MESSAGES.DELETE_SUCCESS);
+      } else {
+        // Check if error is due to foreign key constraint (config in use by releases)
+        const errorMessage = result.error || 'Unknown error';
+        const isForeignKeyError = 
+          errorMessage.includes('foreign key constraint') ||
+          errorMessage.includes('releaseConfigId') ||
+          errorMessage.includes('Cannot delete or update a parent row');
+        
+        if (isForeignKeyError) {
+          showErrorToast(RELEASE_CONFIG_MESSAGES.DELETE_IN_USE_ERROR);
+        } else {
+          showErrorToast(getErrorMessage(
+            errorMessage,
+            RELEASE_CONFIG_MESSAGES.DELETE_ERROR.title
+          ));
+        }
+      }
+    } catch (error) {
+      const errorMessage = getApiErrorMessage(error, 'Failed to delete configuration');
+      
+      // Check if error is due to foreign key constraint (config in use by releases)
+      const isForeignKeyError = 
+        errorMessage.includes('foreign key constraint') ||
+        errorMessage.includes('releaseConfigId') ||
+        errorMessage.includes('Cannot delete or update a parent row');
+      
+      if (isForeignKeyError) {
+        showErrorToast(RELEASE_CONFIG_MESSAGES.DELETE_IN_USE_ERROR);
+      } else {
+        showErrorToast(getErrorMessage(errorMessage, RELEASE_CONFIG_MESSAGES.DELETE_ERROR.title));
+      }
+    }
+  }, [org, configurations, invalidateReleaseConfigs]);
   
   const handleSetDefault = useCallback(async (configId: string) => {
     try {
@@ -444,6 +542,8 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
               onEdit={() => handleEdit(config)}
               onDuplicate={() => handleDuplicate(config)}
               onArchive={() => handleArchive(config.id)}
+              onUnarchive={() => handleUnarchive(config.id)}
+              onDelete={() => handleDelete(config.id)}
               onExport={() => handleExport(config)}
               onSetDefault={() => handleSetDefault(config.id)}
             />

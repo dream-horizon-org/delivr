@@ -148,6 +148,22 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
       if (!result.success) {
         console.error('[BFF] Delete failed:', result.error);
+        
+        // Check if error is due to foreign key constraint (config in use by releases)
+        const errorMessage = result.error || 'Unknown error';
+        const isForeignKeyError = 
+          errorMessage.includes('foreign key constraint') ||
+          errorMessage.includes('releaseConfigId') ||
+          errorMessage.includes('Cannot delete or update a parent row');
+        
+        // Return user-friendly error message
+        if (isForeignKeyError) {
+          return json({ 
+            success: false, 
+            error: 'This configuration is being used by one or more releases. Please archive it instead, or wait until all related releases are completed or deleted.' 
+          }, { status: 400 });
+        }
+        
         return json({ success: false, error: result.error }, { status: 400 });
       }
 
@@ -155,8 +171,23 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return json({ success: true, message: 'Release configuration deleted' }, { status: 200 });
     } catch (error: any) {
       console.error('[BFF] Delete error:', error);
+      
+      // Check if error is due to foreign key constraint
+      const errorMessage = error.message ?? 'Internal server error';
+      const isForeignKeyError = 
+        errorMessage.includes('foreign key constraint') ||
+        errorMessage.includes('releaseConfigId') ||
+        errorMessage.includes('Cannot delete or update a parent row');
+      
+      if (isForeignKeyError) {
+        return json({ 
+          success: false, 
+          error: 'This configuration is being used by one or more releases. Please archive it instead, or wait until all related releases are completed or deleted.' 
+        }, { status: 400 });
+      }
+      
       return json(
-        { success: false, error: error.message ?? 'Internal server error' },
+        { success: false, error: errorMessage },
         { status: 500 }
       );
     }

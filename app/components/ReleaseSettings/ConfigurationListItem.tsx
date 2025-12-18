@@ -34,6 +34,8 @@ import {
   IconEye,
   IconGitBranch,
   IconTrain,
+  IconTrash,
+  IconRefresh,
 } from '@tabler/icons-react';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import type { ConfigurationListItemProps } from '~/types/release-config-props';
@@ -61,6 +63,8 @@ export function ConfigurationListItem({
   onEdit,
   onDuplicate,
   onArchive,
+  onUnarchive,
+  onDelete,
   onExport,
   onSetDefault,
 }: ConfigurationListItemProps) {
@@ -221,11 +225,12 @@ export function ConfigurationListItem({
                 <Menu.Item
                   leftSection={<IconEdit size={16} stroke={1.5} />}
                   onClick={onEdit}
+                  disabled={!isDraft && config.isActive === false}
                 >
                   {isDraft ? 'Continue Editing' : 'Edit Configuration'}
                 </Menu.Item>
 
-                {!isDraft && !config.isDefault && (
+                {!isDraft && !config.isDefault && config.isActive && (
                   <Menu.Item
                     leftSection={<IconStar size={16} stroke={1.5} />}
                     onClick={onSetDefault}
@@ -236,14 +241,47 @@ export function ConfigurationListItem({
 
                 <Menu.Divider />
 
-                <Menu.Item
-                  leftSection={<IconArchive size={16} stroke={1.5} />}
-                  onClick={onArchive}
-                  disabled={!isDraft && config.isActive === false}
-                  color="red"
-                >
-                  {isDraft ? 'Delete Draft' : 'Archive'}
-                </Menu.Item>
+                {/* Archive - only for active configs */}
+                {!isDraft && config.isActive && (
+                  <Menu.Item
+                    leftSection={<IconArchive size={16} stroke={1.5} />}
+                    onClick={onArchive}
+                    color="red"
+                  >
+                    Archive
+                  </Menu.Item>
+                )}
+
+                {/* Unarchive and Delete - only for archived configs */}
+                {!isDraft && config.isActive === false && (
+                  <>
+                    <Menu.Item
+                      leftSection={<IconRefresh size={16} stroke={1.5} />}
+                      onClick={onUnarchive}
+                    >
+                      Unarchive
+                    </Menu.Item>
+                    <Menu.Divider />
+                    <Menu.Item
+                      leftSection={<IconTrash size={16} stroke={1.5} />}
+                      onClick={onDelete}
+                      color="red"
+                    >
+                      Delete
+                    </Menu.Item>
+                  </>
+                )}
+
+                {/* Delete Draft - only for drafts */}
+                {isDraft && (
+                  <Menu.Item
+                    leftSection={<IconArchive size={16} stroke={1.5} />}
+                    onClick={onArchive}
+                    color="red"
+                  >
+                    Delete Draft
+                  </Menu.Item>
+                )}
               </Menu.Dropdown>
             </Menu>
           </Group>
@@ -251,107 +289,124 @@ export function ConfigurationListItem({
       </Paper>
 
       {/* Content */}
-      <Stack gap="md" p="md">
-        {config.description && (
-          <Text size="sm" c={theme.colors.slate[6]} lineClamp={2}>
-            {config.description}
-          </Text>
-        )}
-
-        {/* Platforms & Targets */}
-        <Box>
-          <Text size="xs" fw={600} c={theme.colors.slate[5]} mb="xs" tt="uppercase">
-            Platforms & Targets
-          </Text>
-          <Group gap="xs">
-            {config.platforms?.map((platform) => (
-              <Badge
-                key={platform}
-                variant="light"
-                color="brand"
-                leftSection={getPlatformIcon(platform)}
-                size="sm"
-              >
-                {platform}
-              </Badge>
-            ))}
-
-            {config.targets?.map((target) => (
-              <Badge key={target} variant="outline" color="gray" size="sm">
-                {target.replace(/_/g, ' ')}
-              </Badge>
-            ))}
-          </Group>
-        </Box>
-
-        {/* Branch & Stats */}
-        <Group gap="md">
-          {config.baseBranch && (
-            <Paper
-              p="xs"
-              radius="sm"
-              style={{
-                backgroundColor: theme.colors.blue[0],
-                border: `1px solid ${theme.colors.blue[2]}`,
-              }}
-            >
-              <Group gap="xs">
-                <IconGitBranch size={14} color={theme.colors.blue[7]} />
-                <Text size="xs" fw={500} c={theme.colors.blue[7]}>
-                  {config.baseBranch}
-                </Text>
-              </Group>
-            </Paper>
+      <Box
+        p="md"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: '220px',
+        }}
+      >
+        <Stack gap="md" style={{ flex: 1 }}>
+          {config.description && (
+            <Text size="sm" c={theme.colors.slate[6]} lineClamp={2}>
+              {config.description}
+            </Text>
           )}
 
-          {config.releaseSchedule && (
-            <>
-              <Paper
-                p="xs"
-                radius="sm"
-                style={{
-                  backgroundColor: theme.colors.indigo[0],
-                  border: `1px solid ${theme.other.borders.brand}`,
-                }}
-              >
-                <Group gap="xs">
-                  <IconCalendar size={14} color={theme.other.borders.brand} />
-                  <Text size="xs" fw={500} c={theme.other.borders.brand}>
-                    {config.releaseSchedule.releaseFrequency}
-                  </Text>
-                </Group>
-              </Paper>
+          {/* Platforms & Targets */}
+          <Box>
+            <Text size="xs" fw={600} c={theme.colors.slate[5]} mb="xs" tt="uppercase">
+              Platforms & Targets
+            </Text>
+            <Group gap="xs" style={{ minHeight: '24px' }}>
+              {config.platforms?.map((platform) => (
+                <Badge
+                  key={platform}
+                  variant="light"
+                  color="brand"
+                  leftSection={getPlatformIcon(platform)}
+                  size="sm"
+                >
+                  {platform}
+                </Badge>
+              ))}
 
-              {config.releaseSchedule.regressionSlots && config.releaseSchedule.regressionSlots.length > 0 && (
+              {config.targets?.map((target) => (
+                <Badge key={target} variant="outline" color="gray" size="sm">
+                  {target.replace(/_/g, ' ')}
+                </Badge>
+              ))}
+            </Group>
+          </Box>
+
+          {/* Branch & Stats */}
+          <Box>
+            <Group gap="md" style={{ minHeight: '28px' }}>
+              {config.baseBranch && (
                 <Paper
                   p="xs"
                   radius="sm"
                   style={{
-                    backgroundColor: theme.colors.green[0],
-                    border: `1px solid ${theme.colors.green[2]}`,
+                    backgroundColor: theme.colors.blue[0],
+                    border: `1px solid ${theme.colors.blue[2]}`,
                   }}
                 >
                   <Group gap="xs">
-                    <IconTarget size={14} color={theme.colors.green[7]} />
-                    <Text size="xs" fw={500} c={theme.colors.green[7]}>
-                      {config.releaseSchedule.regressionSlots.length} slots
+                    <IconGitBranch size={14} color={theme.colors.blue[7]} />
+                    <Text size="xs" fw={500} c={theme.colors.blue[7]}>
+                      {config.baseBranch}
                     </Text>
                   </Group>
                 </Paper>
               )}
-            </>
-          )}
-        </Group>
 
-        {/* Footer */}
+              {config.releaseSchedule && (
+                <>
+                  <Paper
+                    p="xs"
+                    radius="sm"
+                    style={{
+                      backgroundColor: theme.colors.indigo[0],
+                      border: `1px solid ${theme.other.borders.brand}`,
+                    }}
+                  >
+                    <Group gap="xs">
+                      <IconCalendar size={14} color={theme.other.borders.brand} />
+                      <Text size="xs" fw={500} c={theme.other.borders.brand}>
+                        {config.releaseSchedule.releaseFrequency}
+                      </Text>
+                    </Group>
+                  </Paper>
+
+                  {config.releaseSchedule.regressionSlots && config.releaseSchedule.regressionSlots.length > 0 && (
+                    <Paper
+                      p="xs"
+                      radius="sm"
+                      style={{
+                        backgroundColor: theme.colors.green[0],
+                        border: `1px solid ${theme.colors.green[2]}`,
+                      }}
+                    >
+                      <Group gap="xs">
+                        <IconTarget size={14} color={theme.colors.green[7]} />
+                        <Text size="xs" fw={500} c={theme.colors.green[7]}>
+                          {config.releaseSchedule.regressionSlots.length} slots
+                        </Text>
+                      </Group>
+                    </Paper>
+                  )}
+                </>
+              )}
+            </Group>
+          </Box>
+        </Stack>
+
+        {/* Footer - Always at bottom */}
         {config.updatedAt && (
-          <Box pt="sm" style={{ borderTop: `1px solid ${theme.colors.slate[2]}` }}>
+          <Box 
+            pt="sm" 
+            style={{ 
+              borderTop: `1px solid ${theme.colors.slate[2]}`,
+              marginTop: 'auto',
+            }}
+          >
             <Text size="xs" c={theme.colors.slate[5]}>
               Updated {formatRelativeTime(config.updatedAt)}
             </Text>
           </Box>
         )}
-      </Stack>
+      </Box>
 
       <ConfigurationPreviewModal
         opened={previewOpened}

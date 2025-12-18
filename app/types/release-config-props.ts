@@ -419,6 +419,8 @@ export interface ConfigurationListItemProps {
   onEdit: () => void;
   onDuplicate: () => void;
   onArchive: () => void;
+  onUnarchive: () => void;
+  onDelete: () => void;
   onExport: () => void;
   onSetDefault: () => void;
 }
