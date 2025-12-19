@@ -332,16 +332,19 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   );
 
   // ============================================================================
-  // SUBMISSION - RESUME ROLLOUT (iOS ONLY)
+  // SUBMISSION - RESUME ROLLOUT (iOS or Android)
   // ============================================================================
   
   /**
-   * PATCH /submissions/:submissionId/rollout/resume?platform=IOS
+   * PATCH /submissions/:submissionId/rollout/resume?platform=<IOS|ANDROID>
    * 
-   * Resume a paused rollout (iOS only).
+   * Resume a paused/halted rollout.
+   * 
+   * - iOS: Resumes a paused iOS phased release rollout
+   * - Android: Resumes a halted Android release rollout
    * 
    * Query Parameters:
-   * - platform: string (required) - Must be "IOS" (throws error if "ANDROID")
+   * - platform: string (required) - "IOS" or "ANDROID"
    */
   router.patch(
     "/submissions/:submissionId/rollout/resume",

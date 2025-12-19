@@ -431,11 +431,13 @@ const pauseRolloutHandler = (service: SubmissionService) =>
   };
 
 /**
- * Resume iOS rollout
- * PATCH /submissions/:submissionId/rollout/resume?platform=IOS
+ * Resume rollout (iOS or Android)
+ * PATCH /submissions/:submissionId/rollout/resume?platform=<IOS|ANDROID>
  * 
- * Resumes a paused iOS phased release rollout
- * Query params: platform (IOS only)
+ * - iOS: Resumes a paused iOS phased release rollout
+ * - Android: Resumes a halted Android release rollout
+ * 
+ * Query params: platform (IOS or ANDROID)
  */
 const resumeRolloutHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -462,25 +464,15 @@ const resumeRolloutHandler = (service: SubmissionService) =>
         return;
       }
 
-      // Only iOS supports pause/resume
-      if (platform.toUpperCase() === 'ANDROID') {
+      const platformUpper = platform.toUpperCase();
+      if (platformUpper !== 'IOS' && platformUpper !== 'ANDROID') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          errorResponse(
-            new Error('Resume rollout is only supported for iOS submissions'),
-            'Android submissions do not support pause/resume functionality'
-          )
+          validationErrorResponse('platform', 'platform must be IOS or ANDROID')
         );
         return;
       }
 
-      if (platform.toUpperCase() !== 'IOS') {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('platform', 'platform must be IOS')
-        );
-        return;
-      }
-
-      const result = await service.resumeRollout(submissionId, createdBy);
+      const result = await service.resumeRollout(submissionId, createdBy, platformUpper);
 
       if (!result) {
         res.status(HTTP_STATUS.NOT_FOUND).json(

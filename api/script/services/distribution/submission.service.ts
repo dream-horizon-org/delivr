@@ -1546,10 +1546,247 @@ export class SubmissionService {
   }
 
   /**
+   * Resume rollout (iOS or Android)
+   * Updates submission status from PAUSED/HALTED back to LIVE/IN_PROGRESS/COMPLETED
+   */
+  async resumeRollout(
+    submissionId: string,
+    createdBy: string,
+    platform?: string
+  ): Promise<{ id: string; status: string; statusUpdatedAt: Date } | null> {
+    // If platform is specified and it's Android, use Android resume
+    if (platform && platform.toUpperCase() === 'ANDROID') {
+      return this.resumeAndroidRollout(submissionId, createdBy);
+    }
+
+    // Default to iOS resume (backward compatibility)
+    return this.resumeRolloutIOS(submissionId, createdBy);
+  }
+
+  /**
+   * Resume Android rollout (Android only)
+   * Updates submission status from HALTED back to IN_PROGRESS or COMPLETED
+   */
+  async resumeAndroidRollout(
+    submissionId: string,
+    createdBy: string
+  ): Promise<{ id: string; status: string; statusUpdatedAt: Date }> {
+    // Step 1: Find Android submission (resume only applies to Android)
+    const androidSubmission = await this.androidSubmissionRepository.findById(submissionId);
+    
+    if (!androidSubmission) {
+      throw new Error(`Android submission not found: ${submissionId}`);
+    }
+
+    // Step 2: Verify submission can be resumed (must be HALTED)
+    if (androidSubmission.status !== ANDROID_SUBMISSION_STATUS.HALTED) {
+      throw new Error(
+        `Cannot resume submission with status: ${androidSubmission.status}. ` +
+        `Must be ${ANDROID_SUBMISSION_STATUS.HALTED}.`
+      );
+    }
+
+    // Step 3: Get distribution to retrieve tenantId
+    const distribution = await this.distributionRepository.findById(androidSubmission.distributionId);
+    
+    if (!distribution) {
+      throw new Error(`Distribution not found for submission ${submissionId}`);
+    }
+
+    const tenantId = distribution.tenantId;
+
+    // Step 4: Get store integration and verify status is VERIFIED
+    const storeIntegrationController = getStoreIntegrationController();
+    const integrations = await storeIntegrationController.findAll({
+      tenantId,
+      storeType: StoreType.PLAY_STORE,
+      platform: BUILD_PLATFORM.ANDROID,
+    });
+
+    if (integrations.length === 0) {
+      throw new Error(PLAY_STORE_UPLOAD_ERROR_MESSAGES.INTEGRATION_NOT_FOUND_FOR_UPLOAD);
+    }
+
+    // Use first integration found
+    const integration = integrations[0];
+
+    // Verify integration status is VERIFIED
+    validateIntegrationStatus(integration);
+
+    // Step 5: Create Google service (decrypts credentials, generates access token)
+    let googleService: GooglePlayStoreService;
+    try {
+      googleService = await createGoogleServiceFromIntegration(integration.id);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to load Google Play Store credentials: ${errorMessage}`);
+    }
+
+    // Step 6: Create edit
+    const editData = await googleService.createEdit();
+    const editId = editData.id;
+
+    console.log(`[ResumeAndroidRollout] Created edit with ID: ${editId}`);
+
+    try {
+      // Step 7: Get current production state
+      const productionStateData = await googleService.getProductionTrack(editId);
+      
+      console.log('[ResumeAndroidRollout] Current production state:', JSON.stringify(productionStateData, null, 2));
+
+      // Step 8: Find the release that matches this submission's versionCode
+      const submissionVersionCode = String(androidSubmission.versionCode);
+      const existingReleases = productionStateData.releases || [];
+      
+      const releaseIndex = existingReleases.findIndex(release => 
+        release.versionCodes && release.versionCodes.includes(submissionVersionCode)
+      );
+
+      if (releaseIndex === -1) {
+        throw new Error(
+          `No release found in production track with versionCode ${submissionVersionCode}. ` +
+          `The submission must be submitted to production first before resuming.`
+        );
+      }
+
+      // Get the release to validate
+      const existingRelease = existingReleases[releaseIndex] as {
+        name: string;
+        versionCodes: string[];
+        status: string;
+        userFraction?: number;
+        inAppUpdatePriority?: number;
+        releaseNotes?: Array<{ language: string; text: string }>;
+      };
+
+      // Validate release status must be HALTED (can only resume halted releases)
+      if (existingRelease.status !== GOOGLE_PLAY_RELEASE_STATUS.HALTED) {
+        throw new Error(
+          `Release with versionCode ${submissionVersionCode} cannot be resumed. ` +
+          `Current status: ${existingRelease.status}. ` +
+          `Only releases with status '${GOOGLE_PLAY_RELEASE_STATUS.HALTED}' can be resumed.`
+        );
+      }
+
+      // Step 9: Update the release to resume it
+      // For Android, resuming means changing status from 'halted' back to 'inProgress' or 'completed'
+      // based on userFraction: if userFraction === 1.0 or missing, status = 'completed', else 'inProgress'
+      const updatedReleases = [...existingReleases] as Array<{
+        name: string;
+        versionCodes: string[];
+        status: string;
+        userFraction?: number;
+        inAppUpdatePriority?: number;
+        releaseNotes?: Array<{ language: string; text: string }>;
+      }>;
+      
+      const releaseToUpdate = { ...updatedReleases[releaseIndex] };
+      
+      // Determine status based on userFraction
+      const userFraction = releaseToUpdate.userFraction;
+      
+      // Check if it's a full rollout (userFraction === 1.0 or missing)
+      const isFullRollout = userFraction === undefined || userFraction === 1.0;
+      
+      if (isFullRollout) {
+        // If userFraction is exactly 1.0 or missing, set status to completed and remove userFraction
+        releaseToUpdate.status = GOOGLE_PLAY_RELEASE_STATUS.COMPLETED;
+      } else {
+        // Validate userFraction is in valid range for inProgress (0.0001 to < 1.0)
+        const MIN_USER_FRACTION = 0.0001;
+        const MAX_USER_FRACTION = 1.0;
+        
+        if (userFraction < MIN_USER_FRACTION) {
+          throw new Error(
+            `Invalid userFraction: ${userFraction}. ` +
+            `For inProgress status, userFraction must be between ${MIN_USER_FRACTION} and ${MAX_USER_FRACTION}. ` +
+            `Current value is too low.`
+          );
+        }
+        
+        // Valid range (0.0001 to < 1.0): set status to inProgress and keep userFraction
+        releaseToUpdate.status = GOOGLE_PLAY_RELEASE_STATUS.IN_PROGRESS;
+        // userFraction is already in the object, no need to set it again
+      }
+
+      updatedReleases[releaseIndex] = releaseToUpdate;
+
+      // Step 10: Build track update payload
+      const trackUpdatePayload = {
+        track: 'production',
+        releases: updatedReleases,
+      };
+
+      console.log('[ResumeAndroidRollout] Updating track with payload:', JSON.stringify(trackUpdatePayload, null, 2));
+
+      // Step 11: Update track
+      await googleService.updateProductionTrack(editId, trackUpdatePayload);
+      console.log('[ResumeAndroidRollout] Track updated successfully');
+
+      // Step 12: Validate the edit (optional dry run)
+      try {
+        await googleService.validateEdit(editId);
+        console.log('[ResumeAndroidRollout] Edit validation successful');
+      } catch (validationError) {
+        const errorMessage = validationError instanceof Error ? validationError.message : String(validationError);
+        console.error('[ResumeAndroidRollout] Validation failed:', errorMessage);
+        throw new Error(`Edit validation failed: ${errorMessage}`);
+      }
+
+      // Step 13: Commit edit
+      const commitResult = await googleService.commitEdit(editId);
+      console.log('[ResumeAndroidRollout] Edit committed successfully:', JSON.stringify(commitResult, null, 2));
+
+      // Step 14: Update submission status in database (only after Google API succeeds)
+      // Status should match the Google Play API status: IN_PROGRESS or COMPLETED
+      const newStatus = isFullRollout 
+        ? ANDROID_SUBMISSION_STATUS.COMPLETED 
+        : ANDROID_SUBMISSION_STATUS.IN_PROGRESS;
+      
+      const updatedSubmission = await this.androidSubmissionRepository.update(submissionId, {
+        status: newStatus
+      });
+
+      if (!updatedSubmission) {
+        throw new Error(`Failed to update submission status to ${newStatus}`);
+      }
+
+      // Step 15: Record action in history
+      await this.actionHistoryRepository.create({
+        id: uuidv4(),
+        submissionId,
+        platform: SUBMISSION_PLATFORM.ANDROID,
+        action: SUBMISSION_ACTION.RESUMED,
+        reason: 'Rollout resumed',
+        createdBy
+      });
+
+      console.log(`[ResumeAndroidRollout] Successfully resumed submission ${submissionId}`);
+
+      return {
+        id: updatedSubmission.id,
+        status: updatedSubmission.status,
+        statusUpdatedAt: updatedSubmission.statusUpdatedAt
+      };
+
+    } catch (error) {
+      // Cleanup: Delete edit on error
+      try {
+        await googleService.deleteEdit(editId);
+        console.log(`[ResumeAndroidRollout] Cleaned up edit ${editId} after error`);
+      } catch (cleanupError) {
+        console.warn(`[ResumeAndroidRollout] Failed to cleanup edit ${editId}:`, cleanupError);
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
    * Resume iOS rollout (iOS only)
    * Updates submission status from PAUSED back to LIVE
    */
-  async resumeRollout(
+  async resumeRolloutIOS(
     submissionId: string,
     createdBy: string
   ): Promise<{ id: string; status: string; statusUpdatedAt: Date } | null> {
