@@ -9,29 +9,30 @@
 
 import { Anchor, Badge, Button, Card, Group, Text } from '@mantine/core';
 import {
-  IconCheck,
-  IconClock,
-  IconExternalLink,
-  IconEye,
-  IconPlayerPause,
-  IconRefresh,
-  IconX,
+    IconCheck,
+    IconClock,
+    IconExternalLink,
+    IconEye,
+    IconPlayerPause,
+    IconRefresh,
+    IconX,
 } from '@tabler/icons-react';
 import {
-  BUTTON_LABELS,
-  PLATFORM_LABELS,
-  STORE_NAMES,
-  STORE_URLS,
-  SUBMISSION_STATUS_COLORS,
-  SUBMISSION_STATUS_LABELS,
-} from '~/constants/distribution/distribution.constants';
-import {
-  DS_COLORS,
-  DS_SPACING,
-  DS_TYPOGRAPHY,
+    DS_COLORS,
+    DS_SPACING,
+    DS_TYPOGRAPHY,
 } from '~/constants/distribution/distribution-design.constants';
-import { Platform, SubmissionStatus } from '~/types/distribution/distribution.types';
+import {
+    BUTTON_LABELS,
+    PLATFORM_LABELS,
+    STORE_NAMES,
+    STORE_URLS,
+    SUBMISSION_STATUS_COLORS,
+    SUBMISSION_STATUS_LABELS,
+} from '~/constants/distribution/distribution.constants';
 import type { PlatformSubmissionCardProps } from '~/types/distribution/distribution-component.types';
+import { SubmissionStatus } from '~/types/distribution/distribution.types';
+import { isSubmissionInErrorState } from '~/utils/distribution/distribution-state.utils';
 import { PlatformIcon } from './PlatformIcon';
 import { PlatformSubmissionEmptyState } from './PlatformSubmissionEmptyState';
 import { SubmissionDetails } from './SubmissionDetails';
@@ -44,13 +45,16 @@ function getStatusIcon(status: SubmissionStatus | null) {
   if (!status) return <IconClock size={14} />;
   
   switch (status) {
+    case SubmissionStatus.IN_PROGRESS:
+    case SubmissionStatus.COMPLETED:
     case SubmissionStatus.LIVE:
     case SubmissionStatus.APPROVED:
       return <IconCheck size={14} />;
     case SubmissionStatus.PAUSED:
+    case SubmissionStatus.HALTED:
       return <IconPlayerPause size={14} />;
     case SubmissionStatus.REJECTED:
-    case SubmissionStatus.HALTED:
+    case SubmissionStatus.SUSPENDED:
     case SubmissionStatus.CANCELLED:
       return <IconX size={14} />;
     default:
@@ -68,8 +72,10 @@ export function PlatformSubmissionCard({
 }: PlatformSubmissionCardProps) {
 
   const hasSubmission = submission !== null;
-  const isRejected = submission?.status === SubmissionStatus.REJECTED;
-  const isReleased = submission?.status === SubmissionStatus.LIVE;
+  
+  // Query SSOT configuration instead of hardcoded status checks
+  const isRejected = submission ? isSubmissionInErrorState(submission.status) : false;
+  
   const storeName = STORE_NAMES[platform];
 
   return (
@@ -148,7 +154,7 @@ export function PlatformSubmissionCard({
               rel="noopener noreferrer"
               size={DS_TYPOGRAPHY.SIZE.XS}
             >
-              <Group gap={4}>
+              <Group gap={DS_SPACING.XS}>
                 <IconExternalLink size={12} />
                 Open Console
               </Group>

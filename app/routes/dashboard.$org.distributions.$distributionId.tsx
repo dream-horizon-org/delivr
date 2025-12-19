@@ -770,7 +770,7 @@ export default function DistributionDetailPage() {
                 {latestAndroidSubmission ? (
                   <LatestSubmissionCard
                     submission={latestAndroidSubmission}
-                    org={org}
+                    tenantId={org}
                     onPromote={handleOpenAndroidPromoteDialog}
                     onUpdateRollout={handleOpenAndroidUpdateRolloutDialog}
                     onPause={handleOpenAndroidPauseDialog}
@@ -783,10 +783,11 @@ export default function DistributionDetailPage() {
                   <Paper p="xl" radius="md" withBorder>
                     <Stack align="center" gap="md">
                       <Text c="dimmed" ta="center">{DISTRIBUTION_MANAGEMENT_UI.EMPTY_STATES.NO_ACTIVE_ANDROID_SUBMISSION}</Text>
-                      {/* Show Resubmit button if there's a rejected/cancelled submission */}
+                      {/* Show Resubmit button if there's a rejected/cancelled/action-pending submission */}
                       {historicalAndroidSubmissions.length > 0 && 
                        (historicalAndroidSubmissions[0].status === SubmissionStatus.REJECTED || 
-                        historicalAndroidSubmissions[0].status === SubmissionStatus.CANCELLED) && (
+                        historicalAndroidSubmissions[0].status === SubmissionStatus.CANCELLED ||
+                        historicalAndroidSubmissions[0].status === SubmissionStatus.USER_ACTION_PENDING) && (
                         <Button
                           variant="filled"
                           color="blue"
@@ -810,6 +811,7 @@ export default function DistributionDetailPage() {
                   <SubmissionHistoryTimeline
                     submissions={historicalAndroidSubmissions}
                     platform={Platform.ANDROID}
+                    tenantId={org}
                   />
                 ) : (
                   <Paper p="xl" radius="md" withBorder className="text-center">
@@ -846,7 +848,7 @@ export default function DistributionDetailPage() {
                 {latestIOSSubmission ? (
                   <LatestSubmissionCard
                     submission={latestIOSSubmission}
-                    org={org}
+                    tenantId={org}
                     onPromote={handleOpenIOSPromoteDialog}
                     onUpdateRollout={handleOpenIOSUpdateRolloutDialog}
                     onPause={handleOpenIOSPauseDialog}
@@ -886,6 +888,7 @@ export default function DistributionDetailPage() {
                   <SubmissionHistoryTimeline
                     submissions={historicalIOSSubmissions}
                     platform={Platform.IOS}
+                    tenantId={org}
                   />
                 ) : (
                   <Paper p="xl" radius="md" withBorder className="text-center">

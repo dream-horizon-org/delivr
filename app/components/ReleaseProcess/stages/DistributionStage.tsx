@@ -55,6 +55,7 @@ import {
   type Submission
 } from '~/types/distribution/distribution.types';
 import { formatStatus } from '~/utils/distribution/distribution-ui.utils';
+import { isSubmissionActivelyRollingOut } from '~/utils/distribution/distribution-state.utils';
 
 interface DistributionStageProps {
   tenantId: string;
@@ -151,8 +152,8 @@ function SubmissionStatusCard({ submission }: { submission: Submission }) {
   // Determine store name
   const storeName = isAndroid ? 'Google Play Store' : 'App Store';
   
-  // Show rollout if live
-  const isLive = submission.status === SubmissionStatus.LIVE;
+  // Show rollout if submission is live or actively rolling out
+  const isLive = isSubmissionActivelyRollingOut(submission.status, submission.rolloutPercentage);
   const rolloutPercentage = submission.rolloutPercentage || 0;
   
   return (
@@ -194,11 +195,13 @@ function SubmissionStatusCard({ submission }: { submission: Submission }) {
         </Stack>
       )}
       
-      {/* Show waiting message if in review */}
-      {submission.status === SubmissionStatus.IN_REVIEW && (
+      {/* Show waiting message if in review/submitted */}
+      {(submission.status === SubmissionStatus.IN_REVIEW || submission.status === SubmissionStatus.SUBMITTED) && (
         <Group gap="xs" mt="md">
           <IconClock size={14} color="gray" />
-          <Text size="xs" c="dimmed">Waiting for store review...</Text>
+          <Text size="xs" c="dimmed">
+            {submission.status === SubmissionStatus.SUBMITTED ? 'Submitted to Play Store...' : 'Waiting for store review...'}
+          </Text>
         </Group>
       )}
       

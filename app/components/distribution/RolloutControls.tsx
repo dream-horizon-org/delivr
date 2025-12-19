@@ -29,7 +29,7 @@ import {
 import { useCallback, useMemo, useState } from 'react';
 import {
     BUTTON_LABELS,
-    MAX_ROLLOUT_PERCENTAGE,
+    MAX_ROLLOUT_PERCENT,
     ROLLOUT_COMPLETE_PERCENT,
     ROLLOUT_CONTROLS_ICON_SIZES,
     ROLLOUT_CONTROLS_UI,
@@ -138,7 +138,7 @@ export function RolloutControls({
   const sliderMarks = useMemo(
     () => [
       { value: currentPercentage, label: ROLLOUT_CONTROLS_UI.CURRENT_MARK },
-      { value: MAX_ROLLOUT_PERCENTAGE, label: ROLLOUT_CONTROLS_UI.COMPLETE_MARK },
+      { value: MAX_ROLLOUT_PERCENT, label: ROLLOUT_CONTROLS_UI.COMPLETE_MARK },
     ],
     [currentPercentage]
   );
@@ -243,7 +243,7 @@ export function RolloutControls({
               value={targetPercentage}
               onChange={handleSliderChange}
               min={currentPercentage}
-              max={MAX_ROLLOUT_PERCENTAGE}
+              max={MAX_ROLLOUT_PERCENT}
               step={platformRules.sliderStep}
               disabled={isLoading}
               marks={sliderMarks}

@@ -31,7 +31,7 @@ export type ExposureControlConflictDetails = {
   currentRelease: {
     version: string;
     rolloutPercentage: number;
-    status: SubmissionStatus.LIVE | SubmissionStatus.APPROVED;
+    status: SubmissionStatus.IN_PROGRESS | SubmissionStatus.LIVE | SubmissionStatus.APPROVED;
   };
   resolution: {
     title: string;

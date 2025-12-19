@@ -32,18 +32,36 @@ export enum DistributionStatus {
 }
 
 /**
- * Submission Status (8 states)
- * Per API spec lines 127-138
+ * Submission Status (Platform-Specific)
+ * Per API spec lines 294-356
+ * 
+ * ANDROID: PENDING → SUBMITTED → IN_PROGRESS ⇄ HALTED → COMPLETED
+ *                         ↓
+ *                  USER_ACTION_PENDING → SUSPENDED
+ * 
+ * iOS: PENDING → IN_REVIEW → APPROVED → LIVE ⇄ PAUSED
+ *                    ↓            ↓
+ *                REJECTED     CANCELLED
  */
 export enum SubmissionStatus {
-  PENDING = 'PENDING',       // Created but not yet submitted to store
-  IN_REVIEW = 'IN_REVIEW',   // Submitted, awaiting store review
-  APPROVED = 'APPROVED',     // Store approved, ready to release
-  LIVE = 'LIVE',             // Available to users (rollout in progress or complete)
-  PAUSED = 'PAUSED',         // iOS only: Phased rollout paused by user
-  REJECTED = 'REJECTED',     // Store rejected
-  HALTED = 'HALTED',         // Emergency halt (terminal state)
-  CANCELLED = 'CANCELLED',   // User cancelled before/during review
+  // Common
+  PENDING = 'PENDING',                       // Created but not yet submitted to store
+  
+  // Android-Specific
+  SUBMITTED = 'SUBMITTED',                   // Android: Promoted to Play Store, awaiting review
+  IN_PROGRESS = 'IN_PROGRESS',               // Android: Approved, actively rolling out (< 100%)
+  COMPLETED = 'COMPLETED',                   // Android: Rollout complete (100%), terminal state
+  USER_ACTION_PENDING = 'USER_ACTION_PENDING', // Android: Status verification failed, needs resubmission
+  SUSPENDED = 'SUSPENDED',                   // Android: Terminal state (no action taken within 10 days)
+  HALTED = 'HALTED',                         // Android: Rollout paused (resumable, displayed as "Rollout Paused")
+  
+  // iOS-Specific
+  IN_REVIEW = 'IN_REVIEW',                   // iOS: Submitted, awaiting Apple review
+  APPROVED = 'APPROVED',                     // iOS: Apple approved, ready to release
+  LIVE = 'LIVE',                             // iOS: Available to users (rollout in progress or complete)
+  PAUSED = 'PAUSED',                         // iOS: Phased rollout paused by user (displayed as "Rollout Paused")
+  REJECTED = 'REJECTED',                     // iOS: Apple rejected, requires resubmission
+  CANCELLED = 'CANCELLED',                   // iOS: User cancelled before/during review
 }
 
 // ============================================================================

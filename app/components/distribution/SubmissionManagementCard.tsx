@@ -5,9 +5,14 @@
 
 import { Badge, Button, Card, Group, Stack, Text } from '@mantine/core';
 import { DS_COLORS, DS_SPACING, DS_TYPOGRAPHY } from '~/constants/distribution/distribution-design.constants';
-import { ROLLOUT_COMPLETE_PERCENT, SUBMISSION_STATUS_COLORS, SUBMISSION_STATUS_LABELS } from '~/constants/distribution/distribution.constants';
+import { SUBMISSION_STATUS_COLORS, SUBMISSION_STATUS_LABELS } from '~/constants/distribution/distribution.constants';
 import type { Submission } from '~/types/distribution/distribution.types';
-import { Platform, SubmissionStatus } from '~/types/distribution/distribution.types';
+import { Platform } from '~/types/distribution/distribution.types';
+import {
+  canManageRollout,
+  isSubmissionInErrorState,
+  isSubmissionPaused,
+} from '~/utils/distribution/distribution-state.utils';
 
 export interface SubmissionManagementCardProps {
   submission: Submission;
@@ -27,15 +32,20 @@ export function SubmissionManagementCard({
   onViewHistory,
 }: SubmissionManagementCardProps) {
   // Status-based flags
-  const isPaused = submission.status === SubmissionStatus.PAUSED;
-  const isRejected = submission.status === SubmissionStatus.REJECTED;
-  const isLive = submission.status === SubmissionStatus.LIVE;
-  const isComplete = isLive && submission.rolloutPercentage === ROLLOUT_COMPLETE_PERCENT;
-
-  // Action visibility (iOS only can pause/resume)
+  const isAndroid = submission.platform === Platform.ANDROID;
   const isIOS = submission.platform === Platform.IOS;
-  const canPauseResume = isIOS && (isLive || isPaused) && !isComplete;
-  const canHalt = isLive && !isComplete;
+  
+  // Derive UI state using SSOT utility functions (clean, testable logic)
+  const canShowPauseResume = canManageRollout(
+    submission.status,
+    submission.platform,
+    submission.rolloutPercentage
+  );
+  const isPaused = isSubmissionPaused(submission.status);
+  const isRejected = isSubmissionInErrorState(submission.status);
+
+  // Action visibility
+  const canHalt = false; // Deprecated: Use pause/resume instead
   const canRetry = isRejected;
 
   // Version display with code for Android
@@ -80,7 +90,7 @@ export function SubmissionManagementCard({
             </Button>
           )}
 
-          {canPauseResume && (
+          {canShowPauseResume && (
             isPaused ? (
               <Button onClick={onResume} color={DS_COLORS.STATUS.SUCCESS}>
                 Resume Rollout

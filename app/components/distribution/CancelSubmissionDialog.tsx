@@ -24,6 +24,7 @@ import {
 import { IconAlertCircle, IconX } from '@tabler/icons-react';
 import { useFetcher } from '@remix-run/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { API_ROUTES } from '~/constants/distribution/distribution-api.constants';
 import {
   DIST_ALERT_PROPS,
   DIST_BUTTON_PROPS,
@@ -102,7 +103,7 @@ export function CancelSubmissionDialog({
 
     fetcher.submit(JSON.stringify(payload), {
       method: 'delete',
-      action: `/api/v1/submissions/${submissionId}/cancel?platform=${platform}`,
+      action: API_ROUTES.cancelSubmission(submissionId, platform),
       encType: 'application/json',
     });
   }, [submissionId, platform, reason, fetcher]);

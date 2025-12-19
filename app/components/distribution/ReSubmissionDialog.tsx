@@ -9,41 +9,42 @@
  */
 
 import {
-    Alert,
-    Button,
-    Checkbox,
-    FileInput,
-    Group,
-    Modal,
-    NumberInput,
-    Select,
-    Stack,
-    Text,
-    Textarea,
-    TextInput,
-    ThemeIcon
+  Alert,
+  Button,
+  Checkbox,
+  FileInput,
+  Group,
+  Modal,
+  NumberInput,
+  Select,
+  Stack,
+  Text,
+  Textarea,
+  TextInput,
+  ThemeIcon
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useFetcher } from '@remix-run/react';
 import { IconAlertCircle, IconEdit, IconUpload } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo } from 'react';
+import { API_ROUTES } from '~/constants/distribution/distribution-api.constants';
 import {
-    DS_COLORS,
-    DS_SPACING,
-    DS_TYPOGRAPHY,
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
 } from '~/constants/distribution/distribution-design.constants';
 import {
-    DIALOG_ICON_SIZES,
-    DIALOG_TITLES,
-    MAX_ROLLOUT_PERCENT,
-    MIN_ROLLOUT_PERCENT,
-    PLATFORM_LABELS
+  DIALOG_ICON_SIZES,
+  DIALOG_TITLES,
+  MAX_ROLLOUT_PERCENT,
+  MIN_ROLLOUT_PERCENT,
+  PLATFORM_LABELS
 } from '~/constants/distribution/distribution.constants';
 import {
-    AndroidSubmission,
-    IOSSubmission,
-    Platform,
-    type Submission
+  AndroidSubmission,
+  IOSSubmission,
+  Platform,
+  type Submission
 } from '~/types/distribution/distribution.types';
 import { ErrorAlert } from './ErrorRecovery';
 
@@ -176,7 +177,7 @@ export function ResubmissionDialog({
 
     fetcher.submit(formData, {
       method: 'POST',
-      action: `/api/v1/distributions/${distributionId}/submissions`,
+      action: API_ROUTES.createSubmission(distributionId),
       encType: 'multipart/form-data',
     });
   }, [distributionId, fetcher]);
@@ -196,7 +197,7 @@ export function ResubmissionDialog({
 
     fetcher.submit(JSON.stringify(payload), {
       method: 'POST',
-      action: `/api/v1/distributions/${distributionId}/submissions`,
+      action: API_ROUTES.createSubmission(distributionId),
       encType: 'application/json',
     });
   }, [distributionId, fetcher]);
@@ -225,6 +226,14 @@ export function ResubmissionDialog({
     }
     onClose();
   }, [isAndroid, androidForm, iosForm, onClose]);
+
+  const handleRetry = useCallback(() => {
+    if (isAndroid) {
+      androidForm.onSubmit(handleAndroidSubmit)();
+    } else {
+      iosForm.onSubmit(handleIOSSubmit)();
+    }
+  }, [isAndroid, androidForm, iosForm, handleAndroidSubmit, handleIOSSubmit]);
 
   return (
     <Modal
@@ -362,7 +371,7 @@ export function ResubmissionDialog({
           {fetcher.data?.error && (
             <ErrorAlert
               error={typeof fetcher.data.error === 'string' ? fetcher.data.error : fetcher.data.error.message || 'An error occurred'}
-              onRetry={isAndroid ? () => androidForm.onSubmit(handleAndroidSubmit)() : () => iosForm.onSubmit(handleIOSSubmit)()}
+              onRetry={handleRetry}
               onDismiss={() => fetcher.load('/')}
             />
           )}

@@ -19,12 +19,20 @@ export function getStatusColor(status: string): string {
   
   // Submission-level statuses
   const colors: Record<string, string> = {
+    // Android-Specific
+    [SubmissionStatus.SUBMITTED]: 'blue',
+    [SubmissionStatus.IN_PROGRESS]: 'green',
+    [SubmissionStatus.COMPLETED]: 'green',
+    [SubmissionStatus.USER_ACTION_PENDING]: 'orange',
+    [SubmissionStatus.SUSPENDED]: 'red',
+    [SubmissionStatus.HALTED]: 'orange',          // Orange for paused (resumable)
+    
+    // iOS-Specific
     [SubmissionStatus.IN_REVIEW]: 'yellow',
     [SubmissionStatus.APPROVED]: 'cyan',
     [SubmissionStatus.LIVE]: 'green',
-    [SubmissionStatus.PAUSED]: 'orange',
+    [SubmissionStatus.PAUSED]: 'orange',           // Orange for paused (resumable)
     [SubmissionStatus.REJECTED]: 'red',
-    [SubmissionStatus.HALTED]: 'red',
     [SubmissionStatus.CANCELLED]: 'gray',
   };
   

@@ -169,7 +169,7 @@ export function BuildStatusCard({
                 rel="noopener noreferrer"
                 size={DS_TYPOGRAPHY.SIZE.XS}
               >
-                <Group gap={4}>
+                <Group gap={DS_SPACING.XS}>
                   <IconExternalLink size={12} />
                   {DISTRIBUTION_UI_LABELS.VIEW_CI_JOB}
                 </Group>

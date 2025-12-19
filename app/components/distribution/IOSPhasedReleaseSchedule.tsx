@@ -9,22 +9,22 @@
  */
 
 import {
-    Badge,
-    Box,
-    Group,
-    Paper,
-    Progress,
-    Stack,
-    Table,
-    Text,
-    ThemeIcon,
+  Badge,
+  Box,
+  Group,
+  Paper,
+  Progress,
+  Stack,
+  Table,
+  Text,
+  ThemeIcon,
 } from '@mantine/core';
 import { IconCheck, IconClock } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import {
-    DS_COLORS,
-    DS_SPACING,
-    DS_TYPOGRAPHY,
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
 } from '~/constants/distribution/distribution-design.constants';
 import { IOS_PHASED_RELEASE_SCHEDULE } from '~/constants/distribution/distribution.constants';
 
@@ -131,7 +131,7 @@ export function IOSPhasedReleaseSchedule({
         <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} bg="white" withBorder>
           <Group justify="space-between">
             <div>
-              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} mb={4}>Current Rollout</Text>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} mb={DS_SPACING.XS}>Current Rollout</Text>
               <Text size={DS_TYPOGRAPHY.SIZE.LG} fw={DS_TYPOGRAPHY.WEIGHT.BOLD} c={DS_COLORS.STATUS.INFO}>
                 {currentPercentage.toFixed(1)}%
               </Text>
@@ -175,17 +175,13 @@ export function IOSPhasedReleaseSchedule({
                 return (
                   <Table.Tr
                     key={day.day}
-                    style={{
-                      backgroundColor: isCurrent
-                        ? 'var(--mantine-color-blue-0)'
-                        : undefined,
-                    }}
+                    {...(isCurrent && { style: { backgroundColor: 'var(--mantine-color-blue-0)' } })}
                   >
                     <Table.Td>
                       <Text
                         size={DS_TYPOGRAPHY.SIZE.SM}
                         fw={isCurrent ? 600 : 400}
-                        c={isCurrent ? 'blue.9' : undefined}
+                        {...(isCurrent && { c: 'blue.9' })}
                       >
                         {day.label}
                       </Text>

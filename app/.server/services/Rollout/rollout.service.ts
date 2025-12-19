@@ -7,18 +7,19 @@ import axios, { type AxiosResponse } from 'axios';
 import { getBackendBaseURL } from '~/.server/utils/base-url.utils';
 import { ROLLOUT_COMPLETE_PERCENT } from '~/constants/distribution/distribution.constants';
 import type {
-    HaltRolloutRequest,
-    PauseRolloutRequest,
-    RolloutUpdateResponse,
-    Submission,
-    UpdateRolloutRequest,
+  HaltRolloutRequest,
+  PauseRolloutRequest,
+  RolloutUpdateResponse,
+  Submission,
+  UpdateRolloutRequest,
 } from '~/types/distribution/distribution.types';
 import { Platform, SubmissionStatus } from '~/types/distribution/distribution.types';
 import type { ApiResponse } from '~/utils/api-client';
 
 class Rollout {
   private __client = axios.create({
-    baseURL: getBackendBaseURL('/api/v1/submissions'),
+    // Base URL should be just the backend URL, not including /api/v1/submissions
+    baseURL: getBackendBaseURL(),
     timeout: 10000,
   });
 

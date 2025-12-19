@@ -17,7 +17,6 @@ import type {
   Platform,
   PMApprovalStatus,
   RejectionDetails,
-  RolloutAction,
   RolloutDisplayStatus,
   Submission,
   SubmissionInDistribution,
@@ -294,10 +293,10 @@ export type ActionAvailability = {
   canPause: boolean;
   canResume: boolean;
   canHalt: boolean;
-  updateReason: string | null;
-  pauseReason: string | null;
-  resumeReason: string | null;
-  haltReason: string | null;
+  updateReason?: string;
+  pauseReason?: string;
+  resumeReason?: string;
+  haltReason?: string;
   supportsRollout: boolean;
   isPaused: boolean;
   isComplete: boolean;

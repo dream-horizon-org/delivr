@@ -518,6 +518,64 @@ server.post('/api/v1/releases/:releaseId/approve', (req, res) => {
   });
 });
 
+/**
+ * GET /api/v1/submissions/:submissionId/artifact?platform=<ANDROID|IOS>
+ * Download submission artifact (presigned URL)
+ */
+server.get('/api/v1/submissions/:submissionId/artifact', (req, res) => {
+  const { submissionId } = req.params;
+  const { platform } = req.query;
+  const db = router.db;
+
+  // Validate platform
+  if (!platform || (platform !== 'ANDROID' && platform !== 'IOS')) {
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: 'INVALID_PLATFORM',
+        message: 'Platform must be "ANDROID" or "IOS"',
+      },
+    });
+  }
+
+  // Find submission (check both Android and iOS tables)
+  let submission;
+  if (platform === 'ANDROID') {
+    submission = db.get('android_submission_builds')
+      .find({ id: submissionId })
+      .value();
+  } else {
+    submission = db.get('ios_submission_builds')
+      .find({ id: submissionId })
+      .value();
+  }
+
+  if (!submission) {
+    return res.status(404).json({
+      success: false,
+      error: {
+        code: 'SUBMISSION_NOT_FOUND',
+        message: `Submission ${submissionId} not found`,
+      },
+    });
+  }
+
+  // Generate presigned URL (mock)
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+  const extension = platform === 'ANDROID' ? 'aab' : 'ipa';
+  const filename = `app-${platform.toLowerCase()}-${submission.version}.${extension}`;
+  
+  res.json({
+    success: true,
+    data: {
+      presignedUrl: `https://s3.amazonaws.com/delivr-artifacts/${submissionId}/artifact.${extension}?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=mock-signature-${submissionId}`,
+      expiresAt: expiresAt.toISOString(),
+      filename: filename,
+    },
+  });
+});
+
+
 // NOTE: No retry endpoint for CICD builds
 // CICD builds are auto-triggered by Release Orchestrator
 // If CI build fails, user retries via their CI system (Jenkins, GitHub Actions, etc.)

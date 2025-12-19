@@ -80,45 +80,83 @@ This document specifies the complete API contract for the Distribution module, w
 
 #### Android Submission Lifecycle
 ```
-PENDING → IN_REVIEW → APPROVED → LIVE
-             ↓            ↓          ↓
-         REJECTED     REJECTED    HALTED (emergency stop)
-             ↓            ↓          ↓
-         CANCELLED    CANCELLED   (terminal states)
+PENDING → SUBMITTED → IN_PROGRESS ⇄ HALTED → COMPLETED
+              ↓           ↑
+         (5 days)    (resume)
+              ↓
+    USER_ACTION_PENDING
+              ↓
+         (10 days)
+              ↓
+         SUSPENDED (terminal)
 ```
-- **Initial Status**: PENDING (created with distribution, not yet submitted)
-- **Rollout Control**: Manual staged rollout with **any percentage** (0-100, supports decimals)
-  - Examples: 5%, 10.5%, 27.3%, 50%, 99.9%, 100%
-  - User has full control over rollout percentage
-- **Can Pause**: ❌ No (but can halt in emergency)
-- **Rollout Type**: Always manual staged rollout
+
+**Status Definitions:**
+- **PENDING**: Initial state, created with distribution, not yet submitted
+- **SUBMITTED**: Promoted to Play Store, awaiting review/processing
+- **IN_PROGRESS**: Approved by Play Store, actively rolling out (exposure < 100%)
+- **HALTED**: Rollout paused by user (similar to iOS PAUSED), can resume
+- **COMPLETED**: Rollout finished (exposure = 100%), terminal state
+- **USER_ACTION_PENDING**: System couldn't verify status after 5 days, requires user action
+- **SUSPENDED**: Dead-end state when user doesn't act within 10 days (doesn't affect Play Store)
+
+**Rollout Control:**
+- Manual staged rollout with **any percentage** (0.01-100, decimals supported)
+- Examples: `0.01%`, `5%`, `15.5%`, `33.33%`, `99.9%`, `100%`
+- User has full control over rollout percentage
+- Minimum: `0.01%` (not zero)
+- Backend converts to `userFraction = rolloutPercentage / 100`
+
+**Pause/Resume:**
+- ✅ **Can Pause**: Yes (IN_PROGRESS → HALTED)
+- ✅ **Can Resume**: Yes (HALTED → IN_PROGRESS)
+- ❌ **Cannot Cancel**: Not supported for Android
+
+**Managed Publishing Recommendation:**
+- For Exposure Control and Pause/Resume to work, **Managed Publishing must be OFF** in Play Store settings
+- Show recommendation during submission flow
+
+**Status Polling & Auto-Recovery:**
+- After submission, backend polls Play Store daily for 5 days
+- If status not IN_PROGRESS after 5 days → USER_ACTION_PENDING (enable resubmission)
+- If no user action after 10 more days → SUSPENDED (terminal)
+- SUSPENDED: No actions possible, entry marked inactive (Play Store unaffected)
 
 #### iOS Submission Lifecycle
 ```
 PENDING → IN_REVIEW → APPROVED → LIVE
              ↓            ↓          ↓
          REJECTED     REJECTED    PAUSED (phased rollout only)
-             ↓            ↓          ↓
-         CANCELLED    CANCELLED   HALTED (emergency stop)
+             ↓            ↓          
+         CANCELLED    CANCELLED
 ```
-- **Initial Status**: PENDING (created with distribution, not yet submitted)
-- **Rollout Control**: 
-  - **Phased Release (phasedRelease = true)**: 
-    - Automatic 7-day rollout by Apple
-    - ✅ Can update to **100% only** (to complete early)
-    - ✅ Can PAUSE/RESUME
-    - **Pause Limits**: Maximum **30 days total pause time** (cumulative across all pauses)
-    - **Pause Behavior**: Time paused is tracked cumulatively (e.g., pause for 10 days = 20 days remaining)
-    - **Resume Behavior**: Phased release resumes from the day/percentage where it was paused
-    - **Auto-Resume**: After 30 days of cumulative pause, the phased release will automatically resume
-  - **Manual Release (phasedRelease = false)**: 
-    - ✅ **Always 100%** immediately upon release
-    - ❌ No rollout control needed (already at 100%)
-    - ❌ Cannot pause
-- **Can Pause**: ✅ Yes (only if phased release enabled)
-- **Rollout Types**:
-  - Phased Release: Automatic rollout over 7 days, can skip to 100%, pausable (30-day cumulative pause limit, auto-resumes after limit)
-  - Manual Release: Immediate 100%, no rollout control
+
+**Status Definitions:**
+- **PENDING**: Initial state, created with distribution, not yet submitted
+- **IN_REVIEW**: Submitted to App Store Connect, under Apple review
+- **APPROVED**: Approved by Apple, ready for release or released
+- **LIVE**: Released and available to users
+- **PAUSED**: Phased release temporarily paused (displayed as "Rollout Paused" in UI)
+- **REJECTED**: Rejected by Apple, requires fixes and resubmission
+- **CANCELLED**: User cancelled submission before approval
+
+**Rollout Control:**
+- **Phased Release (phasedRelease = true)**: 
+  - Automatic 7-day rollout by Apple
+  - ✅ Can update to **100% only** (to complete early)
+  - ✅ Can PAUSE/RESUME (displayed as "Rollout Paused" in UI)
+  - **Pause Limits**: Maximum **30 days total pause time** (cumulative across all pauses)
+  - **Pause Behavior**: Time paused is tracked cumulatively (e.g., pause for 10 days = 20 days remaining)
+  - **Resume Behavior**: Phased release resumes from the day/percentage where it was paused
+  - **Auto-Resume**: After 30 days of cumulative pause, the phased release will automatically resume
+- **Manual Release (phasedRelease = false)**: 
+  - ✅ **Always 100%** immediately upon release
+  - ❌ No rollout control needed (already at 100%)
+  - ❌ Cannot pause
+
+**Can Pause**: ✅ Yes (only if phased release enabled)
+
+**Can Cancel**: ✅ Yes (only when IN_REVIEW or APPROVED before release)
 
 ---
 
@@ -128,25 +166,28 @@ PENDING → IN_REVIEW → APPROVED → LIVE
 
 | Action | From Status | To Status | Platform | Prerequisites | Result |
 |--------|-------------|-----------|----------|---------------|--------|
-| **Submit** | PENDING | IN_REVIEW | Both | Submission details provided | Submission sent to store for review |
-| **Cancel** | IN_REVIEW | CANCELLED | Both | - | Submission cancelled, becomes inactive, can resubmit |
-| **Resubmit** | REJECTED, CANCELLED | IN_REVIEW | Both | New submission details | Creates **new submission** (new ID), old becomes inactive |
-| **Pause** | LIVE | PAUSED | iOS only | `phasedRelease = true` | Rollout paused, can resume later |
-| **Resume** | PAUSED | LIVE | iOS only | - | Rollout continues from current % |
-| **Halt** | LIVE | HALTED | **Android only** | - | **Terminal state**, no further actions possible |
-| **Update Rollout** | LIVE | LIVE | Both | - | Changes rollout percentage (platform-specific rules) |
+| **Submit** | PENDING | SUBMITTED (Android) / IN_REVIEW (iOS) | Both | Submission details provided | Submission sent to store for review |
+| **Cancel** | IN_REVIEW | CANCELLED | **iOS only** | - | Submission cancelled, becomes inactive, can resubmit |
+| **Resubmit** | REJECTED, CANCELLED (iOS) / USER_ACTION_PENDING (Android) | SUBMITTED (Android) / IN_REVIEW (iOS) | Both | New submission details | Creates **new submission** (new ID), old marked SUSPENDED/inactive |
+| **Pause** | IN_PROGRESS (Android) / LIVE (iOS) | HALTED (Android) / PAUSED (iOS) | Both | iOS: `phasedRelease = true` | Rollout paused (displayed as "Rollout Paused"), can resume later |
+| **Resume** | HALTED (Android) / PAUSED (iOS) | IN_PROGRESS (Android) / LIVE (iOS) | Both | - | Rollout continues from current % |
+| **Update Rollout** | IN_PROGRESS (Android) / LIVE (iOS) | Same status | Android / iOS Phased | - | Changes rollout percentage (platform-specific rules) |
 
 ### Action Rules
 
 #### 1. Submit (`POST /api/v1/submissions/:submissionId/submit`)
 - **Prerequisite**: Submission must be `PENDING`
 - **Required**: Submission details (artifact, release notes, etc.)
-- **Transition**: PENDING → IN_REVIEW
+- **Transition**: 
+  - **Android**: PENDING → SUBMITTED
+  - **iOS**: PENDING → IN_REVIEW
 - **Effect**: 
   - Distribution status may change to `PARTIALLY_SUBMITTED` (if other platforms still PENDING)
-  - Distribution status may change to `SUBMITTED` (if all platforms now in review)
+  - Distribution status may change to `SUBMITTED` (if all platforms now in review/submitted)
+- **Android Note**: After submission, backend will poll Play Store daily for 5 days to verify status
 
 #### 2. Cancel (`POST /api/v1/submissions/:submissionId/cancel`)
+- **Platform**: **iOS only** (Android does not support cancellation)
 - **Prerequisite**: Submission must be `IN_REVIEW`
 - **Required**: Cancellation reason (mandatory)
 - **Transition**: IN_REVIEW → CANCELLED
@@ -154,61 +195,69 @@ PENDING → IN_REVIEW → APPROVED → LIVE
   - Submission becomes inactive (`isActive = false`)
   - Enables resubmission flow (create new submission)
   - Distribution status may revert based on remaining submissions
+- **Android Note**: Cancel action is NOT available for Android submissions
 
 #### 3. Resubmit (`POST /api/v1/submissions/:submissionId/resubmit`)
-- **Prerequisite**: Submission must be `REJECTED` or `CANCELLED`
+- **Prerequisite**: 
+  - **iOS**: Submission must be `REJECTED` or `CANCELLED`
+  - **Android**: Submission must be `USER_ACTION_PENDING`
 - **Required**: New submission details (new artifact, updated release notes)
 - **Creates**: **New submission entity** with new `submissionId`
+- **Transition**:
+  - **iOS**: REJECTED/CANCELLED → IN_REVIEW (new submission)
+  - **Android**: USER_ACTION_PENDING → SUBMITTED (new submission)
 - **Effect**: 
-  - Old submission becomes inactive (`isActive = false`)
-  - New submission is active (`isActive = true`, status = IN_REVIEW)
+  - Old submission marked as `SUSPENDED` (Android) or inactive (`isActive = false` for iOS)
+  - New submission is active (`isActive = true`)
   - Distribution status recalculated based on new submission
+- **Android Note**: Resubmission is triggered when status polling fails after 5 days, allowing user to check Play Store manually and resubmit if needed
 
 #### 4. Pause Rollout (`POST /api/v1/submissions/:submissionId/pause`)
+- **Platform**: Both Android and iOS
 - **Prerequisite**: 
-  - Platform must be iOS
-  - Submission status must be `LIVE`
-  - `phasedRelease` must be `true`
+  - **Android**: Submission status must be `IN_PROGRESS`
+  - **iOS**: Submission status must be `LIVE` AND `phasedRelease` must be `true`
 - **Required**: Pause reason (mandatory)
-- **Transition**: LIVE → PAUSED
+- **Transition**: 
+  - **Android**: IN_PROGRESS → HALTED
+  - **iOS**: LIVE → PAUSED
 - **Effect**: 
-  - Rollout halted at current percentage
+  - Rollout paused at current percentage
   - Can be resumed later
-  - Distribution status remains `RELEASED` (PAUSED is considered "released")
+  - Distribution status remains `RELEASED` (HALTED/PAUSED is considered "released")
+- **UI Display**: Both Android HALTED and iOS PAUSED are displayed as "Rollout Paused" in the UI for consistency
 
 #### 5. Resume Rollout (`POST /api/v1/submissions/:submissionId/resume`)
+- **Platform**: Both Android and iOS
 - **Prerequisite**: 
-  - Platform must be iOS
-  - Submission status must be `PAUSED`
+  - **Android**: Submission status must be `HALTED`
+  - **iOS**: Submission status must be `PAUSED`
 - **Required**: No additional parameters
-- **Transition**: PAUSED → LIVE
+- **Transition**: 
+  - **Android**: HALTED → IN_PROGRESS
+  - **iOS**: PAUSED → LIVE
 - **Effect**: 
   - Rollout continues from current percentage
   - Distribution status remains `RELEASED`
 
-#### 6. Halt Rollout (`POST /api/v1/submissions/:submissionId/halt`)
+#### 6. Update Rollout (`PATCH /api/v1/submissions/:submissionId/rollout?platform=<ANDROID|IOS>`)
+- **Platform**: Android and iOS (Phased Release only)
 - **Prerequisite**: 
-  - **Platform must be Android** (iOS does NOT support halt)
-  - Submission status must be `LIVE`
-- **Required**: Halt reason (mandatory)
-- **Transition**: LIVE → HALTED
-- **Effect**: 
-  - **TERMINAL STATE** - no further actions possible
-  - Rollout frozen at current percentage
-  - Submission remains active (`isActive = true`)
-  - Distribution status remains `RELEASED` (HALTED is considered "released")
-  - Use case: Emergency stop due to critical bugs
-- **Note**: iOS submissions cannot be halted. Use Cancel or store-level controls instead.
-
-#### 7. Update Rollout (`POST /api/v1/rollout/update`)
-- **Prerequisite**: Submission status must be `LIVE`
-- **Required**: New rollout percentage
+  - **Android**: Submission status must be `IN_PROGRESS` (NOT `HALTED` - must resume first)
+  - **iOS**: Submission status must be `LIVE` AND `phasedRelease = true` (NOT `PAUSED` - must resume first)
+- **🚨 CRITICAL RULE**: **Cannot update rollout from HALTED (Android) or PAUSED (iOS) status**
+  - Must first call **RESUME** endpoint to change status back to IN_PROGRESS/LIVE
+  - Then can update rollout percentage
+- **Required**: New rollout percentage in request body
 - **Platform-Specific Rules**:
-  - **Android**: Can update to any percentage (0-100, decimals allowed)
-  - **iOS Phased Release**: Can only update to 100% (to complete early)
-  - **iOS Manual Release**: Always at 100%, cannot update
-- **Transition**: LIVE → LIVE (status unchanged)
+  - **Android**: Can update to any percentage (0.01-100, decimals allowed)
+    - Examples: `15.5%`, `33.33%`, `99.9%`, `100%`
+    - Minimum: `0.01%` (not zero)
+  - **iOS Phased Release**: Can only update to `100%` (to complete early, cannot decrease)
+  - **iOS Manual Release**: Always at `100%`, cannot update
+- **Transition**: Status unchanged (IN_PROGRESS/LIVE remains same)
 - **Effect**: `rolloutPercentage` updated, distribution status remains `RELEASED`
+- **Note**: See detailed API specification in "### 6. Update Rollout Percentage" section
 
 ---
 
@@ -248,23 +297,51 @@ enum DistributionStatus {
 ### SubmissionStatus
 ```typescript
 enum SubmissionStatus {
-  PENDING = 'PENDING',       // Created but not yet submitted to store
-  IN_REVIEW = 'IN_REVIEW',   // Submitted, awaiting store review
-  APPROVED = 'APPROVED',     // Store approved, ready to release
-  LIVE = 'LIVE',             // Available to users (rollout in progress or complete)
-  PAUSED = 'PAUSED',         // iOS only: Phased rollout paused by user
-  REJECTED = 'REJECTED',     // Store rejected
-  HALTED = 'HALTED',         // Emergency halt (terminal state)
-  CANCELLED = 'CANCELLED'    // User cancelled before/during review
+  // Common Statuses
+  PENDING = 'PENDING',                       // Created but not yet submitted to store
+  
+  // Android-Specific Statuses
+  SUBMITTED = 'SUBMITTED',                   // Android: Promoted to Play Store, awaiting review
+  IN_PROGRESS = 'IN_PROGRESS',               // Android: Approved, actively rolling out (< 100%)
+  COMPLETED = 'COMPLETED',                   // Android: Rollout complete (100%), terminal state
+  USER_ACTION_PENDING = 'USER_ACTION_PENDING', // Android: Status verification failed, needs resubmission
+  SUSPENDED = 'SUSPENDED',                   // Android: Terminal state (no action taken within 10 days)
+  HALTED = 'HALTED',                         // Android: Rollout paused (resumable)
+  
+  // iOS-Specific Statuses
+  IN_REVIEW = 'IN_REVIEW',                   // iOS: Submitted, awaiting Apple review
+  APPROVED = 'APPROVED',                     // iOS: Apple approved, ready to release
+  LIVE = 'LIVE',                             // iOS: Available to users (rollout in progress or complete)
+  PAUSED = 'PAUSED',                         // iOS: Phased rollout paused by user (resumable)
+  REJECTED = 'REJECTED',                     // iOS: Apple rejected, requires resubmission
+  CANCELLED = 'CANCELLED'                    // iOS: User cancelled before/during review
 }
 ```
 
-**Platform-Specific Notes**:
-- **PENDING**: Initial status when submission is auto-created with distribution (not yet submitted to store)
-- **PAUSED**: iOS only, only applicable when phased release is enabled
-- **Android**: Uses staged rollout (manual % control), cannot pause
-- **iOS Phased**: Automatic 7-day rollout, can pause/resume
-- **iOS Manual**: Immediate release, cannot pause
+**Platform-Specific Status Mapping:**
+
+| Status | Platform | Description | Terminal? | Resumable? |
+|--------|----------|-------------|-----------|------------|
+| `PENDING` | Both | Initial state, not yet submitted | ❌ | N/A |
+| `SUBMITTED` | Android | Promoted to Play Store, under review | ❌ | N/A |
+| `IN_REVIEW` | iOS | Submitted to App Store Connect, under review | ❌ | N/A |
+| `IN_PROGRESS` | Android | Approved, rolling out (< 100%) | ❌ | N/A |
+| `APPROVED` | iOS | Approved by Apple, ready for release | ❌ | N/A |
+| `LIVE` | iOS | Released and available to users | ❌ | N/A |
+| `HALTED` | Android | Rollout paused (displayed as "Rollout Paused") | ❌ | ✅ Yes |
+| `PAUSED` | iOS | Phased rollout paused (displayed as "Rollout Paused") | ❌ | ✅ Yes |
+| `COMPLETED` | Android | Rollout complete (100%) | ✅ | ❌ |
+| `USER_ACTION_PENDING` | Android | Status verification failed after 5 days | ❌ | ✅ (Resubmit) |
+| `SUSPENDED` | Android | No action taken within 10 days | ✅ | ❌ |
+| `REJECTED` | iOS | Rejected by Apple | ❌ | ✅ (Resubmit) |
+| `CANCELLED` | iOS | User cancelled submission | ❌ | ✅ (Resubmit) |
+
+**Key Notes:**
+- **Android** uses: PENDING → SUBMITTED → IN_PROGRESS ⇄ HALTED → COMPLETED (with USER_ACTION_PENDING/SUSPENDED as fallback)
+- **iOS** uses: PENDING → IN_REVIEW → APPROVED → LIVE ⇄ PAUSED (with REJECTED/CANCELLED as failure paths)
+- **HALTED** (Android) and **PAUSED** (iOS) are both displayed as "Rollout Paused" in UI for consistency
+- **Cancel** action is iOS-only; Android does not support cancellation
+- **Resubmission** creates a new submission for both platforms (old one marked SUSPENDED/inactive)
 
 ### Platform
 ```typescript
@@ -1121,9 +1198,9 @@ PATCH /api/v1/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
 **Platform-Specific Rules:**
 
 **Android:**
-- ✅ Can rollout to **any percentage** between 0-100
-- ✅ Supports **decimal values** (e.g., 5.5, 27.3, 99.9)
-- ✅ Manual control of rollout percentage
+- ✅ Can rollout to **any percentage** between 0.01-100
+- ✅ Supports **decimal values** (e.g., 0.01, 5.5, 27.3, 99.9)
+- ✅ Manual control of rollout percentage (minimum: 0.01%)
 - 📝 Typical progression: 5% → 10% → 25% → 50% → 100%
 
 **✅ Correct iOS Behavior Matrix:**
@@ -1159,7 +1236,7 @@ PATCH /api/v1/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
 ```
 
 **Validation:**
-- **Android**: `0 <= rolloutPercentage <= 100` (float, can increase or decrease)
+- **Android**: `0.01 <= rolloutPercentage <= 100` (float, can increase or decrease, minimum: 0.01%)
 - **iOS Phased (phasedRelease = true)**: `rolloutPercentage === 100` (can only skip to 100% to complete early)
 - **iOS Manual (phasedRelease = false)**: Returns `409` (already at 100%, no rollout needed)
 
@@ -1374,19 +1451,19 @@ PATCH /api/v1/submissions/:submissionId/cancel?platform=<ANDROID|IOS>
 
 ---
 
-### 9. Pause Rollout (iOS Only)
+### 9. Pause Rollout (Both Platforms)
 
 Pause an active rollout.
 
 **Endpoint:**
 ```
-PATCH /api/v1/submissions/:submissionId/rollout/pause?platform=IOS
+PATCH /api/v1/submissions/:submissionId/rollout/pause?platform=<ANDROID|IOS>
 ```
 
 **Query Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `platform` | string | Yes | Must be "IOS" - Required to identify which database table to update (iOS and Android submissions are in separate tables). Android does not support pause. |
+| `platform` | string | Yes | "ANDROID" or "IOS" - Required to identify which database table to update (iOS and Android submissions are in separate tables) |
 
 **Request:**
 ```json
@@ -1398,7 +1475,19 @@ PATCH /api/v1/submissions/:submissionId/rollout/pause?platform=IOS
 **Request Fields:**
 - `reason`: `string` (required) - Reason for pausing the rollout
 
-**Response:**
+**Response (Android):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "sub_789",
+    "status": "HALTED",
+    "statusUpdatedAt": "2025-12-14T15:00:00Z"
+  }
+}
+```
+
+**Response (iOS):**
 ```json
 {
   "success": true,
@@ -1410,23 +1499,40 @@ PATCH /api/v1/submissions/:submissionId/rollout/pause?platform=IOS
 }
 ```
 
+**Notes:**
+- **Android**: Status changes from `IN_PROGRESS` → `HALTED` (displayed as "Rollout Paused" in UI)
+- **iOS**: Status changes from `LIVE` → `PAUSED` (displayed as "Rollout Paused" in UI)
+- Both statuses are displayed identically in the UI for consistency
+
 ---
 
-### 10. Resume Rollout (iOS Only)
+### 10. Resume Rollout (Both Platforms)
 
 Resume a paused rollout.
 
 **Endpoint:**
 ```
-PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=IOS
+PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=<ANDROID|IOS>
 ```
 
 **Query Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `platform` | string | Yes | Must be "IOS" - Required to identify which database table to update (iOS and Android submissions are in separate tables). Android does not support resume. |
+| `platform` | string | Yes | "ANDROID" or "IOS" - Required to identify which database table to update (iOS and Android submissions are in separate tables) |
 
-**Response:**
+**Response (Android):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "sub_789",
+    "status": "IN_PROGRESS",
+    "statusUpdatedAt": "2025-12-14T15:30:00Z"
+  }
+}
+```
+
+**Response (iOS):**
 ```json
 {
   "success": true,
@@ -1438,40 +1544,68 @@ PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=IOS
 }
 ```
 
+**Notes:**
+- **Android**: Status changes from `HALTED` → `IN_PROGRESS`
+- **iOS**: Status changes from `PAUSED` → `LIVE`
+
 ---
 
-### 11. Emergency Halt
+### 11. Download Submission Artifact
 
-Immediately halt a release (cannot resubmit, must create new release).
+Get a presigned URL to download the submission artifact (AAB for Android, IPA for iOS).
 
 **Endpoint:**
 ```
-PATCH /api/v1/submissions/:submissionId/rollout/halt?platform=<ANDROID|IOS>
+GET /api/v1/submissions/:submissionId/artifact?platform=<ANDROID|IOS>
 ```
 
 **Query Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `platform` | string | Yes | "ANDROID" or "IOS" - Required to identify which database table to update (iOS and Android submissions are in separate tables) |
+| `platform` | string | Yes | "ANDROID" or "IOS" - Required to identify which database table to query and which artifact to return |
 
-**Request:**
-```json
-{
-  "reason": "Critical security vulnerability"
-}
-```
+**Use Case:**
+- User clicks "Download" button on submission card
+- Client calls this API with submissionId and platform
+- Backend returns presigned S3 URL
+- Client opens presigned URL in new tab/window to trigger download
 
-**Request Fields:**
-- `reason`: `string` (required) - Reason for emergency halt
-
-**Response:**
+**Response (Android):**
 ```json
 {
   "success": true,
   "data": {
-    "id": "sub_789",
-    "status": "HALTED",
-    "statusUpdatedAt": "2025-12-14T16:00:00Z"
+    "presignedUrl": "https://s3.amazonaws.com/bucket/artifacts/app-release.aab?X-Amz-Algorithm=...",
+    "expiresAt": "2025-12-14T17:00:00Z",
+    "filename": "app-release-v2.7.0-270.aab"
+  }
+}
+```
+
+**Response (iOS):**
+```json
+{
+  "success": true,
+  "data": {
+    "presignedUrl": "https://s3.amazonaws.com/bucket/artifacts/app.ipa?X-Amz-Algorithm=...",
+    "expiresAt": "2025-12-14T17:00:00Z",
+    "filename": "app-v2.7.0.ipa"
+  }
+}
+```
+
+**Response Fields:**
+- `presignedUrl`: `string` - S3 presigned URL for downloading the artifact (valid for 1 hour)
+- `expiresAt`: `string` (ISO 8601) - When the presigned URL expires
+- `filename`: `string` - Suggested filename for download
+
+**Error Response (Artifact Not Found):**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ARTIFACT_NOT_FOUND",
+    "message": "No artifact found for this submission"
   }
 }
 ```
@@ -1519,8 +1653,8 @@ CREATE TABLE android_submission_builds (
     track VARCHAR(50) NULL,
     
     -- Status
-    status ENUM('PENDING', 'IN_REVIEW', 'APPROVED', 'LIVE', 'REJECTED', 'HALTED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
-    rolloutPercentage DECIMAL(5,2) NOT NULL DEFAULT 0.0,
+    status ENUM('PENDING', 'SUBMITTED', 'IN_PROGRESS', 'COMPLETED', 'HALTED', 'USER_ACTION_PENDING', 'SUSPENDED') NOT NULL DEFAULT 'PENDING',
+    rolloutPercentage DECIMAL(5,2) NOT NULL DEFAULT 0.01,  -- Minimum 0.01%, not 0
     
     -- Metadata
     releaseNotes TEXT NULL,
@@ -1563,7 +1697,7 @@ CREATE TABLE ios_submission_builds (
     releaseType VARCHAR(20) NOT NULL DEFAULT 'AFTER_APPROVAL',
     
     -- Status
-    status ENUM('PENDING', 'IN_REVIEW', 'APPROVED', 'LIVE', 'PAUSED', 'REJECTED', 'HALTED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
+    status ENUM('PENDING', 'IN_REVIEW', 'APPROVED', 'LIVE', 'PAUSED', 'REJECTED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
     rolloutPercentage DECIMAL(5,2) NOT NULL DEFAULT 0.0,
     
     -- Metadata

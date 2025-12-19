@@ -20,6 +20,7 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconRocket } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
+import { API_ROUTES } from '~/constants/distribution/distribution-api.constants';
 import {
     BUTTON_LABELS,
     DISTRIBUTION_UI_LABELS,
@@ -148,7 +149,7 @@ export function SubmitToStoresForm({
           JSON.stringify(androidPayload),
           {
             method: 'PUT',
-            action: `/api/v1/submissions/${androidSubmission.id}/submit?platform=ANDROID`,
+            action: API_ROUTES.submitToStore(androidSubmission.id, Platform.ANDROID),
             encType: 'application/json',
           }
         );
@@ -173,7 +174,7 @@ export function SubmitToStoresForm({
           JSON.stringify(iosPayload),
           {
             method: 'PUT',
-            action: `/api/v1/submissions/${iosSubmission.id}/submit?platform=IOS`,
+            action: API_ROUTES.submitToStore(iosSubmission.id, Platform.IOS),
             encType: 'application/json',
           }
         );

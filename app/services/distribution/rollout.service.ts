@@ -111,8 +111,7 @@ export class RolloutService {
   ): boolean {
     return (
       submission.platform === Platform.ANDROID && // Only Android supports manual rollout
-      (submission.status === SubmissionStatus.LIVE || 
-       submission.status === SubmissionStatus.APPROVED) &&
+      submission.status === SubmissionStatus.IN_PROGRESS && // Android IN_PROGRESS state
       submission.rolloutPercentage < ROLLOUT_COMPLETE_PERCENT
     );
   }

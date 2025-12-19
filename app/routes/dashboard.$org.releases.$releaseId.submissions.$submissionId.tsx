@@ -5,35 +5,35 @@
  */
 
 import {
-    Alert,
-    Badge,
-    Button,
-    Card,
-    Container,
-    Divider,
-    Group,
-    Loader,
-    Modal,
-    NumberInput,
-    Paper,
-    Progress,
-    Stack,
-    Text,
-    Textarea,
-    ThemeIcon,
-    Title
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Container,
+  Divider,
+  Group,
+  Loader,
+  Modal,
+  NumberInput,
+  Paper,
+  Progress,
+  Stack,
+  Text,
+  Textarea,
+  ThemeIcon,
+  Title
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
 import { Link, useFetcher, useLoaderData, useNavigation } from '@remix-run/react';
 import {
-    IconAlertCircle,
-    IconArrowLeft,
-    IconBrandAndroid,
-    IconBrandApple,
-    IconPlayerPause,
-    IconRotateClockwise,
-    IconX
+  IconAlertCircle,
+  IconArrowLeft,
+  IconBrandAndroid,
+  IconBrandApple,
+  IconPlayerPause,
+  IconRotateClockwise,
+  IconX
 } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import type { User } from '~/.server/services/Auth/Auth.interface';
@@ -41,13 +41,18 @@ import { DistributionService } from '~/.server/services/Distribution';
 import { RolloutService } from '~/.server/services/Rollout';
 import { CancelSubmissionDialog } from '~/components/Distribution/CancelSubmissionDialog';
 import { ResubmissionDialog } from '~/components/Distribution/ResubmissionDialog';
-import { ROLLOUT_COMPLETE_PERCENT, SUBMISSION_STATUS_LABELS } from '~/constants/distribution/distribution.constants';
+import { SUBMISSION_STATUS_LABELS } from '~/constants/distribution/distribution.constants';
 import {
-    Platform,
-    SubmissionStatus,
-    type Submission,
+  Platform,
+  SubmissionStatus,
+  type Submission,
 } from '~/types/distribution/distribution.types';
 import { authenticateActionRequest, authenticateLoaderRequest, type AuthenticatedActionFunction } from '~/utils/authenticate';
+import {
+  canCancelSubmission,
+  canResubmitSubmission,
+  canUpdateRollout
+} from '~/utils/distribution/distribution-state.utils';
 
 interface LoaderData {
   org: string;
@@ -284,8 +289,7 @@ function RolloutControlPanel({ submission }: { submission: Submission }) {
     );
   }, [targetPercent, submission.platform, fetcher]);
 
-  const canIncrease = submission.status === SubmissionStatus.LIVE && 
-                       submission.rolloutPercentage < ROLLOUT_COMPLETE_PERCENT;
+  const canIncrease = canUpdateRollout(submission.status, submission.platform);
 
   if (!canIncrease) {
     return null;
@@ -394,12 +398,20 @@ export default function SubmissionDetailPage() {
   const [cancelDialogOpened, { open: openCancelDialog, close: closeCancelDialog }] = useDisclosure(false);
   
   const isLoading = navigation.state === 'loading';
-  const canRetry = submission.status === SubmissionStatus.REJECTED;
-  const canCancel = [
-    SubmissionStatus.IN_REVIEW,
-    SubmissionStatus.APPROVED,
-  ].includes(submission.status as SubmissionStatus);
-  const canHalt = submission.status === SubmissionStatus.LIVE;
+  const isAndroid = submission.platform === Platform.ANDROID;
+  const isIOS = submission.platform === Platform.IOS;
+  
+  // Derive action availability using utility functions (clean, testable logic)
+  const canRetry = canResubmitSubmission(submission.status);
+  const canCancel = canCancelSubmission(submission.status, submission.platform);
+  
+  // Emergency Halt logic - available for active rollouts
+  const isInProgress = submission.status === SubmissionStatus.IN_PROGRESS;
+  const isLive = submission.status === SubmissionStatus.LIVE;
+  const isPaused = submission.status === SubmissionStatus.PAUSED;
+  const isHalted = submission.status === SubmissionStatus.HALTED;
+  const isComplete = submission.status === SubmissionStatus.COMPLETED || submission.rolloutPercentage === 100;
+  const canHalt = (isInProgress || isLive) && !isComplete && !isPaused && !isHalted;
 
   if (error || !submission.id) {
     return (

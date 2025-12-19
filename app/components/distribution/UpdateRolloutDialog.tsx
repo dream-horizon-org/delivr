@@ -40,8 +40,8 @@ import {
     DIALOG_ICON_SIZES,
     DIALOG_TITLES,
     DIALOG_UI,
-    MAX_ROLLOUT_PERCENTAGE,
-    MIN_ROLLOUT_PERCENTAGE,
+    MAX_ROLLOUT_PERCENT,
+    MIN_ROLLOUT_PERCENT,
     PLATFORM_LABELS,
     ROLLOUT_COMPLETE_PERCENT,
     ROLLOUT_PRESETS
@@ -109,7 +109,7 @@ export function UpdateRolloutDialog({
     setValidationError(null);
 
     const parsed = parseFloat(value);
-    if (!isNaN(parsed) && parsed >= MIN_ROLLOUT_PERCENTAGE && parsed <= MAX_ROLLOUT_PERCENTAGE) {
+    if (!isNaN(parsed) && parsed >= MIN_ROLLOUT_PERCENT && parsed <= MAX_ROLLOUT_PERCENT) {
       setRolloutPercent(parsed);
     }
   }, []);
@@ -129,8 +129,8 @@ export function UpdateRolloutDialog({
       return;
     }
 
-    if (parsed < MIN_ROLLOUT_PERCENTAGE || parsed > MAX_ROLLOUT_PERCENTAGE) {
-      setValidationError(`Rollout must be between ${MIN_ROLLOUT_PERCENTAGE}% and ${MAX_ROLLOUT_PERCENTAGE}%`);
+    if (parsed < MIN_ROLLOUT_PERCENT || parsed > MAX_ROLLOUT_PERCENT) {
+      setValidationError(`Rollout must be between ${MIN_ROLLOUT_PERCENT}% and ${MAX_ROLLOUT_PERCENT}%`);
       return;
     }
 
@@ -299,7 +299,7 @@ export function UpdateRolloutDialog({
                     value={rolloutPercentage}
                     onChange={handleSliderChange}
                     min={currentPercentage}
-                    max={MAX_ROLLOUT_PERCENTAGE}
+                    max={MAX_ROLLOUT_PERCENT}
                     step={isAndroid ? 0.1 : 1}
                     marks={ROLLOUT_PRESETS.filter(p => p > currentPercentage).map(p => ({ value: p, label: `${p}%` }))}
                     label={(value) => `${value}%`}

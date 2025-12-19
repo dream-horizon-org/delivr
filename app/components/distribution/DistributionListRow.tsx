@@ -38,12 +38,24 @@ export function DistributionListRow({
   // Get submission status color
   const getSubmissionColor = (status: SubmissionStatus): string => {
     switch (status) {
+      // Success states
+      case SubmissionStatus.IN_PROGRESS: return DS_COLORS.STATUS.SUCCESS;
+      case SubmissionStatus.COMPLETED: return DS_COLORS.STATUS.SUCCESS;
       case SubmissionStatus.LIVE: return DS_COLORS.STATUS.SUCCESS;
-      case SubmissionStatus.IN_REVIEW: return DS_COLORS.STATUS.WARNING;
       case SubmissionStatus.APPROVED: return DS_COLORS.STATUS.INFO;
-      case SubmissionStatus.REJECTED: return DS_COLORS.STATUS.ERROR;
+      
+      // In-review states
+      case SubmissionStatus.SUBMITTED: return DS_COLORS.STATUS.INFO;
+      case SubmissionStatus.IN_REVIEW: return DS_COLORS.STATUS.WARNING;
+      
+      // Paused states
       case SubmissionStatus.PAUSED: return DS_COLORS.STATUS.WARNING;
-      case SubmissionStatus.HALTED: return DS_COLORS.STATUS.ERROR;
+      case SubmissionStatus.HALTED: return DS_COLORS.STATUS.WARNING;
+      
+      // Error/terminal states
+      case SubmissionStatus.REJECTED: return DS_COLORS.STATUS.ERROR;
+      case SubmissionStatus.SUSPENDED: return DS_COLORS.STATUS.ERROR;
+      case SubmissionStatus.USER_ACTION_PENDING: return DS_COLORS.STATUS.WARNING;
       case SubmissionStatus.CANCELLED: return DS_COLORS.STATUS.MUTED;
       case SubmissionStatus.PENDING: return DS_COLORS.STATUS.MUTED;
       default: return DS_COLORS.STATUS.MUTED;
@@ -89,7 +101,7 @@ export function DistributionListRow({
                   withArrow
                   position="top"
                 >
-                  <Group gap={4} style={{ cursor: 'pointer' }}>
+                  <Group gap={DS_SPACING.XS} style={{ cursor: 'pointer' }}>
                     <Badge
                       variant="light"
                       color={statusColor}

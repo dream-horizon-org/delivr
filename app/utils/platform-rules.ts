@@ -87,12 +87,12 @@ export function getPlatformRules(
       canAdjustRollout: true,
       canSetPartialRollout: true,
       canOnlyCompleteEarly: false,
-      canPause: false,
+      canPause: true,                    // Android now supports pause/resume
       allowsDecimals: true,
-      minPercent: 0,
+      minPercent: 0.01,                  // Minimum 0.01% (not 0)
       maxPercent: 100,
       allowedSteps: [1, 5, 10, 25, 50, 100],
-      sliderStep: 0.1, // Decimals allowed (e.g., 5.5%)
+      sliderStep: 0.01, // Decimals allowed (e.g., 0.01%, 5.5%, 33.33%)
     };
   }
   
@@ -162,13 +162,8 @@ export function validateRolloutUpdate(
     };
   }
   
-  // Android: Can only increase rollout
-  if (platform === Platform.ANDROID && newPercent < currentPercent) {
-    return { 
-      valid: false, 
-      error: 'Rollout percentage can only increase, not decrease' 
-    };
-  }
+  // Android: Can increase or decrease rollout
+  // (No restriction - manual control allows both directions)
   
   // iOS Phased: Can only complete early (100%)
   if (rules.canOnlyCompleteEarly && newPercent !== 100) {

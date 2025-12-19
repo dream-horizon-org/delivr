@@ -47,14 +47,34 @@
 PENDING → PARTIALLY_SUBMITTED → SUBMITTED → PARTIALLY_RELEASED → RELEASED
 ```
 
-**Submission Lifecycle (8 States, Platform-Specific):**
+**Submission Lifecycle (Platform-Specific):**
+
+**Android:**
+```
+PENDING → SUBMITTED → IN_PROGRESS ⇄ HALTED → COMPLETED
+              ↓           ↑
+         (5 days)    (resume)
+              ↓
+    USER_ACTION_PENDING
+              ↓
+         (10 days)
+              ↓
+         SUSPENDED (terminal)
+```
+
+**iOS:**
 ```
 PENDING → IN_REVIEW → APPROVED → LIVE
              ↓            ↓          ↓
-         REJECTED     REJECTED    PAUSED (iOS phased only)
-             ↓            ↓          ↓
-         CANCELLED    CANCELLED   HALTED (emergency stop)
+         REJECTED     REJECTED    PAUSED (phased only)
+             ↓            ↓          
+         CANCELLED    CANCELLED
 ```
+
+**UI Display Notes:**
+- Android `HALTED` and iOS `PAUSED` both display as **"Rollout Paused"**
+- Android supports Pause/Resume actions (same as iOS)
+- Android does NOT support Cancel action
 
 ### 3. Auto-Created Submissions (CRITICAL!)
 
@@ -711,9 +731,9 @@ const distribution = await DistributionService.getDistributionByRelease(releaseI
 | `REJECTED` | 🔴 Rejected | Hidden | ✅ "Fix & Re-Submit" (creates NEW submission) |
 | `APPROVED` | 🟢 Approved | 0% | ✅ Start Rollout, Halt, History |
 | `LIVE` (25%) | 🟢 Live | 25% (animated) | ✅ Update, Pause (iOS phased only), Halt, History |
-| `PAUSED` | 🟠 Paused | Current % (static) | ✅ Resume, Halt, History |
+| `PAUSED` | 🟠 Paused | Current % (static) | ✅ Resume, Halt, History | 🚨 **Must RESUME before updating rollout %** |
+| `HALTED` | 🔴 Halted | Current % (frozen) | ✅ Resume (Android), History | 🚨 **Must RESUME before updating rollout %** |
 | `LIVE` (100%) | 🔵 Live | 100% (complete) | ✅ History only |
-| `HALTED` | 🔴 Halted | Current % (frozen) | ✅ History only (terminal state) |
 
 **Key Differences**:
 - ❌ **Release Page**: Read-only status display + link to distribution management
@@ -1094,9 +1114,11 @@ async function handleSubmit(formData: SubmitFormData) {
 
 ### 6.2 ReSubmissionDialog (Rejection Recovery)
 
-**Trigger**: Click "Fix & Re-Submit" on rejected submission
+**Triggers**:
+- **iOS**: Click "Fix & Re-Submit" on `REJECTED` or `CANCELLED` submission
+- **Android**: Click "Resubmit" on `USER_ACTION_PENDING` submission (after 5-day status polling failure)
 
-**Important**: Creates a **NEW submission** with **NEW submissionId**
+**Important**: Creates a **NEW submission** with **NEW submissionId**. Old submission marked as `SUSPENDED` (Android) or inactive (iOS)
 
 **Form Fields** (Pre-filled from previous submission):
 
@@ -1130,7 +1152,11 @@ type ReSubmissionFormData = {
 **Pre-fill Logic**:
 ```typescript
 // When dialog opens, pre-fill with previous submission data
-const previousSubmission = submissions.find(s => s.status === 'REJECTED');
+const previousSubmission = submissions.find(s => 
+  s.status === 'REJECTED' || 
+  s.status === 'CANCELLED' || 
+  s.status === 'USER_ACTION_PENDING'
+);
 
 const initialValues = {
   platform: previousSubmission.platform,
@@ -1151,6 +1177,11 @@ const initialValues = {
   } : undefined,
 };
 ```
+
+**Android USER_ACTION_PENDING Note**:
+- Triggered after backend polls Play Store for 5 days without status update
+- Shows warning: "We couldn't verify the submission status. Please check Play Store Console and resubmit if needed."
+- If user doesn't act within 10 more days, submission becomes `SUSPENDED` (terminal)
 
 **Submit Flow**:
 ```typescript
@@ -1186,11 +1217,11 @@ async function handleReSubmit(formData: ReSubmissionFormData) {
 │                                                              │
 │  Quick Presets: [1%] [5%] [10%] [25%] [50%] [100%]         │
 │                                                              │
-│  Custom (supports decimals):                                 │
-│  [Slider: 25.0 → 100.0]                                     │
+│  Custom (supports decimals, min 0.01%):                      │
+│  [Slider: 0.01 → 100.0]                                     │
 │  Input: [27.5]%                                              │
 │                                                              │
-│  [Update Rollout] [Emergency Halt]                           │
+│  [Update Rollout] [Pause Rollout]                            │
 │                                                              │
 │  Note: Can rollout to any % (supports decimals)            │
 └─────────────────────────────────────────────────────────────┘
@@ -1244,29 +1275,51 @@ async function handleReSubmit(formData: ReSubmissionFormData) {
 
 | Submission Status | View Status | Actions Available | Notes |
 |-------------------|-------------|-------------------|-------|
+| Status | View | Actions | Notes |
+|--------|------|---------|-------|
 | `PENDING` | ✅ | ✅ Submit to Stores | Can submit PENDING submissions |
-| `IN_REVIEW` | ✅ | ❌ None | Link to Distribution Management |
-| `REJECTED` | ✅ | ❌ None | Link to Distribution Management |
-| `APPROVED` or `LIVE` | ✅ | ❌ None | Link to Distribution Management |
-| `PAUSED` | ✅ | ❌ None | Link to Distribution Management |
-| `LIVE` (100%) | ✅ | ❌ None | Read-only |
+| Android: `SUBMITTED`, `IN_PROGRESS`, `HALTED`, `COMPLETED` | ✅ | ❌ None | Link to Distribution Management |
+| Android: `USER_ACTION_PENDING`, `SUSPENDED` | ✅ | ❌ None | Link to Distribution Management |
+| iOS: `IN_REVIEW`, `APPROVED`, `LIVE`, `PAUSED` | ✅ | ❌ None | Link to Distribution Management |
+| iOS: `REJECTED`, `CANCELLED` | ✅ | ❌ None | Link to Distribution Management |
 
 **Purpose**: Submit once + Monitor status only
 
 #### Distribution Management (FULL)
 
-| Status | View | Submit | Resubmit | Update Rollout | Pause | Resume | Halt | History |
-|--------|------|--------|----------|----------------|-------|--------|------|---------|
-| `PENDING` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| `IN_REVIEW` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| `REJECTED` | ✅ | ❌ | ✅ (NEW) | ❌ | ❌ | ❌ | ❌ | ✅ |
-| `APPROVED` | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ |
-| `LIVE` (active) | ✅ | ❌ | ❌ | ✅ | ✅* | ❌ | ✅ | ✅ |
-| `PAUSED` | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| `LIVE` (100%) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| `HALTED` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+**Android:**
 
-**\* Pause**: Only available for iOS phased release
+| Status | View | Submit | Resubmit | Update Rollout | Pause | Resume | History |
+|--------|------|--------|----------|----------------|-------|--------|---------|
+| `PENDING` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `SUBMITTED` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `IN_PROGRESS` | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
+| `HALTED` | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| `COMPLETED` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `USER_ACTION_PENDING` | ✅ | ❌ | ✅ (NEW) | ❌ | ❌ | ❌ | ✅ |
+| `SUSPENDED` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+
+**iOS:**
+
+| Status | View | Submit | Resubmit | Update Rollout | Pause | Resume | History |
+|--------|------|--------|----------|----------------|-------|--------|---------|
+| `PENDING` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `IN_REVIEW` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `REJECTED` | ✅ | ❌ | ✅ (NEW) | ❌ | ❌ | ❌ | ✅ |
+| `CANCELLED` | ✅ | ❌ | ✅ (NEW) | ❌ | ❌ | ❌ | ✅ |
+| `APPROVED` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `LIVE` (phased) | ✅ | ❌ | ❌ | ✅* | ✅ | ❌ | ✅ |
+| `PAUSED` (phased) | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| `LIVE` (100%) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+
+**Notes:**
+- **Update Rollout**: 
+  - Android: Any % (0.01-100, decimals supported) when IN_PROGRESS
+  - iOS Phased: Only 100% when LIVE (to complete early)
+- **Pause/Resume**: 
+  - Android: IN_PROGRESS ⇄ HALTED (displayed as "Rollout Paused")
+  - iOS: LIVE ⇄ PAUSED (displayed as "Rollout Paused")
+- **Cancel**: iOS only (not supported for Android)
 
 **Purpose**: Complete post-submission management
 
@@ -1331,19 +1384,31 @@ async function handleReSubmit(formData: ReSubmissionFormData) {
 ### 9.1 Android (Play Store)
 
 **Rollout Control**:
-- ✅ Can rollout to **any percentage** (0-100)
-- ✅ Supports **decimal values** (e.g., 5.5, 27.3, 99.9)
+- ✅ Can rollout to **any percentage** (0.01-100)
+- ✅ Supports **decimal values** (e.g., 0.01, 5.5, 15.5, 33.33, 99.9)
 - ✅ Manual control of rollout percentage
 - ✅ Can increase or decrease
-- ❌ Cannot pause (only halt for emergencies)
+- ✅ **Can Pause/Resume** (status: IN_PROGRESS ⇄ HALTED, displayed as "Rollout Paused")
+- ⚠️ **Minimum**: 0.01% (not zero)
 
 **Typical Progression**: 5% → 10% → 25% → 50% → 100%
+
+**Managed Publishing Requirement**:
+- ⚠️ **Managed Publishing must be OFF** in Play Store settings for rollout control and pause/resume to work
+- Show recommendation banner during submission
 
 **API**:
 ```typescript
 // Update rollout to any %
 PATCH /api/v1/submissions/:submissionId/rollout?platform=ANDROID
-{ rolloutPercentage: 27.3 }  // Supports decimals
+{ rolloutPercentage: 27.3 }  // Supports decimals (min: 0.01)
+
+// Pause rollout
+PATCH /api/v1/submissions/:submissionId/rollout/pause?platform=ANDROID
+{ reason: "Monitoring crash reports" }
+
+// Resume rollout
+PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=ANDROID
 ```
 
 ### 9.2 iOS - Phased Release
@@ -1373,8 +1438,7 @@ PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=IOS
 **Rollout Control**:
 - ✅ **Always 100%** immediately upon release
 - ❌ No rollout endpoint needed (already at 100%)
-- ❌ Cannot pause
-- ✅ Can halt (emergency only)
+- ❌ Cannot pause (not phased release)
 
 **API**: No rollout API calls (always 100%)
 
@@ -1462,10 +1526,11 @@ PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=IOS
 PATCH /api/v1/submissions/:submissionId/rollout/halt?platform=<ANDROID|IOS>
 ```
 
-### Cancel Submission
+### Cancel Submission (iOS Only)
 ```
-PATCH /api/v1/submissions/:submissionId/cancel?platform=<ANDROID|IOS>
+PATCH /api/v1/submissions/:submissionId/cancel?platform=IOS
 ```
+**Note**: Android does not support cancellation
 
 ### Get Distribution
 ```

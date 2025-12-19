@@ -30,6 +30,9 @@ import {
   IconX
 } from '@tabler/icons-react';
 import {
+  API_ROUTES
+} from '~/constants/distribution/distribution-api.constants';
+import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
@@ -42,13 +45,20 @@ import {
 } from '~/constants/distribution/distribution.constants';
 import { Platform, type Submission, SubmissionStatus } from '~/types/distribution/distribution.types';
 import { getPlatformIcon } from '~/utils/distribution/distribution-icons.utils';
+import {
+  canCancelSubmission,
+  canPauseSubmission,
+  canResubmitSubmission as canResubmitUtil,
+  canResumeSubmission,
+  canUpdateRollout as canUpdateRolloutUtil
+} from '~/utils/distribution/distribution-state.utils';
 import { formatDateTime, formatStatus } from '~/utils/distribution/distribution-ui.utils';
 
 const { LABELS } = DISTRIBUTION_MANAGEMENT_UI;
 
 export interface LatestSubmissionCardProps {
   submission: Submission;
-  org: string;
+  tenantId: string;
   onPromote?: () => void;
   onUpdateRollout?: () => void;
   onPause?: () => void;
@@ -60,7 +70,7 @@ export interface LatestSubmissionCardProps {
 
 export function LatestSubmissionCard({
   submission,
-  org,
+  tenantId,
   onPromote,
   onUpdateRollout,
   onPause,
@@ -72,54 +82,64 @@ export function LatestSubmissionCard({
   const isAndroid = submission.platform === Platform.ANDROID;
   const isIOS = submission.platform === Platform.IOS;
 
-  // Status checks
+  // Status checks (Only statuses actually used in this component)
   const isPending = submission.status === SubmissionStatus.PENDING;
-  const isInReview = submission.status === SubmissionStatus.IN_REVIEW;
-  const isApproved = submission.status === SubmissionStatus.APPROVED;
+  const isInProgress = submission.status === SubmissionStatus.IN_PROGRESS;
+  const isCompleted = submission.status === SubmissionStatus.COMPLETED;
+  const isHalted = submission.status === SubmissionStatus.HALTED; // Android paused state
   const isLive = submission.status === SubmissionStatus.LIVE;
-  const isPaused = submission.status === SubmissionStatus.PAUSED;
-  const isRejected = submission.status === SubmissionStatus.REJECTED;
-  const isHalted = submission.status === SubmissionStatus.HALTED;
-  const isCancelled = submission.status === SubmissionStatus.CANCELLED;
+  const isPaused = submission.status === SubmissionStatus.PAUSED; // iOS paused state
 
   // Rollout checks
   const rolloutPercentage = submission.rolloutPercentage;
-  const isComplete = rolloutPercentage === ROLLOUT_COMPLETE_PERCENT;
-  const isPartialRollout = isLive && !isComplete;
+  const isComplete = 
+    isCompleted ||  // Android: COMPLETED status
+    rolloutPercentage === ROLLOUT_COMPLETE_PERCENT;
 
   // Platform-specific checks
   const phasedRelease = isIOS && 'phasedRelease' in submission ? submission.phasedRelease : false;
   
-  // Action availability per submission lifecycle rules:
-  // Submit: PENDING → IN_REVIEW (handled in SubmitToStoresForm)
-  // Cancel: IN_REVIEW → CANCELLED
-  // Resubmit: REJECTED or CANCELLED → new submission (IN_REVIEW)
-  // Pause: LIVE → PAUSED (iOS only, phasedRelease=true)
-  // Resume: PAUSED → LIVE (iOS only)
-  // Halt: LIVE → HALTED (terminal state, ANDROID ONLY per backend team)
-  //
-  // ✅ iOS Behavior Matrix (see platform-rules.ts and LIVE_STATE_VERIFICATION.md):
-  // ┌───────────────┬───────────┬──────────────┬────────────┐
-  // │ phasedRelease │ Rollout % │ Can Update?  │ Can Pause? │
-  // ├───────────────┼───────────┼──────────────┼────────────┤
-  // │ true          │ 1-99%     │ ✅ Yes       │ ✅ Yes     │
-  // │ true          │ 100%      │ ❌ No        │ ❌ No      │
-  // │ false         │ 100%      │ ❌ No        │ ❌ No      │
-  // │ false         │ <100%     │ ❌ INVALID   │ ❌ INVALID │
-  // └───────────────┴───────────┴──────────────┴────────────┘
-  //
-  // Update Rollout:
-  //   - Android: Can update to any percentage until 100%
-  //   - iOS: Can ONLY update if phasedRelease=true AND not complete (to complete early to 100%)
-  //          If phasedRelease=false, rollout is not controllable (immediate 100%)
-  const canUpdateRollout = isLive && !isComplete && (
-    isAndroid || (isIOS && phasedRelease)
-  );
-  const canPause = isIOS && isLive && !isComplete && phasedRelease && !isPaused; // Can't pause if already at 100%
-  const canResume = isIOS && isPaused;
-  const canHalt = isAndroid && isLive; // ANDROID ONLY: iOS does not support halt
-  const canCancel = isInReview;
-  const canResubmit = isRejected || isCancelled;
+  // Derive action availability using utility functions (clean, testable logic)
+  const canUpdateRollout = canUpdateRolloutUtil(submission.status, submission.platform);
+  const canPause = canPauseSubmission(submission.status, submission.platform);
+  const canResume = canResumeSubmission(submission.status, submission.platform);
+  const canCancel = canCancelSubmission(submission.status, submission.platform);
+  const canResubmit = canResubmitUtil(submission.status);
+  
+  // Note: Emergency Halt is always available for active rollouts (not status-dependent)
+  const canHalt = (isInProgress || isLive) && !isComplete && !isPaused && !isHalted;
+
+  // UI Display Logic (No Logic in JSX Rule - extract complex expressions)
+  const showPausedWarning = isPaused || isHalted;
+  const showRolloutProgress = isInProgress || isCompleted || isHalted || isLive || isPaused;
+  const showPhasedRolloutNote = phasedRelease && !isComplete;
+  const showStatusUpdated = !isPending;
+  const showAndroidRolloutDetails = isAndroid && !isPending;
+  const showIOSRolloutPercentage = isIOS && (isLive || isPaused);
+  const showIOSPhasedRelease = isIOS && !isPending && 'phasedRelease' in submission && submission.phasedRelease !== null;
+  const showIOSResetRating = isIOS && !isPending && 'resetRating' in submission && submission.resetRating !== null;
+  
+  // Styling Logic (extract ternary expressions)
+  const rolloutProgressColor = isComplete ? DS_COLORS.STATUS.SUCCESS : DS_COLORS.ACTION.PRIMARY;
+  const progressBarAnimated = !isComplete && !isHalted && !isPaused;
+
+  // Artifact download handler - uses centralized API route builder
+  const handleDownloadArtifact = async () => {
+    try {
+      const apiUrl = API_ROUTES.getArtifactDownloadUrl(submission.id, submission.platform, tenantId);
+      const response = await fetch(apiUrl);
+      
+      if (!response.ok) throw new Error('Failed to get download URL');
+      
+      const data = await response.json();
+      if (data.success && data.data.presignedUrl) {
+        window.open(data.data.presignedUrl, '_blank');
+      }
+    } catch (error) {
+      console.error('Failed to download artifact:', error);
+      alert('Failed to download artifact. Please try again.');
+    }
+  };
 
   return (
     <Card shadow="md" padding={DS_SPACING.XL} radius={DS_SPACING.BORDER_RADIUS} withBorder className="bg-gradient-to-br from-white to-gray-50">
@@ -131,7 +151,7 @@ export function LatestSubmissionCard({
               {getPlatformIcon(submission.platform, 24)}
             </div>
             <div>
-              <Group gap={DS_SPACING.XS} mb={4} align="baseline">
+              <Group gap={DS_SPACING.XS} mb={DS_SPACING.XS} align="baseline">
                 <Title order={3} className="text-gray-800">
                   {submission.version}
                 </Title>
@@ -186,27 +206,29 @@ export function LatestSubmissionCard({
 
         <Divider />
 
-        {/* iOS Phased Release Pause Warning */}
-        {isPaused && isIOS && phasedRelease && (
+        {/* Paused State Warning (Both Platforms) */}
+        {showPausedWarning && (
           <Alert color={DS_COLORS.STATUS.WARNING} variant="light" icon={<IconInfoCircle size={16} />}>
             <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} mb={DS_SPACING.XS}>
-              {DIALOG_UI.PAUSE.WARNING_LINE1}
+              {isAndroid && 'Android rollout paused. Users at current percentage.'}
+              {isIOS && DIALOG_UI.PAUSE.WARNING_LINE1}
             </Text>
             <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
-              {DIALOG_UI.PAUSE.WARNING_LINE2}
+              {isAndroid && 'Click Resume to continue rollout.'}
+              {isIOS && DIALOG_UI.PAUSE.WARNING_LINE2}
             </Text>
           </Alert>
         )}
 
         {/* Rollout Progress */}
-        {(isLive || isPaused) && (
+        {showRolloutProgress && (
           <Paper p={DS_SPACING.MD} radius={DS_SPACING.BORDER_RADIUS} withBorder className="bg-gradient-to-br from-cyan-50 to-blue-50">
             <Stack gap={DS_SPACING.XS}>
               <Group justify="space-between">
-                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>
                   {LABELS.ROLLOUT_PROGRESS}
                 </Text>
-                <Text size={DS_TYPOGRAPHY.SIZE.LG} fw={DS_TYPOGRAPHY.WEIGHT.BOLD} c={isComplete ? DS_COLORS.STATUS.SUCCESS : DS_COLORS.ACTION.PRIMARY}>
+                <Text size={DS_TYPOGRAPHY.SIZE.LG} fw={DS_TYPOGRAPHY.WEIGHT.BOLD} c={rolloutProgressColor}>
                   {rolloutPercentage}%
                 </Text>
               </Group>
@@ -214,11 +236,11 @@ export function LatestSubmissionCard({
                 value={rolloutPercentage}
                 size="lg"
                 radius={DS_SPACING.BORDER_RADIUS}
-                color={isComplete ? DS_COLORS.STATUS.SUCCESS : DS_COLORS.ACTION.PRIMARY}
+                color={rolloutProgressColor}
                 striped={!isComplete}
-                animated={!isComplete}
+                animated={progressBarAnimated}
               />
-              {phasedRelease && !isComplete && (
+              {showPhasedRolloutNote && (
                 <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} className="text-center mt-1">
                   {LABELS.IOS_PHASED_ROLLOUT_NOTE}
                 </Text>
@@ -231,7 +253,7 @@ export function LatestSubmissionCard({
         <div className="grid grid-cols-2 gap-4">
           {/* Created At (always show) */}
           <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
-            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={DS_SPACING.XS}>
               {LABELS.CREATED_AT}
             </Text>
             <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
@@ -242,7 +264,7 @@ export function LatestSubmissionCard({
           {/* Submitted At (only show if actually submitted) */}
           {submission.submittedAt && (
             <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
-              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={DS_SPACING.XS}>
                 {LABELS.SUBMITTED_AT}
               </Text>
               <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
@@ -254,7 +276,7 @@ export function LatestSubmissionCard({
           {/* Submitted By */}
           {submission.submittedBy && (
             <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
-              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={DS_SPACING.XS}>
                 {LABELS.SUBMITTED_BY}
               </Text>
               <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} className="truncate">
@@ -264,9 +286,9 @@ export function LatestSubmissionCard({
           )}
 
           {/* Status Updated (only show for non-PENDING) */}
-          {!isPending && (
+          {showStatusUpdated && (
             <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
-              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={DS_SPACING.XS}>
                 {LABELS.STATUS_UPDATED}
               </Text>
               <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
@@ -276,11 +298,11 @@ export function LatestSubmissionCard({
           )}
 
           {/* === Android-Specific Fields === */}
-          {isAndroid && !isPending && (
+          {showAndroidRolloutDetails && (
             <>
               {/* Rollout Percentage */}
               <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
-                <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
+                <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={DS_SPACING.XS}>
                   {LABELS.ROLLOUT_PROGRESS}
                 </Text>
                 <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
@@ -291,7 +313,7 @@ export function LatestSubmissionCard({
               {/* In-App Update Priority */}
               {'inAppUpdatePriority' in submission && (
                 <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
-                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={DS_SPACING.XS}>
                     {LABELS.IN_APP_PRIORITY}
                   </Text>
                   <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
@@ -306,9 +328,9 @@ export function LatestSubmissionCard({
           {isIOS && (
             <>
               {/* Rollout Percentage (show for LIVE/PAUSED statuses) */}
-              {(isLive || isPaused) && (
+              {showIOSRolloutPercentage && (
                 <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
-                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={DS_SPACING.XS}>
                     {LABELS.ROLLOUT_PROGRESS}
                   </Text>
                   <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
@@ -320,7 +342,7 @@ export function LatestSubmissionCard({
               {/* Release Type (always "After Approval" - even for PENDING) */}
               {'releaseType' in submission && (
                 <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
-                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={DS_SPACING.XS}>
                     {LABELS.RELEASE_TYPE}
                   </Text>
                   <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
@@ -330,9 +352,9 @@ export function LatestSubmissionCard({
               )}
 
               {/* Phased Release (only show after submission, when user has chosen) */}
-              {!isPending && 'phasedRelease' in submission && submission.phasedRelease !== null && (
+              {showIOSPhasedRelease && (
                 <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
-                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={DS_SPACING.XS}>
                     Phased Release
                   </Text>
                   <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
@@ -342,9 +364,9 @@ export function LatestSubmissionCard({
               )}
 
               {/* Reset Rating (only show after submission, when user has chosen) */}
-              {!isPending && 'resetRating' in submission && submission.resetRating !== null && (
+              {showIOSResetRating && (
                 <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
-                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={DS_SPACING.XS}>
                     Reset Rating
                   </Text>
                   <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
@@ -369,9 +391,7 @@ export function LatestSubmissionCard({
                         {LABELS.AAB_FILE}
                       </Text>
                       <Button
-                        component="a"
-                        href={submission.artifact.artifactPath}
-                        target="_blank"
+                        onClick={handleDownloadArtifact}
                         variant="light"
                         size="xs"
                         leftSection={<IconDownload size={14} />}

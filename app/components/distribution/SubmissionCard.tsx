@@ -11,55 +11,65 @@
 
 import { Badge, Button, Card, Group, Stack, Text, ThemeIcon, UnstyledButton } from '@mantine/core';
 import {
-  IconBrandAndroid,
-  IconBrandApple,
-  IconCheck,
-  IconChevronRight,
-  IconClock,
-  IconHistory,
-  IconPlayerPause,
-  IconX,
+    IconBrandAndroid,
+    IconBrandApple,
+    IconCheck,
+    IconChevronRight,
+    IconClock,
+    IconHistory,
+    IconPlayerPause,
+    IconX,
 } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import {
-  DIST_BADGE_PROPS,
-  DIST_BUTTON_PROPS,
-  DIST_CARD_PROPS,
-  DIST_FONT_WEIGHTS,
-  DIST_ICON_PROPS,
-  DIST_ICON_SIZES,
-  DS_COLORS,
-  DS_SPACING,
-  DS_TYPOGRAPHY,
+    DIST_BADGE_PROPS,
+    DIST_BUTTON_PROPS,
+    DIST_CARD_PROPS,
+    DIST_FONT_WEIGHTS,
+    DIST_ICON_PROPS,
+    DIST_ICON_SIZES,
+    DS_COLORS,
+    DS_SPACING,
+    DS_TYPOGRAPHY,
 } from '~/constants/distribution/distribution-design.constants';
+import { SUBMISSION_STATUS_CONFIG } from '~/constants/distribution/distribution-status-config.constants';
 import {
-  DISTRIBUTION_UI_LABELS,
-  PLATFORM_LABELS,
-  STORE_NAMES,
-  SUBMISSION_STATUS_COLORS,
-  SUBMISSION_STATUS_LABELS,
-  SUBMISSION_TIMELINE_LABEL_WIDTH,
+    DISTRIBUTION_UI_LABELS,
+    PLATFORM_LABELS,
+    STORE_NAMES,
+    SUBMISSION_STATUS_COLORS,
+    SUBMISSION_STATUS_LABELS,
+    SUBMISSION_TIMELINE_LABEL_WIDTH,
 } from '~/constants/distribution/distribution.constants';
+import type { SubmissionCardProps } from '~/types/distribution/distribution-component.types';
 import { Platform, SubmissionStatus } from '~/types/distribution/distribution.types';
 import { getRolloutDisplayStatus } from '~/utils/distribution';
+import { isSubmissionInErrorState } from '~/utils/distribution/distribution-state.utils';
 import { RolloutProgressBar } from './RolloutProgressBar';
 import { SubmissionHistoryPanel, type HistoryEvent } from './SubmissionHistoryPanel';
-import type { SubmissionCardProps } from '~/types/distribution/distribution-component.types';
 
 // ============================================================================
 // LOCAL HELPER - Returns JSX (must stay in component file)
 // ============================================================================
 
+/**
+ * Get status icon by directly querying SSOT configuration flags.
+ * Returns JSX so must stay in component file.
+ */
 function getSubmissionStatusIcon(status: SubmissionStatus) {
-  if (status === SubmissionStatus.LIVE || status === SubmissionStatus.APPROVED) {
+  const config = SUBMISSION_STATUS_CONFIG[status];
+  
+  // Directly query SSOT flags instead of intermediate category
+  if (config.flags.isActive || status === SubmissionStatus.APPROVED || status === SubmissionStatus.COMPLETED) {
     return <IconCheck size={DIST_ICON_SIZES.SM} />;
   }
-  if (status === SubmissionStatus.PAUSED) {
+  if (config.flags.isPaused) {
     return <IconPlayerPause size={DIST_ICON_SIZES.SM} />;
   }
-  if (status === SubmissionStatus.REJECTED || status === SubmissionStatus.HALTED || status === SubmissionStatus.CANCELLED) {
+  if (config.flags.isError || config.flags.isTerminal) {
     return <IconX size={DIST_ICON_SIZES.SM} />;
   }
+  // Default: pending/reviewing states
   return <IconClock size={DIST_ICON_SIZES.SM} />;
 }
 
@@ -137,7 +147,9 @@ export function SubmissionCard({
 
   const [showHistory, setShowHistory] = useState(false);
 
-  const isRejected = status === SubmissionStatus.REJECTED;
+  // Query SSOT configuration instead of hardcoded status checks
+  const isRejected = isSubmissionInErrorState(status);
+  
   const storeName = STORE_NAMES[platform];
   const rolloutStatus = useMemo(
     () => getRolloutDisplayStatus(rolloutPercentage, status),
@@ -154,7 +166,7 @@ export function SubmissionCard({
       action: historyItem.action,  // PAUSED, RESUMED, CANCELLED, HALTED
       actor: historyItem.createdBy,  // Email of user who performed the action
       actorType: 'user' as const,
-      metadata: historyItem.reason ? { reason: historyItem.reason } : undefined,
+      ...(historyItem.reason && { metadata: { reason: historyItem.reason } }),
     }));
   }, [actionHistory]);
 

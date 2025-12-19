@@ -6,49 +6,52 @@
 
 ---
 
-## 🤖 Android LIVE States
+## 🤖 Android Rollout States
 
-### Scenario 1: **4.1.0 - Android LIVE at 5%**
+### Scenario 1: **4.1.0 - Android IN_PROGRESS at 5%**
 ```
 Distribution: dist_live_001
-Status: RELEASED (single platform, LIVE = released)
+Status: RELEASED (single platform, IN_PROGRESS = released)
 
 Expected UI:
 ┌─────────────────────────────────────┐
 │  🤖  4.1.0  Version Code: 401       │
-│      [LIVE]                         │
+│      [IN_PROGRESS]                  │
 ├─────────────────────────────────────┤
 │ ROLLOUT PROGRESS    | 5%            │
 │ IN-APP PRIORITY     | 1 / 5         │
 ├─────────────────────────────────────┤
-│ [Update Rollout]  [Emergency Halt]  │  ← Both buttons shown
+│ [Update Rollout]  [Pause Rollout]   │  ← Both buttons shown
 └─────────────────────────────────────┘
 
 Update Rollout Dialog:
-- Slider: 5% to 100%
-- Presets: [25%] [50%] [75%] [100%]
-- Custom input: supports decimals (e.g., 12.5%)
+- Slider: 0.01% to 100% (min 0.01%)
+- Presets: [5%] [10%] [25%] [50%] [100%]
+- Custom input: supports decimals (e.g., 12.5%, 33.33%)
+
+Managed Publishing Warning:
+- ⚠️ "For rollout control to work, Managed Publishing must be OFF in Play Store settings"
 ```
 
-### Scenario 2: **4.2.0 - Android LIVE at 25%**
+### Scenario 2: **4.2.0 - Android IN_PROGRESS at 25%**
 ```
 Expected: Same as above, but rollout at 25%
-Actions: Can update to 26%-100%, can halt
+Actions: Can update to 0.01%-100%, can pause
 ```
 
-### Scenario 3: **4.3.0 - Android LIVE at 50%**
+### Scenario 3: **4.3.0 - Android IN_PROGRESS at 50%**
 ```
 Expected: Same as above, but rollout at 50%
-Actions: Can update to 51%-100%, can halt
+Actions: Can update to 0.01%-100%, can pause
 ```
 
-### Scenario 4: **4.4.0 - Android LIVE at 75.5%** (Decimal!)
+### Scenario 4: **4.4.0 - Android IN_PROGRESS at 75.5%** (Decimal!)
 ```
 Expected: Rollout shows 75.5% (supports decimals)
-Actions: Can update to 75.6%-100%, can halt
+Actions: Can update to 0.01%-100%, can pause
 ```
 
-### Scenario 5: **4.5.0 - Android LIVE at 100%**
+### Scenario 5: **4.5.0 - Android COMPLETED at 100%**
 ```
 Distribution: dist_live_005
 Status: RELEASED
@@ -56,20 +59,20 @@ Status: RELEASED
 Expected UI:
 ┌─────────────────────────────────────┐
 │  🤖  4.5.0  Version Code: 405       │
-│      [LIVE]                         │
+│      [COMPLETED]                    │
 ├─────────────────────────────────────┤
 │ ROLLOUT PROGRESS    | 100%          │  ← Complete
 │ IN-APP PRIORITY     | 5 / 5         │
 ├─────────────────────────────────────┤
-│ [Emergency Halt]                    │  ← Only Halt available (no Update)
+│ [NO BUTTONS]                        │  ← Terminal state (complete)
 └─────────────────────────────────────┘
 
 Note: 
-- ❌ Update Rollout button HIDDEN (isComplete)
-- ✅ Emergency Halt still available
+- ❌ No actions available (terminal state)
+- ✅ Rollout complete at 100%
 ```
 
-### Scenario 15: **4.15.0 - Android HALTED at 35%**
+### Scenario 15: **4.15.0 - Android HALTED at 35%** (Rollout Paused)
 ```
 Distribution: dist_live_015
 Status: RELEASED
@@ -77,24 +80,105 @@ Status: RELEASED
 Expected UI:
 ┌─────────────────────────────────────┐
 │  🤖  4.15.0  Version Code: 415      │
-│      [HALTED]                       │
+│      [HALTED] "Rollout Paused"      │  ← Displayed as "Rollout Paused"
 ├─────────────────────────────────────┤
-│ ROLLOUT PROGRESS    | 35%           │  ← Frozen
+│ ROLLOUT PROGRESS    | 35%           │  ← Paused at 35%
 │ IN-APP PRIORITY     | 3 / 5         │
+├─────────────────────────────────────┤
+│ [Resume Rollout]                    │  ← Can resume
+│ 🚨 Update Rollout BLOCKED           │  ← Cannot update while HALTED
+└─────────────────────────────────────┘
+
+Note: 
+- ✅ Resume button available (resumable state)
+- ✅ Rollout paused at 35%
+- ✅ Action History shows "PAUSED" action with reason
+- ⚠️ Displayed as "Rollout Paused" in UI (not "HALTED")
+- 🚨 **CRITICAL**: Cannot update rollout percentage while HALTED
+- 🚨 **Must RESUME first**, then can update rollout
+- ❌ Update Rollout slider/button disabled or hidden
+- ⚠️ Shows warning: "Must resume rollout before updating percentage"
+```
+
+### Scenario 16: **4.16.0 - Android SUBMITTED** (Awaiting Review)
+```
+Distribution: dist_live_016
+Status: PARTIALLY_RELEASED (or SUBMITTED if single platform)
+
+Expected UI:
+┌─────────────────────────────────────┐
+│  🤖  4.16.0  Version Code: 416      │
+│      [SUBMITTED]                    │
+├─────────────────────────────────────┤
+│ STATUS MESSAGE:                     │
+│ "Submitted to Play Store, awaiting  │
+│  review and processing..."          │
+├─────────────────────────────────────┤
+│ [NO BUTTONS]                        │  ← Awaiting store
+└─────────────────────────────────────┘
+
+Note:
+- ⏳ Backend polls Play Store daily for 5 days
+- ⚠️ If status not IN_PROGRESS after 5 days → USER_ACTION_PENDING
+```
+
+### Scenario 17: **4.17.0 - Android USER_ACTION_PENDING** (Status Verification Failed)
+```
+Distribution: dist_live_017
+Status: PARTIALLY_RELEASED (or SUBMITTED)
+
+Expected UI:
+┌─────────────────────────────────────┐
+│  🤖  4.17.0  Version Code: 417      │
+│      [USER_ACTION_PENDING] ⚠️       │
+├─────────────────────────────────────┤
+│ ⚠️ WARNING:                         │
+│ "We couldn't verify the submission  │
+│  status. Please check Play Store    │
+│  Console and resubmit if needed."   │
+│                                     │
+│ "If no action taken within 10 days, │
+│  this submission will be suspended."│
+├─────────────────────────────────────┤
+│ [Resubmit]                          │  ← Opens ResubmissionDialog
+└─────────────────────────────────────┘
+
+Note:
+- ✅ Resubmit button available
+- ⚠️ Creates NEW submission, marks old as SUSPENDED
+- ⏱️ 10-day countdown to SUSPENDED
+```
+
+### Scenario 18: **4.18.0 - Android SUSPENDED** (Terminal)
+```
+Distribution: dist_live_018
+Status: N/A (submission inactive)
+
+Expected UI:
+┌─────────────────────────────────────┐
+│  🤖  4.18.0  Version Code: 418      │
+│      [SUSPENDED] 🚫                 │
+├─────────────────────────────────────┤
+│ STATUS MESSAGE:                     │
+│ "Submission suspended due to no     │
+│  action within timeframe. This does │
+│  not affect Play Store status."     │
 ├─────────────────────────────────────┤
 │ [NO BUTTONS]                        │  ← Terminal state
 └─────────────────────────────────────┘
 
-Note: 
-- ❌ No actions available (terminal state)
-- ✅ Rollout frozen at 35%
-- ✅ Action History shows "HALTED" action
+Note:
+- ❌ No actions available (terminal)
+- ℹ️ Play Store status unaffected
+- ✅ History shows suspension timestamp
 ```
 
 ### Scenario 19-20: **Decimal Rollouts**
 ```
-4.19.0: 12.5% rollout
-4.20.0: 33.3% rollout
+4.19.0: 12.5% rollout (IN_PROGRESS)
+4.20.0: 33.33% rollout (IN_PROGRESS)
+4.21.0: 0.01% rollout (minimum, IN_PROGRESS)
+4.22.0: 99.99% rollout (maximum before 100%, IN_PROGRESS)
 
 Expected: Display precise decimal values
 ```
@@ -213,11 +297,19 @@ Expected UI:
 │ RESET RATING        | Disabled      │
 ├─────────────────────────────────────┤
 │ [Resume Rollout]                    │  ← Only Resume
+│ 🚨 Complete Early BLOCKED           │  ← Cannot complete while PAUSED
 └─────────────────────────────────────┘
 
 Note: 
 - ❌ Update Rollout button HIDDEN (isPaused)
 - ❌ Pause Rollout button HIDDEN (already paused)
+- ✅ Resume Rollout button shown
+- ✅ Action History shows PAUSED action
+- 🚨 **CRITICAL**: Cannot complete early (skip to 100%) while PAUSED
+- 🚨 **Must RESUME first**, then can complete early
+- ❌ "Complete Early (100%)" button disabled or hidden
+- ⚠️ Shows warning: "Must resume rollout before completing"
+```
 - ✅ Resume Rollout button shown (can resume to LIVE)
 - ✅ Action History shows "PAUSED" action
 ```
@@ -396,6 +488,8 @@ PATCH /api/v1/submissions/:submissionId/rollout/halt?platform=IOS
 - ❌ Pause Rollout button HIDDEN (already paused)
 - ✅ Resume Rollout button shown
 - ✅ Action History shows PAUSED action
+- 🚨 **Complete Early button DISABLED/HIDDEN** (must resume first)
+- ⚠️ Warning message: "Must resume before completing rollout"
 - ❌ **NO HALT BUTTON** (iOS doesn't support halt)
 
 ---
