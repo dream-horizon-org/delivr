@@ -143,11 +143,22 @@ export class TestFlightBuildVerificationService {
     }
 
     // Success - build exists in TestFlight with matching version
+    // Version must exist - TestFlight builds always have a version
+    if (!testflightVersion) {
+      return {
+        success: false,
+        error: {
+          code: 'TESTFLIGHT_VERSION_MISSING',
+          message: 'TestFlight build exists but version information is missing',
+        },
+      };
+    }
+
     return {
       success: true,
       data: {
         buildNumber: testflightBuildNumber,
-        version: testflightVersion ?? 'unknown',
+        version: testflightVersion,
         status: buildLookup.status!,
         expirationDate: buildLookup.expirationDate!,
         bundleId: credentials.bundleId,

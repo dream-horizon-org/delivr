@@ -181,8 +181,15 @@ export const verifyTestFlightBuild = async (req: Request, res: Response): Promis
     );
 
     // Return staging response per spec
-    // Use version from TestFlight verification result
-    const versionName = verificationResult.data?.version ?? 'unknown';
+    // Use version from TestFlight verification result (must exist if verification succeeded)
+    const versionName = verificationResult.data?.version;
+    if (!versionName) {
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: RESPONSE_STATUS.FAILURE,
+        error: 'TestFlight build verified but version is missing',
+      });
+      return;
+    }
     
     res.status(HTTP_STATUS.OK).json(successResponse({
       uploadId: upload.id,

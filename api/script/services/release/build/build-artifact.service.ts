@@ -365,7 +365,14 @@ export class BuildArtifactService {
     }
 
     // Extract version from TestFlight verification result
-    const versionName = verificationResult.data?.version ?? 'unknown';
+    // Version must exist if verification succeeded
+    const versionName = verificationResult.data?.version;
+    if (!versionName) {
+      throw new BuildArtifactError(
+        BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_VERIFICATION_FAILED,
+        'TestFlight build verified but version is missing'
+      );
+    }
 
     // Step 2: Create build record with testflight number
     // Note: createdAt/updatedAt are handled automatically by Sequelize (timestamps: true)
