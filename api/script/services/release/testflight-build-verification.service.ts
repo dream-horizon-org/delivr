@@ -26,7 +26,6 @@ type VerifyBuildParams = {
   releaseId: string;
   tenantId: string;
   testflightBuildNumber: string;
-  versionName: string;
 };
 
 type VerifyBuildResult = {
@@ -76,27 +75,33 @@ export class TestFlightBuildVerificationService {
   ) {}
 
   /**
-   * Check if a TestFlight build exists in App Store Connect
-   * with matching build number and version.
+   * Check if a TestFlight build exists in App Store Connect.
    * 
    * Verification Steps:
-   * 1. Verify release exists and belongs to tenant
-   * 2. Verify version matches release table (iOS App Store version)
-   * 3. Get App Store Connect credentials
-   * 4. Lookup build in App Store Connect
-   * 5. Verify version matches in App Store Connect
+   * 1. Verify release exists and belongs to tenant (has iOS App Store config)
+   * 2. Get App Store Connect credentials
+   * 3. Lookup build in App Store Connect using testflightBuildNumber
+   * 4. Validate TestFlight version matches release version (normalized comparison)
+   * 5. Return build details including version from TestFlight
    */
    async verifyBuild(params: VerifyBuildParams): Promise<VerifyBuildResult> {
-    const { releaseId, tenantId, testflightBuildNumber, versionName } = params;
+    const { releaseId, tenantId, testflightBuildNumber } = params;
 
-    // STEP 1: Verify release exists and belongs to tenant
-    const versionCheckResult = await this.verifyVersionMatchesRelease(releaseId, tenantId, versionName);
-    if (!versionCheckResult.success) {
+    // STEP 1: Verify release exists, belongs to tenant, and has iOS App Store config
+    const releaseCheckResult = await this.verifyReleaseExists(releaseId, tenantId);
+    if (!releaseCheckResult.success) {
       return {
         success: false,
-        error: versionCheckResult.error!,
+        error: releaseCheckResult.error!,
       };
     }
+
+    // Get iOS mapping for version comparison
+    const iosMapping = await this.platformTargetMappingRepository.getByReleasePlatformTarget(
+      releaseId,
+      PlatformName.IOS,
+      TargetName.APP_STORE
+    );
 
     // STEP 2: Get App Store Connect credentials for tenant
     const credentialsResult = await this.getCredentials(tenantId);
@@ -108,7 +113,7 @@ export class TestFlightBuildVerificationService {
     }
     const credentials = credentialsResult.credentials!;
 
-    // STEP 3: Look up build in App Store Connect
+    // STEP 3: Look up build in App Store Connect using testflightBuildNumber
     const buildLookup = await this.lookupBuild(credentials, testflightBuildNumber);
 
     if (!buildLookup.found) {
@@ -118,24 +123,31 @@ export class TestFlightBuildVerificationService {
       };
     }
 
-    // STEP 4: Check version matches in App Store Connect
-    const actualVersion = buildLookup.version;
-    if (actualVersion && actualVersion !== versionName) {
+    // STEP 4: Validate version matches release configuration (with normalization)
+    const testflightVersion = buildLookup.version;
+    const releaseVersion = iosMapping?.version;
+
+    if (testflightVersion && releaseVersion) {
+      const normalizedTestflightVersion = this.normalizeVersion(testflightVersion);
+      const normalizedReleaseVersion = this.normalizeVersion(releaseVersion);
+
+      if (normalizedTestflightVersion !== normalizedReleaseVersion) {
       return {
         success: false,
         error: {
           code: 'VERSION_MISMATCH',
-          message: `Version mismatch with App Store Connect: expected ${versionName}, found ${actualVersion}`,
+            message: `Version mismatch: TestFlight build has version ${testflightVersion}, but release expects ${normalizedReleaseVersion}`,
         },
       };
+      }
     }
 
-    // Success - build exists with matching version
+    // Success - build exists in TestFlight with matching version
     return {
       success: true,
       data: {
         buildNumber: testflightBuildNumber,
-        version: actualVersion ?? versionName,
+        version: testflightVersion ?? 'unknown',
         status: buildLookup.status!,
         expirationDate: buildLookup.expirationDate!,
         bundleId: credentials.bundleId,
@@ -148,19 +160,49 @@ export class TestFlightBuildVerificationService {
   // ============================================================================
 
   /**
-   * Verify that the provided version matches the iOS App Store version
-   * in the release_platforms_targets_mapping table
+   * Normalize version string by extracting only MAJOR.MINOR.PATCH
+   * 
+   * Uses regex pattern: /^v?\d+\.\d+\.\d+/
+   * 
+   * Extracts:
+   * - Optional leading 'v' or 'V' (case-insensitive)
+   * - MAJOR.MINOR.PATCH (digits separated by dots)
+   * 
+   * Ignores:
+   * - Pre-release tags (after '-')
+   * - Build metadata (after '+')
+   * 
+   * Examples:
+   * - "v1.0.0" → "1.0.0"
+   * - "2.3.5-alpha" → "2.3.5"
+   * - "1.0.0+build123" → "1.0.0"
+   * - "v2.0.0-beta.1+sha.5114f85" → "2.0.0"
+   */
+  private normalizeVersion(version: string): string {
+    // Match pattern: optional 'v' + MAJOR.MINOR.PATCH
+    // /^v?\d+\.\d+\.\d+/i (case-insensitive for 'v' or 'V')
+    const match = version.match(/^v?(\d+\.\d+\.\d+)/i);
+    
+    if (match) {
+      // Return only the version numbers (without 'v' prefix)
+      return match[1];
+    }
+
+    // If no match, return as-is (shouldn't happen with valid semver)
+    return version;
+  }
+
+  /**
+   * Verify that release exists, belongs to tenant, and has iOS App Store configuration
    * 
    * Steps:
    * 1. Check if release exists in releases table
    * 2. Verify release belongs to the specified tenant
    * 3. Check if release has iOS App Store configuration
-   * 4. Verify version matches
    */
-  private async verifyVersionMatchesRelease(
+  private async verifyReleaseExists(
     releaseId: string,
-    tenantId: string,
-    versionName: string
+    tenantId: string
   ): Promise<{
     success: boolean;
     error?: { code: string; message: string };
@@ -202,18 +244,6 @@ export class TestFlightBuildVerificationService {
         error: {
           code: 'IOS_RELEASE_NOT_FOUND',
           message: `No iOS App Store configuration found for release ${releaseId}`,
-        },
-      };
-    }
-
-    // Verify version matches
-    const expectedVersion = iosMapping.version;
-    if (expectedVersion !== versionName) {
-      return {
-        success: false,
-        error: {
-          code: 'VERSION_MISMATCH_WITH_RELEASE',
-          message: `Version mismatch with release configuration: expected ${expectedVersion}, provided ${versionName}`,
         },
       };
     }

@@ -2,9 +2,10 @@
  * TestFlight Verification Controller
  * 
  * POST /tenants/:tenantId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight
- * Body: { testflightBuildNumber, versionName }
+ * Body: { testflightBuildNumber }
  * 
  * Verifies an iOS build exists in TestFlight and stages it in release_uploads table.
+ * The version is retrieved from TestFlight (not provided in request).
  * Does NOT create a builds table entry - that happens when TaskExecutor consumes.
  */
 
@@ -26,10 +27,10 @@ import { hasTestFlightVerificationDependencies } from '../../types/release/stora
  * Verify TestFlight Build and Stage for Task Consumption
  * 
  * Flow:
- * 1. Validate request (releaseId from path, stage from path, testflightBuildNumber + versionName from body)
- * 2. Verify build exists in App Store Connect via TestFlightBuildVerificationService
+ * 1. Validate request (releaseId from path, stage from path, testflightBuildNumber from body)
+ * 2. Verify build exists in App Store Connect via TestFlightBuildVerificationService (retrieves version from TestFlight)
  * 3. Create entry in release_uploads staging table (NOT builds table)
- * 4. Return staging response with platform status
+ * 4. Return staging response with platform status and version from TestFlight
  * 
  * Note: The builds table entry is created later when TaskExecutor consumes from staging.
  */
@@ -37,7 +38,7 @@ export const verifyTestFlightBuild = async (req: Request, res: Response): Promis
   try {
     // Extract path parameters
     const { tenantId, releaseId, stage } = req.params;
-    const { testflightBuildNumber, versionName } = req.body;
+    const { testflightBuildNumber } = req.body;
 
     // Validate tenantId
     const tenantIdInvalid = !isNonEmptyString(tenantId);
@@ -84,15 +85,6 @@ export const verifyTestFlightBuild = async (req: Request, res: Response): Promis
       return;
     }
 
-    // Validate versionName
-    const versionNameInvalid = !isNonEmptyString(versionName);
-    if (versionNameInvalid) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        validationErrorResponse('versionName', TESTFLIGHT_BUILD_ERROR_MESSAGES.VERSION_NAME_REQUIRED)
-      );
-      return;
-    }
-
     // Get repositories from storage using type guard
     const storage = getStorage();
     const dependenciesAvailable = hasTestFlightVerificationDependencies(storage);
@@ -123,7 +115,6 @@ export const verifyTestFlightBuild = async (req: Request, res: Response): Promis
       releaseId,
       tenantId,
       testflightBuildNumber,
-      versionName,
     });
 
     // Handle verification failure
@@ -190,6 +181,9 @@ export const verifyTestFlightBuild = async (req: Request, res: Response): Promis
     );
 
     // Return staging response per spec
+    // Use version from TestFlight verification result
+    const versionName = verificationResult.data?.version ?? 'unknown';
+    
     res.status(HTTP_STATUS.OK).json(successResponse({
       uploadId: upload.id,
       releaseId,

@@ -341,15 +341,15 @@ export class BuildArtifactService {
   verifyManualTestflightBuild = async (
     input: ManualTestflightVerifyInput
   ): Promise<TestflightVerifyResult> => {
-    const { tenantId, releaseId, testflightNumber, versionName, buildStage } = input;
+    const { tenantId, releaseId, testflightNumber, buildStage } = input;
 
     // Step 1: Verify TestFlight build number exists in App Store Connect
+    // Version is retrieved from TestFlight (not provided in input)
     const verificationResult = await executeOperation(
       () => this.testflightVerificationService.verifyBuild({
         releaseId,
         tenantId,
         testflightBuildNumber: testflightNumber,
-        versionName
       }),
       BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_VERIFICATION_FAILED,
       BUILD_ARTIFACT_ERROR_MESSAGES.TESTFLIGHT_VERIFICATION_FAILED
@@ -363,6 +363,9 @@ export class BuildArtifactService {
         errorMessage
       );
     }
+
+    // Extract version from TestFlight verification result
+    const versionName = verificationResult.data?.version ?? 'unknown';
 
     // Step 2: Create build record with testflight number
     // Note: createdAt/updatedAt are handled automatically by Sequelize (timestamps: true)
@@ -446,7 +449,6 @@ export class BuildArtifactService {
         releaseId: build.releaseId,
         tenantId: build.tenantId,
         testflightBuildNumber: testflightNumber,
-        versionName: build.artifactVersionName
       }),
       BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_VERIFICATION_FAILED,
       BUILD_ARTIFACT_ERROR_MESSAGES.TESTFLIGHT_VERIFICATION_FAILED
