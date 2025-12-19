@@ -118,7 +118,7 @@ export class ReleaseCreationService {
 
     // Determine autoTransitionToStage2 based on hasManualBuildUpload
     // If hasManualBuildUpload is true, we need manual intervention so autoTransition is false
-    const autoTransitionToStage2 = hasManualBuildUpload !== true;
+    const autoTransitionToStage2 = true;
 
     const cronJob = await this.cronJobRepo.create({
       id: cronJobId,

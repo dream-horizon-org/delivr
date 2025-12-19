@@ -1,6 +1,6 @@
 import { QueryTypes, Sequelize, Op } from 'sequelize';
 import type { CronJobModelType } from './cron-job.sequelize.model';
-import { CronJob, CreateCronJobDto, UpdateCronJobDto, CronStatus, PauseType } from './release.interface';
+import { CronJob, CreateCronJobDto, UpdateCronJobDto, CronStatus, PauseType, StageStatus } from './release.interface';
 
 export class CronJobRepository {
   private sequelize: Sequelize;
@@ -70,6 +70,14 @@ export class CronJobRepository {
    * - cronStatus = RUNNING (release is active)
    * - pauseType = NONE (not paused for any reason)
    * 
+   * EXCEPTION: Also includes releases with:
+   * - pauseType = AWAITING_STAGE_TRIGGER
+   * - stage2Status = COMPLETED
+   * 
+   * This allows the scheduler to process releases with executable slots even when
+   * pauseType = AWAITING_STAGE_TRIGGER. The scheduler will check slot times and
+   * allow execution if slot time has passed (see global-scheduler.service.ts).
+   * 
    * Used by the global scheduler to find releases to process on each tick.
    * 
    * @returns Array of CronJob records that should be processed
@@ -78,7 +86,15 @@ export class CronJobRepository {
     const cronJobs = await this.model.findAll({
       where: {
         cronStatus: CronStatus.RUNNING,
-        pauseType: PauseType.NONE
+        [Op.or]: [
+          // Standard case: Not paused
+          { pauseType: PauseType.NONE },
+          // Exception case: Paused but Stage 2 COMPLETED (may have executable slots)
+          {
+            pauseType: PauseType.AWAITING_STAGE_TRIGGER,
+            stage2Status: StageStatus.COMPLETED
+          }
+        ]
       }
     });
 

@@ -156,10 +156,12 @@ export class CronJobStateMachine {
         if (hasSlots) {
           // ✅ SLOTS EXIST: Initialize RegressionState (will auto-reopen Stage 2)
           // This OVERRIDES autoTransitionToStage3 - slots take priority!
+          // RegressionState.execute() will check slot time and reopen Stage 2 when time arrives
+          
           this.currentState = new RegressionState(this);
           console.log(
             `[StateMachine] Stage 2 COMPLETED but has ${slots.length} new slot(s). ` +
-            `Initializing RegressionState (will auto-reopen Stage 2).`
+            `Initializing RegressionState (will auto-reopen Stage 2 when slot time arrives).`
           );
           return; // Exit early
         }
@@ -170,6 +172,19 @@ export class CronJobStateMachine {
           console.log(`[StateMachine] Initialized with PreReleaseState (starting from PENDING)`);
         } else {
           // Auto-transition disabled - waiting for manual trigger
+          // ✅ RESTORE pauseType: Should be AWAITING_STAGE_TRIGGER if currently NONE
+          // This handles the case where slots were deleted after being added
+          // Only update if pauseType is actually NONE (optimization)
+          if (cronJob.pauseType === PauseType.NONE) {
+            await this.cronJobRepo.update(cronJob.id, {
+              pauseType: PauseType.AWAITING_STAGE_TRIGGER
+            });
+            console.log(
+              `[StateMachine] Restored pauseType (NONE → AWAITING_STAGE_TRIGGER) ` +
+              `because no slots exist and autoTransitionToStage3 is false.`
+            );
+          }
+          
           console.log(
             `[StateMachine] Stage 3 is PENDING but autoTransitionToStage3 is false. ` +
             `Waiting for manual trigger for release ${this.releaseId}`
@@ -239,9 +254,12 @@ export class CronJobStateMachine {
     }
 
     // ✅ PAUSE CHECK: Skip execution if release is paused (any reason)
+    // Exception: Allow AWAITING_STAGE_TRIGGER to proceed - RegressionState will check slot time
     // Scheduler keeps running but we don't process - state machine will check again on next tick
     const cronJob = await this.cronJobRepo.findByReleaseId(this.releaseId);
-    if (cronJob && cronJob.pauseType && cronJob.pauseType !== PauseType.NONE) {
+    if (cronJob && cronJob.pauseType && 
+        cronJob.pauseType !== PauseType.NONE && 
+        cronJob.pauseType !== PauseType.AWAITING_STAGE_TRIGGER) {
       console.log(`[StateMachine] Release ${this.releaseId} paused (${cronJob.pauseType}). Skipping execution.`);
       return; // Early exit - wait for resume/trigger
     }

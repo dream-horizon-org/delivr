@@ -281,10 +281,22 @@ export class PreReleaseState implements ICronJobState {
       storageInstance.sequelize
     );
 
+    // ✅ FIX: Add platform checks (same as execute() method)
+    // This ensures platform-specific tasks (TRIGGER_TEST_FLIGHT_BUILD, CREATE_AAB_BUILD)
+    // are correctly identified as required when the platform exists
+    const platformMappingRepo = this.context.getPlatformMappingRepo();
+    const platformMappings = platformMappingRepo 
+      ? await platformMappingRepo.getByReleaseId(releaseId)
+      : [];
+    const hasIOSPlatform = platformMappings.some(mapping => mapping.platform === PlatformName.IOS);
+    const hasAndroidPlatform = platformMappings.some(mapping => mapping.platform === PlatformName.ANDROID);
+
     const config: OptionalTaskConfig = {
       cronConfig: cronJob.cronConfig || {},
       hasProjectManagementIntegration: integrationAvailability.hasProjectManagementIntegration,
-      hasTestPlatformIntegration: integrationAvailability.hasTestPlatformIntegration
+      hasTestPlatformIntegration: integrationAvailability.hasTestPlatformIntegration,
+      hasIOSPlatform,
+      hasAndroidPlatform
     };
 
     const allComplete = allStage3Tasks.every(task => {
