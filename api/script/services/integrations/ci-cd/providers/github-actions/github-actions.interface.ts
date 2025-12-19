@@ -61,6 +61,7 @@ export type GHAWorkflowDispatchParams = {
 
 export type GHAWorkflowDispatchResult = {
   accepted: boolean;
+  htmlUrl?: string;
 };
 
 export type GHAFindDispatchedRunParams = {

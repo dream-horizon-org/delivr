@@ -27,7 +27,7 @@ import { validateCreateReleaseRequest, validateUpdateReleaseRequest } from './re
 import type { Platform } from '~types/integrations/project-management';
 import { RELEASE_MANAGEMENT_ERROR_MESSAGES } from './release-management.constants';
 import { isValidUploadStage } from '../../utils/upload-stage.utils';
-import { isValidArtifactExtension } from '../../services/release/build/build-artifact.utils';
+import { validateArtifactExtensionForPlatformAndStage } from '../../services/release/build/build-artifact.utils';
 
 export class ReleaseManagementController {
   private creationService: ReleaseCreationService;
@@ -891,17 +891,22 @@ export class ReleaseManagementController {
         });
       }
 
-      // Validate file extension (.ipa, .apk, .aab only)
-      const hasValidExtension = isValidArtifactExtension(originalFilename);
-      if (!hasValidExtension) {
-        return res.status(HTTP_STATUS.BAD_REQUEST).json({
-          success: false,
-          error: RELEASE_MANAGEMENT_ERROR_MESSAGES.INVALID_FILE_EXTENSION
-        });
-      }
-
       // Map stage string to UploadStage type
       const uploadStage = upperStage as UploadStage;
+
+      // Validate file extension based on platform and stage
+      const extensionValidation = validateArtifactExtensionForPlatformAndStage(
+        originalFilename,
+        upperPlatform,
+        uploadStage
+      );
+      const extensionIsInvalid = !extensionValidation.isValid;
+      if (extensionIsInvalid) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: extensionValidation.errorMessage ?? RELEASE_MANAGEMENT_ERROR_MESSAGES.INVALID_FILE_EXTENSION
+        });
+      }
 
       // Delegate to ManualUploadService
       const result = await this.manualUploadService.handleUpload(

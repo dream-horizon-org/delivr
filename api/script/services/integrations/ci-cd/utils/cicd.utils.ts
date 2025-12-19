@@ -7,7 +7,7 @@ export const normalizePlatform = (platform: unknown): string | undefined => {
   if (isEmpty) {
     return undefined;
   }
-  return trimmed.toLowerCase();
+  return trimmed.toUpperCase();
 };
 
 import { WorkflowType, WorkflowParameter } from '~types/integrations/ci-cd/workflow.interface';

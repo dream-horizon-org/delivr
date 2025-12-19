@@ -136,6 +136,14 @@ export class GitHubActionsWorkflowService extends WorkflowService {
     if (!result.accepted) {
       throw new Error(ERROR_MESSAGES.GHA_DISPATCH_FAILED);
     }
+    
+    const htmlUrlFromDispatch = result.htmlUrl;
+    const hasUrlFromDispatch = htmlUrlFromDispatch !== undefined && htmlUrlFromDispatch !== null && htmlUrlFromDispatch.length > 0;
+    
+    if (hasUrlFromDispatch) {
+      return { queueLocation: htmlUrlFromDispatch };
+    }
+    
     const attempts = Number(process.env.GHA_RUN_POLL_ATTEMPTS || PROVIDER_DEFAULTS.GHA_RUN_POLL_ATTEMPTS);
     const delayMs = Number(process.env.GHA_RUN_POLL_DELAY_MS || PROVIDER_DEFAULTS.GHA_RUN_POLL_DELAY_MS);
     let foundUrl: string | null = null;
