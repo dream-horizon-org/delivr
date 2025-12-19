@@ -50,7 +50,7 @@ export class RegressionState implements ICronJobState {
       const releasePromise = releaseRepo.findById(releaseId);
       
       // Await in order of validation checks (enables early exit)
-      const cronJob = await cronJobPromise;
+      let cronJob = await cronJobPromise;
       if (!cronJob) {
         console.log(`[${instanceId}] [RegressionState] Cron job not found.`);
         return;  // Early exit
@@ -76,7 +76,7 @@ export class RegressionState implements ICronJobState {
         return;  // Early exit
       }
 
-      // ✅ AUTO-REOPEN: If Stage 2 is COMPLETED but has new slots, reopen it
+      // ✅ AUTO-REOPEN: If Stage 2 is COMPLETED but has new slots, reopen it ONLY when slot time arrives
       if (isStage2Completed) {
         // Parse slots (handle both string and object)
         let slots: Array<{ date: string | Date; config: Record<string, unknown> }> = [];
@@ -95,18 +95,55 @@ export class RegressionState implements ICronJobState {
         const hasSlots = slots.length > 0;
         
         if (hasSlots) {
-          // Reopen Stage 2 - new slots have been added!
-          console.log(`[${instanceId}] [RegressionState] Stage 2 COMPLETED but has ${slots.length} new slot(s). Reopening Stage 2...`);
-          
-          await cronJobRepo.update(cronJob.id, {
-            stage2Status: StageStatus.IN_PROGRESS,
-            cronStatus: CronStatus.RUNNING
+          // ✅ CORNER CASE FIX: Check if any slot time has passed before reopening Stage 2
+          // This handles the case where slots are added after Stage 2 completion
+          const now = new Date();
+          const executableSlots = slots.filter(slot => {
+            const slotTime = new Date(slot.date);
+            if (isNaN(slotTime.getTime())) {
+              return false;
+            }
+            // Slot time has passed - can create cycle
+            return slotTime.getTime() <= now.getTime();
           });
-          
-          console.log(`[${instanceId}] [RegressionState] ✅ Stage 2 reopened to IN_PROGRESS`);
+
+          const hasExecutableSlots = executableSlots.length > 0;
+
+          if (hasExecutableSlots) {
+            // ✅ Slot time has arrived - reopen Stage 2 (corner case: slots added after completion)
+            // ✅ CRITICAL: Also clear pauseType to NONE so scheduler will process this release
+            console.log(
+              `[${instanceId}] [RegressionState] Stage 2 COMPLETED but has ${executableSlots.length} executable slot(s). ` +
+              `Reopening Stage 2 (corner case: slots added after completion). Cycle will be created immediately.`
+            );
+            
+            await cronJobRepo.update(cronJob.id, {
+              stage2Status: StageStatus.IN_PROGRESS,
+              cronStatus: CronStatus.RUNNING,
+              pauseType: PauseType.NONE
+            });
+            
+            // ✅ EDGE CASE: Refetch cronJob to get latest upcomingRegressions (in case user deleted slots)
+            cronJob = await cronJobRepo.findByReleaseId(releaseId);
+            
+            console.log(`[${instanceId}] [RegressionState] ✅ Stage 2 reopened to IN_PROGRESS, pauseType cleared to NONE`);
+            // ✅ Code continues - cycle creation logic (lines 166-269) will run immediately
+          } else {
+            // Slots exist but all are in the future - don't reopen Stage 2 yet
+            // This handles the corner case: user added slots but time hasn't arrived
+            console.log(
+              `[${instanceId}] [RegressionState] Stage 2 COMPLETED but has ${slots.length} future slot(s). ` +
+              `Waiting for slot time to arrive (corner case: slots added after completion). ` +
+              `pauseType=${cronJob.pauseType} (scheduler will skip until slot time arrives).`
+            );
+            return;  // Early exit - Stage 2 stays COMPLETED, will check again on next tick
+          }
         } else {
           // No slots - nothing to do
-          console.log(`[${instanceId}] [RegressionState] Stage 2 COMPLETED and no slots. Nothing to execute.`);
+          console.log(
+            `[${instanceId}] [RegressionState] Stage 2 COMPLETED and no slots. ` +
+            `If Stage 2 was reopened, isComplete() will detect no cycles and complete it.`
+          );
           return;  // Early exit
         }
       }

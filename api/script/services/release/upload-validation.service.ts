@@ -10,7 +10,7 @@
  * Reference: docs/MANUAL_BUILD_UPLOAD_FLOW.md
  */
 
-import { PlatformName, TaskStatus, TaskType, StageStatus } from '../../models/release/release.interface';
+import { PlatformName, TaskStatus, TaskType, StageStatus, RegressionCycleStatus } from '../../models/release/release.interface';
 import { UploadStage } from '../../models/release/release-uploads.sequelize.model';
 import { ReleaseRepository } from '../../models/release/release.repository';
 import { CronJobRepository } from '../../models/release/cron-job.repository';
@@ -223,48 +223,152 @@ export class UploadValidationService {
       };
     }
 
-    // Check Stage 2 is not complete
+    // ✅ FIX: Check if Stage 2 is COMPLETED but has upcoming slots
+    // If slots exist, Stage 2 will be reopened when slot time arrives
     const stage2Complete = cronJob.stage2Status === StageStatus.COMPLETED;
     if (stage2Complete) {
-      return {
-        valid: false,
-        error: 'All regression cycles complete',
-        details: {
-          reason: 'ALL_CYCLES_COMPLETE',
-          currentStatus: cronJob.stage2Status,
-        },
-      };
+      // Parse slots (handle both string and object)
+      let slots: Array<{ date: string | Date; config: Record<string, unknown> }> = [];
+      if (cronJob.upcomingRegressions) {
+        if (typeof cronJob.upcomingRegressions === 'string') {
+          try {
+            slots = JSON.parse(cronJob.upcomingRegressions);
+          } catch {
+            slots = [];
+          }
+        } else {
+          slots = cronJob.upcomingRegressions;
+        }
+      }
+
+      const hasUpcomingSlots = slots.length > 0;
+      
+      if (hasUpcomingSlots) {
+        // ✅ Stage 2 is COMPLETED but has slots - allow uploads
+        // Uploads will be stored in staging table and consumed when cycles are created
+        // Stage 2 will be reopened to IN_PROGRESS when slot time arrives
+        console.log(
+          `[UploadValidation] Stage 2 COMPLETED but has ${slots.length} upcoming slot(s). ` +
+          `Allowing uploads (uploads will be consumed when cycles are created).`
+        );
+        return { valid: true };
+      } else {
+        // No slots - Stage 2 is truly complete
+        return {
+          valid: false,
+          error: 'All regression cycles complete',
+          details: {
+            reason: 'ALL_CYCLES_COMPLETE',
+            currentStatus: cronJob.stage2Status,
+          },
+        };
+      }
     }
 
-    // Check current cycle's task status
+    // Stage 2 is IN_PROGRESS - check current cycle's task status
     const latestCycle = await this.cycleRepo.findLatest(releaseId);
     const hasActiveCycle = latestCycle !== null;
     
     if (hasActiveCycle) {
-      // Find task by regression cycle ID and type
-      const cycleTasks = await this.taskRepo.findByRegressionCycleId(latestCycle.id);
-      const task = cycleTasks.find(t => t.taskType === TaskType.TRIGGER_REGRESSION_BUILDS) ?? null;
+      // ✅ Check cycle status
+      const cycleIsDone = latestCycle.status === RegressionCycleStatus.DONE;
+      
+      if (cycleIsDone) {
+        // ✅ Current cycle is DONE - allow uploads for future slots
+        // Check if there are upcoming slots
+        let slots: Array<{ date: string | Date; config: Record<string, unknown> }> = [];
+        if (cronJob.upcomingRegressions) {
+          if (typeof cronJob.upcomingRegressions === 'string') {
+            try {
+              slots = JSON.parse(cronJob.upcomingRegressions);
+            } catch {
+              slots = [];
+            }
+          } else {
+            slots = cronJob.upcomingRegressions;
+          }
+        }
 
-      const hasTask = task !== null;
-      if (hasTask) {
-        const allowedStatuses = [TaskStatus.PENDING, TaskStatus.AWAITING_CALLBACK, TaskStatus.AWAITING_MANUAL_BUILD];
-        const taskStatusNotAllowed = !allowedStatuses.includes(task.taskStatus as TaskStatus);
+        const hasUpcomingSlots = slots.length > 0;
         
-        if (taskStatusNotAllowed) {
-          return {
-            valid: false,
-            error: 'Current cycle upload window closed',
-            details: {
-              reason: 'CYCLE_WINDOW_CLOSED',
-              currentStatus: task.taskStatus,
-              allowedStatuses: allowedStatuses,
-            },
-          };
+        if (hasUpcomingSlots) {
+          // ✅ Current cycle is DONE and has upcoming slots - allow uploads for future cycles
+          console.log(
+            `[UploadValidation] Current cycle is DONE but has ${slots.length} upcoming slot(s). ` +
+            `Allowing uploads for future cycles.`
+          );
+          return { valid: true };
+        } else {
+          // Current cycle is DONE and no upcoming slots - allow uploads anyway (defensive)
+          return { valid: true };
+        }
+      } else {
+        // ✅ Current cycle is IN_PROGRESS or NOT_STARTED - only allow if task is waiting
+        // Find task by regression cycle ID and type
+        const cycleTasks = await this.taskRepo.findByRegressionCycleId(latestCycle.id);
+        const task = cycleTasks.find(t => t.taskType === TaskType.TRIGGER_REGRESSION_BUILDS) ?? null;
+
+        const hasTask = task !== null;
+        if (hasTask) {
+          const allowedStatuses = [TaskStatus.PENDING, TaskStatus.AWAITING_CALLBACK, TaskStatus.AWAITING_MANUAL_BUILD];
+          const taskStatusAllowed = allowedStatuses.includes(task.taskStatus as TaskStatus);
+          
+          if (taskStatusAllowed) {
+            // ✅ Task is PENDING/AWAITING_MANUAL_BUILD - allow uploads for current cycle
+            return { valid: true };
+          } else {
+            // ✅ Task is IN_PROGRESS/COMPLETED - block uploads (current cycle is running)
+            return {
+              valid: false,
+              error: 'Current cycle upload window closed',
+              details: {
+                reason: 'CYCLE_WINDOW_CLOSED',
+                currentStatus: task.taskStatus,
+                allowedStatuses: allowedStatuses,
+              },
+            };
+          }
+        } else {
+          // No task found - allow uploads (defensive)
+          return { valid: true };
         }
       }
-    }
+    } else {
+      // ✅ No active cycle yet, but check if slots exist
+      // If slots exist, uploads will be consumed when cycles are created
+      let slots: Array<{ date: string | Date; config: Record<string, unknown> }> = [];
+      if (cronJob.upcomingRegressions) {
+        if (typeof cronJob.upcomingRegressions === 'string') {
+          try {
+            slots = JSON.parse(cronJob.upcomingRegressions);
+          } catch {
+            slots = [];
+          }
+        } else {
+          slots = cronJob.upcomingRegressions;
+        }
+      }
 
-    return { valid: true };
+      const hasUpcomingSlots = slots.length > 0;
+      
+      if (hasUpcomingSlots) {
+        // ✅ No cycle yet but slots exist - allow uploads
+        // Uploads will be stored in staging table and consumed when cycles are created
+        console.log(
+          `[UploadValidation] No active cycle but has ${slots.length} upcoming slot(s). ` +
+          `Allowing uploads (uploads will be consumed when cycles are created).`
+        );
+        return { valid: true };
+      } else {
+        // No cycle and no slots - this shouldn't happen if Stage 2 is IN_PROGRESS
+        // But allow uploads anyway (defensive)
+        console.warn(
+          `[UploadValidation] Stage 2 IN_PROGRESS but no cycle and no slots. ` +
+          `This may indicate a state issue, but allowing uploads.`
+        );
+        return { valid: true };
+      }
+    }
   }
 
   /**

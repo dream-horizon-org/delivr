@@ -156,6 +156,19 @@ export class CronJobStateMachine {
         if (hasSlots) {
           // ✅ SLOTS EXIST: Initialize RegressionState (will auto-reopen Stage 2)
           // This OVERRIDES autoTransitionToStage3 - slots take priority!
+          
+          // ✅ CLEAR pauseType: If slots exist, we need to process them
+          // Only update if pauseType is actually AWAITING_STAGE_TRIGGER (optimization)
+          if (cronJob.pauseType === PauseType.AWAITING_STAGE_TRIGGER) {
+            await this.cronJobRepo.update(cronJob.id, {
+              pauseType: PauseType.NONE
+            });
+            console.log(
+              `[StateMachine] Cleared pauseType (AWAITING_STAGE_TRIGGER → NONE) ` +
+              `because slots exist. Stage 2 will reopen when slot time arrives.`
+            );
+          }
+          
           this.currentState = new RegressionState(this);
           console.log(
             `[StateMachine] Stage 2 COMPLETED but has ${slots.length} new slot(s). ` +
@@ -170,6 +183,19 @@ export class CronJobStateMachine {
           console.log(`[StateMachine] Initialized with PreReleaseState (starting from PENDING)`);
         } else {
           // Auto-transition disabled - waiting for manual trigger
+          // ✅ RESTORE pauseType: Should be AWAITING_STAGE_TRIGGER if currently NONE
+          // This handles the case where slots were deleted after being added
+          // Only update if pauseType is actually NONE (optimization)
+          if (cronJob.pauseType === PauseType.NONE) {
+            await this.cronJobRepo.update(cronJob.id, {
+              pauseType: PauseType.AWAITING_STAGE_TRIGGER
+            });
+            console.log(
+              `[StateMachine] Restored pauseType (NONE → AWAITING_STAGE_TRIGGER) ` +
+              `because no slots exist and autoTransitionToStage3 is false.`
+            );
+          }
+          
           console.log(
             `[StateMachine] Stage 3 is PENDING but autoTransitionToStage3 is false. ` +
             `Waiting for manual trigger for release ${this.releaseId}`
