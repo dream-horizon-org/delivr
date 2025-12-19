@@ -124,7 +124,6 @@ export type ManualTestflightVerifyInput = {
   tenantId: string;
   releaseId: string;
   testflightNumber: string;
-  versionName: string;
   buildStage: BuildStage;
 };
 

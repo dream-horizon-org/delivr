@@ -341,15 +341,15 @@ export class BuildArtifactService {
   verifyManualTestflightBuild = async (
     input: ManualTestflightVerifyInput
   ): Promise<TestflightVerifyResult> => {
-    const { tenantId, releaseId, testflightNumber, versionName, buildStage } = input;
+    const { tenantId, releaseId, testflightNumber, buildStage } = input;
 
     // Step 1: Verify TestFlight build number exists in App Store Connect
+    // Version is retrieved from TestFlight (not provided in input)
     const verificationResult = await executeOperation(
       () => this.testflightVerificationService.verifyBuild({
         releaseId,
         tenantId,
         testflightBuildNumber: testflightNumber,
-        versionName
       }),
       BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_VERIFICATION_FAILED,
       BUILD_ARTIFACT_ERROR_MESSAGES.TESTFLIGHT_VERIFICATION_FAILED
@@ -361,6 +361,16 @@ export class BuildArtifactService {
       throw new BuildArtifactError(
         BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_NUMBER_INVALID,
         errorMessage
+      );
+    }
+
+    // Extract version from TestFlight verification result
+    // Version must exist if verification succeeded
+    const versionName = verificationResult.data?.version;
+    if (!versionName) {
+      throw new BuildArtifactError(
+        BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_VERIFICATION_FAILED,
+        'TestFlight build verified but version is missing'
       );
     }
 
@@ -446,7 +456,6 @@ export class BuildArtifactService {
         releaseId: build.releaseId,
         tenantId: build.tenantId,
         testflightBuildNumber: testflightNumber,
-        versionName: build.artifactVersionName
       }),
       BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_VERIFICATION_FAILED,
       BUILD_ARTIFACT_ERROR_MESSAGES.TESTFLIGHT_VERIFICATION_FAILED
