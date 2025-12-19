@@ -25,7 +25,6 @@ import { StoreType, IntegrationStatus } from '../../storage/integrations/store/s
 import { validateIntegrationStatus } from '../../controllers/integrations/store-controllers';
 import { BUILD_PLATFORM, STORE_TYPE } from '~types/release-management/builds/build.constants';
 import { PLAY_STORE_UPLOAD_ERROR_MESSAGES, GOOGLE_PLAY_RELEASE_STATUS } from '../../constants/store';
-import { PLAY_STORE_UPLOAD_ERROR_MESSAGES } from '../../constants/store';
 import type { BuildArtifactService } from '~services/release/build';
 
 /**
