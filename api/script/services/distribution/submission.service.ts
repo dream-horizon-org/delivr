@@ -1723,32 +1723,202 @@ export class SubmissionService {
     const androidSubmission = await this.androidSubmissionRepository.findById(submissionId);
     
     if (!androidSubmission) {
+      throw new Error('Submisson Id not found for submission ${submissionId}');
       return null;
     }
 
-    // Validate rollout percentage (0-100)
-    if (rolloutPercent < 0 || rolloutPercent > 100) {
-      throw new Error('Rollout percentage must be between 0 and 100');
+  // Validate rollout percentage (0-100, supports decimals like 0.01)
+  const isInvalidNumber = !Number.isFinite(rolloutPercent) || isNaN(rolloutPercent);
+  if (isInvalidNumber) {
+    throw new Error('Rollout percentage must be a valid number');
+  }
+
+  const isOutOfRange = rolloutPercent < 0 || rolloutPercent > 100;
+  if (isOutOfRange) {
+    throw new Error('Rollout percentage must be between 0 and 100 (supports decimals like 0.01)');
+  }
+
+  // Step 1: Get distribution to retrieve tenantId
+  const distribution = await this.distributionRepository.findById(androidSubmission.distributionId);
+  
+  if (!distribution) {
+    throw new Error(`Distribution not found for submission ${submissionId}`);
+  }
+
+  const tenantId = distribution.tenantId;
+
+  // Step 2: Get store integration and verify status is VERIFIED
+  const storeIntegrationController = getStoreIntegrationController();
+  const integrations = await storeIntegrationController.findAll({
+    tenantId,
+    storeType: StoreType.PLAY_STORE,
+    platform: BUILD_PLATFORM.ANDROID,
+  });
+
+  if (integrations.length === 0) {
+    throw new Error(PLAY_STORE_UPLOAD_ERROR_MESSAGES.INTEGRATION_NOT_FOUND_FOR_UPLOAD);
+  }
+
+  // Use first integration found
+  const integration = integrations[0];
+
+  // Verify integration status is VERIFIED
+  validateIntegrationStatus(integration);
+
+  // Step 3: Create Google service (decrypts credentials, generates access token)
+  let googleService: GooglePlayStoreService;
+  try {
+    googleService = await createGoogleServiceFromIntegration(integration.id);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to load Google Play Store credentials: ${errorMessage}`);
+  }
+
+  // Step 4: Create edit
+  const editData = await googleService.createEdit();
+  const editId = editData.id;
+
+  console.log(`[UpdateAndroidRollout] Created edit with ID: ${editId}`);
+
+  try {
+    // Step 5: Get current production state
+    const productionStateData = await googleService.getProductionTrack(editId);
+    
+    console.log('[UpdateAndroidRollout] Current production state:', JSON.stringify(productionStateData, null, 2));
+
+    // Step 6: Find the release that matches this submission's versionCode
+    const submissionVersionCode = String(androidSubmission.versionCode);
+    const existingReleases = productionStateData.releases || [];
+    
+    // Find the release with matching versionCode
+    const releaseIndex = existingReleases.findIndex(release => 
+      release.versionCodes && release.versionCodes.includes(submissionVersionCode)
+    );
+
+    if (releaseIndex === -1) {
+      throw new Error(
+        `No release found in production track with versionCode ${submissionVersionCode}. ` +
+        `The submission must be submitted to production first before updating rollout percentage.`
+      );
     }
 
-    // Update rollout percentage
+    // Get the release to validate and update
+    const existingRelease = existingReleases[releaseIndex] as {
+      name: string;
+      versionCodes: string[];
+      status: string;
+      userFraction?: number;
+      inAppUpdatePriority?: number;
+      releaseNotes?: Array<{ language: string; text: string }>;
+    };
+
+    // Validation 1: Check release status must be 'inProgress' or 'completed'
+    const isValidStatus = existingRelease.status === 'inProgress' || existingRelease.status === 'completed';
+    if (!isValidStatus) {
+      throw new Error(
+        `Release with versionCode ${submissionVersionCode} is not yet released. ` +
+        `Current status: ${existingRelease.status}. ` +
+        `Only releases with status 'inProgress' or 'completed' can have their rollout percentage updated.`
+      );
+    }
+
+    // Step 7: Calculate userFraction from rolloutPercent
+    // Convert rolloutPercent (0-100) to userFraction (0-1)
+    const userFraction = rolloutPercent / 100;
+    
+    // Validation 2: Check that new userFraction is greater than existing userFraction
+    // (We can only increase rollout, not decrease)
+    const existingUserFraction = existingRelease.userFraction;
+    if (existingUserFraction !== undefined) {
+      const isDecreasing = userFraction <= existingUserFraction;
+      if (isDecreasing) {
+        throw new Error(
+          `Cannot decrease rollout percentage. ` +
+          `Current rollout: ${(existingUserFraction * 100).toFixed(2)}%, ` +
+          `Requested rollout: ${rolloutPercent}%. ` +
+          `Rollout percentage can only be increased, not decreased.`
+        );
+      }
+    }
+
+    // Validation 3: Fix isFullRollout check - rolloutPercent max is 100, so userFraction max is 1
+    const isFullRollout = rolloutPercent === 100 || userFraction === 1;
+
+    // Step 8: Update the matching release
+    // Use a more flexible type to handle optional fields like userFraction and releaseNotes
+    const updatedReleases = [...existingReleases] as Array<{
+      name: string;
+      versionCodes: string[];
+      status: string;
+      userFraction?: number;
+      inAppUpdatePriority?: number;
+      releaseNotes?: Array<{ language: string; text: string }>;
+    }>;
+    
+    const releaseToUpdate = { ...updatedReleases[releaseIndex] };
+
+    if (isFullRollout) {
+      // If rollout = 100% or userFraction = 1, remove userFraction and set status to completed
+      delete releaseToUpdate.userFraction;
+      releaseToUpdate.status = 'completed';
+    } else {
+      // Otherwise, update userFraction and keep status as inProgress
+      releaseToUpdate.userFraction = userFraction;
+      releaseToUpdate.status = 'inProgress';
+    }
+
+    updatedReleases[releaseIndex] = releaseToUpdate;
+
+    // Step 9: Build track update payload - preserve all releases with updated one
+    const trackUpdatePayload = {
+      track: 'production',
+      releases: updatedReleases,
+    };
+
+    console.log('[UpdateAndroidRollout] Updating track with payload:', JSON.stringify(trackUpdatePayload, null, 2));
+
+    // Step 10: Update track
+    await googleService.updateProductionTrack(editId, trackUpdatePayload);
+    console.log('[UpdateAndroidRollout] Track updated successfully');
+
+    // Step 11: Validate the edit (optional dry run)
+    try {
+      await googleService.validateEdit(editId);
+      console.log('[UpdateAndroidRollout] Edit validation successful');
+    } catch (validationError) {
+      // Validation failed - get error details and throw
+      const errorMessage = validationError instanceof Error ? validationError.message : String(validationError);
+      console.error('[UpdateAndroidRollout] Validation failed:', errorMessage);
+      throw new Error(`Edit validation failed: ${errorMessage}`);
+    }
+
+    // Step 12: Commit edit
+    const commitResult = await googleService.commitEdit(editId);
+    console.log('[UpdateAndroidRollout] Edit committed successfully:', JSON.stringify(commitResult, null, 2));
+
+    // Step 13: Update rollout percentage in database (only after Google API succeeds)
     const updatedSubmission = await this.androidSubmissionRepository.update(submissionId, {
       rolloutPercentage: rolloutPercent
     });
 
     if (!updatedSubmission) {
-      throw new Error('Failed to update rollout percentage');
+      throw new Error('Failed to update rollout percentage in database');
     }
 
-    // TODO: Call Google Play Console API to update rollout percentage
-    // This will be implemented later
+    console.log(`[UpdateAndroidRollout] Successfully updated rollout percentage to ${rolloutPercent}% for submission ${submissionId}`);
 
     return {
       id: updatedSubmission.id,
       rolloutPercentage: updatedSubmission.rolloutPercentage ?? 0,
       statusUpdatedAt: updatedSubmission.statusUpdatedAt
     };
+  } catch (error) {
+    // Clean up: Delete edit if it was created
+    console.log(`[UpdateAndroidRollout] Error occurred, deleting edit ${editId}`);
+    await googleService.deleteEdit(editId);
+    throw error;
   }
+}
 
   /**
    * Cancel iOS submission (iOS only)
