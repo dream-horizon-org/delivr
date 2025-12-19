@@ -75,7 +75,7 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
 
   /**
    * Trigger workflow_dispatch for a workflow path on a ref with optional inputs.
-   * Returns accepted=true only if GitHub responds with 204 No Content.
+   * Returns accepted=true with optional run information if GitHub provides it.
    */
   triggerWorkflowDispatch = async (params: GHAWorkflowDispatchParams): Promise<GHAWorkflowDispatchResult> => {
     const { token, owner, repo, workflow, ref, inputs, acceptHeader, userAgent, timeoutMs } = params;
@@ -87,11 +87,49 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
     };
     const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`;
     const resp = await fetchWithTimeout(url, { method: 'POST', headers, body: JSON.stringify({ ref, inputs }) }, timeoutMs);
-    if (resp.status === 204) {
+    
+    const statusIsNoContent = resp.status === 204;
+    if (statusIsNoContent) {
       return { accepted: true };
     }
-    const txt = await resp.text().catch(() => '');
-    const errorMessage = `${ERROR_MESSAGES.GHA_DISPATCH_FAILED}${txt ? `: ${txt}` : ''}`;
+    
+    const statusIsSuccess = resp.status === 200 || resp.status === 201;
+    if (statusIsSuccess) {
+      const responseText = await resp.text().catch(() => '');
+      const responseIsEmpty = !responseText || responseText.trim().length === 0;
+      
+      if (responseIsEmpty) {
+        return { accepted: true };
+      }
+      
+      try {
+        const responseJson = JSON.parse(responseText) as {
+          workflow_run_id?: number | string;
+          run_url?: string;
+          html_url?: string;
+        };
+        
+        const workflowRunId = responseJson.workflow_run_id;
+        const runUrl = responseJson.run_url;
+        const htmlUrl = responseJson.html_url;
+        
+        const hasRunInfo = workflowRunId !== undefined || runUrl !== undefined || htmlUrl !== undefined;
+        
+        if (hasRunInfo) {
+          return {
+            accepted: true,
+            htmlUrl
+          };
+        }
+        
+        return { accepted: true };
+      } catch {
+        return { accepted: true };
+      }
+    }
+    
+    const errorText = await resp.text().catch(() => '');
+    const errorMessage = `${ERROR_MESSAGES.GHA_DISPATCH_FAILED}${errorText ? `: ${errorText}` : ''}`;
     throw new Error(errorMessage);
   };
 
