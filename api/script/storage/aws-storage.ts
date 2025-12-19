@@ -456,10 +456,17 @@ export function createModelss(sequelize: Sequelize) {
   const CICDWorkflows = createCICDWorkflowModel(sequelize);  // CI/CD workflows/jobs across providers
   const CICDConfig = createCICDConfigModel(sequelize);  // CI/CD configurations
   
+  // Project Management integrations (must be created before Release due to FK constraints)
+  const ProjectManagementIntegration = createProjectManagementIntegrationModel(sequelize);
+  const ProjectManagementConfig = createProjectManagementConfigModel(sequelize);
+  
+  // Release Configuration (must be created before Release due to FK constraints)
+  const ReleaseConfig = createReleaseConfigModel(sequelize);
+  
   // NEW: Release Management Models (standardized schema)
   const Platform = createPlatformModel(sequelize);  // Reference table for platforms
   const Target = createTargetModel(sequelize);  // Reference table for targets
-  const Release = createReleaseModel(sequelize);  // Main releases table
+  const Release = createReleaseModel(sequelize);  // Main releases table (has FK to release_configurations)
   const ReleasePlatformTargetMapping = createPlatformTargetMappingModel(sequelize);  // Platform-target mapping
   const CronJob = createCronJobModel(sequelize);  // Cron jobs for automation
   const ReleaseTask = createReleaseTaskModel(sequelize);  // Release tasks
@@ -630,6 +637,54 @@ export function createModelss(sequelize: Sequelize) {
     as: 'tenant'
   });
   
+  // Project Management associations
+  // Tenant has many Project Management Integrations
+  Tenant.hasMany(ProjectManagementIntegration, { 
+    foreignKey: 'tenantId',
+    as: 'projectManagementIntegrations' 
+  });
+  ProjectManagementIntegration.belongsTo(Tenant, { 
+    foreignKey: 'tenantId',
+    as: 'tenant'
+  });
+  
+  // Tenant has many Project Management Configs
+  Tenant.hasMany(ProjectManagementConfig, { 
+    foreignKey: 'tenantId',
+    as: 'projectManagementConfigs' 
+  });
+  ProjectManagementConfig.belongsTo(Tenant, { 
+    foreignKey: 'tenantId',
+    as: 'tenant'
+  });
+  
+  // Project Management Config belongs to Integration
+  ProjectManagementConfig.belongsTo(ProjectManagementIntegration, { 
+    foreignKey: 'integrationId',
+    as: 'integration'
+  });
+  ProjectManagementIntegration.hasMany(ProjectManagementConfig, { 
+    foreignKey: 'integrationId',
+    as: 'configs'
+  });
+  
+  // Release Config associations
+  // Tenant has many Release Configs
+  Tenant.hasMany(ReleaseConfig, { 
+    foreignKey: 'tenantId',
+    as: 'releaseConfigs' 
+  });
+  ReleaseConfig.belongsTo(Tenant, { 
+    foreignKey: 'tenantId',
+    as: 'tenant'
+  });
+  
+  // Release Config belongs to Account (creator)
+  ReleaseConfig.belongsTo(Account, { 
+    foreignKey: 'createdByAccountId',
+    as: 'creator'
+  });
+  
   // Distribution associations
   // Tenant has many Distributions
   Tenant.hasMany(Distribution, { 
@@ -716,6 +771,9 @@ export function createModelss(sequelize: Sequelize) {
     ChannelConfig: CommConfig,  // Legacy alias
     TenantTestManagementIntegration,  // Test management integrations
     TestManagementConfig,  // Test management configurations
+    ProjectManagementIntegration,  // Project management integrations (JIRA, Linear, etc.)
+    ProjectManagementConfig,  // Project management configurations
+    ReleaseConfig,  // Release configuration profiles
     Distribution,  // Distribution tracking
     IosSubmissionBuild,  // iOS submission builds
     AndroidSubmissionBuild,  // Android submission builds

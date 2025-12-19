@@ -33,7 +33,7 @@ export const createProjectManagementIntegrationModel = (sequelize: Sequelize) =>
         comment: 'Primary key'
       },
       tenantId: {
-        type: DataTypes.STRING(255),
+        type: DataTypes.UUID,
         allowNull: false,
         comment: 'Tenant identifier'
       },
