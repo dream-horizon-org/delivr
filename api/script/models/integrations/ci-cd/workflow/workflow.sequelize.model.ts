@@ -64,7 +64,7 @@ export const createCICDWorkflowModel = (sequelize: Sequelize) => {
         type: DataTypes.STRING(100),
         allowNull: false,
         defaultValue: 'other',
-        comment: 'Normalized lowercase platform identifier'
+        comment: 'Normalized uppercase platform identifier'
       },
       workflowType: {
         type: DataTypes.ENUM(...Object.values(WorkflowType)),
