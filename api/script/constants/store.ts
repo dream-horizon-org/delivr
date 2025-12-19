@@ -51,6 +51,19 @@ export const PLAY_STORE_UPLOAD_CONSTANTS = {
   API_BASE_URL: 'https://androidpublisher.googleapis.com/androidpublisher/v3',
 } as const;
 
+/**
+ * Google Play API track release status values
+ * These are the status values returned by Google Play Console API for track releases
+ */
+export const GOOGLE_PLAY_RELEASE_STATUS = {
+  IN_PROGRESS: 'inProgress',
+  COMPLETED: 'completed',
+  HALTED: 'halted'
+} as const;
+
+export const GOOGLE_PLAY_RELEASE_STATUSES = Object.values(GOOGLE_PLAY_RELEASE_STATUS);
+export type GooglePlayReleaseStatus = typeof GOOGLE_PLAY_RELEASE_STATUS[keyof typeof GOOGLE_PLAY_RELEASE_STATUS];
+
 export const PLAY_STORE_UPLOAD_ERROR_MESSAGES = {
   INTEGRATION_NOT_FOUND_FOR_UPLOAD: 'Store integration not found for upload. Please ensure a Play Store integration exists for the specified tenant, storeType, and platform.',
   CREDENTIALS_NOT_FOUND: 'Credentials not found for store integration',

@@ -350,11 +350,13 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
   };
 
 /**
- * Pause iOS rollout
- * PATCH /submissions/:submissionId/rollout/pause?platform=IOS
+ * Pause iOS rollout / Halt Android rollout
+ * PATCH /submissions/:submissionId/rollout/pause?platform=<IOS|ANDROID>
  * 
- * Pauses an active iOS phased release rollout
- * Query params: platform (IOS only)
+ * - iOS: Pauses an active iOS phased release rollout
+ * - Android: Halts an active Android release rollout
+ * 
+ * Query params: platform (IOS or ANDROID)
  * Request body: { reason: string }
  */
 const pauseRolloutHandler = (service: SubmissionService) =>
@@ -383,20 +385,10 @@ const pauseRolloutHandler = (service: SubmissionService) =>
         return;
       }
 
-      // Only iOS supports pause/resume
-      if (platform.toUpperCase() === 'ANDROID') {
+      const platformUpper = platform.toUpperCase();
+      if (platformUpper !== 'IOS' && platformUpper !== 'ANDROID') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          errorResponse(
-            new Error('Pause rollout is only supported for iOS submissions'),
-            'Android submissions do not support pause/resume functionality'
-          )
-        );
-        return;
-      }
-
-      if (platform.toUpperCase() !== 'IOS') {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('platform', 'platform must be IOS')
+          validationErrorResponse('platform', 'platform must be IOS or ANDROID')
         );
         return;
       }
@@ -408,7 +400,15 @@ const pauseRolloutHandler = (service: SubmissionService) =>
         return;
       }
 
-      const result = await service.pauseRollout(submissionId, reason, createdBy);
+      let result;
+
+      if (platformUpper === 'IOS') {
+        // iOS: Pause rollout
+        result = await service.pauseRollout(submissionId, reason, createdBy);
+      } else {
+        // Android: Halt rollout
+        result = await service.haltAndroidRollout(submissionId, reason, createdBy);
+      }
 
       if (!result) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
@@ -422,18 +422,22 @@ const pauseRolloutHandler = (service: SubmissionService) =>
       );
     } catch (error) {
       const statusCode = getErrorStatusCode(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const action = req.query.platform?.toString().toUpperCase() === 'ANDROID' ? 'halt' : 'pause';
       res.status(statusCode).json(
-        errorResponse(error, 'Failed to pause rollout')
+        errorResponse(error, `Failed to ${action} rollout`)
       );
     }
   };
 
 /**
- * Resume iOS rollout
- * PATCH /submissions/:submissionId/rollout/resume?platform=IOS
+ * Resume rollout (iOS or Android)
+ * PATCH /submissions/:submissionId/rollout/resume?platform=<IOS|ANDROID>
  * 
- * Resumes a paused iOS phased release rollout
- * Query params: platform (IOS only)
+ * - iOS: Resumes a paused iOS phased release rollout
+ * - Android: Resumes a halted Android release rollout
+ * 
+ * Query params: platform (IOS or ANDROID)
  */
 const resumeRolloutHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -460,25 +464,15 @@ const resumeRolloutHandler = (service: SubmissionService) =>
         return;
       }
 
-      // Only iOS supports pause/resume
-      if (platform.toUpperCase() === 'ANDROID') {
+      const platformUpper = platform.toUpperCase();
+      if (platformUpper !== 'IOS' && platformUpper !== 'ANDROID') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          errorResponse(
-            new Error('Resume rollout is only supported for iOS submissions'),
-            'Android submissions do not support pause/resume functionality'
-          )
+          validationErrorResponse('platform', 'platform must be IOS or ANDROID')
         );
         return;
       }
 
-      if (platform.toUpperCase() !== 'IOS') {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('platform', 'platform must be IOS')
-        );
-        return;
-      }
-
-      const result = await service.resumeRollout(submissionId, createdBy);
+      const result = await service.resumeRollout(submissionId, createdBy, platformUpper);
 
       if (!result) {
         res.status(HTTP_STATUS.NOT_FOUND).json(

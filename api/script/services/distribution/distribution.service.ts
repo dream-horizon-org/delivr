@@ -14,7 +14,7 @@ import type { Distribution, DistributionFilters } from '~types/distribution/dist
 import type { IosSubmissionBuild } from '~types/distribution/ios-submission.interface';
 import type { AndroidSubmissionBuild } from '~types/distribution/android-submission.interface';
 import type { SubmissionActionHistory } from '~types/distribution/submission-action-history.interface';
-import { SUBMISSION_PLATFORM } from '~types/distribution/submission.constants';
+import { SUBMISSION_PLATFORM, ANDROID_SUBMISSION_STATUS } from '~types/distribution/submission.constants';
 import type { DistributionStatus } from '~types/distribution/distribution.constants';
 import { 
   BUILD_PLATFORM, 
@@ -724,7 +724,7 @@ export class DistributionService {
                 versionCode: versionCode || 0,
                 buildType: build.buildType,
                 storeType: storeType,
-                status: 'PENDING',
+                status: ANDROID_SUBMISSION_STATUS.PENDING,
                 isActive: true
               });
               

@@ -27,6 +27,23 @@ export const SUBMISSION_STATUSES = Object.values(SUBMISSION_STATUS);
 export type SubmissionStatus = typeof SUBMISSION_STATUS[keyof typeof SUBMISSION_STATUS];
 
 /**
+ * Android-specific submission status lifecycle
+ * Flow: PENDING -> SUBMITTED -> USER_ACTION_PENDING -> SUSPENDED -> IN_PROGRESS -> COMPLETED -> HALTED
+ */
+export const ANDROID_SUBMISSION_STATUS = {
+  PENDING: 'PENDING',
+  SUBMITTED: 'SUBMITTED',
+  USER_ACTION_PENDING: 'USER_ACTION_PENDING',
+  SUSPENDED: 'SUSPENDED',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+  HALTED: 'HALTED'
+} as const;
+
+export const ANDROID_SUBMISSION_STATUSES = Object.values(ANDROID_SUBMISSION_STATUS);
+export type AndroidSubmissionStatus = typeof ANDROID_SUBMISSION_STATUS[keyof typeof ANDROID_SUBMISSION_STATUS];
+
+/**
  * Build type (manual vs CI/CD) - shared between iOS and Android
  */
 export const BUILD_TYPE = {
