@@ -585,6 +585,21 @@ node mock-server/scenarios.js five
 | 5.4.9 | Success toast displays | After success | Shows "Rollout updated to 25%" toast | [ ] |
 | 5.4.10 | UI updates after success | After API success | Current rollout shows 25%, slider minimum is now 25 | [ ] |
 
+### Test Group 5.5: HALTED State - Update Blocked (10 tests)
+
+| ID | Test Case | Steps | Expected Result | Pass/Fail |
+|----|-----------|-------|-----------------|-----------|
+| 5.5.1 | Pause rollout first | Click Halt | Status changes to HALTED | [ ] |
+| 5.5.2 | Update controls disabled | Check UI after halt | Rollout slider disabled | [ ] |
+| 5.5.3 | Update button hidden | Check UI | "Update Rollout" button hidden/disabled | [ ] |
+| 5.5.4 | Try update via API | Call API with HALTED status | Returns 409 "Must resume first" | [ ] |
+| 5.5.5 | Warning message shown | Check UI | Shows "Must resume before updating rollout" message | [ ] |
+| 5.5.6 | Resume button visible | Check UI | "Resume" button prominently displayed | [ ] |
+| 5.5.7 | Resume rollout | Click Resume | Status changes back to IN_PROGRESS | [ ] |
+| 5.5.8 | Update controls re-enable | After resume | Rollout slider becomes enabled | [ ] |
+| 5.5.9 | Can now update | Set new percentage | Update button enables | [ ] |
+| 5.5.10 | Update works after resume | Click Update | Successfully updates rollout | [ ] |
+
 ---
 
 ## Module 6: iOS Phased Release Controls
@@ -653,6 +668,21 @@ node mock-server/scenarios.js five
 | 6.3.13 | Success toast displays | After success | Shows "Released to 100% of users" | [ ] |
 | 6.3.14 | Rollout shows 100% | After success | Current rollout displays 100% | [ ] |
 | 6.3.15 | Phased controls disappear | After complete | Pause/Complete buttons disappear (rollout done) | [ ] |
+
+### Test Group 6.4: PAUSED State - Update Blocked (10 tests)
+
+| ID | Test Case | Steps | Expected Result | Pass/Fail |
+|----|-----------|-------|-----------------|-----------|
+| 6.4.1 | Pause phased release | Click Pause | Status changes to PAUSED | [ ] |
+| 6.4.2 | Complete Early disabled | Check UI after pause | "Complete Early" button disabled | [ ] |
+| 6.4.3 | Try complete via API | Call API with PAUSED status | Returns 409 "Must resume first" | [ ] |
+| 6.4.4 | Warning message shown | Check UI | Shows "Must resume before completing rollout" message | [ ] |
+| 6.4.5 | Resume button visible | Check UI | "Resume" button prominently displayed | [ ] |
+| 6.4.6 | Pause reason shown | Check UI | Shows reason for pause | [ ] |
+| 6.4.7 | Resume rollout | Click Resume | Status changes back to LIVE | [ ] |
+| 6.4.8 | Complete Early re-enables | After resume | "Complete Early" button becomes enabled | [ ] |
+| 6.4.9 | Can now complete | Check button | Complete Early button clickable | [ ] |
+| 6.4.10 | Complete works after resume | Click Complete | Successfully releases to 100% | [ ] |
 
 ---
 
@@ -1189,30 +1219,52 @@ node mock-server/scenarios.js five
 
 **Location:** Throughout distribution flow
 
-### Test Group 14.1: Submission Status Transitions (20 tests)
+### Test Group 14.1: Submission Status Transitions (30 tests)
+
+**Android Status Transitions:**
 
 | ID | Test Case | Steps | Expected Result | Pass/Fail |
 |----|-----------|-------|-----------------|-----------|
-| 14.1.1 | PENDING → IN_REVIEW | Submit to store | Status changes to IN_REVIEW | [ ] |
-| 14.1.2 | IN_REVIEW → APPROVED | Store approves | Status changes to APPROVED | [ ] |
-| 14.1.3 | APPROVED → LIVE | Release approved | Status changes to LIVE | [ ] |
-| 14.1.4 | LIVE stays LIVE | Increase rollout | Status remains LIVE | [ ] |
-| 14.1.5 | LIVE → PAUSED | Pause iOS | Status changes to PAUSED | [ ] |
-| 14.1.6 | PAUSED → LIVE | Resume iOS | Status changes back to LIVE | [ ] |
-| 14.1.7 | LIVE → HALTED | Emergency halt | Status changes to HALTED | [ ] |
-| 14.1.8 | IN_REVIEW → REJECTED | Store rejects | Status changes to REJECTED | [ ] |
-| 14.1.9 | PENDING → CANCELLED | Cancel submission | Status changes to CANCELLED | [ ] |
-| 14.1.10 | REJECTED allows resubmit | After rejection | Can create new submission | [ ] |
-| 14.1.11 | New submission PENDING | After resubmit | New submission starts as PENDING | [ ] |
-| 14.1.12 | HALTED is final | After halt | Cannot change from HALTED | [ ] |
-| 14.1.13 | Cannot go back | LIVE → PENDING | Cannot revert to previous states | [ ] |
-| 14.1.14 | Badge color updates | Status changes | Badge color matches new status | [ ] |
-| 14.1.15 | Status history logs | Each transition | History records all transitions | [ ] |
-| 14.1.16 | Timestamp updates | Status changes | statusUpdatedAt updates | [ ] |
-| 14.1.17 | Actor recorded | User action | submittedBy records user email | [ ] |
-| 14.1.18 | Store action | Store approval | Actor shows "Store" | [ ] |
-| 14.1.19 | Concurrent updates | Two users | Conflict detected and handled | [ ] |
-| 14.1.20 | Stale data warning | Page open 1hr | Shows "Data may be stale. Refresh?" | [ ] |
+| 14.1.A1 | PENDING → SUBMITTED | Submit to Play Store | Status changes to SUBMITTED | [ ] |
+| 14.1.A2 | SUBMITTED → IN_PROGRESS | Store approves | Status changes to IN_PROGRESS | [ ] |
+| 14.1.A3 | IN_PROGRESS stays IN_PROGRESS | Increase rollout | Status remains IN_PROGRESS | [ ] |
+| 14.1.A4 | IN_PROGRESS → HALTED | Pause rollout | Status changes to HALTED (displays "Rollout Paused") | [ ] |
+| 14.1.A5 | HALTED → IN_PROGRESS | Resume rollout | Status changes back to IN_PROGRESS | [ ] |
+| 14.1.A6 | IN_PROGRESS → COMPLETED | Rollout to 100% | Status changes to COMPLETED | [ ] |
+| 14.1.A7 | COMPLETED is final | After completion | Cannot change from COMPLETED | [ ] |
+| 14.1.A8 | SUBMITTED → USER_ACTION_PENDING | After 5 days (simulated) | Status changes to USER_ACTION_PENDING | [ ] |
+| 14.1.A9 | USER_ACTION_PENDING allows resubmit | Click resubmit | Can create new submission | [ ] |
+| 14.1.A10 | USER_ACTION_PENDING → SUSPENDED | After 10 more days (simulated) | Status changes to SUSPENDED | [ ] |
+| 14.1.A11 | SUSPENDED is terminal | After suspension | Cannot perform any actions | [ ] |
+| 14.1.A12 | New submission after resubmit | After resubmit from USER_ACTION_PENDING | Old marked SUSPENDED, new is SUBMITTED | [ ] |
+| 14.1.A13 | Cannot cancel Android | Check actions | No Cancel button for Android | [ ] |
+
+**iOS Status Transitions:**
+
+| ID | Test Case | Steps | Expected Result | Pass/Fail |
+|----|-----------|-------|-----------------|-----------|
+| 14.1.I1 | PENDING → IN_REVIEW | Submit to App Store | Status changes to IN_REVIEW | [ ] |
+| 14.1.I2 | IN_REVIEW → APPROVED | Apple approves | Status changes to APPROVED | [ ] |
+| 14.1.I3 | APPROVED → LIVE | Release approved | Status changes to LIVE | [ ] |
+| 14.1.I4 | LIVE stays LIVE | Increase rollout | Status remains LIVE | [ ] |
+| 14.1.I5 | LIVE → PAUSED (phased) | Pause phased release | Status changes to PAUSED (displays "Rollout Paused") | [ ] |
+| 14.1.I6 | PAUSED → LIVE (phased) | Resume phased release | Status changes back to LIVE | [ ] |
+| 14.1.I7 | IN_REVIEW → REJECTED | Apple rejects | Status changes to REJECTED | [ ] |
+| 14.1.I8 | IN_REVIEW → CANCELLED | Cancel submission | Status changes to CANCELLED | [ ] |
+| 14.1.I9 | REJECTED allows resubmit | After rejection | Can create new submission | [ ] |
+| 14.1.I10 | CANCELLED allows resubmit | After cancellation | Can create new submission | [ ] |
+| 14.1.I11 | New submission after resubmit | After resubmit | Old marked inactive, new is IN_REVIEW | [ ] |
+
+**Common Tests:**
+
+| ID | Test Case | Steps | Expected Result | Pass/Fail |
+|----|-----------|-------|-----------------|-----------|
+| 14.1.C1 | Cannot go back | Any forward transition | Cannot revert to previous states | [ ] |
+| 14.1.C2 | Badge color updates | Status changes | Badge color matches new status | [ ] |
+| 14.1.C3 | Status history logs | Each transition | History records all transitions | [ ] |
+| 14.1.C4 | Timestamp updates | Status changes | statusUpdatedAt updates | [ ] |
+| 14.1.C5 | Actor recorded | User action | submittedBy records user email | [ ] |
+| 14.1.C6 | Store action | Store approval | Actor shows "Store" or "System" | [ ] |
 
 ### Test Group 14.2: Distribution Status Transitions (15 tests)
 

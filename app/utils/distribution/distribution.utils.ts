@@ -3,36 +3,40 @@
  * 
  * Reusable, testable functions with no React dependencies.
  * Each function is a single-purpose, deterministic transformation.
+ * 
+ * NOTE: For submission status-related logic, use distribution-state.utils.ts
+ * which queries the Single Source of Truth (SSOT) configuration.
  */
 
 import {
-    BUILD_UPLOAD_STATUS_COLORS,
-    BUILD_UPLOAD_STATUS_LABELS,
-    RELEASE_STATUS_COLORS,
-    ROLLOUT_COMPLETE_PERCENT,
-    ROLLOUT_STATUS_COLORS,
-    ROLLOUT_STATUS_LABELS,
+  BUILD_UPLOAD_STATUS_COLORS,
+  BUILD_UPLOAD_STATUS_LABELS,
+  RELEASE_STATUS_COLORS,
+  ROLLOUT_COMPLETE_PERCENT,
+  ROLLOUT_STATUS_COLORS,
+  ROLLOUT_STATUS_LABELS,
 } from '~/constants/distribution/distribution.constants';
 import type {
-    ActionAvailability,
-    ApprovalState,
-    BuildState,
+  ActionAvailability,
+  ApprovalState,
+  BuildState,
 } from '~/types/distribution/distribution-component.types';
 import type {
-    AvailableAction,
-    Build,
-    PMApprovalStatus,
-    RolloutAction,
+  AvailableAction,
+  Build,
+  PMApprovalStatus,
+  RolloutAction,
 } from '~/types/distribution/distribution.types';
 import {
-    BuildStrategy,
-    BuildUploadStatus,
-    DistributionStatus,
-    Platform,
-    RolloutDisplayStatus,
-    SubmissionAction,
-    SubmissionStatus,
+  BuildStrategy,
+  BuildUploadStatus,
+  DistributionStatus,
+  Platform,
+  RolloutDisplayStatus,
+  SubmissionAction,
+  SubmissionStatus,
 } from '~/types/distribution/distribution.types';
+import { isSubmissionPaused, isSubmissionTerminal } from './distribution-state.utils';
 
 // ============================================================================
 // TYPE GUARDS
@@ -197,6 +201,9 @@ export function deriveApprovalState(pmStatus: PMApprovalStatus): ApprovalState {
 
 /**
  * Derive action availability from props (pure function, not a hook)
+ * 
+ * NOTE: This function uses backend-provided availableActions array.
+ * For direct status-based checks, use distribution-state.utils.ts functions.
  */
 export function deriveActionAvailability(
   availableActions: AvailableAction[],
@@ -212,14 +219,18 @@ export function deriveActionAvailability(
   const canResume = findAction(SubmissionAction.RESUME as RolloutAction)?.enabled ?? false;
   const canHalt = findAction(SubmissionAction.HALT as RolloutAction)?.enabled ?? false;
 
-  const updateReason = findAction(SubmissionAction.UPDATE_ROLLOUT as RolloutAction)?.reason ?? null;
-  const pauseReason = findAction(SubmissionAction.PAUSE as RolloutAction)?.reason ?? null;
-  const resumeReason = findAction(SubmissionAction.RESUME as RolloutAction)?.reason ?? null;
-  const haltReason = findAction(SubmissionAction.HALT as RolloutAction)?.reason ?? null;
+  const updateReason = findAction(SubmissionAction.UPDATE_ROLLOUT as RolloutAction)?.reason;
+  const pauseReason = findAction(SubmissionAction.PAUSE as RolloutAction)?.reason;
+  const resumeReason = findAction(SubmissionAction.RESUME as RolloutAction)?.reason;
+  const haltReason = findAction(SubmissionAction.HALT as RolloutAction)?.reason;
 
   const supportsRollout = isAndroidPlatform(platform);
-  const isPaused = status === SubmissionStatus.PAUSED;
-  const isComplete = status === SubmissionStatus.LIVE && currentPercentage === ROLLOUT_COMPLETE_PERCENT;
+  
+  // Query SSOT instead of hardcoded checks
+  const isPaused = isSubmissionPaused(status);
+  const isComplete = 
+    isSubmissionTerminal(status) || // Use SSOT for terminal check
+    currentPercentage === ROLLOUT_COMPLETE_PERCENT;
 
   return {
     canUpdate: canUpdate && supportsRollout,
@@ -237,15 +248,31 @@ export function deriveActionAvailability(
 }
 
 /**
- * Get rollout status for progress bar display
+ * Get rollout status for progress bar display.
+ * Queries SSOT configuration instead of hardcoded status checks.
  */
 export function getRolloutDisplayStatus(
   percentage: number,
   status: SubmissionStatus
 ): RolloutDisplayStatus {
-  if (percentage === ROLLOUT_COMPLETE_PERCENT) return RolloutDisplayStatus.COMPLETE;
-  if (status === SubmissionStatus.REJECTED || status === SubmissionStatus.HALTED) return RolloutDisplayStatus.HALTED;
-  if (status === SubmissionStatus.PAUSED) return RolloutDisplayStatus.PAUSED;
+  // Complete state
+  if (percentage === ROLLOUT_COMPLETE_PERCENT || status === SubmissionStatus.COMPLETED) {
+    return RolloutDisplayStatus.COMPLETE;
+  }
+  
+  // Error/terminal states - Query SSOT
+  if (isSubmissionTerminal(status) || 
+      status === SubmissionStatus.REJECTED || 
+      status === SubmissionStatus.SUSPENDED) {
+    return RolloutDisplayStatus.HALTED;
+  }
+  
+  // Paused states - Query SSOT
+  if (isSubmissionPaused(status)) {
+    return RolloutDisplayStatus.PAUSED;
+  }
+  
+  // Default: Active rollout
   return RolloutDisplayStatus.ACTIVE;
 }
 

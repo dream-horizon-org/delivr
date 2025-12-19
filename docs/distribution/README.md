@@ -1,7 +1,7 @@
 # Distribution Module - Complete Documentation
 
 **Location:** `delivr-web-panel-managed/docs/distribution/`  
-**Last Updated:** December 16, 2025  
+**Last Updated:** December 19, 2025  
 **Status:** ✅ **PRODUCTION READY**
 
 ---
@@ -94,42 +94,66 @@ PENDING → PARTIALLY_SUBMITTED → SUBMITTED → PARTIALLY_RELEASED → RELEASE
 - Two platforms: Includes `PARTIALLY_SUBMITTED` and `PARTIALLY_RELEASED`
 - **"Released" means:** `APPROVED`, `LIVE`, `PAUSED`, or `HALTED` status
 
-### Submission Lifecycle (8 States)
+### Submission Lifecycle (Platform-Specific)
+
+**Android:**
+```
+PENDING → SUBMITTED → IN_PROGRESS ⇄ HALTED → COMPLETED
+              ↓           ↑
+         (5 days)    (resume)
+              ↓
+    USER_ACTION_PENDING
+              ↓
+         (10 days)
+              ↓
+         SUSPENDED (terminal)
+```
+
+**iOS:**
 ```
 PENDING → IN_REVIEW → APPROVED → LIVE
              ↓            ↓         ↓
-         REJECTED     REJECTED   PAUSED (iOS only)
-             ↓            ↓         ↓
-         CANCELLED    CANCELLED  HALTED (Android only)
+         REJECTED     REJECTED   PAUSED (phased only)
+             ↓            ↓          
+         CANCELLED    CANCELLED
 ```
 
 ### Available Actions
 
 | Action | From → To | Platform | Prerequisites |
 |--------|-----------|----------|---------------|
-| **Submit** | PENDING → IN_REVIEW | Both | Details provided |
-| **Cancel** | IN_REVIEW → CANCELLED | Both | - |
-| **Resubmit** | REJECTED/CANCELLED → IN_REVIEW | Both | New submission (new ID) |
-| **Pause** | LIVE → PAUSED | iOS only | `phasedRelease=true` |
-| **Resume** | PAUSED → LIVE | iOS only | - |
-| **Halt** | LIVE → HALTED | **Android only** | Terminal state |
-| **Update Rollout** | LIVE → LIVE | Both | Platform-specific rules |
+| **Submit** | PENDING → SUBMITTED (Android) / IN_REVIEW (iOS) | Both | Details provided |
+| **Cancel** | IN_REVIEW → CANCELLED | **iOS only** | - |
+| **Resubmit** | REJECTED/CANCELLED (iOS) / USER_ACTION_PENDING (Android) → New submission | Both | Creates new submission (new ID) |
+| **Pause** | IN_PROGRESS → HALTED (Android) / LIVE → PAUSED (iOS) | Both | iOS: `phasedRelease=true` |
+| **Resume** | HALTED → IN_PROGRESS (Android) / PAUSED → LIVE (iOS) | Both | - |
+| **Update Rollout** | IN_PROGRESS (Android) / LIVE (iOS) → Same status | Both | ⚠️ **Cannot update from HALTED/PAUSED - must resume first!** |
+
+**🚨 Critical Rule:** HALTED (Android) and PAUSED (iOS) do NOT allow rollout updates. You must **RESUME first**, then update the rollout percentage.
 
 ---
 
 ## 🔑 Platform-Specific Rules
 
 ### Android
-- ✅ Manual staged rollout (any %, decimals allowed)
-- ✅ Can **HALT** (emergency stop - terminal state)
-- ❌ Cannot PAUSE
+- ✅ Manual staged rollout (0.01-100%, decimals allowed, min 0.01%)
+- ✅ Can **PAUSE** and **RESUME** (IN_PROGRESS ⇄ HALTED)
+- ✅ `HALTED` status displayed as "Rollout Paused" in UI
+- 🚨 **CRITICAL:** Cannot update rollout from HALTED - must **RESUME first** to IN_PROGRESS
+- ❌ Cannot **CANCEL** submissions
 - ✅ `inAppUpdatePriority` (0-5)
+- ⚠️ **Managed Publishing must be OFF** for rollout control
+- ⏱️ **Status Polling**: Backend polls Play Store for 5 days after submission
+- ⚠️ **USER_ACTION_PENDING**: If status not verified after 5 days, requires manual resubmission
+- 🚫 **SUSPENDED**: Terminal state if no action taken within 10 days
 
 ### iOS
 - ✅ **Phased Release** (automatic 7-day rollout, can pause/resume)
 - ✅ **Manual Release** (immediate 100%, no rollout control)
-- ✅ Can **PAUSE** and **RESUME** (phased only)
-- ❌ Cannot HALT (use Cancel or store-level controls)
+- ✅ Can **PAUSE** and **RESUME** (LIVE ⇄ PAUSED, phased only)
+- 🚨 **CRITICAL:** Cannot update rollout from PAUSED - must **RESUME first** to LIVE
+- ✅ Can **CANCEL** submissions (IN_REVIEW → CANCELLED)
+- ✅ `PAUSED` status displayed as "Rollout Paused" in UI
 - ✅ `releaseType`: Always `"AFTER_APPROVAL"`
 
 ---
@@ -148,6 +172,7 @@ PENDING → IN_REVIEW → APPROVED → LIVE
 **APIs:** 
 - `GET /api/v1/distributions` (list with pagination)
 - `GET /api/v1/distributions/:distributionId` (detail)
+- `GET /api/v1/tenants/:tenantId/submissions/:submissionId/artifact?platform={android|ios}` (artifact download with presigned URL)
 - All submission action endpoints
 
 ---
@@ -231,6 +256,6 @@ For questions or clarifications on:
 
 ---
 
-**Last Updated:** December 16, 2025  
+**Last Updated:** December 19, 2025  
 **Version:** 1.0.0 Production Ready  
 **Total Documentation:** ~4,835 lines across 3 specification documents

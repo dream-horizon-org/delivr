@@ -44,13 +44,13 @@ import {
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import {
-  SUBMISSION_STATUS_COLORS
-} from '~/constants/distribution/distribution.constants';
-import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
 } from '~/constants/distribution/distribution-design.constants';
+import {
+  SUBMISSION_STATUS_COLORS
+} from '~/constants/distribution/distribution.constants';
 import { SubmissionStatus, type Platform } from '~/types/distribution/distribution.types';
 
 // ============================================================================
@@ -130,13 +130,16 @@ function formatTimestamp(timestamp: string): string {
   if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
   if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
   
-  return date.toLocaleDateString('en-US', {
+  const options: Intl.DateTimeFormatOptions = {
     month: 'short',
     day: 'numeric',
-    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
     hour: '2-digit',
     minute: '2-digit',
-  });
+    ...(date.getFullYear() !== now.getFullYear() && { year: 'numeric' as const }),
+  };
+  return date.toLocaleDateString('en-US', options);
+  
+  return date.toLocaleDateString('en-US', options);
 }
 
 // ============================================================================

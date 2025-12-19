@@ -9,29 +9,29 @@
  */
 
 import {
-    Alert,
-    Button,
-    Group,
-    List,
-    Modal,
-    Stack,
-    Text,
-    Textarea,
-    ThemeIcon,
+  Alert,
+  Button,
+  Group,
+  List,
+  Modal,
+  Stack,
+  Text,
+  Textarea,
+  ThemeIcon,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconAlertOctagon, IconAlertTriangle, IconX } from '@tabler/icons-react';
 import { useCallback } from 'react';
 import {
-    DS_COLORS,
-    DS_SPACING,
-    DS_TYPOGRAPHY,
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
 } from '~/constants/distribution/distribution-design.constants';
 import {
-    BUTTON_LABELS,
-    DIALOG_ICON_SIZES,
-    DIALOG_UI,
-    HALT_REASON_VALIDATION,
+  BUTTON_LABELS,
+  DIALOG_ICON_SIZES,
+  DIALOG_UI,
+  HALT_REASON_VALIDATION,
 } from '~/constants/distribution/distribution.constants';
 
 // ============================================================================
@@ -174,11 +174,7 @@ export function HaltConfirmationDialog({
             disabled={isLoading}
             autoFocus
             {...form.getInputProps('reason')}
-            styles={{
-              description: {
-                color: isNearLimit ? 'var(--mantine-color-orange-6)' : undefined,
-              },
-            }}
+            {...(isNearLimit && { styles: { description: { color: 'var(--mantine-color-orange-6)' } } })}
           />
 
           {/* Action Buttons */}

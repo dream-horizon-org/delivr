@@ -6,10 +6,10 @@
  */
 
 import type {
-    BuildUploadStatus,
-    Platform,
-    SubmissionStatus,
-    WarningSeverity,
+  BuildUploadStatus,
+  Platform,
+  SubmissionStatus,
+  WarningSeverity,
 } from '~/types/distribution/distribution.types';
 import { DistributionStatus } from '~/types/distribution/distribution.types';
 
@@ -17,8 +17,8 @@ import { DistributionStatus } from '~/types/distribution/distribution.types';
 // ROLLOUT PERCENTAGES
 // ============================================================================
 
-/** Minimum rollout percentage (0%) */
-export const MIN_ROLLOUT_PERCENT = 0;
+/** Minimum rollout percentage (0.01% for Android, 0% for iOS) */
+export const MIN_ROLLOUT_PERCENT = 0.01;
 
 /** Maximum rollout percentage (100%) */
 export const MAX_ROLLOUT_PERCENT = 100;
@@ -68,15 +68,26 @@ export const RELEASE_STATUS_LABELS = DISTRIBUTION_STATUS_LABELS;
 
 /**
  * Submission Status Labels
+ * Note: Both Android HALTED and iOS PAUSED display as "Rollout Paused" in UI
  */
 export const SUBMISSION_STATUS_LABELS: Record<SubmissionStatus, string> = {
+  // Common
   PENDING: 'Pending',
+  
+  // Android-Specific
+  SUBMITTED: 'Submitted',
+  IN_PROGRESS: 'In Progress',
+  COMPLETED: 'Completed',
+  USER_ACTION_PENDING: 'Action Required',
+  SUSPENDED: 'Suspended',
+  HALTED: 'Rollout Paused',           // Displayed as "Rollout Paused" for consistency with iOS
+  
+  // iOS-Specific
   IN_REVIEW: 'In Review',
   APPROVED: 'Approved',
   LIVE: 'Live',
-  PAUSED: 'Paused',
+  PAUSED: 'Rollout Paused',           // Displayed as "Rollout Paused" for consistency with Android
   REJECTED: 'Rejected',
-  HALTED: 'Halted',
   CANCELLED: 'Cancelled',
 } as const;
 
@@ -124,13 +135,23 @@ export const RELEASE_STATUS_COLORS = DISTRIBUTION_STATUS_COLORS;
  * Submission Status Colors (for badges)
  */
 export const SUBMISSION_STATUS_COLORS: Record<SubmissionStatus, string> = {
+  // Common
   PENDING: 'gray',
+  
+  // Android-Specific
+  SUBMITTED: 'blue',
+  IN_PROGRESS: 'green',
+  COMPLETED: 'green',
+  USER_ACTION_PENDING: 'orange',
+  SUSPENDED: 'red',
+  HALTED: 'orange',               // Orange for paused state (resumable)
+  
+  // iOS-Specific
   IN_REVIEW: 'yellow',
-  APPROVED: 'green',
+  APPROVED: 'cyan',
   LIVE: 'green',
-  PAUSED: 'orange',
+  PAUSED: 'orange',               // Orange for paused state (resumable)
   REJECTED: 'red',
-  HALTED: 'red',
   CANCELLED: 'gray',
 } as const;
 
@@ -139,13 +160,23 @@ export const SUBMISSION_STATUS_COLORS: Record<SubmissionStatus, string> = {
  * Note: Different from badge colors - progress bars use blue for active/in-progress state
  */
 export const SUBMISSION_PROGRESS_COLORS: Record<SubmissionStatus, string> = {
+  // Common
   PENDING: 'gray',
+  
+  // Android-Specific
+  SUBMITTED: 'blue',
+  IN_PROGRESS: 'blue',
+  COMPLETED: 'green',
+  USER_ACTION_PENDING: 'orange',
+  SUSPENDED: 'red',
+  HALTED: 'orange',
+  
+  // iOS-Specific
   IN_REVIEW: 'blue',
   APPROVED: 'green',
   LIVE: 'green',
   PAUSED: 'orange',
   REJECTED: 'red',
-  HALTED: 'red',
   CANCELLED: 'gray',
 } as const;
 
@@ -169,15 +200,9 @@ export const BUILD_UPLOAD_STATUS_COLORS: Record<BuildUploadStatus, string> = {
  */
 export const ROLLOUT_PRESETS = [1, 5, 10, 25, 50, 100] as const;
 
-/**
- * Minimum rollout percentage
- */
-export const MIN_ROLLOUT_PERCENTAGE = 1;
-
-/**
- * Maximum rollout percentage
- */
-export const MAX_ROLLOUT_PERCENTAGE = 100;
+// ❌ REMOVED: Duplicate constants (use MIN_ROLLOUT_PERCENT and MAX_ROLLOUT_PERCENT above)
+// MIN_ROLLOUT_PERCENTAGE = 1 was WRONG (should be 0.01 for Android decimal support)
+// MAX_ROLLOUT_PERCENTAGE = 100 duplicated MAX_ROLLOUT_PERCENT
 
 // ============================================================================
 // FILE SIZE LIMITS
@@ -792,8 +817,8 @@ export const PROGRESS_BAR_HEIGHTS = {
  */
 export const VALIDATION_RULES = {
   ROLLOUT_PERCENTAGE: {
-    MIN: MIN_ROLLOUT_PERCENTAGE,
-    MAX: MAX_ROLLOUT_PERCENTAGE,
+    MIN: MIN_ROLLOUT_PERCENT,
+    MAX: MAX_ROLLOUT_PERCENT,
     STEP: 1,
   },
   TESTFLIGHT_BUILD_NUMBER: {

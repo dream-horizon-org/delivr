@@ -17,29 +17,31 @@
 import { Badge, Button, Card, Group, Progress, Stack, Text, ThemeIcon } from '@mantine/core';
 import { Link } from '@remix-run/react';
 import {
-    IconBrandAndroid,
-    IconBrandApple,
-    IconCheck,
-    IconClock,
-    IconExternalLink,
-    IconPlayerPause,
-    IconX,
+  IconBrandAndroid,
+  IconBrandApple,
+  IconCheck,
+  IconClock,
+  IconExternalLink,
+  IconPlayerPause,
+  IconX,
 } from '@tabler/icons-react';
-import {
-    PLATFORM_LABELS,
-    ROLLOUT_COMPLETE_PERCENT,
-    STORE_NAMES,
-    SUBMISSION_PROGRESS_COLORS,
-    SUBMISSION_STATUS_COLORS,
-    SUBMISSION_STATUS_LABELS,
-} from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
 } from '~/constants/distribution/distribution-design.constants';
+import { SUBMISSION_STATUS_CONFIG } from '~/constants/distribution/distribution-status-config.constants';
+import {
+  PLATFORM_LABELS,
+  ROLLOUT_COMPLETE_PERCENT,
+  STORE_NAMES,
+  SUBMISSION_PROGRESS_COLORS,
+  SUBMISSION_STATUS_COLORS,
+  SUBMISSION_STATUS_LABELS,
+} from '~/constants/distribution/distribution.constants';
 import type { Submission } from '~/types/distribution/distribution.types';
 import { Platform, SubmissionStatus } from '~/types/distribution/distribution.types';
+import { shouldShowProgressBar } from '~/utils/distribution/distribution-state.utils';
 
 // ============================================================================
 // TYPES
@@ -57,16 +59,24 @@ export type SubmissionStatusCardProps = {
 // LOCAL HELPER (returns JSX, must stay in component file)
 // ============================================================================
 
+/**
+ * Get status icon by directly querying SSOT configuration flags.
+ * Returns JSX so must stay in component file.
+ */
 function getSubmissionStatusIcon(status: SubmissionStatus) {
-  if (status === SubmissionStatus.LIVE || status === SubmissionStatus.APPROVED) {
+  const config = SUBMISSION_STATUS_CONFIG[status];
+  
+  // Directly query SSOT flags instead of intermediate category
+  if (config.flags.isActive || status === SubmissionStatus.APPROVED || status === SubmissionStatus.COMPLETED) {
     return <IconCheck size={14} />;
   }
-  if (status === SubmissionStatus.PAUSED) {
+  if (config.flags.isPaused) {
     return <IconPlayerPause size={14} />;
   }
-  if (status === SubmissionStatus.REJECTED || status === SubmissionStatus.HALTED) {
+  if (config.flags.isError || config.flags.isTerminal) {
     return <IconX size={14} />;
   }
+  // Default: pending/reviewing states
   return <IconClock size={14} />;
 }
 
@@ -107,8 +117,9 @@ export function SubmissionStatusCard({ submission, org, distributionId, compact 
     : null;
 
   const storeName = STORE_NAMES[platform];
-  const showProgress =
-    status === SubmissionStatus.LIVE || status === SubmissionStatus.APPROVED;
+  
+  // Show progress bar - Query SSOT utility function
+  const showProgress = shouldShowProgressBar(status, rolloutPercentage);
 
   return (
     <Card
@@ -160,7 +171,7 @@ export function SubmissionStatusCard({ submission, org, distributionId, compact 
         {/* Progress Bar (if applicable) */}
         {showProgress && (
           <div>
-            <Group justify="space-between" mb={4}>
+            <Group justify="space-between" mb={DS_SPACING.XS}>
               <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
                 Rollout Progress
               </Text>
@@ -199,24 +210,45 @@ export function SubmissionStatusCard({ submission, org, distributionId, compact 
 
         {/* Status Message */}
         <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>
+          {/* Android Statuses */}
+          {status === SubmissionStatus.SUBMITTED &&
+            'Submitted to Play Store. Awaiting review and processing.'}
+          {status === SubmissionStatus.IN_PROGRESS &&
+            rolloutPercentage < ROLLOUT_COMPLETE_PERCENT &&
+            'Rolling out on Play Store. Use Distribution Management to update percentage or pause.'}
+          {status === SubmissionStatus.IN_PROGRESS &&
+            rolloutPercentage === ROLLOUT_COMPLETE_PERCENT &&
+            'Rollout at 100%. Will complete automatically.'}
+          {status === SubmissionStatus.COMPLETED &&
+            'Rollout complete! Live to 100% of users.'}
+          {status === SubmissionStatus.HALTED &&
+            'Rollout paused. Use Distribution Management to resume.'}
+          {status === SubmissionStatus.USER_ACTION_PENDING &&
+            'Action required! Check Play Store Console and resubmit if needed.'}
+          {status === SubmissionStatus.SUSPENDED &&
+            'Submission suspended. No further actions available.'}
+          
+          {/* iOS Statuses */}
           {status === SubmissionStatus.IN_REVIEW &&
-            'Awaiting store review. This typically takes 1-3 days.'}
+            'Awaiting App Store review. This typically takes 1-3 days.'}
           {status === SubmissionStatus.REJECTED &&
             'Submission was rejected. Go to Distribution Management to fix and re-submit.'}
           {status === SubmissionStatus.APPROVED &&
-            'Approved by store. Use Distribution Management to start rollout.'}
+            'Approved by Apple. Use Distribution Management to release.'}
           {status === SubmissionStatus.LIVE &&
             rolloutPercentage < ROLLOUT_COMPLETE_PERCENT &&
-            'Rolling out. Use Distribution Management to update percentage.'}
+            'Live on App Store. Use Distribution Management to manage phased release.'}
           {status === SubmissionStatus.LIVE &&
             rolloutPercentage === ROLLOUT_COMPLETE_PERCENT &&
             'Live to 100% of users!'}
-          {status === SubmissionStatus.HALTED &&
-            'Rollout halted. Check Distribution Management for details.'}
+          {status === SubmissionStatus.PAUSED &&
+            'Phased release paused. Use Distribution Management to resume.'}
+          {status === SubmissionStatus.CANCELLED &&
+            'Submission cancelled. Use Distribution Management to resubmit.'}
         </Text>
 
         {/* Link to Distribution Management */}
-        {status !== SubmissionStatus.IN_REVIEW && (
+        {status !== SubmissionStatus.IN_REVIEW && status !== SubmissionStatus.SUBMITTED && (
           <Button
             component={Link}
             to={`/dashboard/${org}/distributions/${distributionId}`}

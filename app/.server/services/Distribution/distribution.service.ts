@@ -36,7 +36,8 @@ import type {
 class Distribution {
   private __client = axios.create({
     // In HYBRID_MODE or MOCK_MODE, Distribution APIs go to mock server
-    baseURL: getBackendBaseURL('/api/v1/distributions'),
+    // Base URL should be just the backend URL, not including /api/v1/distributions
+    baseURL: getBackendBaseURL(),
     timeout: 10000,
   });
 
@@ -331,6 +332,22 @@ class Distribution {
     return this.__client.post<HaltRolloutRequest, RolloutUpdateResponse>(
       `/api/v1/submissions/${submissionId}/rollout/halt?platform=${platform}`,
       request
+    );
+  }
+
+  /**
+   * Get presigned artifact download URL
+   * Returns a time-limited S3 URL to download the submission artifact (AAB or IPA)
+   * @param tenantId - Required for authorization (ensures user has access to this submission)
+   * @param submissionId - Submission ID
+   * @param platform - ANDROID or IOS (determines artifact type)
+   */
+  async getArtifactDownloadUrl(tenantId: string, submissionId: string, platform: Platform) {
+    return this.__client.get<null, AxiosResponse<APISuccessResponse<{
+      url: string;
+      expiresAt: string;
+    }>>>(
+      `/api/v1/tenants/${tenantId}/submissions/${submissionId}/artifact?platform=${platform}`
     );
   }
 

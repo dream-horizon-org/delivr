@@ -4,13 +4,14 @@
  */
 
 import {
+  Anchor,
   Badge,
   Group,
   Paper,
   Stack,
   Text,
   Timeline,
-  Tooltip
+  Tooltip,
 } from '@mantine/core';
 import {
   IconAlertTriangle,
@@ -20,28 +21,40 @@ import {
   IconExternalLink,
   IconX,
 } from '@tabler/icons-react';
-import { SUBMISSION_STATUS_COLORS } from '~/constants/distribution/distribution.constants';
+import { useState } from 'react';
+import { API_ROUTES } from '~/constants/distribution/distribution-api.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
 } from '~/constants/distribution/distribution-design.constants';
+import { SUBMISSION_STATUS_COLORS } from '~/constants/distribution/distribution.constants';
 import { Platform, type Submission, SubmissionStatus } from '~/types/distribution/distribution.types';
 import { formatDateTime, formatStatus } from '~/utils/distribution/distribution-ui.utils';
 
 export interface SubmissionHistoryTimelineProps {
   submissions: Submission[];
   platform: Platform;
+  tenantId: string; // Required for artifact download API authorization
 }
 
 function getStatusIcon(status: SubmissionStatus) {
   switch (status) {
+    // Success states
+    case SubmissionStatus.IN_PROGRESS:
+    case SubmissionStatus.COMPLETED:
     case SubmissionStatus.LIVE:
       return <IconCheck size={16} />;
+    
+    // Error/terminal states
     case SubmissionStatus.REJECTED:
+    case SubmissionStatus.SUSPENDED:
     case SubmissionStatus.CANCELLED:
       return <IconX size={16} />;
+    
+    // Alert states
     case SubmissionStatus.HALTED:
+    case SubmissionStatus.USER_ACTION_PENDING:
       return <IconAlertTriangle size={16} />;
     default:
       return <IconClock size={16} />;
@@ -51,7 +64,42 @@ function getStatusIcon(status: SubmissionStatus) {
 export function SubmissionHistoryTimeline({
   submissions,
   platform,
+  tenantId,
 }: SubmissionHistoryTimelineProps) {
+  const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
+
+  /**
+   * Handle artifact download by fetching presigned URL from API.
+   * Per API spec: GET /api/v1/tenants/:tenantId/submissions/:submissionId/artifact?platform=<ANDROID|IOS>
+   */
+  const handleDownloadArtifact = async (submissionId: string, platform: Platform) => {
+    setDownloadingIds(prev => new Set(prev).add(submissionId));
+    
+    try {
+      // Step 1: Call frontend API route (which proxies to backend) - uses centralized API route builder
+      const apiUrl = API_ROUTES.getArtifactDownloadUrl(submissionId, platform, tenantId);
+      const response = await fetch(apiUrl);
+      const data = await response.json();
+      
+      if (data.success && data.data?.presignedUrl) {
+        // Step 2: Open presigned URL in new tab to trigger download
+        window.open(data.data.presignedUrl, '_blank');
+      } else {
+        console.error('Failed to get artifact download URL:', data.error);
+        alert('Failed to download artifact. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error downloading artifact:', error);
+      alert('Failed to download artifact. Please try again.');
+    } finally {
+      setDownloadingIds(prev => {
+        const next = new Set(prev);
+        next.delete(submissionId);
+        return next;
+      });
+    }
+  };
+
   if (submissions.length === 0) {
     return null;
   }
@@ -167,17 +215,19 @@ export function SubmissionHistoryTimeline({
                   {isAndroid && 'artifactPath' in submission.artifact && (
                     <>
                       <Tooltip label="Download AAB">
-                        <a
-                          href={submission.artifact.artifactPath}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-700"
+                        <Anchor
+                          component="button"
+                          onClick={() => handleDownloadArtifact(submission.id, Platform.ANDROID)}
+                          className="text-blue-600 hover:text-blue-700 cursor-pointer"
+                          disabled={downloadingIds.has(submission.id)}
                         >
-                          <Group gap={4}>
+                          <Group gap={DS_SPACING.XS}>
                             <IconDownload size={12} />
-                            <Text size={DS_TYPOGRAPHY.SIZE.XS}>AAB</Text>
+                            <Text size={DS_TYPOGRAPHY.SIZE.XS}>
+                              {downloadingIds.has(submission.id) ? 'Downloading...' : 'AAB'}
+                            </Text>
                           </Group>
-                        </a>
+                        </Anchor>
                       </Tooltip>
                       {submission.artifact.internalTrackLink && (
                         <Tooltip label="Internal Testing">
@@ -187,7 +237,7 @@ export function SubmissionHistoryTimeline({
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:text-blue-700"
                           >
-                            <Group gap={4}>
+                            <Group gap={DS_SPACING.XS}>
                               <IconExternalLink size={12} />
                               <Text size={DS_TYPOGRAPHY.SIZE.XS}>Testing</Text>
                             </Group>

@@ -101,3 +101,120 @@ export const VALIDATION = {
   MAX_PERCENTAGE: 100,
 } as const;
 
+/**
+ * API Route Builders - Single Source of Truth for ALL Distribution API Routes
+ * 
+ * Benefits:
+ * - Centralized route management
+ * - Type-safe route construction
+ * - Easy to update if backend routes change
+ * - Self-documenting with JSDoc
+ * - Consistent usage across all components
+ * 
+ * Usage:
+ * ```typescript
+ * import { API_ROUTES } from '~/constants/distribution/distribution-api.constants';
+ * 
+ * // In component
+ * const apiUrl = API_ROUTES.getArtifactDownloadUrl(submissionId, platform, tenantId);
+ * const response = await fetch(apiUrl);
+ * 
+ * // With useFetcher
+ * fetcher.submit(payload, {
+ *   method: 'post',
+ *   action: API_ROUTES.createSubmission(distributionId),
+ *   encType: 'application/json',
+ * });
+ * ```
+ */
+export const API_ROUTES = {
+  // ============================================================================
+  // SUBMISSION LIFECYCLE
+  // ============================================================================
+  
+  /**
+   * Create new submission (Android/iOS)
+   * @param distributionId - Distribution ID
+   * @returns POST /api/v1/distributions/:distributionId/submissions
+   */
+  createSubmission: (distributionId: string) =>
+    `/api/v1/distributions/${distributionId}/submissions`,
+  
+  /**
+   * Submit to app store (promote PENDING → SUBMITTED/IN_REVIEW)
+   * @param submissionId - Submission ID
+   * @param platform - Platform (ANDROID or IOS)
+   * @returns PUT /api/v1/submissions/:submissionId/submit?platform={platform}
+   */
+  submitToStore: (submissionId: string, platform: string) =>
+    `/api/v1/submissions/${submissionId}/submit?platform=${platform}`,
+  
+  /**
+   * Cancel submission (iOS only - Android cannot cancel)
+   * @param submissionId - Submission ID
+   * @param platform - Platform (should be IOS)
+   * @returns DELETE /api/v1/submissions/:submissionId/cancel?platform={platform}
+   */
+  cancelSubmission: (submissionId: string, platform: string) =>
+    `/api/v1/submissions/${submissionId}/cancel?platform=${platform}`,
+  
+  // ============================================================================
+  // ROLLOUT MANAGEMENT
+  // ============================================================================
+  
+  /**
+   * Update rollout percentage
+   * - Android: 0.01-100 (supports decimals)
+   * - iOS: Only 100 (complete early for phased release)
+   * @param submissionId - Submission ID
+   * @param platform - Platform (ANDROID or IOS)
+   * @returns PATCH /api/v1/submissions/:submissionId/rollout?platform={platform}
+   */
+  updateRollout: (submissionId: string, platform: string) =>
+    `/api/v1/submissions/${submissionId}/rollout?platform=${platform}`,
+  
+  /**
+   * Pause rollout (iOS phased release only)
+   * @param submissionId - Submission ID
+   * @param platform - Platform (IOS)
+   * @returns PATCH /api/v1/submissions/:submissionId/rollout/pause?platform={platform}
+   */
+  pauseRollout: (submissionId: string, platform: string) =>
+    `/api/v1/submissions/${submissionId}/rollout/pause?platform=${platform}`,
+  
+  /**
+   * Resume rollout (Both platforms - from PAUSED/HALTED)
+   * - iOS: Resume from PAUSED (phased release)
+   * - Android: Resume from HALTED
+   * @param submissionId - Submission ID
+   * @param platform - Platform (ANDROID or IOS)
+   * @returns PATCH /api/v1/submissions/:submissionId/rollout/resume?platform={platform}
+   */
+  resumeRollout: (submissionId: string, platform: string) =>
+    `/api/v1/submissions/${submissionId}/rollout/resume?platform=${platform}`,
+  
+  /**
+   * Emergency halt rollout (Android only - iOS uses pause/resume)
+   * @param submissionId - Submission ID
+   * @param platform - Platform (ANDROID)
+   * @returns PATCH /api/v1/submissions/:submissionId/rollout/halt?platform={platform}
+   */
+  haltRollout: (submissionId: string, platform: string) =>
+    `/api/v1/submissions/${submissionId}/rollout/halt?platform=${platform}`,
+  
+  // ============================================================================
+  // ARTIFACTS & DOWNLOADS
+  // ============================================================================
+  
+  /**
+   * Get artifact download URL (presigned S3 URL)
+   * Returns a presigned URL that expires after set time
+   * @param submissionId - Submission ID
+   * @param platform - Platform (ANDROID or IOS)
+   * @param tenantId - Tenant ID for authorization
+   * @returns GET /api/v1/submissions/:submissionId/artifact?platform={platform}&tenantId={tenantId}
+   */
+  getArtifactDownloadUrl: (submissionId: string, platform: string, tenantId: string) =>
+    `/api/v1/submissions/${submissionId}/artifact?platform=${platform}&tenantId=${tenantId}`,
+} as const;
+

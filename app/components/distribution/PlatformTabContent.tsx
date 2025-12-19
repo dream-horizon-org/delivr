@@ -6,11 +6,13 @@
 import { Button, Card, Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import type { useFetcher } from '@remix-run/react';
 import { IconBrandAndroid, IconBrandApple, IconRocket } from '@tabler/icons-react';
+import { useCallback } from 'react';
 import { RejectedSubmissionView, RolloutControls } from '~/components/Distribution';
 import { DS_COLORS, DS_SPACING, DS_TYPOGRAPHY } from '~/constants/distribution/distribution-design.constants';
-import { PLATFORM_LABELS, ROLLOUT_COMPLETE_PERCENT } from '~/constants/distribution/distribution.constants';
+import { PLATFORM_LABELS } from '~/constants/distribution/distribution.constants';
 import type { Submission } from '~/types/distribution/distribution.types';
-import { Platform, SubmissionStatus } from '~/types/distribution/distribution.types';
+import { Platform } from '~/types/distribution/distribution.types';
+import { shouldShowRejectedView, shouldShowRolloutControls } from '~/utils/distribution/distribution-state.utils';
 import { SubmissionManagementCard } from './SubmissionManagementCard';
 
 export type PlatformTabContentProps = {
@@ -39,11 +41,50 @@ export function PlatformTabContent({
 
   const storeName = platform === Platform.ANDROID ? 'Google Play Store' : 'Apple App Store';
   const isAndroid = platform === Platform.ANDROID;
-  const showRolloutControls = submission && isAndroid && (
-    submission.status === SubmissionStatus.APPROVED ||
-    (submission.status === SubmissionStatus.LIVE && submission.rolloutPercentage < ROLLOUT_COMPLETE_PERCENT)
-  );
-  const showRejectedView = submission?.status === SubmissionStatus.REJECTED;
+  
+  // Derive UI state using utility functions (clean, testable logic)
+  const showRolloutControls = submission ? shouldShowRolloutControls(submission.status, submission.platform, submission.rolloutPercentage) : false;
+  const showRejectedView = submission ? shouldShowRejectedView(submission.status) : false;
+
+  // Extract phasedRelease prop (iOS only, convert null to omitted prop)
+  const rolloutControlsProps = submission && submission.platform === Platform.IOS && 'phasedRelease' in submission && submission.phasedRelease !== null
+    ? { phasedRelease: submission.phasedRelease }
+    : {};
+
+  // Memoized callbacks (avoid inline functions in JSX)
+  const handlePause = useCallback(() => {
+    if (submission) onOpenPauseDialog(submission);
+  }, [submission, onOpenPauseDialog]);
+
+  const handleResume = useCallback(() => {
+    if (submission) onOpenResumeDialog(submission);
+  }, [submission, onOpenResumeDialog]);
+
+  const handleHalt = useCallback(() => {
+    if (submission) onOpenHaltDialog(submission);
+  }, [submission, onOpenHaltDialog]);
+
+  const handleRetry = useCallback(() => {
+    if (submission) onOpenRetryDialog(submission);
+  }, [submission, onOpenRetryDialog]);
+
+  const handleViewHistory = useCallback(() => {
+    if (submission) onOpenHistoryPanel(submission);
+  }, [submission, onOpenHistoryPanel]);
+
+  const handleUpdateRollout = useCallback((percentage: number) => {
+    if (!submission) return;
+    
+    fetcher.submit(
+      { 
+        intent: 'updateRollout', 
+        submissionId: submission.id, 
+        percentage: String(percentage),
+        platform: submission.platform
+      },
+      { method: 'post' }
+    );
+  }, [submission, fetcher]);
 
   // No submission yet
   if (!submission) {
@@ -87,11 +128,11 @@ export function PlatformTabContent({
       {/* Submission Status Card */}
       <SubmissionManagementCard
         submission={submission}
-        onPause={() => onOpenPauseDialog(submission)}
-        onResume={() => onOpenResumeDialog(submission)}
-        onHalt={() => onOpenHaltDialog(submission)}
-        onRetry={() => onOpenRetryDialog(submission)}
-        onViewHistory={() => onOpenHistoryPanel(submission)}
+        onPause={handlePause}
+        onResume={handleResume}
+        onHalt={handleHalt}
+        onRetry={handleRetry}
+        onViewHistory={handleViewHistory}
       />
 
       {/* Rollout Controls (if applicable) */}
@@ -103,23 +144,13 @@ export function PlatformTabContent({
           <RolloutControls
             submissionId={submission.id}
             platform={submission.platform}
-            phasedRelease={(submission.platform === Platform.IOS && 'phasedRelease' in submission) ? submission.phasedRelease ?? undefined : undefined}
+            {...rolloutControlsProps}
             currentPercentage={submission.rolloutPercentage}
             status={submission.status}
             availableActions={[]}
-            onUpdateRollout={(percentage: number) => {
-              fetcher.submit(
-                { 
-                  intent: 'updateRollout', 
-                  submissionId: submission.id, 
-                  percentage: String(percentage),
-                  platform: submission.platform
-                },
-                { method: 'post' }
-              );
-            }}
-            onPause={() => onOpenPauseDialog(submission)}
-            onHalt={() => onOpenHaltDialog(submission)}
+            onUpdateRollout={handleUpdateRollout}
+            onPause={handlePause}
+            onHalt={handleHalt}
             isLoading={false}
           />
         </Card>
@@ -139,8 +170,8 @@ export function PlatformTabContent({
           versionName={submission.version}
           rejectionReason={'Submission was rejected by the store'}
           rejectionDetails={null}
-          onFixMetadata={() => onOpenRetryDialog(submission)}
-          onUploadNewBuild={() => onOpenRetryDialog(submission)}
+          onFixMetadata={handleRetry}
+          onUploadNewBuild={handleRetry}
         />
       )}
     </Stack>
