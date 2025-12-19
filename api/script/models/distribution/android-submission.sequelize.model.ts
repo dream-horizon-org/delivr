@@ -4,8 +4,8 @@
  */
 
 import { DataTypes, Model, Sequelize } from 'sequelize';
-import type { SubmissionStatus, BuildType } from '~types/distribution/submission.constants';
-import { SUBMISSION_STATUSES, BUILD_TYPES } from '~types/distribution/submission.constants';
+import type { AndroidSubmissionStatus, BuildType } from '~types/distribution/submission.constants';
+import { ANDROID_SUBMISSION_STATUSES, BUILD_TYPES } from '~types/distribution/submission.constants';
 
 export type AndroidSubmissionBuildAttributes = {
   id: string;
@@ -16,7 +16,7 @@ export type AndroidSubmissionBuildAttributes = {
   versionCode: number;
   buildType: BuildType;
   storeType: string;
-  status: SubmissionStatus;
+  status: AndroidSubmissionStatus;
   releaseNotes: string | null;
   inAppUpdatePriority: number | null;
   rolloutPercentage: number | null;
@@ -94,11 +94,11 @@ export const createAndroidSubmissionBuildModel = (
         comment: 'Store type (default: PLAY_STORE)'
       },
       status: {
-        type: DataTypes.ENUM(...SUBMISSION_STATUSES),
+        type: DataTypes.ENUM(...ANDROID_SUBMISSION_STATUSES),
         allowNull: false,
         defaultValue: 'PENDING',
         field: 'status',
-        comment: 'Android submission lifecycle status'
+        comment: 'Android submission lifecycle status: PENDING -> SUBMITTED -> USER_ACTION_PENDING -> SUSPENDED -> IN_PROGRESS -> COMPLETED -> HALTED'
       },
       releaseNotes: {
         type: DataTypes.TEXT,

@@ -1,4 +1,4 @@
-import type { SubmissionStatus, BuildType } from './submission.constants';
+import type { AndroidSubmissionStatus, BuildType } from './submission.constants';
 
 /**
  * Android Submission Build entity
@@ -12,7 +12,7 @@ export type AndroidSubmissionBuild = {
   versionCode: number;
   buildType: BuildType;
   storeType: string;
-  status: SubmissionStatus;
+  status: AndroidSubmissionStatus;
   releaseNotes: string | null;
   inAppUpdatePriority: number | null;
   rolloutPercentage: number | null;
@@ -36,7 +36,7 @@ export type CreateAndroidSubmissionDto = {
   versionCode: number;
   buildType: BuildType;
   storeType?: string;
-  status?: SubmissionStatus;
+  status?: AndroidSubmissionStatus;
   releaseNotes?: string | null;
   inAppUpdatePriority?: number | null;
   rolloutPercentage?: number | null;
@@ -54,7 +54,7 @@ export type UpdateAndroidSubmissionDto = {
   versionCode?: number;
   buildType?: BuildType;
   storeType?: string;
-  status?: SubmissionStatus;
+  status?: AndroidSubmissionStatus;
   releaseNotes?: string | null;
   inAppUpdatePriority?: number | null;
   rolloutPercentage?: number | null;
@@ -68,7 +68,7 @@ export type UpdateAndroidSubmissionDto = {
  */
 export type AndroidSubmissionFilters = {
   distributionId?: string;
-  status?: SubmissionStatus;
+  status?: AndroidSubmissionStatus;
   buildType?: BuildType;
   isActive?: boolean;
   submittedBy?: string;

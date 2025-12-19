@@ -10,6 +10,8 @@
 export {
   SUBMISSION_STATUS,
   SUBMISSION_STATUSES,
+  ANDROID_SUBMISSION_STATUS,
+  ANDROID_SUBMISSION_STATUSES,
   BUILD_TYPE,
   BUILD_TYPES,
   IOS_RELEASE_TYPE,
@@ -29,6 +31,7 @@ export {
 
 export type {
   SubmissionStatus,
+  AndroidSubmissionStatus,
   BuildType,
   IosReleaseType,
   SubmissionPlatform,
