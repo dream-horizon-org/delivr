@@ -664,6 +664,91 @@ const cancelSubmissionHandler = (service: SubmissionService) =>
   };
 
 /**
+ * Get submission artifact download URL
+ * GET /tenants/:tenantId/submissions/:submissionId/artifact?platform={android|ios}
+ * 
+ * Generates presigned download URL for a submission artifact
+ * Returns: { url: string, expiresAt: string }
+ */
+const getSubmissionArtifactDownloadHandler = (service: SubmissionService) =>
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { submissionId, tenantId } = req.params;
+      const { platform } = req.query;
+
+      // Validate submissionId
+      if (!submissionId || typeof submissionId !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          errorResponse(
+            new Error('submissionId is required'),
+            'Invalid submission ID'
+          )
+        );
+        return;
+      }
+
+      // Validate tenantId
+      if (!tenantId || typeof tenantId !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('tenantId', 'Tenant ID is required')
+        );
+        return;
+      }
+
+      // Validate platform parameter
+      if (!platform || typeof platform !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse(
+            'platform',
+            'Query parameter "platform" is required. Valid values: android, ios'
+          )
+        );
+        return;
+      }
+
+      const platformUpper = platform.toUpperCase();
+      if (platformUpper !== 'ANDROID' && platformUpper !== 'IOS') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse(
+            'platform',
+            'Platform must be ANDROID or IOS'
+          )
+        );
+        return;
+      }
+
+      // Call service to get presigned URL (validates tenant ownership, generates URL with expiry)
+      const result = await service.getSubmissionArtifactDownloadUrl(
+        submissionId,
+        platformUpper as 'ANDROID' | 'IOS',
+        tenantId
+      );
+
+      res.status(HTTP_STATUS.OK).json(successResponse(result));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Map specific errors to 404
+      const isNotFound = 
+        errorMessage.includes('not found') ||
+        errorMessage.includes('not available') ||
+        errorMessage.includes('not belong');
+      
+      if (isNotFound) {
+        res.status(HTTP_STATUS.NOT_FOUND).json(
+          notFoundResponse('Submission artifact')
+        );
+        return;
+      }
+
+      const statusCode = getErrorStatusCode(error);
+      res.status(statusCode).json(
+        errorResponse(error, 'Failed to get submission artifact download URL')
+      );
+    }
+  };
+
+/**
  * Create and export controller with all handlers
  */
 export const createSubmissionController = (service: SubmissionService) => ({
@@ -673,7 +758,8 @@ export const createSubmissionController = (service: SubmissionService) => ({
   pauseRollout: pauseRolloutHandler(service),
   resumeRollout: resumeRolloutHandler(service),
   updateRolloutPercentage: updateRolloutPercentageHandler(service),
-  cancelSubmission: cancelSubmissionHandler(service)
+  cancelSubmission: cancelSubmissionHandler(service),
+  getSubmissionArtifactDownload: getSubmissionArtifactDownloadHandler(service)
 });
 
 export type SubmissionController = ReturnType<typeof createSubmissionController>;

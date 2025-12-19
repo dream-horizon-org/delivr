@@ -34,6 +34,7 @@ export type {
     ResetTestRunResponse,
     TestReportResponse,
     TestRunActionRequest,
+    TestRunURLRequest,
     TestStatusResponse
 } from './test-run';
 

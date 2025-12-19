@@ -89,10 +89,12 @@ export interface ITestManagementProvider {
   
   /**
    * Get the URL for a test run
+   * Requires projectId for constructing the proper URL
    */
   getRunUrl(
     config: TenantTestManagementIntegrationConfig,
-    runId: string
+    runId: string,
+    projectId: number
   ): Promise<string>;
   
   /**

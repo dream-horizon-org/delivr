@@ -71,7 +71,7 @@ export class ManualUploadService {
    * Handle a manual build upload
    * 
    * @param releaseId Release ID
-   * @param stage Stage the upload is for (KICK_OFF, REGRESSION, PRE_RELEASE)
+   * @param stage Stage the upload is for (KICKOFF, REGRESSION, PRE_RELEASE)
    * @param platform Platform being uploaded
    * @param file File buffer to upload
    * @param originalFilename Original filename to preserve extension (.ipa, .apk, .aab)

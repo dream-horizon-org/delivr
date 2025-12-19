@@ -2,13 +2,15 @@
  * Release Creation Service
  * 
  * Handles the complete release creation flow:
- * 1. Validate release config exists and belongs to tenant
- * 2. baseBranch resolution for hotfix
- * 3. create a release record
- * 4. link platforms and targets to release (with per-platform versioning)
- * 5. create cron job
- * 6. create stage 1 tasks
- * 7. state history for this release/cron
+ * 1. Fetch release config (if releaseConfigId provided)
+ * 2. Validate release config and business rules
+ * 3. Extract hasManualBuildUpload from release config
+ * 4. baseBranch resolution for hotfix
+ * 5. Create release record
+ * 6. Link platforms and targets to release (with per-platform versioning)
+ * 7. Create cron job
+ * 8. Create stage 1 tasks
+ * 9. Create state history for this release/cron
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -43,10 +45,16 @@ export class ReleaseCreationService {
    * Complete release creation flow
    */
   async createRelease(payload: CreateReleasePayload): Promise<CreateReleaseResult> {
-    // Step 1: Service-layer validations (business rules and data integrity)
+    // Step 1: Fetch release config if provided (needed for validation and hasManualBuildUpload)
+    let releaseConfig = null;
+    if (payload.releaseConfigId) {
+      releaseConfig = await this.releaseConfigService.getConfigById(payload.releaseConfigId);
+    }
+
+    // Step 2: Service-layer validations (business rules and data integrity)
     const validationResult = await validateReleaseCreation(
       payload,
-      this.releaseConfigService,
+      releaseConfig,
       this.releaseRepo,
       this.releaseVersionService
     );
@@ -55,7 +63,10 @@ export class ReleaseCreationService {
       throw new Error(validationResult.error);
     }
 
-    // Step 2: baseBranch resolution for HOTFIX
+    // Step 3: Extract hasManualBuildUpload from release config
+    const hasManualBuildUpload = releaseConfig?.hasManualBuildUpload ?? payload.hasManualBuildUpload ?? false;
+
+    // Step 4: baseBranch resolution for HOTFIX
     let baseBranch = payload.baseBranch;
     let baseReleaseId = payload.baseReleaseId;
 
@@ -67,7 +78,7 @@ export class ReleaseCreationService {
       }
     }
 
-    // Step 3: Create release record
+    // Step 5: Create release record
     const id = uuidv4();
     // Generate a unique user-facing release ID (e.g., "REL-ABC123")
     const releaseId = `REL-${uuidv4().substring(0, 8).toUpperCase()}`;
@@ -86,16 +97,16 @@ export class ReleaseCreationService {
       kickOffDate: payload.kickOffDate || null,
       targetReleaseDate: payload.targetReleaseDate || null,
       releaseDate: null, // Will be set when release is marked as COMPLETED
-      hasManualBuildUpload: payload.hasManualBuildUpload,
+      hasManualBuildUpload,
       createdByAccountId: payload.accountId,
       releasePilotAccountId: payload.releasePilotAccountId?.trim() || payload.accountId,
       lastUpdatedByAccountId: payload.accountId
     });
 
-    // Step 4: Link platform-target combinations to release
+    // Step 6: Link platform-target combinations to release
     await this.linkPlatformTargetsToRelease(id, payload.platformTargets);
 
-    // Step 5: Create cron job
+    // Step 7: Create cron job
     const cronJobId = uuidv4();
     const cronConfig = payload.cronConfig || {
       kickOffReminder: true,
@@ -107,7 +118,7 @@ export class ReleaseCreationService {
 
     // Determine autoTransitionToStage2 based on hasManualBuildUpload
     // If hasManualBuildUpload is true, we need manual intervention so autoTransition is false
-    const autoTransitionToStage2 = payload.hasManualBuildUpload !== true;
+    const autoTransitionToStage2 = hasManualBuildUpload !== true;
 
     const cronJob = await this.cronJobRepo.create({
       id: cronJobId,
@@ -123,7 +134,7 @@ export class ReleaseCreationService {
       stageData: {} // Initialize with empty object
     });
 
-    // Step 6: Create Stage 1 tasks using utility
+    // Step 8: Create Stage 1 tasks using utility
     // First, check integration availability from release configuration
     let integrationAvailability = {
       hasProjectManagementIntegration: false,
@@ -148,7 +159,7 @@ export class ReleaseCreationService {
       hasTestPlatformIntegration: integrationAvailability.hasTestPlatformIntegration
     });
 
-    // Step 7: Create state history
+    // Step 9: Create state history
     await this.createStateHistory(id, payload.accountId, releaseId, payload.platformTargets);
 
     return {
@@ -159,7 +170,7 @@ export class ReleaseCreationService {
   }
 
   /**
-   * Step 4: Link platform-target combinations to release
+   * Step 6: Link platform-target combinations to release
    * Creates entries in release_platforms_targets_mapping table
    */
   private async linkPlatformTargetsToRelease(

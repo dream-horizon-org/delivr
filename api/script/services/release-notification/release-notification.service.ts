@@ -197,27 +197,23 @@ export class ReleaseNotificationService {
       case NotificationType.PRE_KICKOFF_REMINDER:
         return [
           payload.releaseType,  // {0}
-          payload.version,      // {1}
-          payload.forkDate,     // {2}
-          payload.detailsUrl    // {3}
+          payload.forkDate,     // {1}
+          payload.detailsUrl    // {2}
         ];
 
       case NotificationType.BRANCH_FORKOUT:
         return [
-          payload.version,  // {0}
-          payload.branch    // {1}
+          payload.branch    // {0}
         ];
 
       case NotificationType.PROJECT_MANAGEMENT_LINKS:
         return [
-          payload.version,              // {0}
-          payload.links.join('\n')      // {1} - convert array to newline-separated string
+          payload.links.join('\n')      // {0} - convert array to newline-separated string
         ];
 
       case NotificationType.TEST_MANAGEMENT_LINKS:
         return [
-          payload.version,              // {0}
-          payload.links.join('\n')      // {1} - convert array to newline-separated string
+          payload.links.join('\n')      // {0} - convert array to newline-separated string
         ];
 
       case NotificationType.REGRESSION_KICKOFF_REMINDER:
@@ -343,10 +339,9 @@ export class ReleaseNotificationService {
       case NotificationType.WHATS_NEW:
         return [
           payload.releaseType,  // {0}
-          payload.version,      // {1}
-          payload.features,     // {2}
-          payload.fixes,        // {3}
-          payload.improvements  // {4}
+          payload.features,     // {1}
+          payload.fixes,        // {2}
+          payload.improvements  // {3}
         ];
 
       case NotificationType.REGRESSION_STAGE_APPROVAL_REQUEST:

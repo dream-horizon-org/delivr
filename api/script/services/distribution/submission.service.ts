@@ -25,6 +25,8 @@ import { StoreType, IntegrationStatus } from '../../storage/integrations/store/s
 import { validateIntegrationStatus } from '../../controllers/integrations/store-controllers';
 import { BUILD_PLATFORM, STORE_TYPE } from '~types/release-management/builds/build.constants';
 import { PLAY_STORE_UPLOAD_ERROR_MESSAGES, GOOGLE_PLAY_RELEASE_STATUS } from '../../constants/store';
+import { PLAY_STORE_UPLOAD_ERROR_MESSAGES } from '../../constants/store';
+import type { BuildArtifactService } from '~services/release/build';
 
 /**
  * Submission response format for API
@@ -127,6 +129,7 @@ export class SubmissionService {
     private readonly iosSubmissionRepository: IosSubmissionBuildRepository,
     private readonly actionHistoryRepository: SubmissionActionHistoryRepository,
     private readonly distributionRepository: DistributionRepository,
+    private readonly buildArtifactService: BuildArtifactService,
     private readonly appleAppStoreConnectService?: AppleAppStoreConnectService
   ) {}
 
@@ -2349,6 +2352,102 @@ export class SubmissionService {
     throw error;
   }
 }
+
+  /**
+   * Get submission artifact path for download.
+   * Validates submission exists, belongs to tenant, and has artifact available.
+   * 
+   * Note: Only Android submissions have downloadable artifacts (AAB files).
+   * iOS submissions reference TestFlight builds which cannot be downloaded.
+   * 
+   * Steps:
+   * 1. Validate platform is ANDROID (iOS not supported)
+   * 2. Query Android submission
+   * 3. Validate submission exists
+   * 4. Get distribution and validate tenant ownership
+   * 5. Validate artifact path exists
+   * 6. Return artifact path for presigned URL generation
+   * 
+   * @param submissionId - The submission ID
+   * @param platform - Platform (must be ANDROID)
+   * @param tenantId - Tenant ID for ownership validation
+   * @returns The S3 artifact path
+   * @throws Error if submission not found, doesn't belong to tenant, or artifact unavailable
+   */
+  async getSubmissionArtifactPath(
+    submissionId: string,
+    platform: 'ANDROID' | 'IOS',
+    tenantId: string
+  ): Promise<string> {
+    // Step 1: Validate platform is ANDROID
+    // iOS submissions don't have downloadable artifacts (only TestFlight reference)
+    if (platform === 'IOS') {
+      throw new Error('Artifact download not supported for iOS submissions. iOS builds are uploaded directly to TestFlight.');
+    }
+
+    // Step 2: Query Android submission
+    const submission = await this.androidSubmissionRepository.findById(submissionId);
+
+    // Step 3: Validate submission exists
+    const submissionNotFound = !submission;
+    if (submissionNotFound) {
+      throw new Error(SUBMISSION_ERROR_MESSAGES.SUBMISSION_NOT_FOUND);
+    }
+
+    // Step 4: Get distribution and validate tenant ownership
+    const distribution = await this.distributionRepository.findById(submission.distributionId);
+    
+    const distributionNotFound = !distribution;
+    if (distributionNotFound) {
+      throw new Error(`Distribution not found for submission ${submissionId}`);
+    }
+
+    // Security: Don't leak submission existence if tenant mismatch
+    const tenantMismatch = distribution.tenantId !== tenantId;
+    if (tenantMismatch) {
+      throw new Error(SUBMISSION_ERROR_MESSAGES.SUBMISSION_NOT_FOUND);
+    }
+
+    // Step 5: Validate artifact path exists
+    const artifactPathMissing = !submission.artifactPath;
+    if (artifactPathMissing) {
+      throw new Error('Artifact not available for this submission');
+    }
+
+    // Step 6: Return artifact path
+    return submission.artifactPath;
+  }
+
+  /**
+   * Get presigned download URL for submission artifact
+   * Complete flow: validates tenant ownership, generates presigned URL with expiry
+   * 
+   * @param submissionId - The submission ID
+   * @param platform - Platform (ANDROID or IOS)
+   * @param tenantId - Tenant ID for ownership validation
+   * @returns Object with presigned URL and expiry timestamp
+   * @throws Error if submission not found, doesn't belong to tenant, or artifact unavailable
+   */
+  async getSubmissionArtifactDownloadUrl(
+    submissionId: string,
+    platform: 'ANDROID' | 'IOS',
+    tenantId: string
+  ): Promise<{ url: string; expiresAt: string }> {
+    // Step 1: Get artifact path (validates tenant ownership and platform)
+    const artifactPath = await this.getSubmissionArtifactPath(
+      submissionId,
+      platform,
+      tenantId
+    );
+
+    // Step 2: Generate presigned URL
+    const url = await this.buildArtifactService.generatePresignedUrl(artifactPath);
+
+    // Step 3: Calculate expiry (1 hour)
+    const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
+
+    return { url, expiresAt };
+  }
 
   /**
    * Cancel iOS submission (iOS only)

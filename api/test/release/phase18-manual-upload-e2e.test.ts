@@ -235,7 +235,7 @@ async function uploadManualBuild(
     tenantId: string;
     releaseId: string;
     platform: PlatformName;
-    stage: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
+    stage: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE';
     artifactPath: string;
   }
 ) {
@@ -522,14 +522,14 @@ async function runPhase18ManualUploadSimulation() {
       tenantId: testIds.tenantId,
       releaseId: release.id,
       platform,
-      stage: 'KICK_OFF',
+      stage: 'KICKOFF',
       artifactPath: `s3://phase18-test/${platform.toLowerCase()}-pre-reg-${Date.now()}.${platform === PlatformName.IOS ? 'ipa' : 'apk'}`
     });
     log(`  ✅ Uploaded ${platform} build: ${upload.artifactPath}`);
   }
   
   // Verify uploads exist
-  const preRegUploads = await releaseUploadsRepo.findUnused(release.id, 'KICK_OFF');
+  const preRegUploads = await releaseUploadsRepo.findUnused(release.id, 'KICKOFF');
   log(`  📦 ${preRegUploads.length} PRE_REGRESSION uploads in staging table`);
 
   // -------------------------------------------------------------------------

@@ -7,6 +7,7 @@ export const CRONICLE_ERROR_MESSAGES = {
   UPDATE_JOB_FAILED: 'Failed to update Cronicle job',
   DELETE_JOB_FAILED: 'Failed to delete Cronicle job',
   GET_JOB_FAILED: 'Failed to get Cronicle job',
+  GET_JOBS_FAILED: 'Failed to get Cronicle jobs',
   RUN_JOB_FAILED: 'Failed to run Cronicle job',
   ENABLE_JOB_FAILED: 'Failed to enable/disable Cronicle job',
   PING_FAILED: 'Failed to ping Cronicle server',

@@ -80,7 +80,7 @@ import { ReleaseVersionService } from "../services/release/release-version.servi
 import { SCMService } from "../services/integrations/scm/scm.service";
 import { ReleaseActivityLogService } from "../services/release/release-activity-log.service";
 import { CronJobService } from "../services/release/cron-job/cron-job.service";
-import { getCronJobService } from "../services/release/cron-job/cron-job-service.factory";
+import { BuildArtifactService } from "../services/release/build/build-artifact.service";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { 
@@ -102,8 +102,14 @@ import {
   createDistributionModel,
   createIosSubmissionBuildModel,
   createAndroidSubmissionBuildModel,
-  createSubmissionActionHistoryModel
+  createSubmissionActionHistoryModel,
+  DistributionRepository,
+  AndroidSubmissionBuildRepository,
+  IosSubmissionBuildRepository,
+  SubmissionActionHistoryRepository
 } from "../models/distribution";
+import { SubmissionService } from "../services/distribution";
+import { DistributionService } from "../services/distribution/distribution.service";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
@@ -796,6 +802,8 @@ export class S3Storage implements storage.Storage {
     public releaseUpdateService!: ReleaseUpdateService;
     public releaseStatusService!: ReleaseStatusService;
     public releaseActivityLogService!: ReleaseActivityLogService;  // Release activity log service
+    public cronJobService!: CronJobService;  // Cron job service
+    public buildArtifactService!: BuildArtifactService;  // Build artifact service
     public activityLogRepository!: ActivityLogRepository;  // Activity log repository
     public commIntegrationRepository!: CommIntegrationRepository;  // Comm integration repository
     public commConfigRepository!: CommConfigRepository;  // Comm config repository
@@ -805,7 +813,14 @@ export class S3Storage implements storage.Storage {
     public commConfigService!: CommConfigService;// Communication config service
     public buildRepository!: BuildRepository;
     public scmService!: SCMService; // SCM service for Git operations
-    public cronJobService!: CronJobService | null; // Cron job service for release automation
+    
+    // Distribution - Repositories and Services
+    public distributionRepository!: DistributionRepository;  // Distribution repository
+    public androidSubmissionRepository!: AndroidSubmissionBuildRepository;  // Android submission repository
+    public iosSubmissionRepository!: IosSubmissionBuildRepository;  // iOS submission repository
+    public submissionActionHistoryRepository!: SubmissionActionHistoryRepository;  // Submission action history repository
+    public submissionService!: SubmissionService;  // Submission service
+    public distributionService!: DistributionService;  // Distribution service
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -1173,11 +1188,18 @@ export class S3Storage implements storage.Storage {
           this.releaseRetrievalService.setReleaseStatusService(this.releaseStatusService);
           console.log("Release Status Service injected into Release Retrieval Service");
           
-          // Initialize CronJobService using factory (with all dependencies)
-          this.cronJobService = getCronJobService(this);
-          if (!this.cronJobService) {
-            throw new Error('Failed to initialize CronJobService - Sequelize not available');
-          }
+          // Initialize CronJobService (needed by ReleaseUpdateService)
+          this.cronJobService = new CronJobService(
+            this.cronJobRepository,
+            this.releaseRepository,
+            this.releaseTaskRepository,
+            this.regressionCycleRepository,
+            this.releasePlatformTargetMappingRepository,
+            this,  // storage
+            this.releaseUploadsRepository,
+            this.cronicleService,
+            this.releaseActivityLogService
+          );
           console.log("Cron Job Service initialized");
           
           // Set ReleaseStatusService in CronJobService (circular dependency resolution)
@@ -1189,12 +1211,51 @@ export class S3Storage implements storage.Storage {
             this.cronJobRepository, // Use class property for consistency
             this.releasePlatformTargetMappingRepository,
             this.releaseActivityLogService,
-            this.cronJobService,
-            this.releaseTaskRepository, // Use class property for consistency
+            this.cronJobService,  // ✅ Proper instance!
+            this.releaseTaskRepository,
             this.buildRepository,
-            this.regressionCycleRepository
+            this.regressionCycleRepository,
+            this.releaseNotificationService
           );
           console.log("Release Update Service initialized");
+          
+          // Initialize Build Artifact Service (needs S3Storage)
+          this.buildArtifactService = new BuildArtifactService(this);
+          console.log("Build Artifact Service initialized");
+          
+          // Initialize Distribution Repositories
+          this.distributionRepository = new DistributionRepository(models.Distribution);
+          console.log("Distribution Repository initialized");
+          
+          this.androidSubmissionRepository = new AndroidSubmissionBuildRepository(models.AndroidSubmissionBuild);
+          console.log("Android Submission Repository initialized");
+          
+          this.iosSubmissionRepository = new IosSubmissionBuildRepository(models.IosSubmissionBuild);
+          console.log("iOS Submission Repository initialized");
+          
+          this.submissionActionHistoryRepository = new SubmissionActionHistoryRepository(models.SubmissionActionHistory);
+          console.log("Submission Action History Repository initialized");
+          
+          // Initialize Distribution Services
+          this.submissionService = new SubmissionService(
+            this.androidSubmissionRepository,
+            this.iosSubmissionRepository,
+            this.submissionActionHistoryRepository,
+            this.distributionRepository,
+            this.buildArtifactService  // Already initialized above
+          );
+          console.log("Submission Service initialized");
+          
+          this.distributionService = new DistributionService(
+            this.distributionRepository,
+            this.iosSubmissionRepository,
+            this.androidSubmissionRepository,
+            this.submissionActionHistoryRepository,
+            this.releaseRepository,
+            this.buildRepository,
+            this.releasePlatformTargetMappingRepository
+          );
+          console.log("Distribution Service initialized");
           
           // return this.sequelize.sync();
         })
@@ -3007,5 +3068,32 @@ export class S3Storage implements storage.Storage {
         Key: key,
         Expires: expiresSeconds
       });
+    }
+
+    /**
+     * Check if an object exists in S3
+     * @param key - The S3 key to check
+     * @returns true if object exists, false otherwise
+     */
+    public async objectExists(key: string): Promise<boolean> {
+      try {
+        await this.s3
+          .headObject({
+            Bucket: this.bucketName,
+            Key: key
+          })
+          .promise();
+        return true;
+      } catch (error: unknown) {
+        const isNotFoundError = error instanceof Error && 
+          (error.name === 'NotFound' || error.name === 'NoSuchKey' || 
+           (error as { code?: string }).code === 'NotFound' || 
+           (error as { code?: string }).code === 'NoSuchKey');
+        if (isNotFoundError) {
+          return false;
+        }
+        // Re-throw other errors (permissions, network, etc.)
+        throw error;
+      }
     }
   }

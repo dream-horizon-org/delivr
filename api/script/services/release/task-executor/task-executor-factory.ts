@@ -28,6 +28,13 @@ import { CommConfigService } from '../../integrations/comm/comm-config/comm-conf
 import { CommIntegrationRepository } from '../../../models/integrations/comm/comm-integration/comm-integration.repository';
 import { CommConfigRepository } from '../../../models/integrations/comm/comm-config/comm-config.repository';
 import { ReleaseConfigRepository } from '../../../models/release-configs/release-config.repository';
+import { ReleaseNotificationService } from '../../release-notification/release-notification.service';
+import { ReleaseNotificationRepository } from '../../../models/release-notification/release-notification.repository';
+import { ReleaseConfigService } from '../../release-configs/release-config.service';
+import { ReleaseRetrievalService } from '../release-retrieval.service';
+import { ReleasePlatformTargetMappingRepository } from '../../../models/release/release-platform-target-mapping.repository';
+import { RegressionCycleRepository } from '../../../models/release/regression-cycle.repository';
+import { BuildRepository } from '../../../models/release/build.repository';
 import { ReleaseTaskRepository } from '../../../models/release/release-task.repository';
 import { ReleaseRepository } from '../../../models/release/release.repository';
 import { ReleaseUploadsRepository } from '../../../models/release/release-uploads.repository';
@@ -95,6 +102,9 @@ export function getTaskExecutor(): TaskExecutor {
   const commConfigService = new CommConfigService(commConfigRepo, commIntegrationRepo);
   const messagingService = new MessagingService(commIntegrationService, commConfigService);
   
+  // ReleaseConfig Service (needed for notification service)
+  const releaseConfigService = new ReleaseConfigService(releaseConfigRepo);
+  
   // Release repositories (needed for task executor)
   const ReleaseTaskModel = createReleaseTaskModel(sequelize);
   const ReleaseModel = createReleaseModel(sequelize);
@@ -104,6 +114,36 @@ export function getTaskExecutor(): TaskExecutor {
   const releaseRepo = new ReleaseRepository(ReleaseModel);
   const releaseUploadsRepo = new ReleaseUploadsRepository(sequelize, ReleaseUploadModel);
   const cronJobRepo = new CronJobRepository(CronJobModel);
+  
+  // Additional repos needed for ReleaseRetrievalService
+  const platformTargetMappingRepo = new ReleasePlatformTargetMappingRepository(sequelize.models.PlatformTargetMapping);
+  const regressionCycleRepo = new RegressionCycleRepository(sequelize.models.RegressionCycle);
+  const buildRepo = new BuildRepository(sequelize.models.Build);
+  
+  // ReleaseRetrieval Service (needed for notification service)
+  const releaseRetrievalService = new ReleaseRetrievalService(
+    releaseRepo,
+    platformTargetMappingRepo,
+    cronJobRepo,
+    releaseTaskRepo,
+    regressionCycleRepo,
+    buildRepo,
+    releaseUploadsRepo,
+    releaseConfigRepo,
+    scmService,
+    pmTicketService,
+    testRunService,
+    storage
+  );
+  
+  // Release Notification Service
+  const releaseNotificationRepo = new ReleaseNotificationRepository(sequelize.models.ReleaseNotification);
+  const releaseNotificationService = new ReleaseNotificationService(
+    messagingService,
+    releaseNotificationRepo,
+    releaseConfigService,
+    releaseRetrievalService
+  );
   
   // Create TaskExecutor with all dependencies (including cronJobRepo for error handling)
   taskExecutorInstance = new TaskExecutor(
@@ -118,7 +158,8 @@ export function getTaskExecutor(): TaskExecutor {
     releaseTaskRepo,
     releaseRepo,
     releaseUploadsRepo,
-    cronJobRepo
+    cronJobRepo,
+    releaseNotificationService
   );
   
   return taskExecutorInstance;

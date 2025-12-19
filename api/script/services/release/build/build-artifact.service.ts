@@ -96,6 +96,31 @@ export class BuildArtifactService {
       );
     }
 
+    // Step 1.5: Validate artifactVersion matches release platform mapping version
+    const platformMappings = await executeOperation(
+      () => this.s3Storage.releasePlatformTargetMappingRepository.getByReleaseId(build.releaseId),
+      BUILD_ARTIFACT_ERROR_CODE.DB_QUERY_FAILED,
+      BUILD_ARTIFACT_ERROR_MESSAGES.DB_QUERY_FAILED
+    );
+
+    const platformMapping = platformMappings.find(m => m.platform === build.platform);
+    const platformMappingNotFound = !platformMapping;
+    
+    if (platformMappingNotFound) {
+      throw new BuildArtifactError(
+        BUILD_ARTIFACT_ERROR_CODE.BUILD_NOT_FOUND,
+        `Platform mapping not found for platform ${build.platform} in release ${build.releaseId}`
+      );
+    }
+
+    const versionMismatch = platformMapping.version !== artifactVersion;
+    if (versionMismatch) {
+      throw new BuildArtifactError(
+        BUILD_ARTIFACT_ERROR_CODE.ARTIFACT_VERSION_MISMATCH,
+        `${BUILD_ARTIFACT_ERROR_MESSAGES.ARTIFACT_VERSION_MISMATCH}: expected "${platformMapping.version}" for platform ${build.platform}, but received "${artifactVersion}"`
+      );
+    }
+
     // Step 2: Upload artifact to S3
     const uploadResult = await this.uploadArtifactToS3({
       tenantId: build.tenantId,
@@ -352,7 +377,7 @@ export class BuildArtifactService {
         artifactPath: null,
         releaseId,
         platform: BUILD_PLATFORM.IOS,
-        storeType: STORE_TYPE.TESTFLIGHT,
+        storeType: STORE_TYPE.APP_STORE,
         buildStage,
         regressionId: null,
         ciRunId: null,
@@ -473,6 +498,71 @@ export class BuildArtifactService {
       BUILD_ARTIFACT_ERROR_CODE.PRESIGNED_URL_FAILED,
       BUILD_ARTIFACT_ERROR_MESSAGES.PRESIGNED_URL_FAILED
     );
+  };
+
+  /**
+   * Get build artifact download URL with expiry timestamp.
+   * Validates build exists, belongs to tenant, and has artifact available.
+   *
+   * Steps:
+   * 1. Find build by buildId
+   * 2. Validate build exists and belongs to tenant
+   * 3. Validate artifact is available
+   * 4. Generate presigned download URL
+   * 5. Calculate expiry timestamp
+   *
+   * @param buildId - The build ID
+   * @param tenantId - The tenant ID (for ownership validation)
+   * @returns Object with presigned URL and expiry timestamp
+   * @throws BuildArtifactError if build not found, doesn't belong to tenant, or artifact unavailable
+   */
+  getBuildArtifactDownloadUrl = async (
+    buildId: string,
+    tenantId: string
+  ): Promise<{ url: string; expiresAt: string }> => {
+    // Step 1: Find build by buildId
+    const build = await executeOperation(
+      () => this.buildRepository.findById(buildId),
+      BUILD_ARTIFACT_ERROR_CODE.DB_QUERY_FAILED,
+      BUILD_ARTIFACT_ERROR_MESSAGES.DB_QUERY_FAILED
+    );
+
+    // Step 2: Validate build exists
+    const buildNotFound = !build;
+    if (buildNotFound) {
+      throw new BuildArtifactError(
+        BUILD_ARTIFACT_ERROR_CODE.BUILD_NOT_FOUND,
+        BUILD_ARTIFACT_ERROR_MESSAGES.BUILD_NOT_FOUND
+      );
+    }
+
+    // Step 3: Validate tenant ownership (security: don't leak build existence)
+    const tenantMismatch = build.tenantId !== tenantId;
+    if (tenantMismatch) {
+      throw new BuildArtifactError(
+        BUILD_ARTIFACT_ERROR_CODE.BUILD_NOT_FOUND,
+        BUILD_ARTIFACT_ERROR_MESSAGES.BUILD_NOT_FOUND
+      );
+    }
+
+    // Step 4: Validate artifact is available
+    const artifactPathMissing = !build.artifactPath;
+    if (artifactPathMissing) {
+      throw new BuildArtifactError(
+        BUILD_ARTIFACT_ERROR_CODE.ARTIFACT_NOT_AVAILABLE,
+        BUILD_ARTIFACT_ERROR_MESSAGES.ARTIFACT_NOT_AVAILABLE
+      );
+    }
+
+    // Step 5: Generate presigned URL
+    const url = await this.generatePresignedUrl(build.artifactPath);
+
+    // Step 6: Calculate expiry timestamp
+    const expiresAt = new Date(
+      Date.now() + BUILD_ARTIFACT_DEFAULTS.PRESIGNED_URL_EXPIRES_SECONDS * 1000
+    ).toISOString();
+
+    return { url, expiresAt };
   };
 
   /**

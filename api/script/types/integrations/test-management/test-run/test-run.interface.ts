@@ -96,6 +96,12 @@ export type TestRunActionRequest = {
   testManagementConfigId: string;
 };
 
+export type TestRunURLRequest = {
+  runId: string;
+  testManagementConfigId: string;
+  platform: TestPlatform;  // Platform for this run (to find platform-specific config)
+};
+
 /**
  * Response from reset operation
  */

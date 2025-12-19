@@ -28,6 +28,17 @@ export abstract class WorkflowService {
     const storage = getStorage();
     return (storage as any).cicdWorkflowRepository as CICDWorkflowRepository;
   }
+
+  /**
+   * Trigger a workflow.
+   * Must be implemented by concrete workflow service classes.
+   */
+  abstract trigger(tenantId: string, input: {
+    workflowId?: string;
+    workflowType?: string;
+    platform?: string;
+    jobParameters?: Record<string, unknown>;
+  }): Promise<{ queueLocation: string }>;
 }
 
 

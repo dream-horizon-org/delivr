@@ -9,6 +9,7 @@ export {
   ResetTestRunResponse,
   TestReportResponse,
   TestRunActionRequest,
+  TestRunURLRequest,
   TestRunStatus,
   TestStatusResponse
 } from './test-run.interface';

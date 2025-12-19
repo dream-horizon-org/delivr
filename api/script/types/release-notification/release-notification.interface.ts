@@ -168,27 +168,23 @@ export type BaseNotificationPayload = {
 export type PreKickoffReminderPayload = BaseNotificationPayload & {
   type: NotificationType.PRE_KICKOFF_REMINDER;
   releaseType: string;      // {0} - e.g., "planned"
-  version: string;          // {1} - e.g., "v6.5.0"
-  forkDate: string;         // {2} - e.g., "March 15, 2025"
-  detailsUrl: string;       // {3} - e.g., "https://delivr.example.com/releases/v6.5.0"
+  forkDate: string;         // {1} - e.g., "March 15, 2025"
+  detailsUrl: string;       // {2} - e.g., "https://delivr.example.com/releases/v6.5.0"
 };
 
 export type BranchForkoutPayload = BaseNotificationPayload & {
   type: NotificationType.BRANCH_FORKOUT;
-  version: string;   // {0} - e.g., "v6.5.0"
-  branch: string;    // {1} - e.g., "release/v6.5.0"
+  branch: string;    // {0} - e.g., "release/v6.5.0"
 };
 
 export type ProjectManagementLinksPayload = BaseNotificationPayload & {
   type: NotificationType.PROJECT_MANAGEMENT_LINKS;
-  version: string;   // {0} - e.g., "v6.5.0"
-  links: string[];   // {1} - array of links, will be joined with newlines
+  links: string[];   // {0} - array of links, will be joined with newlines
 };
 
 export type TestManagementLinksPayload = BaseNotificationPayload & {
   type: NotificationType.TEST_MANAGEMENT_LINKS;
-  version: string;   // {0} - e.g., "v6.5.0"
-  links: string[];   // {1} - array of links, will be joined with newlines
+  links: string[];   // {0} - array of links, will be joined with newlines
 };
 
 export type PreregressionBuildsPayload = BaseNotificationPayload & {
@@ -284,10 +280,9 @@ export type AndroidAabBuildPayload = BaseNotificationPayload & {
 export type WhatsNewPayload = BaseNotificationPayload & {
   type: NotificationType.WHATS_NEW;
   releaseType: string;   // {0} - e.g., "planned"
-  version: string;       // {1} - e.g., "v6.3.0"
-  features: string;      // {2} - bullet points
-  fixes: string;         // {3} - bullet points
-  improvements: string;  // {4} - bullet points
+  features: string;      // {1} - bullet points
+  fixes: string;         // {2} - bullet points
+  improvements: string;  // {3} - bullet points
 };
 
 export type RegressionStageApprovalRequestPayload = BaseNotificationPayload & {

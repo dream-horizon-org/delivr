@@ -3,74 +3,74 @@
     "pre-kickoff-reminder": {
       "metadata": {
         "name": "Gentle Reminder",
-        "emoji": "📅",
+        "emoji": "",
         "color": "#0066CC",
         "category": "release"
       },
       "fields": [],
-      "description": "For the {0} release *{1}*, the release branch will be forked on *{2}*.\n\nPlease merge your features/bug fixes before this.\n\nFor more details please visit *{3}*"
+      "description": "For the {0} release, the release branch will be forked on *{1}*.\n\nPlease merge your features/bug fixes before this.\n\nFor more details please visit *{2}*"
     },
     "branch-forkout": {
       "metadata": {
         "name": "Branch Forkout",
-        "emoji": "🌿",
+        "emoji": "",
         "color": "#0066CC",
         "category": "release"
       },
       "fields": [],
-      "description": "For the {0} release, `{1}` branch has been forked out."
+      "description": "`{0}` branch has been forked out."
     },
     "project-management-links": {
       "metadata": {
         "name": "Project Management Links",
-        "emoji": "📋",
+        "emoji": "",
         "color": "#0066CC",
         "category": "release"
       },
       "fields": [],
-      "description": "*Project Management Links for {0} release:*\n\n{1}"
+      "description": "*Project Management Links:*\n\n{0}"
     },
     "test-management-links": {
       "metadata": {
         "name": "Test Management Links",
-        "emoji": "🧪",
+        "emoji": "",
         "color": "#0066CC",
         "category": "release"
       },
       "fields": [],
-      "description": "*Test Management Links for {0} release:*\n\n{1}"
+      "description": "*Test Management Links:*\n\n{0}"
     },
     "preregression-builds": {
       "platforms": {
         "ios_app_store": {
           "metadata": {
             "name": "iOS Pre-Regression Build",
-            "emoji": "🍎",
+            "emoji": "",
             "color": "#000000",
             "category": "build"
           },
           "fields": [],
-          "description": "📦 iOS pre-regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
+          "description": "iOS pre-regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
         },
         "android_play_store": {
           "metadata": {
             "name": "Android Playstore Pre-Regression Build",
-            "emoji": "🤖",
+            "emoji": "",
             "color": "#3DDC84",
             "category": "build"
           },
           "fields": [],
-          "description": "📦 Android Playstore pre-regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
+          "description": "Android Playstore pre-regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
         },
         "android_web": {
           "metadata": {
             "name": "Android Web Pre-Regression Build",
-            "emoji": "🌐",
+            "emoji": "",
             "color": "#3DDC84",
             "category": "build"
           },
           "fields": [],
-          "description": "📦 Android Web pre-regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
+          "description": "Android Web pre-regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
         }
       }
     },
@@ -79,7 +79,7 @@
         "ios_app_store": {
           "metadata": {
             "name": "iOS Pre-Regression Build Failed",
-            "emoji": "🍎❌",
+            "emoji": "",
             "color": "#DC3545",
             "category": "build"
           },
@@ -89,7 +89,7 @@
         "android_play_store": {
           "metadata": {
             "name": "Android Playstore Pre-Regression Build Failed",
-            "emoji": "🤖❌",
+            "emoji": "",
             "color": "#DC3545",
             "category": "build"
           },
@@ -99,7 +99,7 @@
         "android_web": {
           "metadata": {
             "name": "Android Web Pre-Regression Build Failed",
-            "emoji": "🌐❌",
+            "emoji": "",
             "color": "#DC3545",
             "category": "build"
           },
@@ -111,7 +111,7 @@
     "regression-kickoff-reminder": {
       "metadata": {
         "name": "Gentle Reminder!",
-        "emoji": "⚡",
+        "emoji": "",
         "color": "#FF6600",
         "category": "testing"
       },
@@ -123,32 +123,32 @@
         "ios_app_store": {
           "metadata": {
             "name": "iOS Regression Build",
-            "emoji": "🍎",
+            "emoji": "",
             "color": "#000000",
             "category": "build"
           },
           "fields": [],
-          "description": "📦 iOS regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
+          "description": "iOS regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
         },
         "android_play_store": {
           "metadata": {
             "name": "Android Playstore Regression Build",
-            "emoji": "🤖",
+            "emoji": "",
             "color": "#3DDC84",
             "category": "build"
           },
           "fields": [],
-          "description": "📦 Android Playstore regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
+          "description": "Android Playstore regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
         },
         "android_web": {
           "metadata": {
             "name": "Android Web Regression Build",
-            "emoji": "🌐",
+            "emoji": "",
             "color": "#3DDC84",
             "category": "build"
           },
           "fields": [],
-          "description": "📦 Android Web regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
+          "description": "Android Web regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
         }
       }
     },
@@ -157,7 +157,7 @@
         "ios_app_store": {
           "metadata": {
             "name": "iOS Regression Build Failed",
-            "emoji": "🍎❌",
+            "emoji": "",
             "color": "#DC3545",
             "category": "build"
           },
@@ -167,7 +167,7 @@
         "android_play_store": {
           "metadata": {
             "name": "Android Playstore Regression Build Failed",
-            "emoji": "🤖❌",
+            "emoji": "",
             "color": "#DC3545",
             "category": "build"
           },
@@ -177,7 +177,7 @@
         "android_web": {
           "metadata": {
             "name": "Android Web Regression Build Failed",
-            "emoji": "🌐❌",
+            "emoji": "",
             "color": "#DC3545",
             "category": "build"
           },
@@ -189,7 +189,7 @@
     "release-notes": {
       "metadata": {
         "name": "Release Notes",
-        "emoji": "📝",
+        "emoji": "",
         "color": "#0066CC",
         "category": "release"
       },
@@ -211,7 +211,7 @@
         "ios_app_store": {
           "metadata": {
             "name": "iOS Test Results Summary",
-            "emoji": "🍎📊",
+            "emoji": "",
             "color": "#17A2B8",
             "category": "testing"
           },
@@ -221,7 +221,7 @@
         "android_play_store": {
           "metadata": {
             "name": "Android Playstore Test Results Summary",
-            "emoji": "🤖📊",
+            "emoji": "",
             "color": "#17A2B8",
             "category": "testing"
           },
@@ -231,7 +231,7 @@
         "android_web": {
           "metadata": {
             "name": "Android Web Test Results Summary",
-            "emoji": "🌐📊",
+            "emoji": "",
             "color": "#17A2B8",
             "category": "testing"
           },
@@ -243,48 +243,49 @@
     "whats-new": {
       "metadata": {
         "name": "What's New",
-        "emoji": "✨",
+        "emoji": "",
         "color": "#28a745",
         "category": "release"
       },
       "fields": [],
-      "description": "*We have a *{0}* release *{1}*, please help with the what's new copy.\nBelow are the List of changes going live:*\n\n*Features*\n{2}\n\n*Fixes*\n{3}\n\n*Improvements*\n{4}"
+      "description": "*We have a *{0}* release, please help with the what's new copy.\nBelow are the List of changes going live:*\n\n*Features*\n{1}\n\n*Fixes*\n{2}\n\n*Improvements*\n{3}"
     },
     "new-slot-added": {
       "metadata": {
         "name": "New Slot Added",
-        "emoji": "➕",
+        "emoji": "",
         "color": "#28a745",
         "category": "notification",
         "showTitle": false
       },
       "fields": [],
       "description": "We have scheduled a new regression slot at *{0}*."
+      "description": "We have scheduled a new regression slot at *{0}*."
     },
     "ios-test-flight-build": {
       "metadata": {
         "name": "iOS TestFlight Build",
-        "emoji": "✈️",
+        "emoji": "",
         "color": "#0066CC",
         "category": "build"
       },
       "fields": [],
-      "description": "✈️ iOS TestFlight build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
+      "description": "iOS TestFlight build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
     },
     "android-aab-build": {
       "metadata": {
         "name": "Android AAB Build",
-        "emoji": "📦",
+        "emoji": "",
         "color": "#3DDC84",
         "category": "build"
       },
       "fields": [],
-      "description": "📦 Android AAB build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
+      "description": "Android AAB build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
     },
     "regression-stage-approval-request": {
       "metadata": {
         "name": "Regression Stage Approval Request",
-        "emoji": "✋",
+        "emoji": "",
         "color": "#6C757D",
         "category": "release"
       },
@@ -294,7 +295,7 @@
     "pre-distribution-stage-approval-request": {
       "metadata": {
         "name": "Pre-Distribution Stage Approval Request",
-        "emoji": "✋",
+        "emoji": "",
         "color": "#6C757D",
         "category": "release"
       },
@@ -304,7 +305,7 @@
     "target-date-changed": {
       "metadata": {
         "name": "Target Date Changed",
-        "emoji": "📆",
+        "emoji": "",
         "color": "#FFC107",
         "category": "release"
       },
@@ -314,7 +315,7 @@
     "ios-appstore-build-submitted": {
       "metadata": {
         "name": "iOS App Store Build Submitted",
-        "emoji": "🍎📤",
+        "emoji": "",
         "color": "#28A745",
         "category": "release"
       },
@@ -324,7 +325,7 @@
     "android-playstore-build-submitted": {
       "metadata": {
         "name": "Android Playstore Build Submitted",
-        "emoji": "🤖📤",
+        "emoji": "",
         "color": "#28A745",
         "category": "release"
       },
@@ -334,7 +335,7 @@
     "ios-appstore-live": {
       "metadata": {
         "name": "iOS Appstore Live",
-        "emoji": "🍎🎉",
+        "emoji": "",
         "color": "#28A745",
         "category": "release"
       },
@@ -344,7 +345,7 @@
     "android-playstore-live": {
       "metadata": {
         "name": "Android Playstore Live",
-        "emoji": "🤖🎉",
+        "emoji": "",
         "color": "#28A745",
         "category": "release"
       },
@@ -354,7 +355,7 @@
     "android-web-live": {
       "metadata": {
         "name": "Android Web Live",
-        "emoji": "🌐🎉",
+        "emoji": "",
         "color": "#28A745",
         "category": "release"
       },
@@ -364,7 +365,7 @@
     "task-failed": {
       "metadata": {
         "name": "Task Failed",
-        "emoji": "⚠️",
+        "emoji": "",
         "color": "#DC3545",
         "category": "release"
       },
@@ -374,7 +375,7 @@
     "manual-build-upload-reminder": {
       "metadata": {
         "name": "Manual Build Upload Reminder",
-        "emoji": "⏳",
+        "emoji": "",
         "color": "#FFC107",
         "category": "build"
       },

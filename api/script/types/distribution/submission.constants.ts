@@ -158,3 +158,17 @@ export const SUBMISSION_ACTION_HISTORY_SUCCESS_MESSAGES = {
   SUBMISSION_RESUMED: 'Submission resumed successfully'
 } as const;
 
+// ============================================================================
+// ARTIFACT DOWNLOAD MESSAGES
+// ============================================================================
+
+export const SUBMISSION_ARTIFACT_DOWNLOAD_ERROR_MESSAGES = {
+  INVALID_SUBMISSION_ID: 'Submission ID is required',
+  INVALID_TENANT_ID: 'Tenant ID is required',
+  PLATFORM_REQUIRED: 'Query parameter "platform" is required',
+  PLATFORM_INVALID: 'Platform must be ANDROID or IOS',
+  SUBMISSION_NOT_FOUND_OR_ACCESS_DENIED: 'Submission not found or does not belong to this tenant',
+  ARTIFACT_NOT_AVAILABLE: 'Artifact not available for this submission',
+  PRESIGNED_URL_FAILED: 'Failed to generate download URL'
+} as const;
+

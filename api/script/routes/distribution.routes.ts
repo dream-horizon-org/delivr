@@ -9,26 +9,6 @@ import * as multer from "multer";
 import * as storageTypes from "../storage/storage";
 import * as releasePermissions from "../middleware/release-permissions";
 import { HTTP_STATUS } from "../constants/http";
-import { 
-  AndroidSubmissionBuildRepository,
-  IosSubmissionBuildRepository,
-  SubmissionActionHistoryRepository,
-  DistributionRepository,
-  createAndroidSubmissionBuildModel,
-  createIosSubmissionBuildModel,
-  createSubmissionActionHistoryModel,
-  createDistributionModel
-} from "../models/distribution";
-import {
-  ReleaseRepository,
-  BuildRepository,
-  ReleasePlatformTargetMappingRepository,
-  createReleaseModel,
-  createBuildModel,
-  createPlatformTargetMappingModel
-} from "../models/release";
-import { SubmissionService } from "../services/distribution";
-import { DistributionService } from "../services/distribution/distribution.service";
 import { createSubmissionController } from "../controllers/distribution";
 import { createDistributionController } from "../controllers/distribution/distribution.controller";
 
@@ -51,64 +31,20 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   const storage: storageTypes.Storage = config.storage;
   const router: Router = Router();
 
-  // Check if storage has sequelize property (AWS Storage)
-  const storageHasSequelize = 'sequelize' in storage && storage.sequelize;
+  // Check if storage has distribution services initialized
+  const hasDistributionServices = 'submissionService' in storage && 'distributionService' in storage;
   
-  if (!storageHasSequelize) {
-    console.warn('[Distribution Routes] Storage does not have sequelize - distribution services not initialized');
+  if (!hasDistributionServices) {
+    console.warn('[Distribution Routes] Distribution services not initialized in storage');
     return router;
   }
 
-  // Initialize distribution repositories
-  const sequelize = (storage as any).sequelize;
-  const distributionModel = createDistributionModel(sequelize);
-  const androidSubmissionModel = createAndroidSubmissionBuildModel(sequelize);
-  const iosSubmissionModel = createIosSubmissionBuildModel(sequelize);
-  const actionHistoryModel = createSubmissionActionHistoryModel(sequelize);
-
-  const distributionRepository = new DistributionRepository(distributionModel);
-  const androidSubmissionRepository = new AndroidSubmissionBuildRepository(androidSubmissionModel);
-  const iosSubmissionRepository = new IosSubmissionBuildRepository(iosSubmissionModel);
-  const actionHistoryRepository = new SubmissionActionHistoryRepository(actionHistoryModel);
-
-  // Initialize release-related repositories for createDistributionFromRelease
-  const releaseModel = createReleaseModel(sequelize);
-  const buildModel = createBuildModel(sequelize);
-  const platformTargetMappingModel = createPlatformTargetMappingModel(sequelize);
-
-  const releaseRepository = new ReleaseRepository(releaseModel);
-  const buildRepository = new BuildRepository(buildModel);
-  const platformTargetMappingRepository = new ReleasePlatformTargetMappingRepository(platformTargetMappingModel);
-
-  // Initialize services
-  // Note: AppleAppStoreConnectService is created dynamically per-request from integration credentials
-  // The service automatically:
-  // - Fetches credentials from store_integrations and store_credentials tables
-  // - Decrypts credentials using backend encryption
-  // - Generates JWT token using existing implementation from store-controllers
-  // - Makes authenticated API calls to Apple App Store Connect
+  // Extract pre-initialized services from storage (singleton pattern)
+  const submissionService = (storage as any).submissionService;
+  const distributionService = (storage as any).distributionService;
   
-  const submissionService = new SubmissionService(
-    androidSubmissionRepository,
-    iosSubmissionRepository,
-    actionHistoryRepository,
-    distributionRepository
-    // appleAppStoreConnectService is optional - service dynamically creates it when needed
-  );
-
-  // Initialize controllers
+  // Initialize controllers with singleton services
   const submissionController = createSubmissionController(submissionService);
-
-  // Initialize distribution service and controller
-  const distributionService = new DistributionService(
-    distributionRepository,
-    iosSubmissionRepository,
-    androidSubmissionRepository,
-    actionHistoryRepository,
-    releaseRepository,
-    buildRepository,
-    platformTargetMappingRepository
-  );
   const distributionController = createDistributionController(distributionService, storage);
 
   // ============================================================================
@@ -249,6 +185,25 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   router.get(
     "/submissions/:submissionId",
     submissionController.getSubmissionDetails
+  );
+
+  /**
+   * GET /tenants/:tenantId/submissions/:submissionId/artifact?platform={android|ios}
+   * 
+   * Get presigned download URL for submission artifact.
+   * 
+   * Query Parameters:
+   * - platform: string (required) - "android" or "ios" (case-insensitive)
+   * 
+   * Response:
+   * - url: string - Presigned S3 download URL (expires in 1 hour)
+   * - expiresAt: string - ISO 8601 timestamp when URL expires
+   * 
+   * Use Case: Download submission artifact for local testing or review
+   */
+  router.get(
+    "/tenants/:tenantId/submissions/:submissionId/artifact",
+    submissionController.getSubmissionArtifactDownload
   );
 
   // ============================================================================

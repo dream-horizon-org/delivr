@@ -90,6 +90,7 @@ type MockCronicleServiceOverrides = {
 
 const createMockCronicleService = (overrides: MockCronicleServiceOverrides = {}): CronicleService => ({
   getJob: jest.fn().mockResolvedValue(null),
+  getJobs: jest.fn().mockResolvedValue([]),
   createJob: jest.fn().mockResolvedValue('auto-generated-job-id'),
   updateJob: jest.fn().mockResolvedValue(undefined),
   deleteJob: jest.fn().mockResolvedValue(undefined),

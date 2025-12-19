@@ -6,6 +6,7 @@ import { CICD_CONFIG_ERROR_MESSAGES } from './config.constants';
 import * as shortid from 'shortid';
 import { validateAndNormalizeWorkflowsForConfig, dedupeIds, splitWorkflows } from './config.utils';
 import { validateWorkflowsForCreateConfig, CICDConfigValidationError } from './config.validation';
+import { WorkflowService } from '../workflows/workflow.service';
 import { GitHubActionsWorkflowService } from '../workflows/github-actions-workflow.service';
 import { JenkinsWorkflowService } from '../workflows/jenkins-workflow.service';
 import { normalizePlatform, normalizeWorkflowType } from '../utils/cicd.utils';
@@ -28,6 +29,7 @@ export type TriggerWorkflowResult = {
   queueLocation: string;
   workflowId: string;
   providerType: CICDProviderType;
+  workflowType: string;
 };
 
 export class CICDConfigService {
@@ -238,14 +240,15 @@ export class CICDConfigService {
     return {
       queueLocation: result.queueLocation,
       workflowId: selectedWorkflow.id,
-      providerType: selectedWorkflow.providerType
+      providerType: selectedWorkflow.providerType,
+      workflowType: selectedWorkflow.workflowType
     };
   }
 
   /**
    * Create the appropriate workflow service based on provider type
    */
-  private createWorkflowService(providerType: CICDProviderType): GitHubActionsWorkflowService | JenkinsWorkflowService {
+  private createWorkflowService(providerType: CICDProviderType): WorkflowService {
     const isGitHubActions = providerType === CICDProviderType.GITHUB_ACTIONS;
     if (isGitHubActions) {
       return new GitHubActionsWorkflowService(

@@ -9,6 +9,7 @@
 export const BUILD_ARTIFACT_ERROR_CODE = {
   BUILD_NOT_FOUND: 'BUILD_NOT_FOUND',
   BUILD_NOT_FOUND_BY_ID: 'BUILD_NOT_FOUND_BY_ID',
+  ARTIFACT_NOT_AVAILABLE: 'ARTIFACT_NOT_AVAILABLE',
   S3_UPLOAD_FAILED: 'S3_UPLOAD_FAILED',
   PRESIGNED_URL_FAILED: 'PRESIGNED_URL_FAILED',
   DB_CREATE_FAILED: 'DB_CREATE_FAILED',
@@ -18,7 +19,8 @@ export const BUILD_ARTIFACT_ERROR_CODE = {
   TESTFLIGHT_VERIFICATION_FAILED: 'TESTFLIGHT_VERIFICATION_FAILED',
   TESTFLIGHT_NUMBER_INVALID: 'TESTFLIGHT_NUMBER_INVALID',
   VERSION_EXTRACTION_FAILED: 'VERSION_EXTRACTION_FAILED',
-  PLAY_STORE_INTEGRATION_NOT_FOUND: 'PLAY_STORE_INTEGRATION_NOT_FOUND'
+  PLAY_STORE_INTEGRATION_NOT_FOUND: 'PLAY_STORE_INTEGRATION_NOT_FOUND',
+  ARTIFACT_VERSION_MISMATCH: 'ARTIFACT_VERSION_MISMATCH'
 } as const;
 
 /**
@@ -33,6 +35,7 @@ export const BUILD_ARTIFACT_ERROR_CODE = {
 export const BUILD_ARTIFACT_ERROR_MESSAGES = {
   BUILD_NOT_FOUND: 'Build not found for provided ciRunId',
   BUILD_NOT_FOUND_BY_ID: 'Build not found for provided buildId',
+  ARTIFACT_NOT_AVAILABLE: 'Artifact not available for this build',
   S3_UPLOAD_FAILED: 'Build upload failed: could not upload artifact to storage',
   PRESIGNED_URL_FAILED: 'Failed to generate presigned download URL',
   DB_CREATE_FAILED: 'Build upload failed: could not save build record',
@@ -42,7 +45,8 @@ export const BUILD_ARTIFACT_ERROR_MESSAGES = {
   TESTFLIGHT_VERIFICATION_FAILED: 'Failed to verify TestFlight build number',
   TESTFLIGHT_NUMBER_INVALID: 'TestFlight verification failed: build not found in TestFlight',
   VERSION_EXTRACTION_FAILED: 'Failed to extract version information from AAB file',
-  PLAY_STORE_INTEGRATION_NOT_FOUND: 'Play Store integration not found for tenant'
+  PLAY_STORE_INTEGRATION_NOT_FOUND: 'Play Store integration not found for tenant',
+  ARTIFACT_VERSION_MISMATCH: 'Artifact version does not match release platform version'
 } as const;
 
 /**

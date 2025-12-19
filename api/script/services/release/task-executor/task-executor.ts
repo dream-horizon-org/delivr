@@ -32,6 +32,8 @@ import { TestPlatform } from '../../../types/integrations/test-management/platfo
 import { MessagingService } from '../../integrations/comm/messaging/messaging.service';
 import type { ReleaseConfigRepository } from '../../../models/release-configs/release-config.repository';
 import { RELEASE_ERROR_MESSAGES, RELEASE_DEFAULTS, CICD_JOB_BUILD_TYPE } from '../release.constants';
+import { ReleaseNotificationService } from '../../release-notification/release-notification.service';
+import { NotificationType } from '~types/release-notification';
 import { ReleaseUploadsRepository } from '../../../models/release/release-uploads.repository';
 import { PlatformName } from '../../../models/release/release.interface';
 import {
@@ -39,8 +41,10 @@ import {
   BUILD_STAGE,
   BUILD_TYPE,
   BUILD_UPLOAD_STATUS,
-  STORE_TYPE
+  STORE_TYPE,
+  WORKFLOW_STATUS
 } from '~types/release-management/builds';
+import { generatePlatformVersionString } from '../release.utils';
 
 /**
  * Task execution result
@@ -64,7 +68,7 @@ interface PlatformTargetMapping {
   releaseId: string;
   platform: string;  // ENUM: 'IOS' | 'ANDROID' | 'WEB'
   target: string;    // ENUM: 'APP_STORE' | 'PLAY_STORE' | 'WEB'
-  version: string | null;
+  version: string;
   projectManagementRunId?: string | null;  // JIRA ticket ID for this platform
   testManagementRunId?: string | null;     // Test suite run ID for this platform
 }
@@ -74,67 +78,32 @@ export interface TaskExecutionContext {
   tenantId: string;
   release: Release;
   task: ReleaseTask;
-  platformTargetMappings?: PlatformTargetMapping[];
+  platformTargetMappings: PlatformTargetMapping[];
 }
 
 /**
- * Extract version from release branch
- * @param branch - Branch name like "release/v1.0.0" or "release/v1.2.3-beta"
- * @returns Version string like "1.0.0" or "1.2.3-beta", or null if branch is null/invalid
- * 
- * Schema Note: The new schema stores `branch` directly (e.g., "release/v1.0.0")
- * instead of a separate `version` column. This helper extracts the version part.
+ * Extract versionCode from Play Store internal track link
+ * @param internalTrackLink - URL like "https://play.google.com/apps/test/{packageName}/{versionCode}"
+ * @returns versionCode string or null if URL is invalid/null
  */
-const extractVersionFromBranch = (branch: string | null | undefined): string | null => {
-  // Handle null/undefined branch gracefully
-  const branchIsNullOrUndefined = branch === null || branch === undefined;
-  if (branchIsNullOrUndefined) {
+const extractVersionCodeFromInternalTrackLink = (internalTrackLink: string | null | undefined): string | null => {
+  const linkIsNullOrUndefined = internalTrackLink === null || internalTrackLink === undefined;
+  if (linkIsNullOrUndefined) {
     return null;
   }
   
-  // Pattern: "release/v{version}" -> extract "{version}"
-  const match = branch.match(/^release\/v(.+)$/);
-  const matchFound = match !== null && match.length > 1;
-  if (matchFound) {
-    return match[1];
+  // Pattern: https://play.google.com/apps/test/{packageName}/{versionCode}
+  // We want the last segment after the final slash
+  const segments = internalTrackLink.split('/');
+  const lastSegment = segments[segments.length - 1];
+  
+  // Verify it looks like a version code (numeric string)
+  const isNumeric = /^\d+$/.test(lastSegment);
+  if (isNumeric) {
+    return lastSegment;
   }
   
-  // Fallback: if branch doesn't match pattern, use branch name as-is
-  return branch;
-};
-
-/**
- * Get version for a release
- * Priority: platformMappings[0].version > branch-derived version > fallback "0.0.0"
- * 
- * @param release - Release object with branch field
- * @param platformMappings - Optional platform mappings containing per-platform version
- * @returns Version string
- */
-const getReleaseVersion = (
-  release: Release, 
-  platformMappings?: PlatformTargetMapping[]
-): string => {
-  // Priority 1: Use version from platform mappings (most reliable)
-  const hasPlatformMappings = platformMappings && platformMappings.length > 0;
-  if (hasPlatformMappings) {
-    const firstMappingVersion = platformMappings[0].version;
-    const versionExists = firstMappingVersion !== null && firstMappingVersion !== undefined && firstMappingVersion !== '';
-    if (versionExists) {
-      return firstMappingVersion;
-    }
-  }
-  
-  // Priority 2: Extract from branch
-  const branchVersion = extractVersionFromBranch(release.branch);
-  const hasBranchVersion = branchVersion !== null;
-  if (hasBranchVersion) {
-    return branchVersion;
-  }
-  
-  // Priority 3: Fallback (should never reach here in normal operation)
-  console.warn(`[getReleaseVersion] No version found for release ${release.id}, using fallback`);
-  return RELEASE_DEFAULTS.FALLBACK_VERSION;
+  return null;
 };
 
 // IntegrationInstances interface removed - now using real services via DI
@@ -165,7 +134,8 @@ export class TaskExecutor {
     releaseTaskRepo: ReleaseTaskRepository,
     releaseRepo: ReleaseRepository,
     releaseUploadsRepo?: ReleaseUploadsRepository | null,
-    cronJobRepo?: CronJobRepository | null
+    cronJobRepo?: CronJobRepository | null,
+    private releaseNotificationService?: ReleaseNotificationService
   ) {
     this.releaseTaskRepo = releaseTaskRepo;
     this.releaseRepo = releaseRepo;
@@ -200,39 +170,6 @@ export class TaskExecutor {
   }
 
   /**
-   * Get the appropriate workflow service based on provider type
-   * Looks up workflow to determine provider, then instantiates correct service
-   * 
-   * @deprecated Use triggerWorkflowByConfig instead - workflowId is actually configId
-   */
-  private async getWorkflowService(workflowId: string): Promise<GitHubActionsWorkflowService | JenkinsWorkflowService> {
-    // Look up workflow to get provider type
-    const workflow = await this.cicdWorkflowRepository.findById(workflowId);
-    
-    if (!workflow) {
-      throw new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_FOUND(workflowId));
-    }
-
-    // Instantiate the correct service based on provider type
-    switch (workflow.providerType) {
-      case CICDProviderType.GITHUB_ACTIONS:
-        return new GitHubActionsWorkflowService(
-          this.cicdIntegrationRepository,
-          this.cicdWorkflowRepository
-        );
-      
-      case CICDProviderType.JENKINS:
-        return new JenkinsWorkflowService(
-          this.cicdIntegrationRepository,
-          this.cicdWorkflowRepository
-        );
-      
-      default:
-        throw new Error(RELEASE_ERROR_MESSAGES.CICD_PROVIDER_UNSUPPORTED(workflow.providerType));
-    }
-  }
-
-  /**
    * Trigger a workflow by config ID, platform, and workflow type.
    * 
    * This is the correct method to use for triggering CI/CD workflows.
@@ -245,7 +182,7 @@ export class TaskExecutor {
     platform: string,
     workflowType: WorkflowType,
     jobParameters: Record<string, unknown>
-  ): Promise<{ queueLocation: string; workflowId: string }> {
+  ): Promise<{ queueLocation: string; workflowId: string; workflowType: string; providerType: CICDProviderType }> {
     const result = await this.cicdConfigService.triggerWorkflowByConfig({
       configId,
       tenantId,
@@ -256,7 +193,9 @@ export class TaskExecutor {
 
     return {
       queueLocation: result.queueLocation,
-      workflowId: result.workflowId
+      workflowId: result.workflowId,
+      workflowType: result.workflowType,
+      providerType: result.providerType
     };
   }
 
@@ -326,6 +265,189 @@ export class TaskExecutor {
   }
 
   /**
+   * Send notification based on task type (dispatcher)
+   * 
+   * Note: Build tasks (TRIGGER_PRE_REGRESSION_BUILDS, TRIGGER_REGRESSION_BUILDS, 
+   * TRIGGER_TEST_FLIGHT_BUILD, CREATE_AAB_BUILD) are NOT handled here because they
+   * complete asynchronously via CI/CD callbacks in build-callback.service.ts
+   */
+  private async notifyTaskCompletion(
+    taskType: TaskType,
+    context: TaskExecutionContext,
+    externalData: Record<string, unknown> | null,
+    externalId: string | null
+  ): Promise<void> {
+    if (!this.releaseNotificationService) {
+      console.log('[TaskExecutor] ReleaseNotificationService not available, skipping notification');
+      return;
+    }
+
+    try {
+      switch (taskType) {
+        case TaskType.FORK_BRANCH:
+          await this.notifyBranchForkout(context, externalData, externalId);
+          break;
+
+        case TaskType.CREATE_PROJECT_MANAGEMENT_TICKET:
+          await this.notifyProjectManagementLinks(context, externalData, externalId);
+          break;
+
+        case TaskType.CREATE_TEST_SUITE:
+          await this.notifyTestManagementLinks(context, externalData, externalId);
+          break;
+
+        default:
+          // No notification for other task types yet
+          console.log(`[TaskExecutor] No notification configured for task type: ${taskType}`);
+      }
+    } catch (error) {
+      console.error(`[TaskExecutor] Error sending notification for ${taskType}:`, error);
+      // Don't fail the task if notification fails
+    }
+  }
+
+  /**
+   * Send BRANCH_FORKOUT notification
+   */
+  private async notifyBranchForkout(
+    context: TaskExecutionContext,
+    externalData: Record<string, unknown> | null,
+    _externalId: string | null
+  ): Promise<void> {
+    if (!externalData || !externalData.branchName) {
+      console.log('[TaskExecutor] Missing branch name in externalData, skipping notification');
+      return;
+    }
+
+    const { tenantId, releaseId, release, platformTargetMappings } = context;
+    const branchName = String(externalData.branchName);
+
+    await this.releaseNotificationService!.notify({
+      type: NotificationType.BRANCH_FORKOUT,
+      tenantId,
+      releaseId,
+      branch: branchName,
+      isSystemGenerated: true
+    });
+
+    console.log(`[TaskExecutor] Sent BRANCH_FORKOUT notification for release ${releaseId}`);
+  }
+
+  /**
+   * Send PROJECT_MANAGEMENT_LINKS notification
+   */
+  private async notifyProjectManagementLinks(
+    context: TaskExecutionContext,
+    _externalData: Record<string, unknown> | null,
+    _externalId: string | null
+  ): Promise<void> {
+    const { tenantId, releaseId, release, platformTargetMappings } = context;
+
+    if (!platformTargetMappings || platformTargetMappings.length === 0) {
+      console.log('[TaskExecutor] No platform mappings, skipping PM notification');
+      return;
+    }
+
+    // Get release config
+    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
+    const pmConfigId = releaseConfig?.projectManagementConfigId;
+    
+    if (!pmConfigId) {
+      console.log('[TaskExecutor] No PM config ID, skipping PM notification');
+      return;
+    }
+
+    // Fetch ticket URLs for each platform
+    const links: string[] = [];
+    for (const mapping of platformTargetMappings) {
+      if (mapping.projectManagementRunId) {
+        try {
+          const ticketUrl = await this.pmTicketService.getTicketUrl({
+            pmConfigId,
+            platform: mapping.platform as Platform,
+            ticketKey: mapping.projectManagementRunId
+          });
+          links.push(ticketUrl);
+        } catch (error) {
+          console.error(`[TaskExecutor] Error getting ticket URL for ${mapping.platform}:`, error);
+        }
+      }
+    }
+
+    if (links.length === 0) {
+      console.log('[TaskExecutor] No ticket URLs found, skipping PM notification');
+      return;
+    }
+
+    await this.releaseNotificationService!.notify({
+      type: NotificationType.PROJECT_MANAGEMENT_LINKS,
+      tenantId,
+      releaseId,
+      links,
+      isSystemGenerated: true
+    });
+
+    console.log(`[TaskExecutor] Sent PROJECT_MANAGEMENT_LINKS notification for release ${releaseId}`);
+  }
+
+  /**
+   * Send TEST_MANAGEMENT_LINKS notification
+   */
+  private async notifyTestManagementLinks(
+    context: TaskExecutionContext,
+    _externalData: Record<string, unknown> | null,
+    _externalId: string | null
+  ): Promise<void> {
+    const { tenantId, releaseId, release, platformTargetMappings } = context;
+
+    if (!platformTargetMappings || platformTargetMappings.length === 0) {
+      console.log('[TaskExecutor] No platform mappings, skipping test management notification');
+      return;
+    }
+
+    // Get release config
+    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
+    const testConfigId = releaseConfig?.testManagementConfigId;
+    
+    if (!testConfigId) {
+      console.log('[TaskExecutor] No test config ID, skipping test management notification');
+      return;
+    }
+
+    // Fetch run URLs for each platform
+    const links: string[] = [];
+    for (const mapping of platformTargetMappings) {
+      if (mapping.testManagementRunId) {
+        try {
+          const runUrl = await this.testRunService.getRunUrl({
+            runId: mapping.testManagementRunId,
+            testManagementConfigId: testConfigId,
+            platform: mapping.platform as TestPlatform  // Cast to TestPlatform enum type
+          });
+          links.push(runUrl);
+        } catch (error) {
+          console.error(`[TaskExecutor] Error getting run URL for ${mapping.platform}:`, error);
+        }
+      }
+    }
+
+    if (links.length === 0) {
+      console.log('[TaskExecutor] No run URLs found, skipping test management notification');
+      return;
+    }
+
+    await this.releaseNotificationService!.notify({
+      type: NotificationType.TEST_MANAGEMENT_LINKS,
+      tenantId,
+      releaseId,
+      links,
+      isSystemGenerated: true
+    });
+
+    console.log(`[TaskExecutor] Sent TEST_MANAGEMENT_LINKS notification for release ${releaseId}`);
+  }
+
+  /**
    * Execute a single task
    * 
    * @param context - Task execution context
@@ -348,19 +470,6 @@ export class TaskExecutor {
       console.log(`[TaskExecutor] Starting execution of task ${task.taskType} (${task.id})`);
       console.log(`[TaskExecutor] Task status BEFORE: ${task.taskStatus}`);
       
-      // Fetch platformTargetMappings if not provided in context
-      let enrichedContext = context;
-      if (!context.platformTargetMappings) {
-        const PlatformTargetMappingModel = this.sequelize.models.PlatformTargetMapping;
-        if (PlatformTargetMappingModel) {
-          const mappings = await PlatformTargetMappingModel.findAll({
-            where: { releaseId: context.releaseId }
-          });
-          const mappingsData = mappings.map(m => (m as any).toJSON()) as PlatformTargetMapping[];
-          enrichedContext = { ...context, platformTargetMappings: mappingsData };
-        }
-      }
-      
       // Update task status to IN_PROGRESS
       // Use updateById since we have the database ID, not taskId
       await this.releaseTaskRepo.update(task.id, {
@@ -371,7 +480,7 @@ export class TaskExecutor {
       // Execute task based on type - returns either string (Category A) or object (Category B)
       const result = await this.executeTaskByType(
         task.taskType,
-        enrichedContext
+        context
       );
       console.log(`[TaskExecutor] Task ${task.taskType} execution completed successfully`);
       console.log(`[TaskExecutor] Raw result type: ${typeof result}, value:`, result);
@@ -419,7 +528,17 @@ export class TaskExecutor {
         console.error(`[TaskExecutor] Expected: COMPLETED, Got: ${verifyTask?.taskStatus}`);
       } else {
         console.log(`[TaskExecutor] ✅ Task ${task.taskType} status COMPLETED and persisted successfully`);
+        
+        // 🆕 Send notification after task completion (mirrors executeTaskByType pattern)
+        await this.notifyTaskCompletion(
+          task.taskType,
+          context,
+          externalData,
+          externalId
+        );
       }
+
+      
 
       return {
         success: true,
@@ -557,9 +676,10 @@ export class TaskExecutor {
       throw new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
     }
 
-    // Generate release branch name (e.g., release/v1.0.0)
-    const version = getReleaseVersion(release, platformTargetMappings);
-    const releaseBranch = `release/v${version}`;
+    // Use the branch name stored in the database (set during release creation)
+    // Fallback to generating it if not set (for backward compatibility)
+    const releaseBranch = release.branch ?? `release/v${generatePlatformVersionString
+(platformTargetMappings)}`;
     const baseBranch = release.baseBranch || 'master';
 
     // Call SCM integration
@@ -610,7 +730,7 @@ export class TaskExecutor {
     const pmConfigId = releaseConfig.projectManagementConfigId;
     
     // Get platform mappings (stores integration results per platform)
-    const platformMappings = context.platformTargetMappings || [];
+    const platformMappings = context.platformTargetMappings;
 
     if (platformMappings.length === 0) {
       // No platforms configured - return empty success
@@ -626,9 +746,10 @@ export class TaskExecutor {
     }
 
     const ticketIds: string[] = [];
+    const failedPlatforms: Array<{ platform: string; error: string }> = [];
 
     // Create ticket for EACH platform and store result in mapping
-    const version = getReleaseVersion(release, platformMappings);
+    
     for (const mapping of platformMappings) {
       const platformName = mapping.platform;
       
@@ -637,8 +758,8 @@ export class TaskExecutor {
         pmConfigId: pmConfigId,
         tickets: [{
           platform: platformName as Platform,
-          title: `Release ${version} - ${platformName}`,
-          description: `Release ${version} planned for ${release.targetReleaseDate}`
+          title: `Release ${mapping.version} - ${platformName}`,
+          description: `Release ${mapping.version} planned for ${release.targetReleaseDate}`
         }]
       });
 
@@ -656,7 +777,21 @@ export class TaskExecutor {
             { where: { id: mapping.id } }
           );
         }
+      } else {
+        // Track failed platform (same pattern as BUILD tasks)
+        const error = ticketResult?.error ?? 'Failed to create ticket - no ticket ID returned';
+        failedPlatforms.push({ platform: platformName, error });
       }
+    }
+
+    // Fail if ANY platform failed (same as getTaskBuildStatus pattern)
+    if (failedPlatforms.length > 0) {
+      const failureDetails = failedPlatforms
+        .map(f => `${f.platform}: ${f.error}`)
+        .join('; ');
+      throw new Error(
+        `Failed to create tickets for ${failedPlatforms.length}/${platformMappings.length} platforms. ${failureDetails}`
+      );
     }
     
     // Category A: Return comma-separated ticket IDs
@@ -683,7 +818,7 @@ export class TaskExecutor {
     const testConfigId = config.testManagementConfigId;
 
     // Get platform mappings
-    const platformMappings = context.platformTargetMappings || [];
+    const platformMappings = context.platformTargetMappings;
 
     if (platformMappings.length === 0) {
       return 'no-platforms-configured';
@@ -702,7 +837,7 @@ export class TaskExecutor {
     }
 
     const runIds: string[] = [];
-    const version = getReleaseVersion(release, platformMappings);
+    const failedPlatforms: Array<{ platform: string; error: string }> = [];
 
     // Create test run for EACH platform and store result in mapping
     for (const mapping of platformMappings) {
@@ -711,7 +846,7 @@ export class TaskExecutor {
       // Call service with specific platform filter to avoid creating duplicate runs
       const results = await this.testRunService.createTestRuns({
         testManagementConfigId: testConfigId,
-        runName: `Release ${version} - ${platformName} Test Suite`,
+        runName: `Release ${mapping.version} - ${platformName} Test Suite`,
         platforms: [platformName as TestPlatform]
       });
       
@@ -729,7 +864,23 @@ export class TaskExecutor {
             { where: { id: mapping.id } }
           );
         }
+      } else {
+        // Track failed platform (same pattern as BUILD tasks)
+        const error = platformResult && 'error' in platformResult 
+          ? platformResult.error 
+          : 'Failed to create test run - no run ID returned';
+        failedPlatforms.push({ platform: platformName, error });
       }
+    }
+
+    // Fail if ANY platform failed (same as getTaskBuildStatus pattern)
+    if (failedPlatforms.length > 0) {
+      const failureDetails = failedPlatforms
+        .map(f => `${f.platform}: ${f.error}`)
+        .join('; ');
+      throw new Error(
+        `Failed to create test runs for ${failedPlatforms.length}/${platformMappings.length} platforms. ${failureDetails}`
+      );
     }
     
     return runIds.length > 0 ? runIds.join(',') : 'no-runs-created';
@@ -751,7 +902,7 @@ export class TaskExecutor {
     const { release, tenantId, task } = context;
 
     // Get platforms from platformTargetMappings (new schema uses ENUMs)
-    const platformMappings = context.platformTargetMappings ?? [];
+    const platformMappings = context.platformTargetMappings;
     if (platformMappings.length === 0) {
       return '';
     }
@@ -762,7 +913,7 @@ export class TaskExecutor {
     // MANUAL MODE: Check release_uploads table for builds
     // ========================================================================
     if (release.hasManualBuildUpload) {
-      console.log(`[TaskExecutor] Manual mode for KICK_OFF: checking uploads for platforms [${platforms.join(', ')}]`);
+      console.log(`[TaskExecutor] Manual mode for KICKOFF: checking uploads for platforms [${platforms.join(', ')}]`);
       
       if (!this.releaseUploadsRepo) {
         throw new Error(RELEASE_ERROR_MESSAGES.RELEASE_UPLOADS_REPO_NOT_AVAILABLE);
@@ -771,11 +922,11 @@ export class TaskExecutor {
       // Check if all platforms have uploads ready
       const readiness = await this.releaseUploadsRepo.checkAllPlatformsReady(
         context.releaseId,
-        'KICK_OFF',
+        BUILD_STAGE.KICKOFF,
         platforms
       );
 
-      console.log(`[TaskExecutor] Manual mode check for KICK_OFF: allReady=${readiness.allReady}, uploaded=[${readiness.uploadedPlatforms.join(',')}], missing=[${readiness.missingPlatforms.join(',')}]`);
+      console.log(`[TaskExecutor] Manual mode check for KICKOFF: allReady=${readiness.allReady}, uploaded=[${readiness.uploadedPlatforms.join(',')}], missing=[${readiness.missingPlatforms.join(',')}]`);
 
       if (!readiness.allReady) {
         // Set task to AWAITING_MANUAL_BUILD - waiting for user to upload builds
@@ -787,9 +938,9 @@ export class TaskExecutor {
       }
 
       // All platforms ready - consume uploads and create build records
-      const uploads = await this.releaseUploadsRepo.findUnused(context.releaseId, 'KICK_OFF');
+      const uploads = await this.releaseUploadsRepo.findUnused(context.releaseId, BUILD_STAGE.KICKOFF);
       const BuildModel = this.sequelize.models.Build;
-      const buildNumbers: string[] = [];
+      const buildIds: string[] = [];
 
       for (const mapping of platformMappings) {
         const platformName = mapping.platform as PlatformName;
@@ -799,18 +950,15 @@ export class TaskExecutor {
         if (upload) {
           // Mark upload as used
           await this.releaseUploadsRepo.markAsUsed(upload.id, task.id, null);
-          
-          // Extract filename from artifactPath for display
-          const uploadFileName = upload.artifactPath.split('/').pop() ?? upload.artifactPath;
 
           // Create build record from manual upload
           const buildId = uuidv4();
-          const versionName = mapping.version ?? getReleaseVersion(release, platformMappings);
+          const versionName = mapping.version;
           if (BuildModel) {
             await BuildModel.create({
               id: buildId,
               tenantId: tenantId,
-              buildNumber: uploadFileName,
+              buildNumber: null,
               artifactVersionName: versionName,
               artifactPath: upload.artifactPath,
               releaseId: context.releaseId,
@@ -818,22 +966,25 @@ export class TaskExecutor {
               storeType: targetName,
               regressionId: null,
               ciRunId: null,
-              buildUploadStatus: 'UPLOADED',
-              buildType: 'MANUAL',
-              buildStage: 'KICK_OFF',
+              ciRunType: null,
+              buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED,
+              buildType: BUILD_TYPE.MANUAL,
+              buildStage: BUILD_STAGE.KICKOFF,
               queueLocation: null,
               workflowStatus: null,
-              taskId: task.id
+              taskId: task.id,
+              testflightNumber: upload.testflightNumber ?? null,
+              internalTrackLink: upload.internalTrackLink ?? null
             });
           }
 
-          buildNumbers.push(uploadFileName);
-          console.log(`[TaskExecutor] Consumed manual upload for ${platformName}: ${uploadFileName}`);
+          buildIds.push(buildId);
+          console.log(`[TaskExecutor] Consumed manual upload for ${platformName}: ${upload.id}`);
         }
       }
 
-      console.log(`[TaskExecutor] Manual mode KICK_OFF completed: ${buildNumbers.join(',')}`);
-      return buildNumbers.join(',');
+      console.log(`[TaskExecutor] Manual mode KICKOFF completed: ${buildIds.join(',')}`);
+      return buildIds.join(',');
     }
 
     // ========================================================================
@@ -852,56 +1003,60 @@ export class TaskExecutor {
       throw new Error(RELEASE_ERROR_MESSAGES.REQUIRED_MODELS_NOT_FOUND_BUILD);
     }
 
-    const buildNumbers: string[] = [];
+    const buildIds: string[] = [];
 
     for (const mapping of platformMappings) {
       const platformName = mapping.platform;
       const targetName = mapping.target;
 
-      const result = await this.triggerWorkflowByConfigId(
-        ciConfigId,
-        tenantId,
-        platformName,
-        WorkflowType.PRE_REGRESSION_BUILD,
-        {
+      try {
+        const result = await this.triggerWorkflowByConfigId(
+          ciConfigId,
+          tenantId,
+          platformName,
+          WorkflowType.PRE_REGRESSION_BUILD,
+          {
+            platform: platformName,
+            version: mapping.version,
+            branch: release.branch,
+            buildType: CICD_JOB_BUILD_TYPE.PRE_REGRESSION
+          }
+        );
+
+        const buildId = uuidv4();
+        const versionName = mapping.version;
+
+        await BuildModel.create({
+          id: buildId,
+          tenantId: tenantId,
+          buildNumber: null,
+          artifactVersionName: versionName,
+          artifactPath: null,
+          releaseId: context.releaseId,
           platform: platformName,
-          version: mapping.version ?? getReleaseVersion(release, platformMappings),
-          branch: release.branch ?? `release/v${getReleaseVersion(release, platformMappings)}`,
-          buildType: CICD_JOB_BUILD_TYPE.PRE_REGRESSION
+          storeType: targetName,
+          regressionId: null,
+          ciRunId: null, // CI/CD system will populate this via callback
+          ciRunType: result.providerType,
+          buildUploadStatus: BUILD_UPLOAD_STATUS.PENDING,
+          buildType: BUILD_TYPE.CI_CD,
+          buildStage: BUILD_STAGE.KICKOFF,
+          queueLocation: result.queueLocation,
+          workflowStatus: WORKFLOW_STATUS.PENDING,
+          taskId: task.id,
+          testflightNumber: null,
+          internalTrackLink: null
+        });
+
+        buildIds.push(buildId);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`[TaskExecutor] Failed to trigger pre-regression build workflow for platform ${platformName}:`, errorMessage);
+        if (error instanceof Error && error.stack) {
+          console.error(`[TaskExecutor] Stack trace:`, error.stack);
         }
-      );
-
-      // Validate queueLocation - if missing, workflow trigger failed
-      const queueLocationMissing = !result.queueLocation;
-      if (queueLocationMissing) {
-        throw new Error(`CI/CD workflow trigger failed for ${platformName} - no queueLocation returned`);
+        throw new Error(`Failed to trigger pre-regression build workflow for platform ${platformName}: ${errorMessage}`);
       }
-
-      // DB operations - let errors propagate naturally (not integration failures)
-      const buildNumber = result.queueLocation;
-      const buildId = uuidv4();
-      const versionName = mapping.version ?? getReleaseVersion(release, platformMappings);
-
-      await BuildModel.create({
-        id: buildId,
-        tenantId: tenantId,
-        buildNumber: buildNumber,
-        artifactVersionName: versionName,
-        artifactPath: result.queueLocation,
-        releaseId: context.releaseId,
-        platform: platformName,
-        storeType: targetName,
-        regressionId: null,
-        ciRunId: null, // CI/CD system will populate this via callback
-        buildUploadStatus: 'PENDING',
-        buildType: 'CI_CD',
-        buildStage: 'KICK_OFF',
-        queueLocation: result.queueLocation,
-        workflowStatus: 'PENDING',
-        taskId: task.id
-      });
-
-      buildNumbers.push(buildNumber);
     }
 
     // CI/CD Mode: Set task to AWAITING_CALLBACK - waiting for CI/CD pipeline callback
@@ -1010,7 +1165,8 @@ export class TaskExecutor {
         throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_TAG_NOT_FOUND(task.regressionId));
     }
 
-    const version = getReleaseVersion(release, platformTargetMappings);
+    const version = generatePlatformVersionString
+(platformTargetMappings);
     const releaseBranch = release.branch || `release/v${version}`;
 
     // Create RC tag - integration returns tag name
@@ -1090,7 +1246,8 @@ export class TaskExecutor {
       tenantId,
       currentTag,
       previousTag,
-      getReleaseVersion(release, platformTargetMappings),
+      generatePlatformVersionString
+(platformTargetMappings),
       undefined // parentTargets (not needed for regression notes)
     );
 
@@ -1129,7 +1286,7 @@ export class TaskExecutor {
       throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_ID_NOT_FOUND);
     }
 
-    const platformMappings = context.platformTargetMappings ?? [];
+    const platformMappings = context.platformTargetMappings;
     if (platformMappings.length === 0) {
       return '';
     }
@@ -1167,7 +1324,7 @@ export class TaskExecutor {
       // All platforms ready - consume uploads
       const uploads = await this.releaseUploadsRepo.findUnused(context.releaseId, 'REGRESSION');
       const BuildModel = this.sequelize.models.Build;
-      const buildNumbers: string[] = [];
+      const buildIds: string[] = [];
 
       for (const mapping of platformMappings) {
         const platformName = mapping.platform as PlatformName;
@@ -1177,18 +1334,15 @@ export class TaskExecutor {
         if (upload) {
           // Mark upload as used (with cycle ID for regression)
           await this.releaseUploadsRepo.markAsUsed(upload.id, task.id, task.regressionId);
-          
-          // Extract filename from artifactPath for display
-          const uploadFileName = upload.artifactPath.split('/').pop() ?? upload.artifactPath;
 
           // Create build record from manual upload
           const buildId = uuidv4();
-          const versionName = mapping.version ?? getReleaseVersion(release, platformMappings);
+          const versionName = mapping.version;
           if (BuildModel) {
             await BuildModel.create({
               id: buildId,
               tenantId: tenantId,
-              buildNumber: uploadFileName,
+              buildNumber: null,
               artifactVersionName: versionName,
               artifactPath: upload.artifactPath,
               releaseId: context.releaseId,
@@ -1196,22 +1350,25 @@ export class TaskExecutor {
               storeType: targetName,
               regressionId: task.regressionId,
               ciRunId: null,
-              buildUploadStatus: 'UPLOADED',
-              buildType: 'MANUAL',
-              buildStage: 'REGRESSION',
+              ciRunType: null,
+              buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED,
+              buildType: BUILD_TYPE.MANUAL,
+              buildStage: BUILD_STAGE.REGRESSION,
               queueLocation: null,
               workflowStatus: null,
-              taskId: task.id
+              taskId: task.id,
+              testflightNumber: upload.testflightNumber ?? null,
+              internalTrackLink: upload.internalTrackLink ?? null
             });
           }
 
-          buildNumbers.push(uploadFileName);
-          console.log(`[TaskExecutor] Consumed manual upload for ${platformName} (cycle ${task.regressionId}): ${uploadFileName}`);
+          buildIds.push(buildId);
+          console.log(`[TaskExecutor] Consumed manual upload for ${platformName} (cycle ${task.regressionId}): ${upload.id}`);
         }
       }
 
-      console.log(`[TaskExecutor] Manual mode REGRESSION completed: ${buildNumbers.join(',')}`);
-      return buildNumbers.join(',');
+      console.log(`[TaskExecutor] Manual mode REGRESSION completed: ${buildIds.join(',')}`);
+      return buildIds.join(',');
     }
 
     // ========================================================================
@@ -1230,57 +1387,61 @@ export class TaskExecutor {
       throw new Error(RELEASE_ERROR_MESSAGES.REQUIRED_MODELS_NOT_FOUND_BUILD);
     }
 
-    const buildNumbers: string[] = [];
+    const buildIds: string[] = [];
 
     for (const mapping of platformMappings) {
       const platformName = mapping.platform;
       const targetName = mapping.target;
 
-      const result = await this.triggerWorkflowByConfigId(
-        ciConfigId,
-        tenantId,
-        platformName,
-        WorkflowType.REGRESSION_BUILD,
-        {
+      try {
+        const result = await this.triggerWorkflowByConfigId(
+          ciConfigId,
+          tenantId,
+          platformName,
+          WorkflowType.REGRESSION_BUILD,
+          {
+            platform: platformName,
+            version: mapping.version,
+            branch: release.branch,
+            buildType: CICD_JOB_BUILD_TYPE.REGRESSION,
+            regressionId: task.regressionId
+          }
+        );
+
+        const buildId = uuidv4();
+        const versionName = mapping.version;
+
+        await BuildModel.create({
+          id: buildId,
+          tenantId: tenantId,
+          buildNumber: null,
+          artifactVersionName: versionName,
+          artifactPath: null,
+          releaseId: context.releaseId,
           platform: platformName,
-          version: mapping.version ?? getReleaseVersion(release, platformMappings),
-          branch: release.branch ?? `release/v${getReleaseVersion(release, platformMappings)}`,
-          buildType: CICD_JOB_BUILD_TYPE.REGRESSION,
-          regressionId: task.regressionId
+          storeType: targetName,
+          regressionId: task.regressionId,
+          ciRunId: null, // CI/CD system will populate this via callback
+          ciRunType: result.providerType,
+          buildUploadStatus: BUILD_UPLOAD_STATUS.PENDING,
+          buildType: BUILD_TYPE.CI_CD,
+          buildStage: BUILD_STAGE.REGRESSION,
+          queueLocation: result.queueLocation,
+          workflowStatus: WORKFLOW_STATUS.PENDING,
+          taskId: task.id,
+          testflightNumber: null,
+          internalTrackLink: null
+        });
+
+        buildIds.push(buildId);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`[TaskExecutor] Failed to trigger regression build workflow for platform ${platformName}:`, errorMessage);
+        if (error instanceof Error && error.stack) {
+          console.error(`[TaskExecutor] Stack trace:`, error.stack);
         }
-      );
-
-      // Validate queueLocation - if missing, workflow trigger failed
-      const queueLocationMissing = !result.queueLocation;
-      if (queueLocationMissing) {
-        throw new Error(`CI/CD workflow trigger failed for ${platformName} - no queueLocation returned`);
+        throw new Error(`Failed to trigger regression build workflow for platform ${platformName}: ${errorMessage}`);
       }
-
-      // DB operations - let errors propagate naturally (not integration failures)
-      const buildNumber = result.queueLocation;
-      const buildId = uuidv4();
-      const versionName = mapping.version ?? getReleaseVersion(release, platformMappings);
-
-      await BuildModel.create({
-        id: buildId,
-        tenantId: tenantId,
-        buildNumber: buildNumber,
-        artifactVersionName: versionName,
-        artifactPath: result.queueLocation,
-        releaseId: context.releaseId,
-        platform: platformName,
-        storeType: targetName,
-        regressionId: task.regressionId,
-        ciRunId: null, // CI/CD system will populate this via callback
-        buildUploadStatus: 'PENDING',
-        buildType: 'CI_CD',
-        buildStage: 'REGRESSION',
-        queueLocation: result.queueLocation,
-        workflowStatus: 'PENDING',
-        taskId: task.id
-      });
-
-      buildNumbers.push(buildNumber);
     }
 
     // CI/CD Mode: Set task to AWAITING_CALLBACK - waiting for CI/CD pipeline callback
@@ -1313,7 +1474,7 @@ export class TaskExecutor {
     const ciConfigId = releaseConfig.ciConfigId;
     
     // Get platforms from platformTargetMappings (new schema uses ENUMs)
-    const platformMappings = context.platformTargetMappings || [];
+    const platformMappings = context.platformTargetMappings;
     if (platformMappings.length === 0) {
       // No platforms configured - return empty success
       return '';
@@ -1330,26 +1491,30 @@ export class TaskExecutor {
     for (const mapping of platformMappings) {
       const platformName = mapping.platform;
 
-      const result = await this.triggerWorkflowByConfigId(
-        ciConfigId,
-        tenantId,
-        platformName,
-        WorkflowType.AUTOMATION_BUILD,
-        {
-          platform: platformName,
-          version: mapping.version ?? getReleaseVersion(release, platformMappings),
-          branch: release.branch ?? `release/v${getReleaseVersion(release, platformMappings)}`,
-          regressionId: task.regressionId,
-          buildType: CICD_JOB_BUILD_TYPE.AUTOMATION
-        }
-      );
+      try {
+        const result = await this.triggerWorkflowByConfigId(
+          ciConfigId,
+          tenantId,
+          platformName,
+          WorkflowType.AUTOMATION_BUILD,
+          {
+            platform: platformName,
+            version: mapping.version,
+            branch: release.branch,
+            regressionId: task.regressionId,
+            buildType: CICD_JOB_BUILD_TYPE.AUTOMATION
+          }
+        );
 
-      // Validate queueLocation - if missing, workflow trigger failed
-      const queueLocationMissing = !result.queueLocation;
-      if (queueLocationMissing) {
-        throw new Error(`CI/CD automation workflow trigger failed for ${platformName} - no queueLocation returned`);
+        runIds.push(result.queueLocation ?? `run-${Date.now()}`);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`[TaskExecutor] Failed to trigger automation build workflow for platform ${platformName}:`, errorMessage);
+        if (error instanceof Error && error.stack) {
+          console.error(`[TaskExecutor] Stack trace:`, error.stack);
+        }
+        throw new Error(`Failed to trigger automation build workflow for platform ${platformName}: ${errorMessage}`);
       }
-      runIds.push(result.queueLocation);
     }
 
     // Category A: Return raw string
@@ -1454,7 +1619,8 @@ export class TaskExecutor {
     const targets: string[] = Array.from(new Set(platformMappings.map(m => m.target)));
 
     // Create final release tag - integration generates tag from targets + version (returns string)
-    const version = getReleaseVersion(release, platformMappings);
+    const version = generatePlatformVersionString
+(platformMappings);
     const tagName = await this.scmService.createReleaseTag(
       tenantId,
       release.branch || `release/v${version}`,
@@ -1538,7 +1704,8 @@ export class TaskExecutor {
       releaseUrl: releaseUrl,
       currentTag: currentTag,
       previousTag: previousTag ?? null,
-      version: getReleaseVersion(release, platformTargetMappings),
+      version: generatePlatformVersionString
+(platformTargetMappings),
       timestamp: new Date().toISOString()
     };
   }
@@ -1559,7 +1726,7 @@ export class TaskExecutor {
     const { release, tenantId, task } = context;
 
     // Verify iOS platform exists using platformTargetMappings
-    const platformMappings = context.platformTargetMappings || [];
+    const platformMappings = context.platformTargetMappings;
     const hasIOS = platformMappings.some(m => m.platform === BUILD_PLATFORM.IOS);
 
     if (!hasIOS) {
@@ -1606,33 +1773,41 @@ export class TaskExecutor {
         // Mark upload as used
         await this.releaseUploadsRepo.markAsUsed(iosUpload.id, task.id, null);
         
-        // Extract filename from artifactPath for display
-        const uploadFileName = iosUpload.artifactPath.split('/').pop() ?? iosUpload.artifactPath;
+        // For iOS TestFlight, buildNumber must be the testflightNumber
+        const hasTestflightNumber = iosUpload.testflightNumber !== null && iosUpload.testflightNumber !== undefined;
+        if (!hasTestflightNumber) {
+          throw new Error(RELEASE_ERROR_MESSAGES.TESTFLIGHT_NUMBER_REQUIRED);
+        }
+        const buildNumber = iosUpload.testflightNumber;
+
+        // Extract filename from artifactPath for logging
+        const uploadFileName = iosUpload.artifactPath?.split('/').pop() ?? iosUpload.artifactPath ?? 'unknown';
 
         // Create build record from manual upload
         const buildId = uuidv4();
-        const versionName = iosMapping?.version ?? getReleaseVersion(release, platformMappings);
+        const versionName = iosMapping?.version;
         await BuildModel.create({
           id: buildId,
           tenantId: tenantId,
-          buildNumber: uploadFileName,
+          buildNumber: buildNumber,
           artifactVersionName: versionName,
           artifactPath: iosUpload.artifactPath,
           releaseId: context.releaseId,
           platform: BUILD_PLATFORM.IOS,
-          storeType: STORE_TYPE.TESTFLIGHT,
+          storeType: STORE_TYPE.APP_STORE,
           regressionId: null,
+          ciRunType: null,
           buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED,
           buildType: BUILD_TYPE.MANUAL,
           buildStage: BUILD_STAGE.PRE_RELEASE,
           queueLocation: null,
           workflowStatus: null,
           taskId: task.id,
-          testflightNumber: iosUpload.testflightNumber ?? null
+          testflightNumber: iosUpload.testflightNumber
         });
 
-        console.log(`[TaskExecutor] Consumed manual upload for IOS (TestFlight): ${uploadFileName}`);
-        return uploadFileName;
+        console.log(`[TaskExecutor] Consumed manual upload for IOS (TestFlight): buildNumber=${buildNumber}, file=${uploadFileName}`);
+        return buildNumber;
       }
     }
 
@@ -1647,28 +1822,66 @@ export class TaskExecutor {
       throw new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
     }
 
-    // Create TestFlight build for iOS platform
-    const result = await this.triggerWorkflowByConfigId(
-      ciConfigId,
-      tenantId,
-      BUILD_PLATFORM.IOS,
-      WorkflowType.TEST_FLIGHT_BUILD,
-      {
-        platform: BUILD_PLATFORM.IOS,
-        version: iosMapping?.version ?? getReleaseVersion(release, platformMappings),
-        branch: release.branch ?? `release/v${getReleaseVersion(release, platformMappings)}`,
-        buildType: CICD_JOB_BUILD_TYPE.TESTFLIGHT
-      }
-    );
+    const BuildModel = this.sequelize.models.Build;
 
-    // Validate queueLocation - if missing, workflow trigger failed
-    const queueLocationMissing = !result.queueLocation;
-    if (queueLocationMissing) {
-      throw new Error('CI/CD TestFlight workflow trigger failed - no queueLocation returned');
+    if (!BuildModel) {
+      throw new Error(RELEASE_ERROR_MESSAGES.REQUIRED_MODELS_NOT_FOUND_BUILD);
     }
 
-    // Category A: Return raw string
-    return result.queueLocation;
+    // Create TestFlight build for iOS platform
+    try {
+      const result = await this.triggerWorkflowByConfigId(
+        ciConfigId,
+        tenantId,
+        BUILD_PLATFORM.IOS,
+        WorkflowType.TEST_FLIGHT_BUILD,
+        {
+          platform: BUILD_PLATFORM.IOS,
+          version: iosMapping?.version,
+          branch: release.branch,
+          buildType: CICD_JOB_BUILD_TYPE.TESTFLIGHT
+        }
+      );
+
+      const buildId = uuidv4();
+      const versionName = iosMapping?.version;
+
+      await BuildModel.create({
+        id: buildId,
+        tenantId: tenantId,
+        buildNumber: null,
+        artifactVersionName: versionName,
+        artifactPath: null,
+        releaseId: context.releaseId,
+        platform: BUILD_PLATFORM.IOS,
+        storeType: STORE_TYPE.APP_STORE,
+        regressionId: null,
+        ciRunId: null, // CI/CD system will populate this via callback
+        ciRunType: result.providerType,
+        buildUploadStatus: BUILD_UPLOAD_STATUS.PENDING,
+        buildType: BUILD_TYPE.CI_CD,
+        buildStage: BUILD_STAGE.PRE_RELEASE,
+        queueLocation: result.queueLocation,
+        workflowStatus: WORKFLOW_STATUS.PENDING,
+        taskId: task.id
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[TaskExecutor] Failed to trigger TestFlight build workflow:`, errorMessage);
+      if (error instanceof Error && error.stack) {
+        console.error(`[TaskExecutor] Stack trace:`, error.stack);
+      }
+      throw new Error(`Failed to trigger TestFlight build workflow: ${errorMessage}`);
+    }
+
+    // CI/CD Mode: Set task to AWAITING_CALLBACK - waiting for CI/CD pipeline callback
+    await this.releaseTaskRepo.update(task.id, {
+      taskStatus: TaskStatus.AWAITING_CALLBACK
+    });
+    console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_CALLBACK - waiting for CI/CD callback`);
+
+    // Return special marker so executeTask() knows not to mark as COMPLETED
+    return 'AWAITING_CI_CD';
   }
 
   /**
@@ -1687,7 +1900,7 @@ export class TaskExecutor {
     const { release, tenantId, task } = context;
 
     // Verify ANDROID platform exists using platformTargetMappings
-    const platformMappings = context.platformTargetMappings || [];
+    const platformMappings = context.platformTargetMappings;
     const hasAndroid = platformMappings.some(m => m.platform === BUILD_PLATFORM.ANDROID);
 
     if (!hasAndroid) {
@@ -1734,33 +1947,43 @@ export class TaskExecutor {
         // Mark upload as used
         await this.releaseUploadsRepo.markAsUsed(androidUpload.id, task.id, null);
         
-        // Extract filename from artifactPath for display
-        const uploadFileName = androidUpload.artifactPath.split('/').pop() ?? androidUpload.artifactPath;
+        // For Android AAB, buildNumber must be the versionCode parsed from internalTrackLink
+        const versionCode = extractVersionCodeFromInternalTrackLink(androidUpload.internalTrackLink);
+        const hasVersionCode = versionCode !== null;
+        if (!hasVersionCode) {
+          throw new Error(RELEASE_ERROR_MESSAGES.AAB_VERSION_CODE_REQUIRED);
+        }
+        const buildNumber = versionCode;
+
+        // Extract filename from artifactPath for logging
+        const uploadFileName = androidUpload.artifactPath?.split('/').pop() ?? androidUpload.artifactPath ?? 'unknown';
 
         // Create build record from manual upload
         const buildId = uuidv4();
-        const versionName = androidMapping?.version ?? getReleaseVersion(release, platformMappings);
+        const versionName = androidMapping?.version;
         await BuildModel.create({
           id: buildId,
           tenantId: tenantId,
-          buildNumber: uploadFileName,
+          buildNumber: buildNumber,
           artifactVersionName: versionName,
           artifactPath: androidUpload.artifactPath,
           releaseId: context.releaseId,
           platform: BUILD_PLATFORM.ANDROID,
           storeType: STORE_TYPE.PLAY_STORE,
           regressionId: null,
+          ciRunType: null,
           buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED,
           buildType: BUILD_TYPE.MANUAL,
           buildStage: BUILD_STAGE.PRE_RELEASE,
           queueLocation: null,
           workflowStatus: null,
           taskId: task.id,
-          internalTrackLink: androidUpload.internalTrackLink ?? null
+          internalTrackLink: androidUpload.internalTrackLink ?? null,
+          testflightNumber: null
         });
 
-        console.log(`[TaskExecutor] Consumed manual upload for ANDROID (AAB): ${uploadFileName}`);
-        return uploadFileName;
+        console.log(`[TaskExecutor] Consumed manual upload for ANDROID (AAB): buildNumber=${buildNumber}, file=${uploadFileName}`);
+        return buildNumber;
       }
     }
 
@@ -1775,32 +1998,70 @@ export class TaskExecutor {
       throw new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
     }
 
-    // Create AAB build for Android platform
-    const result = await this.triggerWorkflowByConfigId(
-      ciConfigId,
-      tenantId,
-      BUILD_PLATFORM.ANDROID,
-      WorkflowType.AAB_BUILD,
-      {
-        platform: BUILD_PLATFORM.ANDROID,
-        version: androidMapping?.version ?? getReleaseVersion(release, platformMappings),
-        branch: release.branch ?? `release/v${getReleaseVersion(release, platformMappings)}`,
-        buildType: CICD_JOB_BUILD_TYPE.AAB
-      }
-    );
+    const BuildModel = this.sequelize.models.Build;
 
-    // Validate queueLocation - if missing, workflow trigger failed
-    const queueLocationMissing = !result.queueLocation;
-    if (queueLocationMissing) {
-      throw new Error('CI/CD AAB workflow trigger failed - no queueLocation returned');
+    if (!BuildModel) {
+      throw new Error(RELEASE_ERROR_MESSAGES.REQUIRED_MODELS_NOT_FOUND_BUILD);
     }
 
-    // Category A: Return raw string
-    return result.queueLocation;
-  }
+    // Create AAB build for Android platform
+    try {
+      const result = await this.triggerWorkflowByConfigId(
+        ciConfigId,
+        tenantId,
+        BUILD_PLATFORM.ANDROID,
+        WorkflowType.AAB_BUILD,
+        {
+          platform: BUILD_PLATFORM.ANDROID,
+          version: androidMapping?.version,
+          branch: release.branch,
+          buildType: CICD_JOB_BUILD_TYPE.AAB
+        }
+      );
 
+      const buildId = uuidv4();
+      const versionName = androidMapping?.version;
+
+      await BuildModel.create({
+        id: buildId,
+        tenantId: tenantId,
+        buildNumber: null,
+        artifactVersionName: versionName,
+        artifactPath: null,
+        releaseId: context.releaseId,
+        platform: BUILD_PLATFORM.ANDROID,
+        storeType: STORE_TYPE.PLAY_STORE,
+        regressionId: null,
+        ciRunId: null, // CI/CD system will populate this via callback
+        ciRunType: result.providerType,
+        buildUploadStatus: BUILD_UPLOAD_STATUS.PENDING,
+        buildType: BUILD_TYPE.CI_CD,
+        buildStage: BUILD_STAGE.PRE_RELEASE,
+        queueLocation: result.queueLocation,
+        workflowStatus: WORKFLOW_STATUS.PENDING,
+        taskId: task.id
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[TaskExecutor] Failed to trigger AAB build workflow:`, errorMessage);
+      if (error instanceof Error && error.stack) {
+        console.error(`[TaskExecutor] Stack trace:`, error.stack);
+      }
+      throw new Error(`Failed to trigger AAB build workflow: ${errorMessage}`);
+    }
+
+    // CI/CD Mode: Set task to AWAITING_CALLBACK - waiting for CI/CD pipeline callback
+    await this.releaseTaskRepo.update(task.id, {
+      taskStatus: TaskStatus.AWAITING_CALLBACK
+    });
+    console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_CALLBACK - waiting for CI/CD callback`);
+
+    // Return special marker so executeTask() knows not to mark as COMPLETED
+    return 'AWAITING_CI_CD';
+  }
   // Note: executeSendPreReleaseMessage method removed - notifications handled by event system
   // Note: executeCheckProjectReleaseApproval method removed - no longer needed
+
 }
 
 

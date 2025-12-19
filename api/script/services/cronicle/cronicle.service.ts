@@ -8,6 +8,7 @@ import type {
   CronicleService,
   CreateCronicleJobRequest,
   UpdateCronicleJobRequest,
+  GetJobsRequest,
   CronicleTimingConfig,
   CronicleApiResponse,
   CronicleJobInfo,
@@ -161,6 +162,47 @@ export class CronicleServiceImpl implements CronicleService {
     }
 
     return response.event ?? null;
+  };
+
+  /**
+   * Get list of jobs/events from Cronicle
+   * Can be filtered by category, enabled status, etc.
+   * Does NOT require admin privileges.
+   * 
+   * @param filter - Optional filters (category, enabled, pagination)
+   * @returns Array of job info objects
+   */
+  getJobs = async (filter?: GetJobsRequest): Promise<CronicleJobInfo[]> => {
+    const payload: Record<string, unknown> = {};
+    
+    // Add optional filters (skip null and undefined values)
+    if (filter?.category !== undefined && filter.category !== null) {
+      payload.category = filter.category;
+    }
+    
+    if (filter?.enabled !== undefined && filter.enabled !== null) {
+      payload.enabled = filter.enabled;
+    }
+    
+    if (filter?.offset !== undefined && filter.offset !== null) {
+      payload.offset = filter.offset;
+    }
+    
+    if (filter?.limit !== undefined && filter.limit !== null) {
+      payload.limit = filter.limit;
+    }
+    
+    const response = await this.callApi<CronicleJobInfo>(
+      CRONICLE_API_ENDPOINTS.GET_SCHEDULE,
+      payload
+    );
+    
+    const isError = response.code !== CRONICLE_RESPONSE_CODES.SUCCESS;
+    if (isError) {
+      throw new Error(`${CRONICLE_ERROR_MESSAGES.GET_JOBS_FAILED}: ${response.description}`);
+    }
+    
+    return response.rows ?? [];
   };
 
   // ─────────────────────────────────────────────────────────────

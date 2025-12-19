@@ -235,7 +235,7 @@ async function uploadManualBuild(
     tenantId: string;
     releaseId: string;
     platform: PlatformName;
-    stage: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
+    stage: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE';
     artifactPath: string;
   }
 ) {
