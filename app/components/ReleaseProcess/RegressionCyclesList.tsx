@@ -114,20 +114,8 @@ export function RegressionCyclesList({
       .filter((p, i, arr) => arr.indexOf(p) === i); // Get unique platforms
   }, [release?.platformTargetMappings]);
 
-  // Check which platforms still need builds
-  // Only check uploadedBuilds when cycle hasn't started (shouldShowUploadWidgets is true)
-  const platformsNeedingBuilds = useMemo(() => {
-    if (!shouldShowUploadWidgets) return [];
-    
-    // uploadedBuilds are for upcoming slot (not yet consumed by cycle)
-    const uploadedPlatforms = new Set(
-      uploadedBuilds
-        .filter((b) => !b.regressionId) // Only unused builds (not yet linked to cycle)
-        .map((b) => b.platform)
-    );
-    
-    return requiredPlatforms.filter((p) => !uploadedPlatforms.has(p));
-  }, [shouldShowUploadWidgets, uploadedBuilds, requiredPlatforms]);
+  // Widget will determine which platforms need builds internally
+  // We pass all required platforms - widget checks uploadedBuilds to see which have builds
 
   // Format upcoming slot date
   const upcomingSlotDate = useMemo(() => {
@@ -177,28 +165,21 @@ export function RegressionCyclesList({
             </div>
           </Group>
 
-          {platformsNeedingBuilds.length > 0 ? (
-            <Grid>
-              {platformsNeedingBuilds
-                .filter(isValidPlatform)
-                .map((platform) => (
-                  <Grid.Col key={platform} span={{ base: 12, sm: 6 }}>
-                    <ManualBuildUploadWidget
-                      tenantId={tenantId}
-                      releaseId={releaseId}
-                      stage={BuildUploadStage.REGRESSION}
-                      taskType={TaskType.TRIGGER_REGRESSION_BUILDS}
-                      platform={platform}
-                      onUploadComplete={() => {
-                        // Refetch will be handled by query invalidation in hook
-                      }}
-                    />
-                  </Grid.Col>
-                ))}
-            </Grid>
+          {requiredPlatforms.length > 0 ? (
+            <ManualBuildUploadWidget
+              tenantId={tenantId}
+              releaseId={releaseId}
+              stage={BuildUploadStage.REGRESSION}
+              taskType={TaskType.TRIGGER_REGRESSION_BUILDS}
+              platforms={requiredPlatforms.filter(isValidPlatform)}
+              onUploadComplete={() => {
+                // Refetch will be handled by query invalidation in hook
+              }}
+              uploadedBuilds={uploadedBuilds}
+            />
           ) : (
             <Alert icon={<IconInfoCircle size={16} />} color="green" variant="light">
-              All required builds have been uploaded. Builds are ready for the next cycle.
+              No platforms configured for this release.
             </Alert>
           )}
         </Stack>

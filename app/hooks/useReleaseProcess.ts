@@ -752,6 +752,45 @@ export function useBuildArtifacts(
   );
 }
 
+/**
+ * Download build artifact by fetching presigned URL and triggering download
+ */
+export function useDownloadBuildArtifact() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    { url: string; expiresAt: string },
+    Error,
+    { tenantId: string; buildId: string }
+  >(
+    async ({ tenantId, buildId }) => {
+      const endpoint = `/api/v1/tenants/${tenantId}/builds/${buildId}/artifact`;
+      // API returns { success: true, data: { url, expiresAt } }
+      // apiGet unwraps it, so result.data is { url, expiresAt }
+      const result = await apiGet<{ url: string; expiresAt: string }>(endpoint);
+
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Failed to fetch download URL');
+      }
+
+      // result.data is already { url, expiresAt }
+      return result.data;
+    },
+    {
+      onSuccess: (data) => {
+        // Trigger download
+        const link = document.createElement('a');
+        link.href = data.url;
+        link.download = ''; // Let browser determine filename
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      },
+    }
+  );
+}
+
 // ======================
 // Release Management Hooks
 // ======================

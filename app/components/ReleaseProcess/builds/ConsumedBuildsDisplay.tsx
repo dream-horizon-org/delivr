@@ -1,10 +1,11 @@
 /**
- * BuildsList Component
- * Pure presentation component for displaying builds array grouped by platform
- * For CI/CD mode: Shows all expected platforms with their status (running, failed, completed)
+ * ConsumedBuildsDisplay Component
+ * Displays consumed builds from task.builds (read-only)
+ * Handles both manual and CI/CD consumed builds
+ * Shows CI/CD job links, download links, TestFlight links, etc.
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   Anchor,
   Badge,
@@ -16,46 +17,33 @@ import {
 } from '@mantine/core';
 import {
   IconBrandApple,
+  IconDownload,
   IconExternalLink,
   IconFile,
-  IconPencil,
   IconX,
 } from '@tabler/icons-react';
-import type { BuildInfo } from '~/types/release-process.types';
-import { Platform, TaskStatus, BuildUploadStage, TaskType } from '~/types/release-process-enums';
-import { ManualBuildUploadWidget } from './ManualBuildUploadWidget';
+import type { BuildInfo, BuildTaskOutput } from '~/types/release-process.types';
+import { Platform, TaskStatus } from '~/types/release-process-enums';
+import { useDownloadBuildArtifact } from '~/hooks/useReleaseProcess';
+import { showErrorToast } from '~/utils/toast';
 
-import type { BuildTaskOutput } from '~/types/release-process.types';
-
-interface BuildsListProps {
-  builds: BuildInfo[];
-  expectedPlatforms?: Platform[]; // For CI/CD: Show all platforms even if no builds
-  taskStatus?: TaskStatus; // Task status to determine if showing running/failed states
+interface ConsumedBuildsDisplayProps {
+  builds: BuildInfo[]; // From task.builds (consumed builds)
+  taskStatus: TaskStatus;
   isPostRegression: boolean;
   isKickoffRegression: boolean;
-  canChangeBuilds?: boolean; // Whether builds can be changed (only for uploadedBuilds, not consumed)
-  buildStage?: BuildUploadStage | null; // Build stage for upload
-  taskType?: TaskType; // Task type for upload widget
-  tenantId?: string;
-  releaseId?: string;
-  onUploadComplete?: () => void;
-  buildOutput?: BuildTaskOutput | null; // CI/CD job URLs from task output
+  buildOutput?: BuildTaskOutput | null; // For CI/CD job URLs
+  expectedPlatforms?: Platform[]; // For CI/CD mode (show all platforms even if no builds)
 }
 
-export function BuildsList({ 
-  builds, 
-  expectedPlatforms,
+export function ConsumedBuildsDisplay({
+  builds,
   taskStatus,
-  isPostRegression, 
+  isPostRegression,
   isKickoffRegression,
-  canChangeBuilds = false,
-  buildStage,
-  taskType,
-  tenantId,
-  releaseId,
-  onUploadComplete,
   buildOutput,
-}: BuildsListProps) {
+  expectedPlatforms,
+}: ConsumedBuildsDisplayProps) {
   // Helper to generate TestFlight link
   const getTestFlightLink = (testflightNumber: string | null): string | null => {
     if (!testflightNumber) return null;
@@ -86,9 +74,6 @@ export function BuildsList({
     return Object.keys(buildsByPlatform);
   }, [expectedPlatforms, buildsByPlatform]);
 
-  // Determine if task is failed
-  const isTaskFailed = taskStatus === TaskStatus.FAILED;
-
   return (
     <Stack gap="xs">
       <Text size="xs" c="dimmed" fw={500}>
@@ -116,9 +101,6 @@ export function BuildsList({
             );
           }
           
-          // If task failed, show failed status even if build exists (unless it has artifact link)
-          // Builds with artifact links will be shown normally
-          
           // Show builds for this platform
           return (
             <Stack key={platform} gap="xs">
@@ -129,19 +111,13 @@ export function BuildsList({
                 // Find job URL for this platform from buildOutput
                 const platformJobUrl = buildOutput?.platforms?.find(p => p.platform === build.platform)?.jobUrl;
                 return (
-                  <BuildItem
+                  <BuildDisplayItem
                     key={build.id}
                     build={build}
                     taskStatus={taskStatus}
                     isPostRegression={isPostRegression}
                     isKickoffRegression={isKickoffRegression}
                     getTestFlightLink={getTestFlightLink}
-                    canChangeBuilds={canChangeBuilds}
-                    buildStage={buildStage}
-                    taskType={taskType}
-                    tenantId={tenantId}
-                    releaseId={releaseId}
-                    onUploadComplete={onUploadComplete}
                     jobUrl={platformJobUrl}
                   />
                 );
@@ -154,49 +130,25 @@ export function BuildsList({
   );
 }
 
-interface BuildItemProps {
+interface BuildDisplayItemProps {
   build: BuildInfo;
-  taskStatus?: TaskStatus;
+  taskStatus: TaskStatus;
   isPostRegression: boolean;
   isKickoffRegression: boolean;
   getTestFlightLink: (testflightNumber: string | null) => string | null;
-  canChangeBuilds?: boolean;
-  buildStage?: BuildUploadStage | null;
-  taskType?: TaskType;
-  tenantId?: string;
-  releaseId?: string;
-  onUploadComplete?: () => void;
   jobUrl?: string; // CI/CD job URL for this platform
 }
 
-function BuildItem({
+function BuildDisplayItem({
   build,
   taskStatus,
   isPostRegression,
   isKickoffRegression,
   getTestFlightLink,
-  canChangeBuilds = false,
-  buildStage,
-  taskType,
-  tenantId,
-  releaseId,
-  onUploadComplete,
   jobUrl,
-}: BuildItemProps) {
-  const [isChangingBuild, setIsChangingBuild] = useState(false);
+}: BuildDisplayItemProps) {
+  const downloadMutation = useDownloadBuildArtifact();
 
-  const handleChangeBuild = () => {
-    setIsChangingBuild(true);
-  };
-
-  const handleCancel = () => {
-    setIsChangingBuild(false);
-  };
-
-  const handleUploadComplete = () => {
-    setIsChangingBuild(false);
-    onUploadComplete?.();
-  };
   // Determine build status for CI/CD builds
   const isCICD = build.buildType === 'CI_CD';
   const isRunning = build.workflowStatus === 'RUNNING';
@@ -211,38 +163,25 @@ function BuildItem({
   const shouldShowAsFailed = taskFailed && !hasArtifact && !hasTestFlightLink && !hasInternalTrackLink;
   const isFailed = buildFailed || shouldShowAsFailed;
 
-  // Show upload widget inline when changing build
-  if (isChangingBuild && buildStage && taskType && tenantId && releaseId) {
-    return (
-      <Stack gap="md" p="sm" style={{ border: '1px solid var(--mantine-color-gray-3)', borderRadius: '4px' }}>
-        <Group justify="space-between">
-          <Text size="sm" fw={500}>
-            Change Build - {build.platform}
-          </Text>
-          <Button
-            size="xs"
-            variant="subtle"
-            color="gray"
-            leftSection={<IconX size={14} />}
-            onClick={handleCancel}
-          >
-            Cancel
-          </Button>
-        </Group>
-        <ManualBuildUploadWidget
-          tenantId={tenantId}
-          releaseId={releaseId}
-          stage={buildStage}
-          taskType={taskType}
-          platforms={[build.platform as Platform]}
-          onUploadComplete={handleUploadComplete}
-          forceShowUpload={true}
-        />
-      </Stack>
-    );
-  }
+  const handleDownload = async () => {
+    if (!build.artifactPath || !build.tenantId) {
+      showErrorToast({ title: 'Download Error', message: 'Artifact path not available' });
+      return;
+    }
 
-  // Show build display normally
+    try {
+      await downloadMutation.mutateAsync({
+        tenantId: build.tenantId,
+        buildId: build.id,
+      });
+    } catch (error) {
+      showErrorToast({ 
+        title: 'Download Failed', 
+        message: error instanceof Error ? error.message : 'Failed to download artifact' 
+      });
+    }
+  };
+
   return (
     <Group justify="space-between" align="flex-start" p="sm" 
            style={{ 
@@ -347,17 +286,16 @@ function BuildItem({
                 </Anchor>
               )}
               {build.artifactPath && (
-                <Anchor 
-                  href={build.artifactPath} 
-                  target="_blank" 
-                  size="sm" 
-                  c="blue"
+                <Button
+                  size="xs"
+                  variant="light"
+                  leftSection={<IconDownload size={14} />}
+                  onClick={handleDownload}
+                  loading={downloadMutation.isLoading}
+                  disabled={downloadMutation.isLoading}
                 >
-                  <Group gap={4}>
-                    <IconExternalLink size={14} />
-                    <Text size="sm">Download Artifact</Text>
-                  </Group>
-                </Anchor>
+                  Download Artifact
+                </Button>
               )}
             </Stack>
           )}
@@ -399,16 +337,6 @@ function BuildItem({
           </Group>
         </Stack>
       </Group>
-      {canChangeBuilds && buildStage && taskType && tenantId && releaseId && (
-        <Button
-          size="xs"
-          variant="light"
-          leftSection={<IconPencil size={14} />}
-          onClick={handleChangeBuild}
-        >
-          Change Build
-        </Button>
-      )}
     </Group>
   );
 }

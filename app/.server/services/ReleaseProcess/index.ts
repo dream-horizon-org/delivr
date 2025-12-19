@@ -199,6 +199,23 @@ class ReleaseProcess {
     );
   }
 
+  /**
+   * Get presigned URL for build artifact download
+   * Backend endpoint: GET /api/v1/tenants/{tenantId}/builds/{buildId}/artifact
+   */
+  async getBuildArtifactDownloadUrl(tenantId: string, buildId: string, userId: string) {
+    return this.__client.get<null, AxiosResponse<{
+      success: true;
+      data: {
+        url: string;
+        expiresAt: string;
+      };
+    }>>(
+      `/api/v1/tenants/${tenantId}/builds/${buildId}/artifact`,
+      { headers: this.buildHeaders(userId) }
+    );
+  }
+
   // ======================
   // Status Check APIs
   // ======================

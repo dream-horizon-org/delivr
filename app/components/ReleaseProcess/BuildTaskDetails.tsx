@@ -15,7 +15,7 @@ import { useRelease } from '~/hooks/useRelease';
 import type { Task, BuildInfo, BuildTaskOutput } from '~/types/release-process.types';
 import { TaskStatus, BuildUploadStage, TaskType, Platform } from '~/types/release-process-enums';
 import { BuildUploadSection } from './BuildUploadSection';
-import { BuildsList } from './BuildsList';
+import { ConsumedBuildsDisplay } from './builds/ConsumedBuildsDisplay';
 
 interface BuildTaskDetailsProps {
   task: Task;
@@ -102,24 +102,18 @@ export function BuildTaskDetails({
     return [];
   }, [task.taskType, release]);
 
-  // Determine which platforms need upload widgets (platforms without builds)
-  const platformsNeedingUpload = useMemo(() => {
-    const platformsWithBuilds = new Set(Object.keys(buildsByPlatform));
-    return expectedPlatforms.filter(platform => !platformsWithBuilds.has(platform));
-  }, [expectedPlatforms, buildsByPlatform]);
-
   // Determine if we should show build upload section
   // Show upload widgets if:
   // - Manual mode
-  // - Task is in a state that allows uploads (PENDING, AWAITING_CALLBACK, AWAITING_MANUAL_BUILD)
-  // - There are platforms that need uploads
+  // - Task is in a state that allows uploads (PENDING, IN_PROGRESS, AWAITING_MANUAL_BUILD)
+  // - There are expected platforms (widget will determine which need uploads)
   const showBuildUpload =
     isManualMode &&
     buildStage &&
     (task.taskStatus === TaskStatus.PENDING ||
-      task.taskStatus === TaskStatus.AWAITING_CALLBACK ||
+      task.taskStatus === TaskStatus.IN_PROGRESS ||
       task.taskStatus === TaskStatus.AWAITING_MANUAL_BUILD) &&
-    platformsNeedingUpload.length > 0 &&
+    expectedPlatforms.length > 0 &&
     tenantId &&
     releaseId;
 
@@ -148,33 +142,28 @@ export function BuildTaskDetails({
   return (
     <Stack gap="md">
       {/* Build Upload Widget - Show for platforms without builds (Manual mode only) */}
-      {showBuildUpload && buildStage && tenantId && releaseId && (
+      {/* Only show for non-consumed builds (task not completed) */}
+      {showBuildUpload && buildStage && tenantId && releaseId && task.taskStatus !== TaskStatus.COMPLETED && (
         <BuildUploadSection
           tenantId={tenantId}
           releaseId={releaseId}
           buildStage={buildStage}
           taskType={task.taskType}
-          platforms={platformsNeedingUpload}
+          platforms={expectedPlatforms}
           onUploadComplete={onUploadComplete}
+          uploadedBuilds={uploadedBuilds}
         />
       )}
 
-      {/* Build Information - Show builds grouped by platform */}
-      {/* For CI/CD in progress: Show all expected platforms with their status */}
-      {(effectiveBuilds.length > 0 || shouldShowAllPlatforms) && (
-        <BuildsList
+      {/* Consumed Builds Display - Show consumed builds (task completed) */}
+      {task.taskStatus === TaskStatus.COMPLETED && effectiveBuilds.length > 0 && (
+        <ConsumedBuildsDisplay
           builds={effectiveBuilds}
-          expectedPlatforms={shouldShowAllPlatforms ? expectedPlatforms : undefined}
           taskStatus={task.taskStatus}
           isPostRegression={isPostRegressionBuildTask}
           isKickoffRegression={isKickoffRegressionBuildTask}
-          canChangeBuilds={canChangeBuilds}
-          buildStage={buildStage}
-          taskType={task.taskType}
-          tenantId={tenantId}
-          releaseId={releaseId}
-          onUploadComplete={onUploadComplete}
           buildOutput={buildOutput}
+          expectedPlatforms={shouldShowAllPlatforms ? expectedPlatforms : undefined}
         />
       )}
     </Stack>
