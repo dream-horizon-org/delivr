@@ -1242,7 +1242,8 @@ export class S3Storage implements storage.Storage {
             this.iosSubmissionRepository,
             this.submissionActionHistoryRepository,
             this.distributionRepository,
-            this.buildArtifactService  // Already initialized above
+            this.buildArtifactService,  // Already initialized above
+            this.cronicleService  // For submission status sync
           );
           console.log("Submission Service initialized");
           

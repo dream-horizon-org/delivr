@@ -115,25 +115,26 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
         // iOS submission
         const { phasedRelease, resetRating, releaseNotes } = req.body;
 
-        // Validate iOS fields
-        if (typeof phasedRelease !== 'boolean') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('phasedRelease', 'phasedRelease must be a boolean')
+        // Comprehensive validation - all fields and resources
+        const validationResult = await service.validateIosSubmission(
+          submissionId,
+          { phasedRelease, resetRating, releaseNotes }
+        );
+        
+        if (!validationResult.valid) {
+          // If validation has a field, use validationErrorResponse, otherwise use errorResponse
+          if (validationResult.field) {
+            res.status(validationResult.statusCode).json(
+              validationErrorResponse(validationResult.field, validationResult.error ?? 'Validation failed')
           );
-          return;
-        }
-
-        if (typeof resetRating !== 'boolean') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('resetRating', 'resetRating must be a boolean')
+          } else {
+            res.status(validationResult.statusCode).json(
+              errorResponse(
+                new Error(validationResult.error ?? 'Validation failed'),
+                validationResult.error ?? 'Validation failed'
+              )
           );
-          return;
-        }
-
-        if (!releaseNotes || typeof releaseNotes !== 'string') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('releaseNotes', 'releaseNotes is required')
-          );
+          }
           return;
         }
 
@@ -146,39 +147,26 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
         // Android submission
         const { rolloutPercent, inAppPriority, releaseNotes } = req.body;
 
-        // Validate Android fields
-        if (typeof rolloutPercent !== 'number') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('rolloutPercent', 'rolloutPercent must be a number')
+        // Comprehensive validation - all fields and resources
+        const validationResult = await service.validateAndroidSubmission(
+          submissionId,
+          { rolloutPercent, inAppPriority, releaseNotes }
+        );
+        
+        if (!validationResult.valid) {
+          // If validation has a field, use validationErrorResponse, otherwise use errorResponse
+          if (validationResult.field) {
+            res.status(validationResult.statusCode).json(
+              validationErrorResponse(validationResult.field, validationResult.error ?? 'Validation failed')
           );
-          return;
-        }
-
-        if (rolloutPercent < 0 || rolloutPercent > 100) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('rolloutPercent', 'rolloutPercent must be between 0 and 100')
+          } else {
+            res.status(validationResult.statusCode).json(
+              errorResponse(
+                new Error(validationResult.error ?? 'Validation failed'),
+                validationResult.error ?? 'Validation failed'
+              )
           );
-          return;
-        }
-
-        if (typeof inAppPriority !== 'number') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('inAppPriority', 'inAppPriority must be a number')
-          );
-          return;
-        }
-
-        if (inAppPriority < 0 || inAppPriority > 5) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('inAppPriority', 'inAppPriority must be between 0 and 5')
-          );
-          return;
-        }
-
-        if (!releaseNotes || typeof releaseNotes !== 'string') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('releaseNotes', 'releaseNotes is required')
-          );
+          }
           return;
         }
 
@@ -282,39 +270,32 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
         // iOS resubmission
         const { version, testflightNumber, phasedRelease, resetRating, releaseNotes } = req.body;
 
-        // Validate iOS fields
-        if (!version || typeof version !== 'string') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('version', 'version is required')
+        // Comprehensive validation - all fields and resources
+        const validationResult = await service.validateCreateIosSubmission(
+          distributionId,
+          {
+            version,
+            testflightNumber: String(testflightNumber),
+            phasedRelease,
+            resetRating,
+            releaseNotes
+          }
+        );
+        
+        if (!validationResult.valid) {
+          // If validation has a field, use validationErrorResponse, otherwise use errorResponse
+          if (validationResult.field) {
+            res.status(validationResult.statusCode).json(
+              validationErrorResponse(validationResult.field, validationResult.error ?? 'Validation failed')
           );
-          return;
-        }
-
-        if (!testflightNumber || (typeof testflightNumber !== 'string' && typeof testflightNumber !== 'number')) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('testflightNumber', 'testflightNumber is required')
+          } else {
+            res.status(validationResult.statusCode).json(
+              errorResponse(
+                new Error(validationResult.error ?? 'Validation failed'),
+                validationResult.error ?? 'Validation failed'
+              )
           );
-          return;
-        }
-
-        if (typeof phasedRelease !== 'boolean') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('phasedRelease', 'phasedRelease must be a boolean')
-          );
-          return;
-        }
-
-        if (typeof resetRating !== 'boolean') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('resetRating', 'resetRating must be a boolean')
-          );
-          return;
-        }
-
-        if (!releaseNotes || typeof releaseNotes !== 'string') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('releaseNotes', 'releaseNotes is required')
-          );
+          }
           return;
         }
 
@@ -663,6 +644,77 @@ const cancelSubmissionHandler = (service: SubmissionService) =>
     }
   };
 
+  /**
+ * Submission status handler (Cronicle webhook handler)
+ * POST /submissions/:submissionId/status?platform=<IOS|ANDROID>
+ * 
+ * Routes to platform-specific service method:
+ * - iOS: service.IosSubmissionStatus()
+ * - Android: service.AndroidSubmissionStatus() (not yet implemented)
+ * 
+ * Called by Cronicle every 2 hours to check submission status
+ * Updates database if status changed, adds history if rejected
+ */
+const SubmissionStatusHandler = (service: SubmissionService) =>
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { submissionId } = req.params;
+      const { platform } = req.query;
+
+      if (!submissionId || typeof submissionId !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          errorResponse(
+            new Error('submissionId is required'),
+            'Invalid submission ID'
+          )
+        );
+        return;
+      }
+
+      // Validate platform parameter
+      if (!platform || typeof platform !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('platform', 'platform query parameter is required')
+        );
+        return;
+      }
+
+      const platformUpper = platform.toUpperCase();
+
+      if (platformUpper !== 'IOS' && platformUpper !== 'ANDROID') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('platform', 'platform must be IOS or ANDROID')
+        );
+        return;
+      }
+
+      console.log(`[SubmissionStatus] Webhook received for ${platformUpper} submission ${submissionId}`);
+
+      let result;
+
+      if (platformUpper === 'IOS') {
+        // Call iOS-specific service method
+        result = await service.IosSubmissionStatus(submissionId);
+      } else {
+        // Android not yet implemented
+        res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
+          error: "Not implemented yet",
+          message: "Android submission status sync will be implemented later"
+        });
+        return;
+      }
+
+      res.status(HTTP_STATUS.OK).json(
+        successResponse(result)
+      );
+    } catch (error) {
+      const statusCode = getErrorStatusCode(error);
+      res.status(statusCode).json(
+        errorResponse(error, 'Failed to update submission status')
+      );
+    }
+  };
+
 /**
  * Get submission artifact download URL
  * GET /tenants/:tenantId/submissions/:submissionId/artifact?platform={android|ios}
@@ -759,6 +811,7 @@ export const createSubmissionController = (service: SubmissionService) => ({
   resumeRollout: resumeRolloutHandler(service),
   updateRolloutPercentage: updateRolloutPercentageHandler(service),
   cancelSubmission: cancelSubmissionHandler(service),
+  submissionStatus: SubmissionStatusHandler(service),
   getSubmissionArtifactDownload: getSubmissionArtifactDownloadHandler(service)
 });
 
