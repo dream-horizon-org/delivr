@@ -11,7 +11,7 @@
  * - Processes ALL active releases each tick
  */
 
-import { CronStatus, PauseType } from '~models/release/release.interface';
+import { PauseType, StageStatus } from '~models/release/release.interface';
 import type { CronJobRepository } from '~models/release/cron-job.repository';
 import type { CronJobStateMachine } from './cron-job-state-machine';
 import type { CronJob } from '~models/release/release.interface';
@@ -161,6 +161,14 @@ export class GlobalSchedulerService {
    * - Cronicle webhook (production)
    */
   async processAllActiveReleases(): Promise<ProcessAllReleasesResult> {
+    const instanceId = (this as any)._instanceId || 'unknown';
+    const tickId = `tick-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    
+    console.log(`[GlobalSchedulerService] ========================================`);
+    console.log(`[GlobalSchedulerService] 🚀 Starting tick ${tickId}`);
+    console.log(`[GlobalSchedulerService] 📋 Instance ID: ${instanceId}`);
+    console.log(`[GlobalSchedulerService] 🔒 isProcessing flag: ${this.isProcessing}`);
+    
     // Prevent concurrent processing
     if (this.isProcessing) {
       log.warn('Already processing. Skipping this tick.');
@@ -182,23 +190,17 @@ export class GlobalSchedulerService {
 
       // Query for active releases
       const activeReleases = await this.cronJobRepo.findActiveReleases();
+      console.log(`[GlobalSchedulerService] 📊 Instance ${instanceId} found ${activeReleases.length} active release(s)`);
       log.info(`Found ${activeReleases.length} active release(s) to process`);
 
       // Process each release
+      // Note: findActiveReleases() already filters by cronStatus=RUNNING and only returns:
+      // - pauseType = NONE (standard case)
+      // - pauseType = AWAITING_STAGE_TRIGGER with stage2Status = COMPLETED (exception case for slots)
+      // The state machine will handle pause checks and slot time validation
       for (const cronJob of activeReleases) {
-        // Double-check: only process if cronStatus=RUNNING and pauseType=NONE
-        const isRunning = cronJob.cronStatus === CronStatus.RUNNING;
-        const notPaused = cronJob.pauseType === PauseType.NONE;
-        const shouldProcess = isRunning && notPaused;
-
-        if (!shouldProcess) {
-          log.info(
-            `Release ${cronJob.releaseId} skipped (status=${cronJob.cronStatus}, pauseType=${cronJob.pauseType})`
-          );
-          continue;
-        }
-
         try {
+          console.log(`[GlobalSchedulerService] 🔄 Instance ${instanceId} processing release ${cronJob.releaseId}...`);
           log.info(`Processing release ${cronJob.releaseId}...`);
 
           // Create state machine and execute
@@ -206,6 +208,7 @@ export class GlobalSchedulerService {
           await stateMachine.execute();
 
           processedCount++;
+          console.log(`[GlobalSchedulerService] ✅ Instance ${instanceId} completed release ${cronJob.releaseId}`);
           log.info(`Release ${cronJob.releaseId} processed successfully`);
         } catch (releaseError) {
           // Capture error but continue with other releases
@@ -217,6 +220,8 @@ export class GlobalSchedulerService {
       }
 
       const durationMs = Date.now() - startTime;
+      console.log(`[GlobalSchedulerService] ✅ Instance ${instanceId} tick ${tickId} completed: ${processedCount} processed, ${errors.length} errors, ${durationMs}ms`);
+      console.log(`[GlobalSchedulerService] ========================================`);
       log.info(`Release tick completed: ${processedCount} processed, ${errors.length} errors, ${durationMs}ms`);
 
       return { success: true, processedCount, errors, durationMs };
@@ -225,6 +230,7 @@ export class GlobalSchedulerService {
       // Catastrophic error (e.g., DB connection failed)
       const durationMs = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`[GlobalSchedulerService] ❌ Instance ${instanceId} tick ${tickId} failed:`, errorMessage);
       log.error('Release tick failed:', error);
 
       return { success: false, processedCount, errors: [errorMessage], durationMs };
