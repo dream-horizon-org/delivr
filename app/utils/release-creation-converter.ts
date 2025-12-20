@@ -168,19 +168,19 @@ export function convertConfigTargetsToPlatformTargets(
       platformTargets.push({
         platform: 'WEB',
         target: 'WEB',
-        version: versions.ANDROID || 'v1.0.0', // Default version if not specified
+        version: versions.ANDROID || '1.0.0', // Default version if not specified
       });
     } else if (target === 'PLAY_STORE') {
       platformTargets.push({
         platform: 'ANDROID',
         target: 'PLAY_STORE',
-        version: versions.ANDROID || 'v1.0.0',
+        version: versions.ANDROID || '1.0.0',
       });
     } else if (target === 'APP_STORE') {
       platformTargets.push({
         platform: 'IOS',
         target: 'APP_STORE',
-        version: versions.IOS || 'v1.0.0',
+        version: versions.IOS || '1.0.0',
       });
     }
   });
@@ -202,8 +202,8 @@ export function convertPlatformTargetsToConfig(
 } {
   const targets: TargetPlatform[] = [];
   const versions: Record<Platform, string> = {
-    ANDROID: 'v1.0.0',
-    IOS: 'v1.0.0',
+    ANDROID: '1.0.0',
+    IOS: '1.0.0',
   };
 
   platformTargets.forEach((pt) => {

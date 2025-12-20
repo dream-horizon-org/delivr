@@ -34,7 +34,7 @@ export const DEFAULT_REGRESSION_OFFSET_DAYS = 1; // First regression slot is 1 d
 /**
  * Default version values that should trigger version suggestions
  */
-export const DEFAULT_VERSIONS = ['v1.0.0', 'v0.0.0', 'v1.1.0'] as const;
+export const DEFAULT_VERSIONS = ['1.0.0', '0.0.0', '1.1.0'] as const;
 
 /**
  * Default branch name patterns that should be updated

@@ -52,14 +52,14 @@ export function validateReleaseCreationState(
           errors[`platformTargets[${index}].target`] = `Invalid target: ${pt.target}`;
         }
 
-        // Validate version format (vX.Y.Z or X.Y.Z)
+        // Validate version format (strict: X.Y.Z only, no prefix/suffix)
         const versionTrimmed = (pt.version || '').trim();
         if (!versionTrimmed) {
           errors[`version-${pt.target}`] = 'Version is required';
           errors[`platformTargets[${index}].version`] = 'Version is required';
-        } else if (!/^v?\d+\.\d+\.\d+/.test(versionTrimmed)) {
-          errors[`version-${pt.target}`] = `Invalid version format. Expected: v1.0.0 or 1.0.0`;
-          errors[`platformTargets[${index}].version`] = `Invalid version format. Expected: v1.0.0 or 1.0.0`;
+        } else if (!/^\d+\.\d+\.\d+$/.test(versionTrimmed)) {
+          errors[`version-${pt.target}`] = `Invalid version format. Expected: 1.0.0 (no prefix or suffix)`;
+          errors[`platformTargets[${index}].version`] = `Invalid version format. Expected: 1.0.0 (no prefix or suffix)`;
         }
 
         // Validate platform-target combinations

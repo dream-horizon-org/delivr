@@ -71,7 +71,7 @@ export function PlatformTargetsSelector({
   platformTargets,
   onChange,
   config,
-  defaultVersion = 'v1.0.0',
+  defaultVersion = '1.0.0',
   errors = {},
   disabled = false,
 }: PlatformTargetsSelectorProps) {
@@ -250,14 +250,14 @@ export function PlatformTargetsSelector({
                   {selected && (
                     <TextInput
                       label="Version"
-                      placeholder="e.g., v1.0.0 or 1.0.0"
+                      placeholder="e.g., 1.0.0"
                       value={version}
                       onChange={(e) => handleVersionChange(target, e.target.value)}
                       required
                       withAsterisk
                       error={versionError}
                       disabled={disabled}
-                      description="Semantic version format (e.g., v1.0.0). This will be the version number for this platform."
+                      description="Semantic version format (e.g., 1.0.0). This will be the version number for this platform."
                       styles={{
                         label: { fontWeight: 500, marginBottom: 6 },
                       }}

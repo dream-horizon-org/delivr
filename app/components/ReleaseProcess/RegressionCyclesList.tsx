@@ -70,15 +70,33 @@ export function RegressionCyclesList({
   // Note: Builds are displayed inside task cards via BuildTaskDetails component
   // No need to extract builds separately - tasks already have builds in task.builds when consumed
 
-  // Separate past cycles from current
+  // Determine actual current cycle (exclude DONE cycles - they should be in past)
+  const actualCurrentCycle = useMemo(() => {
+    if (!currentCycle) return null;
+    // If current cycle is DONE, it should be moved to past cycles
+    if (currentCycle.status === RegressionCycleStatus.DONE || 
+        currentCycle.status === RegressionCycleStatus.ABANDONED) {
+      return null;
+    }
+    return currentCycle;
+  }, [currentCycle]);
+
+  // Separate past cycles - include all DONE/ABANDONED cycles (including the one that was currentCycle if it's done)
   const pastCycles = useMemo(() => {
-    return cycles.filter(
+    const doneCycles = cycles.filter(
       (cycle) =>
-        cycle.id !== currentCycle?.id &&
-        (cycle.status === RegressionCycleStatus.DONE ||
-          cycle.status === RegressionCycleStatus.ABANDONED)
+        cycle.status === RegressionCycleStatus.DONE ||
+        cycle.status === RegressionCycleStatus.ABANDONED
     );
-  }, [cycles, currentCycle]);
+    
+    // Sort by date: latest first (descending order)
+    // Use completedAt if available, otherwise use createdAt
+    return doneCycles.sort((a, b) => {
+      const dateA = a.completedAt ? new Date(a.completedAt).getTime() : new Date(a.createdAt).getTime();
+      const dateB = b.completedAt ? new Date(b.completedAt).getTime() : new Date(b.createdAt).getTime();
+      return dateB - dateA; // Descending order (latest first)
+    });
+  }, [cycles]);
 
   // Determine if we should show upload widgets
   // Show ONLY when:
@@ -89,7 +107,7 @@ export function RegressionCyclesList({
     if (!isManualMode) return false;
     
     // Never show if there's an active cycle (IN_PROGRESS)
-    if (currentCycle && currentCycle.status === RegressionCycleStatus.IN_PROGRESS) {
+    if (actualCurrentCycle && actualCurrentCycle.status === RegressionCycleStatus.IN_PROGRESS) {
       return false;
     }
     
@@ -97,14 +115,13 @@ export function RegressionCyclesList({
     const hasUpcomingSlot = upcomingSlot && upcomingSlot.length > 0;
     if (!hasUpcomingSlot) return false;
     
-    // Show if current cycle is DONE (completed)
-    const currentCycleCompleted = currentCycle?.status === RegressionCycleStatus.DONE;
-    
+    // Show if no active cycle (current cycle is DONE or null) and upcoming slot exists
     // Also show if no cycles exist yet (first cycle after kickoff)
     const noCyclesYet = cycles.length === 0;
+    const noActiveCycle = !actualCurrentCycle;
     
-    return (currentCycleCompleted && hasUpcomingSlot) || (noCyclesYet && hasUpcomingSlot);
-  }, [isManualMode, currentCycle, upcomingSlot, cycles.length]);
+    return (noActiveCycle && hasUpcomingSlot) || (noCyclesYet && hasUpcomingSlot);
+  }, [isManualMode, actualCurrentCycle, upcomingSlot, cycles.length]);
 
   // Get required platforms from release
   const requiredPlatforms = useMemo(() => {
@@ -117,12 +134,33 @@ export function RegressionCyclesList({
   // Widget will determine which platforms need builds internally
   // We pass all required platforms - widget checks uploadedBuilds to see which have builds
 
-  // Format upcoming slot date
+  // Format upcoming slot date - filter future slots, sort by date, pick first
   const upcomingSlotDate = useMemo(() => {
     if (!upcomingSlot || upcomingSlot.length === 0) return null;
-    const slot = upcomingSlot[0];
-    if (!slot.date) return null;
-    return formatReleaseDateTime(slot.date);
+    
+    const now = new Date();
+    const nowTime = now.getTime();
+    
+    // Filter future slots and sort by date (earliest first)
+    const futureSlots = upcomingSlot
+      .map(slot => {
+        if (!slot.date) return null;
+        const slotTime = new Date(slot.date).getTime();
+        if (isNaN(slotTime)) return null;
+        return { slot, slotTime };
+      })
+      .filter((item): item is { slot: typeof upcomingSlot[0]; slotTime: number } => {
+        if (!item) return false;
+        // Only keep future slots
+        return item.slotTime > nowTime;
+      })
+      .sort((a, b) => a.slotTime - b.slotTime); // Sort: earliest first
+    
+    // Get the next slot (first one after filtering and sorting)
+    const nextSlot = futureSlots.length > 0 ? futureSlots[0].slot : null;
+    
+    if (!nextSlot || !nextSlot.date) return null;
+    return formatReleaseDateTime(nextSlot.date);
   }, [upcomingSlot]);
 
   // Type guard for platform validation
@@ -133,14 +171,14 @@ export function RegressionCyclesList({
   return (
     <Stack gap="lg" className={className}>
       {/* Current Active Cycle */}
-      {currentCycle && (
+      {actualCurrentCycle && (
         <Stack gap="md">
           <Text fw={600} size="lg">
             Current Cycle
           </Text>
           <RegressionCycleCard
-            cycle={currentCycle}
-            tasks={tasksByCycle[currentCycle.id] || []}
+            cycle={actualCurrentCycle}
+            tasks={tasksByCycle[actualCurrentCycle.id] || []}
             tenantId={tenantId}
             releaseId={releaseId}
             onRetryTask={onRetryTask}
@@ -186,7 +224,7 @@ export function RegressionCyclesList({
       )}
 
       {/* Upcoming Slot (when no active cycle) */}
-      {!currentCycle && upcomingSlot && upcomingSlot.length > 0 && (
+      {!actualCurrentCycle && upcomingSlot && upcomingSlot.length > 0 && (
         <Alert
           icon={<IconCalendar size={16} />}
           color="blue"
@@ -208,7 +246,7 @@ export function RegressionCyclesList({
       )}
 
       {/* No Active Cycle and No Upcoming Slot */}
-      {!currentCycle && (!upcomingSlot || upcomingSlot.length === 0) && (
+      {!actualCurrentCycle && (!upcomingSlot || upcomingSlot.length === 0) && (
         <Alert icon={<IconInfoCircle size={16} />} color="gray" variant="light">
           No regression cycles scheduled.
         </Alert>

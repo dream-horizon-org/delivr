@@ -110,6 +110,15 @@ export function validateScheduling(scheduling: SchedulingConfig): ValidationErro
             field: `initialVersions.${platform}`,
             message: `Version for platform ${platform} must be a non-empty string`
           });
+        } else {
+          // Validate strict semantic version format (X.Y.Z only, no prefix/suffix)
+          const versionTrimmed = version.trim();
+          if (!/^\d+\.\d+\.\d+$/.test(versionTrimmed)) {
+            errors.push({
+              field: `initialVersions.${platform}`,
+              message: `Invalid version format for ${platform}. Expected: 1.0.0 (no prefix or suffix)`
+            });
+          }
         }
       });
     }

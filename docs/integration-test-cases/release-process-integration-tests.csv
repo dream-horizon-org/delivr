@@ -1,0 +1,427 @@
+Test Case ID,Category,Subcategory,Test Case Name,Steps,Expected Result,Priority,Status,Notes
+1.1.1,Release Creation,Build Mode,Create release with manual build upload,"1. POST /api/v1/releases with hasManualBuildUpload: true
+2. Verify release created with status: IN_PROGRESS
+3. Verify cron job created with stage1Status: PENDING
+4. Verify Stage 1 tasks created (4 tasks)",Release created successfully with manual build mode enabled. All Stage 1 tasks in PENDING status.,High,PENDING,
+1.1.2,Release Creation,Build Mode,Create release with CI/CD build upload,"1. POST /api/v1/releases with hasManualBuildUpload: false
+2. Verify release created with status: IN_PROGRESS
+3. Verify cron job created with stage1Status: PENDING
+4. Verify Stage 1 tasks created (4 tasks)",Release created successfully with CI/CD build mode enabled. All Stage 1 tasks in PENDING status.,High,PENDING,
+1.2.1,Release Creation,Platform Configuration,Create release with multiple platforms,"1. POST /api/v1/releases with platforms: [ANDROID, IOS]
+2. Verify platform-target mappings created for each platform
+3. Verify per-platform versions stored",Release created with multiple platforms. Each platform has separate version and target mapping.,High,PENDING,
+1.3.1,Release Creation,Stage Transitions,Create release with auto-transition enabled,"1. POST /api/v1/releases with autoTransitionToStage2: true
+2. Verify cron job has autoTransitionToStage2: true
+3. Start release and complete Stage 1",Stage 1 automatically transitions to Stage 2 upon completion.,High,PENDING,
+1.3.2,Release Creation,Stage Transitions,Create release with manual transition,"1. POST /api/v1/releases with autoTransitionToStage2: false
+2. Verify cron job has autoTransitionToStage2: false
+3. Complete Stage 1",Stage 1 pauses at AWAITING_REGRESSION phase. User must manually trigger Stage 2.,Medium,PENDING,
+2.1.1,Stage 1: Kickoff,Task Execution,Execute FORK_BRANCH task,"1. Start release (POST /api/v1/releases/{id}/start)
+2. Wait for scheduler tick
+3. Verify FORK_BRANCH task status: IN_PROGRESS then COMPLETED
+4. Verify branch created in SCM
+5. Verify externalData contains branchName and branchUrl",FORK_BRANCH task completes successfully. Branch created in SCM. Task externalData contains branch information.,High,PENDING,
+2.1.2,Stage 1: Kickoff,Task Execution,Execute CREATE_PROJECT_MANAGEMENT_TICKET task,"1. Ensure release has PM integration configured
+2. Wait for FORK_BRANCH to complete
+3. Verify CREATE_PROJECT_MANAGEMENT_TICKET task status: COMPLETED
+4. Verify tickets created for each platform in platformTargetMappings
+5. Verify projectManagementRunId stored in platform mappings",PM tickets created for each platform. Ticket IDs stored in platform mappings. Task externalData contains ticket information.,High,PENDING,
+2.1.3,Stage 1: Kickoff,Task Execution,Execute CREATE_TEST_SUITE task,"1. Ensure release has Test Management integration configured
+2. Wait for FORK_BRANCH to complete
+3. Verify CREATE_TEST_SUITE task status: COMPLETED
+4. Verify test runs created for each platform
+5. Verify testManagementRunId stored in platform mappings",Test suites created for each platform. Run IDs stored in platform mappings. Task externalData contains test run information.,High,PENDING,
+2.2.1,Stage 1: Kickoff,Build Tasks - Manual Mode,Execute TRIGGER_PRE_REGRESSION_BUILDS - Manual Mode,"1. Create release with hasManualBuildUpload: true
+2. Complete FORK_BRANCH task
+3. Verify TRIGGER_PRE_REGRESSION_BUILDS task status: AWAITING_MANUAL_BUILD
+4. Upload builds for all platforms (PUT /api/v1/stages/kickoff/builds/{platform})
+5. Wait for scheduler tick
+6. Verify task status: COMPLETED
+7. Verify builds created in builds table",Task waits for manual uploads. After all platforms uploaded, task completes and creates build records.,High,PENDING,
+2.2.2,Stage 1: Kickoff,Build Tasks - CI/CD Mode,Execute TRIGGER_PRE_REGRESSION_BUILDS - CI/CD Mode,"1. Create release with hasManualBuildUpload: false
+2. Complete FORK_BRANCH task
+3. Verify TRIGGER_PRE_REGRESSION_BUILDS task status: AWAITING_CALLBACK
+4. Verify build records created in builds table with workflowStatus: PENDING
+5. Simulate CI/CD callback (POST /api/v1/webhooks/build-callback)
+6. Verify build status updated to COMPLETED
+7. Verify task status: COMPLETED",Task triggers CI/CD pipeline. Build records created. Callback updates build status and task completes.,High,PENDING,
+2.3.1,Stage 1: Kickoff,Manual Build Upload,Manual build upload - Single platform,"1. Create release with hasManualBuildUpload: true and platform: ANDROID
+2. Upload build for ANDROID (PUT /api/v1/stages/kickoff/builds/ANDROID)
+3. Verify entry created in release_uploads table with isUsed: false
+4. Wait for scheduler tick
+5. Verify upload consumed (isUsed: true) and build created in builds table",Build uploaded successfully. Upload entry created in staging table. Task consumes upload and creates build record.,High,PENDING,
+2.3.2,Stage 1: Kickoff,Manual Build Upload,Manual build upload - Multiple platforms,"1. Create release with hasManualBuildUpload: true and platforms: [ANDROID, IOS]
+2. Upload build for ANDROID
+3. Verify task status: AWAITING_MANUAL_BUILD (IOS missing)
+4. Upload build for IOS
+5. Wait for scheduler tick
+6. Verify both uploads consumed and builds created",Task waits until all platforms have uploads. After all uploaded, task completes and creates builds for all platforms.,High,PENDING,
+2.4.1,Stage 1: Kickoff,CI/CD Callbacks,CI/CD build callback - Success,"1. Create release with hasManualBuildUpload: false
+2. Trigger TRIGGER_PRE_REGRESSION_BUILDS task
+3. Simulate CI/CD callback with success (POST /api/v1/webhooks/build-callback with taskId)
+4. Verify build status: COMPLETED, buildUploadStatus: UPLOADED
+5. Verify task status: COMPLETED",CI/CD callback received. Build status updated. Task completes successfully.,High,PENDING,
+2.4.2,Stage 1: Kickoff,CI/CD Callbacks,CI/CD build callback - Failure,"1. Create release with hasManualBuildUpload: false
+2. Trigger TRIGGER_PRE_REGRESSION_BUILDS task
+3. Simulate CI/CD callback with failure (build status: FAILED)
+4. Verify build status: FAILED
+5. Verify task status: FAILED
+6. Verify release status: PAUSED, pauseType: TASK_FAILURE",CI/CD callback reports failure. Build and task marked as FAILED. Release paused with TASK_FAILURE pause type.,High,PENDING,
+2.5.1,Stage 1: Kickoff,Stage Completion,Stage 1 completion - Auto transition,"1. Create release with autoTransitionToStage2: true
+2. Complete all Stage 1 tasks
+3. Wait for scheduler tick
+4. Verify stage1Status: COMPLETED, stage2Status: IN_PROGRESS
+5. Verify phase: REGRESSION",Stage 1 completes. Automatically transitions to Stage 2. Phase changes to REGRESSION.,High,PENDING,
+2.5.2,Stage 1: Kickoff,Stage Completion,Stage 1 completion - Manual transition,"1. Create release with autoTransitionToStage2: false
+2. Complete all Stage 1 tasks
+3. Wait for scheduler tick
+4. Verify stage1Status: COMPLETED, stage2Status: PENDING
+5. Verify phase: AWAITING_REGRESSION
+6. Manually trigger Stage 2 (POST /api/v1/releases/{id}/trigger-stage2)
+7. Verify stage2Status: IN_PROGRESS",Stage 1 completes. Pauses at AWAITING_REGRESSION. Manual trigger starts Stage 2.,Medium,PENDING,
+3.1.1,Stage 2: Regression,Regression Cycles,Create first regression cycle,"1. Complete Stage 1
+2. Wait for scheduler tick (or trigger Stage 2 manually)
+3. Verify regression cycle created with status: NOT_STARTED
+4. Verify cycle has isLatest: true
+5. Verify Stage 2 tasks created for cycle (4 tasks: CREATE_RC_TAG, CREATE_RELEASE_NOTES, TRIGGER_REGRESSION_BUILDS, optional tasks)",First regression cycle created automatically. Cycle tasks created. Cycle marked as latest.,High,PENDING,
+3.2.1,Stage 2: Regression,Task Execution,Execute CREATE_RC_TAG task,"1. Start regression cycle
+2. Wait for scheduler tick
+3. Verify CREATE_RC_TAG task status: COMPLETED
+4. Verify RC tag created in SCM (e.g., v1.0.0_rc_1)
+5. Verify cycleTag stored in regression cycle record",RC tag created successfully. Tag stored in cycle record. Task externalData contains tag information.,High,PENDING,
+3.2.2,Stage 2: Regression,Task Execution,Execute CREATE_RELEASE_NOTES task,"1. Complete CREATE_RC_TAG task
+2. Wait for scheduler tick
+3. Verify CREATE_RELEASE_NOTES task status: COMPLETED
+4. Verify release notes created in SCM
+5. Verify externalData contains release notes URL",Release notes created for regression cycle. Notes URL stored in task externalData.,High,PENDING,
+3.2.3,Stage 2: Regression,Task Execution,Execute RESET_TEST_SUITE task - Subsequent cycle,"1. Complete first regression cycle
+2. Create second regression cycle (via scheduled slot or manual)
+3. Verify RESET_TEST_SUITE task created for second cycle
+4. Wait for scheduler tick
+5. Verify RESET_TEST_SUITE task status: COMPLETED
+6. Verify test suite reset in Test Management system",RESET_TEST_SUITE task created only for subsequent cycles. Test suite reset successfully.,Medium,PENDING,
+3.2.4,Stage 2: Regression,Task Execution,Execute RESET_TEST_SUITE task - First cycle,"1. Create first regression cycle
+2. Verify RESET_TEST_SUITE task NOT created for first cycle
+3. Verify only 4 tasks created (no RESET_TEST_SUITE)",RESET_TEST_SUITE task not created for first cycle. Only subsequent cycles have this task.,Medium,PENDING,
+3.3.1,Stage 2: Regression,Build Tasks - Manual Mode,Execute TRIGGER_REGRESSION_BUILDS - Manual Mode,"1. Create release with hasManualBuildUpload: true
+2. Start regression cycle
+3. Upload regression builds for all platforms (PUT /api/v1/stages/regression/builds/{platform})
+4. Wait for scheduler tick
+5. Verify TRIGGER_REGRESSION_BUILDS task status: COMPLETED
+6. Verify builds created with regressionId linked to cycle",Regression builds uploaded manually. Task consumes uploads and creates builds linked to regression cycle.,High,PENDING,
+3.3.2,Stage 2: Regression,Build Tasks - CI/CD Mode,Execute TRIGGER_REGRESSION_BUILDS - CI/CD Mode,"1. Create release with hasManualBuildUpload: false
+2. Start regression cycle
+3. Verify TRIGGER_REGRESSION_BUILDS task status: AWAITING_CALLBACK
+4. Verify build records created with regressionId
+5. Simulate CI/CD callback
+6. Verify task status: COMPLETED",Regression builds triggered via CI/CD. Builds linked to cycle. Callback completes task.,High,PENDING,
+3.4.1,Stage 2: Regression,Cycle Management,Regression cycle completion,"1. Complete all cycle tasks
+2. Wait for scheduler tick
+3. Verify cycle status: DONE
+4. Verify isLatest: false (if new cycle created)
+5. Verify all cycle tasks status: COMPLETED",Regression cycle completes successfully. Cycle status updated to DONE. All tasks completed.,High,PENDING,
+3.4.2,Stage 2: Regression,Cycle Management,Multiple regression cycles,"1. Configure release with 3 regression slots
+2. Complete first cycle
+3. Wait for second slot time (or trigger manually)
+4. Verify second cycle created
+5. Complete second cycle
+6. Wait for third slot time
+7. Verify third cycle created",Multiple regression cycles created at scheduled times. Each cycle has separate tasks and builds.,Medium,PENDING,
+3.4.3,Stage 2: Regression,Cycle Management,Abandon regression cycle,"1. Create regression cycle with status: IN_PROGRESS
+2. Abandon cycle (POST /api/v1/regression-cycles/{id}/abandon)
+3. Verify cycle status: ABANDONED
+4. Verify isLatest: false
+5. Verify can create new cycle",Regression cycle abandoned successfully. Cycle status updated. New cycle can be created.,Medium,PENDING,
+3.5.1,Stage 2: Regression,Approval,Regression approval - All requirements met,"1. Complete all regression cycles
+2. Verify test management status: PASSED (GET /api/v1/test-management-run-status)
+3. Verify cherry pick status: cherryPickAvailable: false (GET /api/v1/check-cherry-pick-status)
+4. Approve regression (POST /api/v1/trigger-pre-release)
+5. Verify stage2Status: COMPLETED, stage3Status: IN_PROGRESS
+6. Verify phase: PRE_RELEASE",Regression approval succeeds when all requirements met. Stage 2 completes and Stage 3 starts.,High,PENDING,
+3.5.2,Stage 2: Regression,Approval,Regression approval - Test management failed,"1. Complete all regression cycles
+2. Set test management status: FAILED
+3. Attempt to approve regression
+4. Verify approval rejected with error message
+5. Verify stage2Status: IN_PROGRESS (not completed)",Regression approval fails when test management not passed. Error message returned. Stage 2 remains in progress.,High,PENDING,
+3.5.3,Stage 2: Regression,Approval,Regression approval - Cherry picks available,"1. Complete all regression cycles
+2. Set cherry pick status: cherryPickAvailable: true
+3. Attempt to approve regression
+4. Verify approval rejected with error message
+5. Verify stage2Status: IN_PROGRESS",Regression approval fails when cherry picks available. Error message returned. Stage 2 remains in progress.,High,PENDING,
+3.5.4,Stage 2: Regression,Approval,Regression approval - Force approve,"1. Complete all regression cycles
+2. Set test management status: FAILED
+3. Approve regression with forceApprove: true (POST /api/v1/trigger-pre-release?forceApprove=true)
+4. Verify approval succeeds despite failed requirements
+5. Verify stage2Status: COMPLETED",Force approve bypasses validation. Regression approved and Stage 3 starts regardless of requirements.,Medium,PENDING,
+4.1.1,Stage 3: Pre-Release,Task Creation,Create Stage 3 tasks,"1. Approve regression stage
+2. Wait for scheduler tick
+3. Verify Stage 3 tasks created (2-4 tasks depending on platforms)
+4. Verify tasks: CREATE_RELEASE_TAG, CREATE_FINAL_RELEASE_NOTES, TRIGGER_TEST_FLIGHT_BUILD (if iOS), CREATE_AAB_BUILD (if Android)",Stage 3 tasks created automatically after regression approval. Tasks created based on configured platforms.,High,PENDING,
+4.2.1,Stage 3: Pre-Release,Task Execution,Execute CREATE_RELEASE_TAG task,"1. Start Stage 3
+2. Wait for scheduler tick
+3. Verify CREATE_RELEASE_TAG task status: COMPLETED
+4. Verify release tag created in SCM (e.g., v1.0.0)
+5. Verify releaseTag stored in release record
+6. Verify externalData contains tag information",Release tag created successfully. Tag stored in release record. Task externalData contains tag details.,High,PENDING,
+4.2.2,Stage 3: Pre-Release,Task Execution,Execute CREATE_FINAL_RELEASE_NOTES task,"1. Complete CREATE_RELEASE_TAG task
+2. Wait for scheduler tick
+3. Verify CREATE_FINAL_RELEASE_NOTES task status: COMPLETED
+4. Verify final release notes created in SCM
+5. Verify externalData contains release notes URL",Final release notes created successfully. Notes URL stored in task externalData.,High,PENDING,
+4.3.1,Stage 3: Pre-Release,Build Tasks - iOS,Execute TRIGGER_TEST_FLIGHT_BUILD - Manual Mode,"1. Create release with hasManualBuildUpload: true and iOS platform
+2. Start Stage 3
+3. Verify TRIGGER_TEST_FLIGHT_BUILD task status: AWAITING_MANUAL_BUILD
+4. Verify TestFlight build (POST /api/v1/stages/pre-release/builds/ios/verify-testflight)
+5. Wait for scheduler tick
+6. Verify task status: COMPLETED
+7. Verify build created with testflightNumber",TestFlight build verified manually. Task consumes verification and creates build with testflightNumber.,High,PENDING,
+4.3.2,Stage 3: Pre-Release,Build Tasks - iOS,Execute TRIGGER_TEST_FLIGHT_BUILD - CI/CD Mode,"1. Create release with hasManualBuildUpload: false and iOS platform
+2. Start Stage 3
+3. Verify TRIGGER_TEST_FLIGHT_BUILD task status: AWAITING_CALLBACK
+4. Verify build record created
+5. Simulate CI/CD callback
+6. Verify task status: COMPLETED
+7. Verify build has testflightNumber",TestFlight build triggered via CI/CD. Callback updates build with testflightNumber. Task completes.,High,PENDING,
+4.4.1,Stage 3: Pre-Release,Build Tasks - Android,Execute CREATE_AAB_BUILD - Manual Mode,"1. Create release with hasManualBuildUpload: true and Android platform
+2. Start Stage 3
+3. Verify CREATE_AAB_BUILD task status: AWAITING_MANUAL_BUILD
+4. Upload AAB build (PUT /api/v1/stages/pre-release/builds/ANDROID)
+5. Provide internalTrackLink with versionCode
+6. Wait for scheduler tick
+7. Verify task status: COMPLETED
+8. Verify build created with buildNumber from versionCode",AAB build uploaded manually. VersionCode extracted from internalTrackLink. Build created with correct buildNumber.,High,PENDING,
+4.4.2,Stage 3: Pre-Release,Build Tasks - Android,Execute CREATE_AAB_BUILD - CI/CD Mode,"1. Create release with hasManualBuildUpload: false and Android platform
+2. Start Stage 3
+3. Verify CREATE_AAB_BUILD task status: AWAITING_CALLBACK
+4. Verify build record created
+5. Simulate CI/CD callback with internalTrackLink
+6. Verify task status: COMPLETED
+7. Verify build has buildNumber from versionCode",AAB build triggered via CI/CD. Callback updates build with versionCode. Task completes.,High,PENDING,
+4.5.1,Stage 3: Pre-Release,Approval,PM approval check,"1. Complete all Stage 3 tasks
+2. Check PM approval status (GET /api/v1/project-management-run-status)
+3. Verify approval status per platform
+4. If not approved, request approval
+5. Verify approval status updated",PM approval status checked successfully. Approval can be requested if not already approved.,High,PENDING,
+4.6.1,Stage 3: Pre-Release,Stage Completion,Stage 3 completion,"1. Complete all Stage 3 tasks
+2. Verify PM approval: approved: true
+3. Complete Stage 3 (POST /api/v1/stages/post-regression/complete)
+4. Verify stage3Status: COMPLETED
+5. Verify phase: AWAITING_SUBMISSION
+6. Verify distribution created",Stage 3 completes successfully. Distribution created. Phase changes to AWAITING_SUBMISSION.,High,PENDING,
+4.6.2,Stage 3: Pre-Release,Stage Completion,Stage 3 completion - PM approval required,"1. Complete all Stage 3 tasks
+2. Verify PM approval: approved: false
+3. Attempt to complete Stage 3
+4. Verify completion rejected with error message
+5. Verify stage3Status: IN_PROGRESS (not completed)",Stage 3 completion fails when PM approval not granted. Error message returned. Stage 3 remains in progress.,High,PENDING,
+5.1.1,Stage 4: Distribution,Distribution Creation,Create distribution from release,"1. Complete Stage 3
+2. Verify distribution created (GET /api/v1/distributions?releaseId={id})
+3. Verify distribution has correct platforms and store types
+4. Verify submissions created for each platform",Distribution created successfully from release. Submissions created for each platform.,High,PENDING,
+5.2.1,Stage 4: Distribution,Store Submission,Submit to Android Play Store,"1. Complete Stage 3 with Android platform
+2. Get distribution and Android submission
+3. Submit to Play Store (PUT /api/v1/submissions/{id}/submit?platform=ANDROID)
+4. Verify submission status: SUBMITTED
+5. Verify release status: SUBMITTED
+6. Verify phase: SUBMITTED_PENDING_APPROVAL",Android submission succeeds. Release status updated. Phase changes to SUBMITTED_PENDING_APPROVAL.,High,PENDING,
+5.2.2,Stage 4: Distribution,Store Submission,Submit to iOS App Store,"1. Complete Stage 3 with iOS platform
+2. Get distribution and iOS submission
+3. Submit to App Store (PUT /api/v1/submissions/{id}/submit?platform=IOS)
+4. Verify submission status: SUBMITTED
+5. Verify release status: SUBMITTED
+6. Verify phase: SUBMITTED_PENDING_APPROVAL",iOS submission succeeds. Release status updated. Phase changes to SUBMITTED_PENDING_APPROVAL.,High,PENDING,
+5.2.3,Stage 4: Distribution,Store Submission,Submit to multiple stores,"1. Complete Stage 3 with both Android and iOS platforms
+2. Submit to both stores
+3. Verify both submissions status: SUBMITTED
+4. Verify release status: SUBMITTED",Both stores submitted successfully. Release status updated to SUBMITTED.,High,PENDING,
+5.3.1,Stage 4: Distribution,Release Completion,Release completion,"1. Submit to stores
+2. Simulate store approval
+3. Update release status: COMPLETED (via store callback or manual update)
+4. Verify phase: COMPLETED
+5. Verify releaseDate set",Release completes after store approval. Release date set. Phase changes to COMPLETED.,High,PENDING,
+6.1.1,Error Handling,Task Failures,Task failure - Pause release,"1. Simulate task failure (integration error)
+2. Verify task status: FAILED
+3. Verify release status: PAUSED
+4. Verify pauseType: TASK_FAILURE
+5. Verify cron job pauseType: TASK_FAILURE",Task failure pauses release. Release status and pause type updated correctly.,High,PENDING,
+6.2.1,Error Handling,Task Recovery,Task retry,"1. Fail a task (task status: FAILED)
+2. Retry task (POST /api/v1/tasks/{id}/retry)
+3. Verify task status reset to: PENDING
+4. Wait for scheduler tick
+5. Verify task re-executes
+6. Verify task status: COMPLETED",Task retry succeeds. Task status reset and re-executed. Task completes successfully.,High,PENDING,
+6.3.1,Error Handling,Build Failures,Build callback failure,"1. Trigger CI/CD build task
+2. Simulate build callback with failure status
+3. Verify build status: FAILED
+4. Verify task status: FAILED
+5. Verify release status: PAUSED",Build callback failure pauses release. Build and task marked as failed. Release paused.,High,PENDING,
+6.4.1,Error Handling,Manual Build Handling,Missing manual build upload,"1. Create release with hasManualBuildUpload: true
+2. Trigger build task
+3. Do not upload builds
+4. Verify task status: AWAITING_MANUAL_BUILD
+5. Verify release status: IN_PROGRESS (not paused)
+6. Upload missing builds
+7. Verify task completes",Task waits for manual uploads without pausing release. After uploads, task completes.,High,PENDING,
+6.4.2,Error Handling,Manual Build Handling,Partial platform build upload,"1. Create release with platforms: [ANDROID, IOS] and hasManualBuildUpload: true
+2. Upload build for ANDROID only
+3. Verify task status: AWAITING_MANUAL_BUILD
+4. Verify missing platforms: [IOS]
+5. Upload build for IOS
+6. Verify task completes",Task waits for all platforms. Partial uploads keep task in AWAITING_MANUAL_BUILD. After all uploaded, task completes.,High,PENDING,
+7.1.1,State Management,Release Control,Pause release - User initiated,"1. Start release (status: IN_PROGRESS)
+2. Pause release (POST /api/v1/releases/{id}/pause)
+3. Verify release status: PAUSED
+4. Verify pauseType: USER_REQUESTED
+5. Verify cron job pauseType: USER_REQUESTED
+6. Verify scheduler skips release",Release paused by user. Status and pause type updated. Scheduler skips paused release.,High,PENDING,
+7.1.2,State Management,Release Control,Resume release,"1. Pause release (status: PAUSED)
+2. Resume release (POST /api/v1/releases/{id}/resume)
+3. Verify release status: IN_PROGRESS
+4. Verify pauseType: NONE
+5. Verify scheduler processes release",Release resumed successfully. Status updated. Scheduler processes release again.,High,PENDING,
+7.1.3,State Management,Release Control,Archive release,"1. Create release (any status)
+2. Archive release (POST /api/v1/releases/{id}/archive)
+3. Verify release status: ARCHIVED
+4. Verify cron job cronStatus: COMPLETED
+5. Verify scheduler skips archived release",Release archived successfully. Status updated. Scheduler skips archived release.,High,PENDING,
+7.2.1,State Management,Phase Management,Phase transitions,"1. Create release → Verify phase: NOT_STARTED
+2. Start release → Verify phase: KICKOFF
+3. Complete Stage 1 → Verify phase: AWAITING_REGRESSION or REGRESSION
+4. Complete Stage 2 → Verify phase: AWAITING_PRE_RELEASE or PRE_RELEASE
+5. Complete Stage 3 → Verify phase: AWAITING_SUBMISSION or SUBMISSION
+6. Submit to stores → Verify phase: SUBMITTED_PENDING_APPROVAL
+7. Store approval → Verify phase: COMPLETED",All phase transitions work correctly. Phase updates match stage completion and release status.,High,PENDING,
+8.1.1,Build Management,Build Upload,Upload build artifact,"1. Create release with hasManualBuildUpload: true
+2. Upload build file (PUT /api/v1/stages/{stage}/builds/{platform})
+3. Verify file uploaded to S3
+4. Verify entry created in release_uploads table
+5. Verify artifactPath stored correctly",Build artifact uploaded successfully. File stored in S3. Upload entry created in staging table.,High,PENDING,
+8.2.1,Build Management,Build Deletion,Delete unused build upload,"1. Upload build artifact
+2. Verify entry in release_uploads with isUsed: false
+3. Delete upload (DELETE /api/v1/builds/artifacts/{uploadId})
+4. Verify entry deleted from release_uploads table",Unused build upload deleted successfully. Entry removed from staging table.,Medium,PENDING,
+8.2.2,Build Management,Build Deletion,Delete used build upload - Error,"1. Upload build artifact
+2. Wait for task to consume upload (isUsed: true)
+3. Attempt to delete upload
+4. Verify deletion fails with error message",Used build upload cannot be deleted. Error message returned.,Medium,PENDING,
+8.3.1,Build Management,Build Listing,List build artifacts,"1. Upload multiple build artifacts
+2. List artifacts (GET /api/v1/builds/artifacts?releaseId={id})
+3. Verify all uploads returned
+4. Verify upload details (platform, stage, isUsed, etc.)",Build artifacts listed successfully. All uploads returned with correct details.,Medium,PENDING,
+8.4.1,Build Management,Build Consumption,Consume build upload,"1. Upload build artifact
+2. Trigger build task
+3. Wait for scheduler tick
+4. Verify upload isUsed: true
+5. Verify usedByTaskId set
+6. Verify build created in builds table",Build upload consumed successfully. Upload marked as used. Build record created.,High,PENDING,
+9.1.1,Integration Services,SCM Integration,SCM integration - Fork branch,"1. Configure SCM integration in release config
+2. Create release
+3. Execute FORK_BRANCH task
+4. Verify branch created in SCM repository
+5. Verify branch URL returned",SCM integration works. Branch forked successfully. Branch URL returned.,High,PENDING,
+9.1.2,Integration Services,SCM Integration,SCM integration - Create tags,"1. Configure SCM integration
+2. Execute CREATE_RC_TAG or CREATE_RELEASE_TAG task
+3. Verify tag created in SCM repository
+4. Verify tag URL returned",SCM integration works. Tags created successfully. Tag URLs returned.,High,PENDING,
+9.2.1,Integration Services,PM Integration,PM integration - Create tickets,"1. Configure PM integration in release config
+2. Create release with platforms
+3. Execute CREATE_PROJECT_MANAGEMENT_TICKET task
+4. Verify tickets created in PM system
+5. Verify ticket IDs stored in platform mappings",PM integration works. Tickets created for each platform. Ticket IDs stored correctly.,High,PENDING,
+9.3.1,Integration Services,Test Management Integration,Test Management integration - Create test suite,"1. Configure Test Management integration
+2. Create release with platforms
+3. Execute CREATE_TEST_SUITE task
+4. Verify test runs created in Test Management system
+5. Verify run IDs stored in platform mappings",Test Management integration works. Test suites created for each platform. Run IDs stored correctly.,High,PENDING,
+9.4.1,Integration Services,CI/CD Integration,CI/CD integration - Trigger workflow,"1. Configure CI/CD integration in release config
+2. Create release with hasManualBuildUpload: false
+3. Execute build task (TRIGGER_PRE_REGRESSION_BUILDS, etc.)
+4. Verify workflow triggered in CI/CD system
+5. Verify queueLocation returned
+6. Verify build record created with workflowStatus: PENDING",CI/CD integration works. Workflow triggered successfully. Build record created with workflow status.,High,PENDING,
+10.1.1,Scheduler,Scheduler Processing,Global scheduler processes active releases,"1. Create multiple releases with status: IN_PROGRESS
+2. Verify all releases have cronStatus: RUNNING, pauseType: NONE
+3. Wait for scheduler tick
+4. Verify all active releases processed
+5. Verify task execution for each release",Global scheduler processes all active releases. Each release's tasks executed correctly.,High,PENDING,
+10.2.1,Scheduler,Scheduler Filtering,Scheduler skips paused releases,"1. Create release and pause it
+2. Verify pauseType: USER_REQUESTED or TASK_FAILURE
+3. Wait for scheduler tick
+4. Verify release not processed
+5. Verify tasks remain in current status",Scheduler correctly skips paused releases. Tasks not executed for paused releases.,High,PENDING,
+10.2.2,Scheduler,Scheduler Filtering,Scheduler skips archived releases,"1. Create release and archive it
+2. Verify release status: ARCHIVED
+3. Wait for scheduler tick
+4. Verify release not processed",Scheduler correctly skips archived releases. Archived releases not processed.,High,PENDING,
+10.3.1,Scheduler,State Machine,State machine transitions,"1. Create release with autoTransitionToStage2: true
+2. Complete Stage 1
+3. Wait for scheduler tick
+4. Verify state machine transitions from KickoffState to RegressionState
+5. Verify stage2Status: IN_PROGRESS",State machine transitions correctly. Stage transitions work as expected.,High,PENDING,
+11.1.1,Regression Cycles,Cycle Creation,Create cycle at scheduled slot time,"1. Configure release with regression slots
+2. Complete Stage 1
+3. Wait for first slot time
+4. Verify cycle created automatically
+5. Verify cycle tasks created",Regression cycle created at scheduled slot time. Cycle and tasks created automatically.,High,PENDING,
+11.1.2,Regression Cycles,Cycle Creation,Create cycle manually,"1. Complete Stage 1
+2. Manually create cycle (POST /api/v1/regression-cycles)
+3. Verify cycle created with status: NOT_STARTED
+4. Verify cycle tasks created",Regression cycle created manually. Cycle and tasks created successfully.,Medium,PENDING,
+11.2.1,Regression Cycles,Cycle Status,Cycle status transitions,"1. Create cycle (status: NOT_STARTED)
+2. Start cycle execution
+3. Verify status: IN_PROGRESS
+4. Complete all cycle tasks
+5. Verify status: DONE",Regression cycle status transitions correctly. Status updates from NOT_STARTED → IN_PROGRESS → DONE.,High,PENDING,
+11.3.1,Regression Cycles,Cycle Tracking,Latest cycle tracking,"1. Create first cycle (isLatest: true)
+2. Create second cycle
+3. Verify first cycle isLatest: false
+4. Verify second cycle isLatest: true",Latest cycle tracking works correctly. Only current cycle marked as latest.,High,PENDING,
+11.4.1,Regression Cycles,Cycle Builds,Cycle builds linked correctly,"1. Create regression cycle
+2. Execute TRIGGER_REGRESSION_BUILDS task
+3. Verify builds created with regressionId matching cycle ID
+4. Verify builds linked to cycle",Regression cycle builds linked correctly. Builds have correct regressionId.,High,PENDING,
+12.1.1,Notifications,Task Notifications,Branch forkout notification,"1. Execute FORK_BRANCH task
+2. Verify notification sent (BRANCH_FORKOUT type)
+3. Verify notification contains branch name",BRANCH_FORKOUT notification sent after branch fork. Notification contains branch information.,Medium,PENDING,
+12.2.1,Notifications,Task Notifications,PM links notification,"1. Execute CREATE_PROJECT_MANAGEMENT_TICKET task
+2. Verify notification sent (PROJECT_MANAGEMENT_LINKS type)
+3. Verify notification contains ticket URLs for each platform",PROJECT_MANAGEMENT_LINKS notification sent after PM tickets created. Notification contains ticket URLs.,Medium,PENDING,
+12.3.1,Notifications,Task Notifications,Test Management links notification,"1. Execute CREATE_TEST_SUITE task
+2. Verify notification sent (TEST_MANAGEMENT_LINKS type)
+3. Verify notification contains run URLs for each platform",TEST_MANAGEMENT_LINKS notification sent after test suites created. Notification contains run URLs.,Medium,PENDING,
+13.1.1,Data Validation,Input Validation,Platform-target mapping validation,"1. Create release with invalid platform-target combination
+2. Verify creation fails with validation error
+3. Create release with valid combinations
+4. Verify creation succeeds",Platform-target mapping validation works. Invalid combinations rejected. Valid combinations accepted.,High,PENDING,
+13.2.1,Data Validation,Input Validation,Version format validation,"1. Create release with invalid version format
+2. Verify validation error returned
+3. Create release with valid version format
+4. Verify creation succeeds",Version format validation works. Invalid formats rejected. Valid formats accepted.,High,PENDING,
+13.3.1,Data Validation,Input Validation,Required field validation,"1. Attempt to create release without required fields
+2. Verify validation errors returned
+3. Create release with all required fields
+4. Verify creation succeeds",Required field validation works. Missing fields cause validation errors.,High,PENDING,
+14.1.1,Performance,Load Testing,Multiple concurrent releases,"1. Create 10 releases simultaneously
+2. Start all releases
+3. Wait for scheduler ticks
+4. Verify all releases processed correctly
+5. Verify no race conditions or deadlocks",Multiple concurrent releases processed correctly. No race conditions or performance issues.,Medium,PENDING,
+14.2.1,Performance,Load Testing,Large number of regression cycles,"1. Create release with 10 regression cycles
+2. Complete all cycles
+3. Verify all cycles processed correctly
+4. Verify performance acceptable",Release with many regression cycles processed correctly. Performance remains acceptable.,Medium,PENDING,
+15.1.1,Edge Cases,Platform Scenarios,Release with single platform,"1. Create release with only ANDROID platform
+2. Verify only Android-specific tasks created in Stage 3
+3. Verify no iOS tasks created",Release with single platform works correctly. Only relevant tasks created.,Medium,PENDING,
+15.2.1,Edge Cases,Platform Scenarios,Release with WEB platform,"1. Create release with WEB platform
+2. Verify WEB platform handled correctly
+3. Verify no build tasks for WEB",Release with WEB platform handled correctly. WEB platform doesn't require builds.,Medium,PENDING,
+15.3.1,Edge Cases,Integration Scenarios,Release without integrations,"1. Create release without PM or Test Management integrations
+2. Verify tasks created without integration-dependent tasks
+3. Verify release progresses correctly",Release without integrations works. Only available integration tasks created.,Medium,PENDING,
+15.4.1,Edge Cases,Regression Scenarios,Empty regression slots,"1. Create release with no regression slots configured
+2. Complete Stage 1
+3. Verify can manually create cycles
+4. Verify can approve regression without cycles",Release with no regression slots works. Manual cycle creation and approval work.,Medium,PENDING,
+15.5.1,Edge Cases,Release Types,Hotfix release,"1. Create hotfix release with baseReleaseId
+2. Verify baseBranch resolved correctly
+3. Verify release created from base release",Hotfix release created correctly. Base branch resolved from parent release.,Medium,PENDING,

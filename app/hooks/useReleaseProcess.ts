@@ -97,7 +97,7 @@ export function useKickoffStage(
       refetchOnWindowFocus: true,
       refetchOnMount: true, // Changed to true to ensure it fetches
       retry: 1,
-      refetchInterval: (shouldPoll && isEnabled) ? 30000 : false, // Poll every 30 seconds if shouldPoll is true
+      refetchInterval: (shouldPoll && isEnabled) ? 3000 : false, // Poll every 30 seconds if shouldPoll is true
       refetchIntervalInBackground: false, // Stop polling when tab is in background
     }
   );
@@ -150,7 +150,7 @@ export function useRegressionStage(
       refetchOnWindowFocus: true,
       refetchOnMount: true, // Changed to true to ensure it fetches
       retry: 1,
-      refetchInterval: (shouldPoll && isEnabled) ? 30000 : false, // Poll every 30 seconds if shouldPoll is true
+      refetchInterval: (shouldPoll && isEnabled) ? 3000 : false, // Poll every 30 seconds if shouldPoll is true
       refetchIntervalInBackground: false, // Stop polling when tab is in background
     }
   );
@@ -196,7 +196,7 @@ export function usePreReleaseStage(
       refetchOnWindowFocus: true,
       refetchOnMount: false,
       retry: 1,
-      refetchInterval: (shouldPoll && isEnabled) ? 30000 : false, // Poll every 30 seconds if shouldPoll is true
+      refetchInterval: (shouldPoll && isEnabled) ? 3000 : false, // Poll every 30 seconds if shouldPoll is true
       refetchIntervalInBackground: false, // Stop polling when tab is in background
     }
   );

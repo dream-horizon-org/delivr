@@ -12,8 +12,8 @@
  * - Project Management Status (from /project-management-run-status) - platform-wise
  */
 
-import { Card, Divider, Group, Stack, Text, Badge, Loader, Anchor } from '@mantine/core';
-import { IconCheck, IconX, IconAlertCircle } from '@tabler/icons-react';
+import { Card, Divider, Group, Stack, Text, Badge, Loader, Anchor, ActionIcon } from '@mantine/core';
+import { IconCheck, IconX, IconAlertCircle, IconExternalLink } from '@tabler/icons-react';
 import { 
   useCherryPickStatus, 
   useTestManagementStatus, 
@@ -147,18 +147,34 @@ export function IntegrationsStatusSidebar({
                         <Text size="xs" c="dimmed">
                           {platform.platform}
                         </Text>
-                        {isCompleted ? (
-                          <Badge color="green" size="sm">
-                            <Group gap={4}>
-                              <IconCheck size={12} />
-                              {platform.status === 'COMPLETED' ? 'Completed' : 'Passed'}
-                            </Group>
-                          </Badge>
-                        ) : (
-                          <Badge color="red" size="sm">
-                            {platform.status || 'Pending'}
-                          </Badge>
-                        )}
+                        <Group gap="xs">
+                          {isCompleted ? (
+                            <Badge color="green" size="sm">
+                              <Group gap={4}>
+                                <IconCheck size={12} />
+                                {platform.status === 'COMPLETED' ? 'Completed' : 'Passed'}
+                              </Group>
+                            </Badge>
+                          ) : (
+                            <Badge color="red" size="sm">
+                              {platform.status || 'Pending'}
+                            </Badge>
+                          )}
+                          {platform.runLink && (
+                            <ActionIcon
+                              component="a"
+                              href={platform.runLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              size="sm"
+                              variant="subtle"
+                              color="blue"
+                              aria-label="Open test run in new tab"
+                            >
+                              <IconExternalLink size={14} />
+                            </ActionIcon>
+                          )}
+                        </Group>
                       </Group>
                     );
                   })}
@@ -182,9 +198,18 @@ export function IntegrationsStatusSidebar({
                     </>
                   )}
                   {testManagementStatus.data.runLink && (
-                    <Anchor href={testManagementStatus.data.runLink} target="_blank" size="xs">
-                      View
-                    </Anchor>
+                    <ActionIcon
+                      component="a"
+                      href={testManagementStatus.data.runLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      size="sm"
+                      variant="subtle"
+                      color="blue"
+                      aria-label="Open test run in new tab"
+                    >
+                      <IconExternalLink size={14} />
+                    </ActionIcon>
                   )}
                 </Group>
               )

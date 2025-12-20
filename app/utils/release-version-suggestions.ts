@@ -69,9 +69,9 @@ function bumpVersion(version: string, releaseType: ReleaseType): string {
   
   if (!parsed) {
     // Invalid version - return default based on release type
-    if (releaseType === 'MAJOR') return 'v2.0.0';
-    if (releaseType === 'MINOR') return 'v1.1.0';
-    return 'v1.0.1';
+    if (releaseType === 'MAJOR') return '2.0.0';
+    if (releaseType === 'MINOR') return '1.1.0';
+    return '1.0.1';
   }
   
   let { major, minor, patch } = parsed;
@@ -87,7 +87,7 @@ function bumpVersion(version: string, releaseType: ReleaseType): string {
     patch += 1;
   }
   
-  return `v${major}.${minor}.${patch}`;
+  return `${major}.${minor}.${patch}`;
 }
 
 /**
@@ -98,7 +98,7 @@ function normalizeVersion(version: string): string {
   const parsed = parseVersion(version);
   if (!parsed) return version; // Return as-is if can't parse
   
-  return `v${parsed.major}.${parsed.minor}.${parsed.patch}`;
+  return `${parsed.major}.${parsed.minor}.${parsed.patch}`;
 }
 
 /**
@@ -204,9 +204,9 @@ export function getVersionSuggestions(
     
     // If no previous version exists, suggest default based on release type
     if (!currentVersion) {
-      const defaultVersion = releaseType === 'MAJOR' ? 'v2.0.0' : 
-                            releaseType === 'MINOR' ? 'v1.1.0' : 
-                            'v1.0.1';
+      const defaultVersion = releaseType === 'MAJOR' ? '2.0.0' : 
+                            releaseType === 'MINOR' ? '1.1.0' : 
+                            '1.0.1';
       
       return {
         platform: pt.platform,
@@ -231,8 +231,8 @@ export function getVersionSuggestions(
   // Branch format: release/android-1.2.3-ios-2.0.0
   if (suggestions.length === 0) {
     // Fallback if no suggestions
-    const defaultVersion = releaseType === 'MAJOR' ? 'v2.0.0' : releaseType === 'MINOR' ? 'v1.1.0' : 'v1.0.1';
-    const branchVersion = defaultVersion.replace(/^v/i, '');
+    const defaultVersion = releaseType === 'MAJOR' ? '2.0.0' : releaseType === 'MINOR' ? '1.1.0' : '1.0.1';
+    const branchVersion = defaultVersion;
     return {
       suggestions,
       branchName: `release/${branchVersion}`,
@@ -242,7 +242,7 @@ export function getVersionSuggestions(
   // Build branch name with all platforms and versions
   const branchParts = suggestions.map((suggestion) => {
     const platform = suggestion.platform.toLowerCase();
-    const version = suggestion.suggestedVersion; // Keep 'v' prefix
+    const version = suggestion.suggestedVersion.replace(/^v/i, ''); // Remove 'v' prefix if present
     return `${platform}-${version}`;
   });
 
@@ -257,7 +257,7 @@ export function getVersionSuggestions(
 /**
  * Generate branch name from version
  * 
- * @param version - Version string (e.g., "v1.0.0" or "1.0.0")
+ * @param version - Version string (e.g., "1.0.0")
  * @returns Branch name (e.g., "release/1.0.0")
  */
 export function generateBranchName(version: string): string {
