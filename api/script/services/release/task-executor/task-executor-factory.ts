@@ -79,7 +79,7 @@ export function getTaskExecutor(): TaskExecutor {
   // Instantiate repositories
   const cicdIntegrationRepo = new CICDIntegrationRepository(sequelize.models.CICDIntegrationModel as any);
   const cicdWorkflowRepo = new CICDWorkflowRepository(sequelize.models.CICDWorkflowModel as any);
-  const cicdConfigRepo = new CICDConfigRepository(sequelize.models.CICDConfig as any);
+  const cicdConfigRepo = new CICDConfigRepository(sequelize.models.CICDConfigModel as any);
   const pmConfigRepo = new ProjectManagementConfigRepository(sequelize.models.ProjectManagementConfig);
   const pmIntegrationRepo = new ProjectManagementIntegrationRepository(sequelize.models.ProjectManagementIntegrationModel as any);
   const tmConfigRepo = new TestManagementConfigRepository(sequelize.models.TestManagementConfig);
