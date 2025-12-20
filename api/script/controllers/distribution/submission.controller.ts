@@ -79,7 +79,18 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
     try {
       const { submissionId } = req.params;
       const { platform } = req.query;
-      const submittedBy = req.user?.email ?? 'unknown';
+      
+      // Get user email from authentication - required
+      const submittedBy = req.user?.email;
+      if (!submittedBy) {
+        res.status(HTTP_STATUS.UNAUTHORIZED).json(
+          errorResponse(
+            new Error('User email not found'),
+            'Authentication required'
+          )
+        );
+        return;
+      }
 
       if (!submissionId || typeof submissionId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -236,7 +247,18 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
     try {
       const { distributionId } = req.params;
       const { platform } = req.body;
-      const submittedBy = req.user?.email ?? 'unknown';
+      
+      // Get user email from authentication - required
+      const submittedBy = req.user?.email;
+      if (!submittedBy) {
+        res.status(HTTP_STATUS.UNAUTHORIZED).json(
+          errorResponse(
+            new Error('User email not found'),
+            'Authentication required'
+          )
+        );
+        return;
+      }
 
       if (!distributionId || typeof distributionId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -346,7 +368,18 @@ const pauseRolloutHandler = (service: SubmissionService) =>
       const { submissionId } = req.params;
       const { platform } = req.query;
       const { reason } = req.body;
-      const createdBy = req.user?.email ?? 'unknown';
+      
+      // Get user email from authentication - required
+      const createdBy = req.user?.email;
+      if (!createdBy) {
+        res.status(HTTP_STATUS.UNAUTHORIZED).json(
+          errorResponse(
+            new Error('User email not found'),
+            'Authentication required'
+          )
+        );
+        return;
+      }
 
       if (!submissionId || typeof submissionId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -425,7 +458,18 @@ const resumeRolloutHandler = (service: SubmissionService) =>
     try {
       const { submissionId } = req.params;
       const { platform } = req.query;
-      const createdBy = req.user?.email ?? 'unknown';
+      
+      // Get user email from authentication - required
+      const createdBy = req.user?.email;
+      if (!createdBy) {
+        res.status(HTTP_STATUS.UNAUTHORIZED).json(
+          errorResponse(
+            new Error('User email not found'),
+            'Authentication required'
+          )
+        );
+        return;
+      }
 
       if (!submissionId || typeof submissionId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -579,7 +623,18 @@ const cancelSubmissionHandler = (service: SubmissionService) =>
       const { submissionId } = req.params;
       const { platform } = req.query;
       const { reason } = req.body;
-      const createdBy = req.user?.email ?? 'unknown';
+      
+      // Get user email from authentication - required
+      const createdBy = req.user?.email;
+      if (!createdBy) {
+        res.status(HTTP_STATUS.UNAUTHORIZED).json(
+          errorResponse(
+            new Error('User email not found'),
+            'Authentication required'
+          )
+        );
+        return;
+      }
 
       if (!submissionId || typeof submissionId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -681,9 +736,9 @@ const SubmissionStatusHandler = (service: SubmissionService) =>
 
       const platformUpper = platform.toUpperCase();
 
-      if (platformUpper !== 'IOS' && platformUpper !== 'ANDROID') {
+      if (platformUpper !== 'IOS' ) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('platform', 'platform must be IOS or ANDROID')
+          validationErrorResponse('platform', 'platform must be IOS ')
         );
         return;
       }
@@ -692,17 +747,10 @@ const SubmissionStatusHandler = (service: SubmissionService) =>
 
       let result;
 
-      if (platformUpper === 'IOS') {
-        // Call iOS-specific service method
-        result = await service.IosSubmissionStatus(submissionId);
-      } else {
-        // Android not yet implemented
-        res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
-          error: "Not implemented yet",
-          message: "Android submission status sync will be implemented later"
-        });
-        return;
-      }
+      
+      // Call iOS-specific service method
+      result = await service.IosSubmissionStatus(submissionId);
+     
 
       res.status(HTTP_STATUS.OK).json(
         successResponse(result)

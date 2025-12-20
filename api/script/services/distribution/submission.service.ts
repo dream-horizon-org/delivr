@@ -447,6 +447,49 @@ export class SubmissionService {
       };
     }
 
+    // Step 4: Check if distribution exists
+    const distribution = await this.distributionRepository.findById(androidSubmission.distributionId);
+    
+    if (!distribution) {
+      return {
+        valid: false,
+        statusCode: 404,
+        error: `Distribution not found for submission ${submissionId}`
+      };
+    }
+
+    // Step 5: Check if store integration exists
+    const storeIntegrationController = getStoreIntegrationController();
+    const mappedStoreType = StoreType.PLAY_STORE;
+
+    const integrations = await storeIntegrationController.findAll({
+      tenantId: distribution.tenantId,
+      platform: BUILD_PLATFORM.ANDROID,
+      storeType: mappedStoreType
+    });
+
+    if (integrations.length === 0) {
+      return {
+        valid: false,
+        statusCode: 400,
+        error: `No Android store integration found for tenant ${distribution.tenantId}. Please configure Google Play Store credentials first.`
+      };
+    }
+
+    const integration = integrations[0];
+
+    // Step 6: Check if integration status is VERIFIED
+    try {
+      validateIntegrationStatus(integration);
+    } catch (error) {
+      return {
+        valid: false,
+        statusCode: 400,
+        error: error instanceof Error ? error.message : 'Integration status validation failed'
+      };
+    }
+
+    // Step 7: Check if targetAppId exists
     return { valid: true, statusCode: 200 };
   }
 
@@ -558,7 +601,7 @@ export class SubmissionService {
       return {
         valid: false,
         statusCode: 400,
-        error: `No existing iOS submission found for distribution ${distributionId}. Use submitExistingSubmission API for first-time submissions.`
+        error: `No existing iOS submission found for distribution ${distributionId}. Please create a new submission.`
       };
     }
 
@@ -593,8 +636,7 @@ export class SubmissionService {
         const buildVerificationResult = await this.testflightBuildVerificationService.verifyBuild({
           releaseId: distribution.releaseId ?? '',
           tenantId: distribution.tenantId,
-          testflightBuildNumber: String(data.testflightNumber),
-          versionName: data.version
+          testflightBuildNumber: String(data.testflightNumber)
         });
 
         if (!buildVerificationResult.success) {
@@ -843,9 +885,49 @@ export class SubmissionService {
       };
     }
 
-    // Note: Android doesn't require store integration validation like iOS
-    // Google Play integration will be handled differently when implemented
+    const lastSubmissionVersion = resubmittableSubmission.version;
+    if (data.version !== lastSubmissionVersion) {
+      return {
+        valid: false,
+        statusCode: 400,
+        error: `Version mismatch: provided version '${data.version}' does not match last submission version '${lastSubmissionVersion}'. Resubmissions must use the same version.`,
+        field: 'version'
+      };
+    }
 
+    // Step 6: Check if store integration exists
+    const storeIntegrationController = getStoreIntegrationController();
+    const mappedStoreType = StoreType.PLAY_STORE;
+
+    const integrations = await storeIntegrationController.findAll({
+      tenantId: distribution.tenantId,
+      platform: BUILD_PLATFORM.ANDROID,
+      storeType: mappedStoreType
+    });
+
+    if (integrations.length === 0) {
+      return {
+        valid: false,
+        statusCode: 400,
+        error: `No Android store integration found for tenant ${distribution.tenantId}. Please configure Google Play Store credentials first.`
+      };
+    }
+
+    const integration = integrations[0];
+
+    // Step 7: Check if integration status is VERIFIED
+    try {
+      validateIntegrationStatus(integration);
+    } catch (error) {
+      return {
+        valid: false,
+        statusCode: 400,
+        error: error instanceof Error ? error.message : 'Integration status validation failed'
+      };
+    }
+    
+
+    
     return { valid: true, statusCode: 200 };
   }
 
@@ -1254,21 +1336,6 @@ export class SubmissionService {
       return null;
     }
 
-    // Verify submission is in PENDING state
-    if (androidSubmission.status !== ANDROID_SUBMISSION_STATUS.PENDING) {
-      throw new Error(`Cannot submit submission with status: ${androidSubmission.status}. Must be PENDING.`);
-    }
-
-    // Validate rollout percentage
-    if (data.rolloutPercent < 0 || data.rolloutPercent > 100) {
-      throw new Error('Rollout percentage must be between 0 and 100');
-    }
-
-    // Validate inAppPriority
-    if (data.inAppPriority < 0 || data.inAppPriority > 5) {
-      throw new Error('In-app priority must be between 0 and 5');
-    }
-
     // Step 1: Save data to database first
     const updatedSubmission = await this.androidSubmissionRepository.update(submissionId, {
       rolloutPercentage: data.rolloutPercent,
@@ -1285,9 +1352,6 @@ export class SubmissionService {
     // Step 2: Get distribution to retrieve tenantId
     const distribution = await this.distributionRepository.findById(updatedSubmission.distributionId);
     
-    if (!distribution) {
-      throw new Error(`Distribution not found for submission ${submissionId}`);
-    }
 
     const tenantId = distribution.tenantId;
 
@@ -1299,15 +1363,9 @@ export class SubmissionService {
       platform: BUILD_PLATFORM.ANDROID,
     });
 
-    if (integrations.length === 0) {
-      throw new Error(PLAY_STORE_UPLOAD_ERROR_MESSAGES.INTEGRATION_NOT_FOUND_FOR_UPLOAD);
-    }
-
     // Use first integration found
     const integration = integrations[0];
 
-    // Step 4: Validate integration status is VERIFIED
-    validateIntegrationStatus(integration);
 
     // Step 5: Create Google service (decrypts credentials, generates access token)
     let googleService: GooglePlayStoreService;
@@ -1484,13 +1542,6 @@ export class SubmissionService {
              (sub.status === SUBMISSION_STATUS.REJECTED || sub.status === SUBMISSION_STATUS.CANCELLED)
     );
 
-    if (!resubmittableSubmission) {
-      throw new Error(
-        `Cannot create new iOS submission for distribution ${distributionId}. ` +
-        `No active submission found with REJECTED or CANCELLED status.`
-      );
-    }
-
     console.log(
       `[SubmissionService] Found existing ${resubmittableSubmission.status} iOS submission: ${resubmittableSubmission.id}. ` +
       `Will mark as inactive and create new submission.`
@@ -1538,19 +1589,9 @@ export class SubmissionService {
       storeType: mappedStoreType
     });
 
-    if (integrations.length === 0) {
-      throw new Error(`No iOS store integration found for tenant ${tenantId}. Please configure App Store Connect credentials first.`);
-    }
-
     const integration = integrations[0];
     const targetAppId = integration.targetAppId;
 
-    if (!targetAppId) {
-      throw new Error(
-        `Missing targetAppId in store integration ${integration.id}. ` +
-        'Please configure the App Store Connect integration with the target app ID.'
-      );
-    }
 
     // Step 3: Create Apple service (decrypts credentials, generates JWT token)
     let appleService: AppleAppStoreConnectService | MockAppleAppStoreConnectService;
@@ -1785,12 +1826,6 @@ export class SubmissionService {
     // Step 2: Validate existing submission exists and is in valid state for resubmission
     const existingSubmissions = await this.androidSubmissionRepository.findByDistributionId(distributionId);
     
-    if (existingSubmissions.length === 0) {
-      throw new Error(
-        `No existing Android submission found for distribution ${distributionId}. ` +
-        `Use submitExistingSubmission API for first-time submissions.`
-      );
-    }
 
     // Find active submission with SUSPENDED status (Android equivalent of REJECTED/CANCELLED)
     const resubmittableSubmission = existingSubmissions.find(
@@ -1798,13 +1833,6 @@ export class SubmissionService {
              sub.status === ANDROID_SUBMISSION_STATUS.SUSPENDED
     );
 
-    if (!resubmittableSubmission) {
-      throw new Error(
-        `Cannot create new Android submission for distribution ${distributionId}. ` +
-        `No active submission found with SUSPENDED status. ` +
-        `Resubmission is only allowed after a submission has been suspended.`
-      );
-    }
 
     console.log(
       `[SubmissionService] Found existing ${resubmittableSubmission.status} Android submission: ${resubmittableSubmission.id}. ` +
@@ -3528,8 +3556,8 @@ export class SubmissionService {
       title: `Submission Status: ${version} (${submissionId})`,
       category: 'Submission Status',
       timing: {
-        hours: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],  // All hours
-        minutes: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],  // Every 5 minutes
+        hours: [0, 4, 8, 12, 16, 20],  
+        minutes: [0], 
         days: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]  // Every day
       },
       timezone: 'UTC',
