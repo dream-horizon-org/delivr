@@ -37,9 +37,10 @@ export const createProjectManagementConfigModel = (
         allowNull: false
       },
       tenantId: {
-        type: DataTypes.STRING(255),
+        type: DataTypes.UUID,
         allowNull: false,
-        field: 'tenantId'
+        field: 'tenantId',
+        comment: 'Tenant identifier'
       },
       integrationId: {
         type: DataTypes.STRING(255),
