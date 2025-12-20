@@ -463,6 +463,9 @@ export function createModelss(sequelize: Sequelize) {
   // Release Configuration (must be created before Release due to FK constraints)
   const ReleaseConfig = createReleaseConfigModel(sequelize);
   
+  // Release Schedule (must be created after ReleaseConfig due to FK constraints)
+  const ReleaseSchedule = createReleaseScheduleModel(sequelize);
+  
   // NEW: Release Management Models (standardized schema)
   const Platform = createPlatformModel(sequelize);  // Reference table for platforms
   const Target = createTargetModel(sequelize);  // Reference table for targets
@@ -685,6 +688,33 @@ export function createModelss(sequelize: Sequelize) {
     as: 'creator'
   });
   
+  // Release Schedule associations
+  // Tenant has many Release Schedules
+  Tenant.hasMany(ReleaseSchedule, { 
+    foreignKey: 'tenantId',
+    as: 'releaseSchedules' 
+  });
+  ReleaseSchedule.belongsTo(Tenant, { 
+    foreignKey: 'tenantId',
+    as: 'tenant'
+  });
+  
+  // Release Schedule belongs to Release Config (one-to-one)
+  ReleaseConfig.hasOne(ReleaseSchedule, { 
+    foreignKey: 'releaseConfigId',
+    as: 'releaseSchedule' 
+  });
+  ReleaseSchedule.belongsTo(ReleaseConfig, { 
+    foreignKey: 'releaseConfigId',
+    as: 'releaseConfig'
+  });
+  
+  // Release Schedule belongs to Account (creator)
+  ReleaseSchedule.belongsTo(Account, { 
+    foreignKey: 'createdByAccountId',
+    as: 'creator'
+  });
+  
   // Distribution associations
   // Tenant has many Distributions
   Tenant.hasMany(Distribution, { 
@@ -774,6 +804,7 @@ export function createModelss(sequelize: Sequelize) {
     ProjectManagementIntegration,  // Project management integrations (JIRA, Linear, etc.)
     ProjectManagementConfig,  // Project management configurations
     ReleaseConfig,  // Release configuration profiles
+    ReleaseSchedule,  // Release schedules for recurring releases
     Distribution,  // Distribution tracking
     IosSubmissionBuild,  // iOS submission builds
     AndroidSubmissionBuild,  // Android submission builds
@@ -1088,8 +1119,7 @@ export class S3Storage implements storage.Storage {
           console.log("Comm Config Service initialized");
           
           // Initialize Release Config (AFTER all integration services are ready)
-          const releaseConfigModel = createReleaseConfigModel(this.sequelize);
-          this.releaseConfigRepository = new ReleaseConfigRepository(releaseConfigModel);
+          this.releaseConfigRepository = new ReleaseConfigRepository(models.ReleaseConfig);
           
           this.releaseConfigActivityLogRepository = new ReleaseConfigActivityLogRepository(models.ReleaseConfigActivityLog);
           this.releaseConfigActivityLogService = new ReleaseConfigActivityLogService(
@@ -1099,8 +1129,7 @@ export class S3Storage implements storage.Storage {
           
           
           // Initialize Release Schedule Repository
-          const releaseScheduleModel = createReleaseScheduleModel(this.sequelize);
-          const releaseScheduleRepository = new ReleaseScheduleRepository(releaseScheduleModel);
+          const releaseScheduleRepository = new ReleaseScheduleRepository(models.ReleaseSchedule);
           console.log("Release Schedule Repository initialized");
           
           // Initialize Release Notification Repository
