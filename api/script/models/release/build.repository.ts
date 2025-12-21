@@ -10,7 +10,7 @@ import type {
   WorkflowStatus,
   CiRunType
 } from '~types/release-management/builds';
-import { getTrimmedString } from '~utils/string.utils';
+import { getTrimmedString, removeTrailingSlash } from '~utils/string.utils';
 
 /**
  * Build database record type
@@ -84,7 +84,7 @@ export class BuildRepository {
       artifactPath: data.artifactPath ?? null,
       storeType: data.storeType ?? null,
       regressionId: data.regressionId ?? null,
-      ciRunId: data.ciRunId ?? null,
+      ciRunId: data.ciRunId ? removeTrailingSlash(data.ciRunId) : null,
       buildUploadStatus: data.buildUploadStatus ?? 'PENDING',
       queueLocation: data.queueLocation ?? null,
       workflowStatus: data.workflowStatus ?? null,
@@ -288,7 +288,19 @@ export class BuildRepository {
    * Update a build
    */
   async update(id: string, updates: UpdateBuildDto): Promise<void> {
-    await this.model.update(updates, {
+    const { ciRunId, ...restUpdates } = updates;
+    const ciRunIdNotProvided = ciRunId === undefined;
+    const ciRunIdIsString = typeof ciRunId === 'string';
+    
+    const processedCiRunId = ciRunIdIsString
+      ? removeTrailingSlash(ciRunId)
+      : ciRunId;
+    
+    const updateData = ciRunIdNotProvided
+      ? restUpdates
+      : { ...restUpdates, ciRunId: processedCiRunId };
+    
+    await this.model.update(updateData, {
       where: { id }
     });
   }
@@ -314,9 +326,9 @@ export class BuildRepository {
   }
 
   /**
-   * Reset failed builds to pending (for retry)
+   * Delete failed builds for a task
    */
-  async resetFailedBuildsForTask(taskId: string, platforms?: BuildPlatform[]): Promise<number> {
+  async deleteFailedBuildsForTask(taskId: string, platforms?: BuildPlatform[]): Promise<number> {
     const where: WhereOptions<BuildAttributes> = { 
       taskId,
       workflowStatus: 'FAILED'
@@ -327,12 +339,9 @@ export class BuildRepository {
       where.platform = platforms;
     }
 
-    const [affectedCount] = await this.model.update(
-      { workflowStatus: 'PENDING' },
-      { where }
-    );
+    const deletedCount = await this.model.destroy({ where });
 
-    return affectedCount;
+    return deletedCount;
   }
 
   /**
@@ -352,7 +361,7 @@ export class BuildRepository {
         artifactPath: d.artifactPath ?? null,
         storeType: d.storeType ?? null,
         regressionId: d.regressionId ?? null,
-        ciRunId: d.ciRunId ?? null,
+        ciRunId: d.ciRunId ? removeTrailingSlash(d.ciRunId) : null,
         buildUploadStatus: d.buildUploadStatus ?? 'PENDING',
         queueLocation: d.queueLocation ?? null,
         workflowStatus: d.workflowStatus ?? null,
@@ -418,31 +427,6 @@ export class BuildRepository {
   }
 
   /**
-   * Get builds that failed to trigger (no queueLocation)
-   * These need triggerJob() on retry
-   */
-  async getFailedTriggerBuilds(taskId: string): Promise<Build[]> {
-    const builds = await this.findByTaskId(taskId);
-    return builds.filter(b => 
-      b.buildType === 'CI_CD' && 
-      b.queueLocation === null
-    );
-  }
-
-  /**
-   * Get builds that triggered but workflow failed (have ciRunId)
-   * These need reTriggerJob(ciRunId) on retry
-   */
-  async getFailedWorkflowBuilds(taskId: string): Promise<Build[]> {
-    const builds = await this.findByTaskId(taskId);
-    return builds.filter(b => 
-      b.buildType === 'CI_CD' && 
-      b.ciRunId !== null && 
-      b.workflowStatus === 'FAILED'
-    );
-  }
-
-  /**
    * Get aggregated status for a task's builds
    * Based on buildUploadStatus (primary) and workflowStatus (for CI_CD)
    */
@@ -481,6 +465,7 @@ export class BuildRepository {
    * Used by BuildArtifactService for CI/CD artifact uploads.
    */
   async findByCiRunId(ciRunId: string): Promise<Build | null> {
+    ciRunId = removeTrailingSlash(ciRunId);
     const build = await this.model.findOne({
       where: { ciRunId }
     });

@@ -99,13 +99,25 @@ export const normalizeJenkinsParamType = (rawClass: string, choices?: string[]):
 };
 
 export const extractDefaultsFromWorkflow = (parameters: WorkflowParameter[] | null | undefined): Record<string, unknown> => {
-  const isNotArray = !Array.isArray(parameters);
-  if (isNotArray) return {};
+  const isParametersNull = parameters === null;
+  const isParametersUndefined = parameters === undefined;
+  const isParametersNullOrUndefined = isParametersNull || isParametersUndefined;
+  if (isParametersNullOrUndefined) {
+    return {};
+  }
+
+  const isParametersArray = Array.isArray(parameters);
+  if (!isParametersArray) {
+    return {};
+  }
 
   const defaults: Record<string, unknown> = {};
 
   for (const param of parameters) {
-    const hasValidName = param && typeof param.name === 'string';
+    const isParamDefined = param !== null && param !== undefined;
+    const isNameString = typeof param?.name === 'string';
+    const hasValidName = isParamDefined && isNameString;
+    
     if (hasValidName) {
       defaults[param.name] = param.defaultValue;
     }
@@ -293,34 +305,67 @@ export const parseGitHubRunUrl = (url: string): { owner: string; repo: string; r
  * Map GitHub Actions run status to normalized status.
  * 
  * GitHub API returns:
- * - status: 'queued' | 'in_progress' | 'completed' | 'waiting' | 'requested'
+ * - status: 'queued' | 'in_progress' | 'completed' | 'waiting' | 'requested' | 'pending'
  * - conclusion: 'success' | 'failure' | 'cancelled' | 'timed_out' | 'action_required' | 'neutral' | 'skipped' | 'stale' | null
  * 
  * @param status - GitHub run status
  * @param conclusion - GitHub run conclusion (only set when status is 'completed')
- * @returns Normalized status: 'pending' | 'running' | 'completed' | 'failed'
+ * @returns Normalized status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
  */
 export const mapGitHubRunStatus = (
   status: string, 
   conclusion?: string | null
-): 'pending' | 'running' | 'completed' | 'failed' => {
-  const s = (status || '').toLowerCase();
+): 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' => {
+  const normalizedStatus = (status || '').toLowerCase();
   
-  // Queued states
-  const isQueued = s === 'queued' || s === 'waiting' || s === 'requested';
-  if (isQueued) return 'pending';
+  // Queued/pending states: queued, waiting, requested, pending
+  const isQueued = normalizedStatus === 'queued';
+  const isWaiting = normalizedStatus === 'waiting';
+  const isRequested = normalizedStatus === 'requested';
+  const isPending = normalizedStatus === 'pending';
+  const isQueuedState = isQueued || isWaiting || isRequested || isPending;
+  if (isQueuedState) return 'pending';
   
-  // Running state
-  const isRunning = s === 'in_progress';
+  // Running state: in_progress
+  const isRunning = normalizedStatus === 'in_progress';
   if (isRunning) return 'running';
   
-  // Completed - check conclusion for success/failure
-  const c = (conclusion || '').toLowerCase();
-  const isFailure = c === 'failure' || c === 'cancelled' || c === 'timed_out';
-  if (isFailure) return 'failed';
+  // Completed status - check conclusion
+  const isCompleted = normalizedStatus === 'completed';
+  if (!isCompleted) {
+    // Unknown status, default to pending
+    return 'pending';
+  }
   
-  // Success or neutral/skipped outcomes
-  return 'completed';
+  // Status is 'completed', check conclusion
+  const normalizedConclusion = (conclusion || '').toLowerCase();
+  
+  // Cancelled conclusion
+  const isCancelled = normalizedConclusion === 'cancelled';
+  if (isCancelled) return 'cancelled';
+  
+  // Action required means workflow is waiting for manual intervention
+  const isActionRequired = normalizedConclusion === 'action_required';
+  if (isActionRequired) return 'pending';
+  
+  // Failure conclusions: failure, timed_out
+  const isFailure = normalizedConclusion === 'failure';
+  const isTimedOut = normalizedConclusion === 'timed_out';
+  const isFailureConclusion = isFailure || isTimedOut;
+  if (isFailureConclusion) return 'failed';
+  
+  // Success conclusions: success, neutral, skipped, stale, or empty/null
+  // stale means the run is outdated but still completed
+  const isSuccess = normalizedConclusion === 'success';
+  const isNeutral = normalizedConclusion === 'neutral';
+  const isSkipped = normalizedConclusion === 'skipped';
+  const isStale = normalizedConclusion === 'stale';
+  const isEmpty = normalizedConclusion === '';
+  const isSuccessConclusion = isSuccess || isNeutral || isSkipped || isStale || isEmpty;
+  if (isSuccessConclusion) return 'completed';
+  
+  // Default fallback for any unknown conclusion (treat as completed)
+  return 'failed';
 };
 
 export const parseGitHubRepoUrl = (url: string): { owner: string; repo: string } | null => {

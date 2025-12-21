@@ -4,6 +4,7 @@ import { ProviderFactory } from '../providers/provider.factory';
 import type { GitHubActionsProviderContract, GHAWorkflowInputsParams, GHARunStatusParams, GHAWorkflowDispatchParams } from '../providers/github-actions/github-actions.interface';
 import { ERROR_MESSAGES, HEADERS, PROVIDER_DEFAULTS } from '../../../../controllers/integrations/ci-cd/constants';
 import { parseGitHubRunUrl, parseGitHubWorkflowUrl, mergeWorkflowInputs, fetchWithTimeout } from '../utils/cicd.utils';
+import { WorkflowStatus } from '~controllers/integrations/ci-cd/workflows/workflow-adapter.utils';
 
 export class GitHubActionsWorkflowService extends WorkflowService {
   /**
@@ -173,9 +174,9 @@ export class GitHubActionsWorkflowService extends WorkflowService {
   /**
    * Get normalized run status for a GitHub Actions workflow run.
    * 
-   * @returns 'pending' | 'running' | 'completed' | 'failed'
+   * @returns 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
    */
-  getRunStatus = async (tenantId: string, input: { runUrl?: string; owner?: string; repo?: string; runId?: string; }): Promise<'pending'|'running'|'completed'|'failed'> => {
+  getRunStatus = async (tenantId: string, input: { runUrl?: string; owner?: string; repo?: string; runId?: string; }): Promise<WorkflowStatus> => {
     let parsed = { owner: input.owner, repo: input.repo, runId: input.runId };
     if (input.runUrl) {
       const p = parseGitHubRunUrl(input.runUrl);

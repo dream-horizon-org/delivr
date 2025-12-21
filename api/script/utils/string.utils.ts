@@ -26,3 +26,10 @@ export const isNonEmptyString = (value: unknown): value is string => {
   return trimmed.length > 0;
 };
 
+export const removeTrailingSlash = (value: string): string => {
+  if(value.endsWith('/')) {
+    return value.slice(0, -1);
+  }
+  return value;
+};
+
