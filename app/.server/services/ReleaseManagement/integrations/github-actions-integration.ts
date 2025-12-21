@@ -13,7 +13,7 @@ import type {
   GitHubActionsVerifyResponse,
 } from '~/types/github-actions-integration';
 
-export class GitHubActionsIntegrationService extends IntegrationService {
+class GitHubActionsIntegrationService extends IntegrationService {
   constructor() {
     super();
   }
