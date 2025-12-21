@@ -300,6 +300,7 @@ export function ConfigurationWizard({
             onChange={(releaseSchedule) => setConfig({ ...config, releaseSchedule })}
             selectedPlatforms={config.platforms || []}
             showValidation={attemptedSteps.has(STEP_INDEX.SCHEDULING)}
+            communicationConfig={config.communicationConfig}
           />
         );
         
