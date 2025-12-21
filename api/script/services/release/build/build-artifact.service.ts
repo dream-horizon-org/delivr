@@ -55,12 +55,8 @@ export class BuildArtifactService {
     }
     this.s3Storage = storage;
     this.buildRepository = this.s3Storage.buildRepository;
-    this.testflightVerificationService = new TestFlightBuildVerificationService(
-      this.s3Storage.storeIntegrationController,
-      this.s3Storage.storeCredentialController,
-      this.s3Storage.releasePlatformTargetMappingRepository,
-      this.s3Storage.releaseRepository
-    );
+    // ✅ Use testFlightBuildVerificationService from storage (centralized initialization - replaces factory)
+    this.testflightVerificationService = this.s3Storage.testFlightBuildVerificationService;
   }
 
   /**

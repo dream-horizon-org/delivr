@@ -14,11 +14,10 @@ import { ReleaseManagementController } from "../../controllers/release/release-m
 import { verifyTestFlightBuild } from "../../controllers/release/testflight-verification.controller";
 import { BuildCallbackController } from "../../controllers/release/build-callback.controller";
 
-import { getCronJobService } from "../../services/release/cron-job/cron-job-service.factory";
-import { BuildCallbackService } from "../../services/release/build-callback.service";
-import { ManualUploadService } from "../../services/release/manual-upload.service";
-import { UploadValidationService } from "../../services/release/upload-validation.service";
-import { BuildArtifactService } from "../../services/release/build/build-artifact.service";
+// Note: CronJobService is now accessed from storage instance (migrated from factory)
+// Note: Services (BuildCallbackService, ManualUploadService, UploadValidationService, BuildArtifactService) 
+// are now accessed from storage instance (migrated from factory)
+import type { ManualUploadService } from "../../services/release/manual-upload.service";
 import { createBuildListArtifactsHandler } from "~controllers/release-management/builds/list-artifacts.controller";
 import { createBuildDownloadArtifactHandler } from "~controllers/release-management/builds/download-artifact.controller";
 import { createCiTestflightVerifyHandler } from "~controllers/release-management/builds/testflight-ci-verify.controller";
@@ -28,6 +27,10 @@ import {
   hasReleaseCreationService,
   hasManualUploadDependencies,
   hasBuildCallbackDependencies,
+  hasCronJobService,
+  hasUploadValidationService,
+  hasManualUploadService,
+  hasBuildCallbackService,
   StorageWithReleaseServices
 } from "../../types/release/storage-with-services.interface";
 
@@ -64,13 +67,16 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // TypeScript now knows storage has release services
   const storageWithServices: StorageWithReleaseServices = storage;
 
-  // Get CronJobService from factory
-  const cronJobService = getCronJobService(storage);
-  const cronJobServiceUnavailable = !cronJobService;
-  if (cronJobServiceUnavailable) {
+  // ✅ Get CronJobService from storage instance (migrated from factory)
+  // Use proper type guard instead of 'as any'
+  if (!hasCronJobService(storage)) {
     console.warn('[Release Orchestration Routes] CronJobService not available');
     return router;
   }
+  
+  // TypeScript now knows storage is StorageWithReleaseServices
+  const storageWithAllServices: StorageWithReleaseServices = storage;
+  const cronJobService = storageWithAllServices.cronJobService;
 
   // Inject ReleaseStatusService into CronJobService (for approval checks)
   if (storageWithServices.releaseStatusService) {
@@ -78,30 +84,11 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     console.log('[Release Management] ReleaseStatusService injected into CronJobService');
   }
 
-  // Create ManualUploadService (optional - may not be available in all environments)
-  let manualUploadService: ManualUploadService | undefined;
-  const canCreateManualUploadService = hasManualUploadDependencies(storage);
-  
-  if (canCreateManualUploadService) {
-    const validationService = new UploadValidationService(
-      storageWithServices.releaseRepository,
-      storageWithServices.cronJobRepository,
-      storageWithServices.releaseTaskRepository,
-      storageWithServices.regressionCycleRepository,
-      storageWithServices.platformMappingRepository
-    );
-    
-    // Create BuildArtifactService for S3 uploads
-    const buildArtifactService = new BuildArtifactService(storage);
-    
-    manualUploadService = new ManualUploadService(
-      storageWithServices.releaseUploadsRepository,
-      storageWithServices.releaseRepository,
-      storageWithServices.platformMappingRepository,
-      validationService,
-      buildArtifactService
-    );
+  // ✅ Get ManualUploadService from storage (centralized initialization - actively initialized in aws-storage.ts)
+  if (!hasManualUploadService(storage)) {
+    throw new Error('ManualUploadService not available on storage - initialization failed');
   }
+  const manualUploadService = storageWithServices.manualUploadService;
 
   // Create ReleaseManagementController with services
   const controller = new ReleaseManagementController(
@@ -111,25 +98,15 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     storageWithServices.releaseUpdateService,
     storageWithServices.releaseActivityLogService,
     cronJobService,
-    manualUploadService
+    manualUploadService  // ✅ Always provided - actively initialized
   );
 
-  // Create BuildCallbackController with service
-  let buildCallbackController: BuildCallbackController | undefined;
-  const canCreateBuildCallback = hasBuildCallbackDependencies(storage);
-  
-  if (canCreateBuildCallback) {
-    const buildCallbackService = new BuildCallbackService(
-      storageWithServices.buildRepository,
-      storageWithServices.releaseTaskRepository,
-      storageWithServices.releaseRepository,
-      storageWithServices.cronJobRepository,
-      storageWithServices.releaseRetrievalService,
-      storageWithServices.releaseNotificationService,
-      storageWithServices.buildArtifactService
-    );
-    buildCallbackController = new BuildCallbackController(buildCallbackService);
+  // ✅ Get BuildCallbackService from storage (centralized initialization - actively initialized in aws-storage.ts)
+  if (!hasBuildCallbackService(storage)) {
+    throw new Error('BuildCallbackService not available on storage - initialization failed');
   }
+  const buildCallbackService = storageWithServices.buildCallbackService;
+  const buildCallbackController = new BuildCallbackController(buildCallbackService);  // ✅ Always available - actively initialized
 
   // ============================================================================
   // HEALTH CHECK
@@ -350,24 +327,11 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
    * The build system updates buildUploadStatus in the builds table.
    * This handler READS that status and updates task/release accordingly.
    */
-  const buildCallbackControllerAvailable = buildCallbackController !== undefined;
-  if (buildCallbackControllerAvailable) {
-    router.post(
-      "/webhooks/build-callback",
-      buildCallbackController.handleBuildCallback
-    );
-  } else {
-    // Fallback if controller not available - return error
-    router.post(
-      "/webhooks/build-callback",
-      (_req: Request, res: Response): Response => {
-        return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-          success: false,
-          error: 'Build callback service not configured'
-        });
-      }
-    );
-  }
+  // ✅ Controller is always available - actively initialized in aws-storage.ts (no conditional check needed)
+  router.post(
+    "/webhooks/build-callback",
+    buildCallbackController.handleBuildCallback
+  );
 
   // ============================================================================
   // ARCHIVE RELEASE

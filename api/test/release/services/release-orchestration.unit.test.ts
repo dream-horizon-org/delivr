@@ -19,10 +19,8 @@ jest.mock('../../../script/models/release/cron-job.repository');
 jest.mock('../../../script/models/release/release.repository');
 jest.mock('../../../script/models/release/release-task.repository');
 jest.mock('../../../script/models/release/regression-cycle.repository');
+// ✅ Mock storage.taskExecutor instead of factory (migrated from factory pattern)
 // Note: cron-scheduler.ts removed - replaced by global-scheduler architecture
-jest.mock('../../../script/services/release/task-executor/task-executor-factory', () => ({
-  getTaskExecutor: jest.fn(),
-}));
 jest.mock('../../../script/storage/storage-instance', () => ({
   getStorage: jest.fn(),
 }));
@@ -73,7 +71,6 @@ import {
   RegressionCycleStatus,
   PauseType 
 } from '../../../script/models/release/release.interface';
-import { getTaskExecutor } from '../../../script/services/release/task-executor/task-executor-factory';
 import { getStorage } from '../../../script/storage/storage-instance';
 import { checkIntegrationAvailability } from '../../../script/utils/integration-availability.utils';
 import { isRegressionSlotTime } from '../../../script/utils/time-utils';
@@ -169,7 +166,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         
         const state = new KickoffState(stateMachine);
@@ -207,7 +206,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         
         const state = new KickoffState(stateMachine);
@@ -249,7 +250,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         
         const state = new KickoffState(stateMachine);
@@ -283,7 +286,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         
         const state = new KickoffState(stateMachine);
@@ -309,7 +314,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         
         const state = new KickoffState(stateMachine);
@@ -333,7 +340,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         
         const state = new KickoffState(stateMachine);
@@ -362,7 +371,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         
         const state = new KickoffState(stateMachine);
@@ -401,7 +412,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         
         const state = new KickoffState(stateMachine);
@@ -429,32 +442,19 @@ describe('Release Orchestration - Unit Tests', () => {
   // ================================================================================
 
   describe('RegressionState (Stage 2)', () => {
-    let mockDeps: {
-      mockCronJobDTO: ReturnType<typeof createMockCronJobDTO>;
-      mockReleaseDTO: ReturnType<typeof createMockReleaseDTO>;
-      mockReleaseTasksDTO: ReturnType<typeof createMockReleaseTasksDTO>;
-      mockRegressionCycleDTO: ReturnType<typeof createMockRegressionCycleDTO>;
-      mockStorage: ReturnType<typeof createMockStorage>;
-      mockTaskExecutor: ReturnType<typeof createMockTaskExecutor>;
-      mockPlatformMappingRepo: ReturnType<typeof createMockPlatformMappingRepo>;
-    };
+    let mockDeps: ReturnType<typeof createMockStateMachineDependencies>;
 
     beforeEach(() => {
       jest.clearAllMocks();
 
-      mockDeps = {
-        mockCronJobDTO: createMockCronJobDTO(),
-        mockReleaseDTO: createMockReleaseDTO(),
-        mockReleaseTasksDTO: createMockReleaseTasksDTO(),
-        mockRegressionCycleDTO: createMockRegressionCycleDTO(),
-        mockStorage: createMockStorage(),
-        mockTaskExecutor: createMockTaskExecutor(),
-        mockPlatformMappingRepo: createMockPlatformMappingRepo(),
-      };
+      mockDeps = createMockStateMachineDependencies();  // ✅ Use helper to ensure all required mocks are included
 
-      // Mock singletons (DTOs are now injected via constructor, not dynamically created)
-      (getTaskExecutor as jest.Mock).mockReturnValue(mockDeps.mockTaskExecutor);
-      (getStorage as jest.Mock).mockReturnValue(mockDeps.mockStorage);
+      // ✅ Mock storage.taskExecutor instead of factory (migrated from factory pattern)
+      const mockStorageWithTaskExecutor = {
+        ...mockDeps.mockStorage,
+        taskExecutor: mockDeps.mockTaskExecutor
+      };
+      (getStorage as jest.Mock).mockReturnValue(mockStorageWithTaskExecutor);
       (checkIntegrationAvailability as jest.Mock).mockResolvedValue({
         hasProjectManagementIntegration: true,
         hasTestPlatformIntegration: true,
@@ -471,7 +471,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         const regressionState = new RegressionState(stateMachine);
         
@@ -499,7 +501,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
 
@@ -536,7 +540,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
         await stateMachine.execute();
@@ -579,7 +585,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
         await stateMachine.execute();
@@ -617,7 +625,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
         await stateMachine.execute();
@@ -655,7 +665,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
         await stateMachine.execute();
@@ -693,7 +705,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
         await stateMachine.execute();
@@ -738,7 +752,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
         
@@ -778,7 +794,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
         
@@ -820,7 +838,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
         await stateMachine.execute();
@@ -871,7 +891,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
         await stateMachine.execute();
@@ -926,7 +948,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
         
@@ -945,32 +969,19 @@ describe('Release Orchestration - Unit Tests', () => {
   // ================================================================================
 
   describe('PreReleaseState (Stage 3)', () => {
-    let mockDeps: {
-      mockCronJobDTO: ReturnType<typeof createMockCronJobDTO>;
-      mockReleaseDTO: ReturnType<typeof createMockReleaseDTO>;
-      mockReleaseTasksDTO: ReturnType<typeof createMockReleaseTasksDTO>;
-      mockRegressionCycleDTO: ReturnType<typeof createMockRegressionCycleDTO>;
-      mockStorage: ReturnType<typeof createMockStorage>;
-      mockTaskExecutor: ReturnType<typeof createMockTaskExecutor>;
-      mockPlatformMappingRepo: ReturnType<typeof createMockPlatformMappingRepo>;
-    };
+    let mockDeps: ReturnType<typeof createMockStateMachineDependencies>;
 
     beforeEach(() => {
       jest.clearAllMocks();
 
-      mockDeps = {
-        mockCronJobDTO: createMockCronJobDTO(),
-        mockReleaseDTO: createMockReleaseDTO(),
-        mockReleaseTasksDTO: createMockReleaseTasksDTO(),
-        mockRegressionCycleDTO: createMockRegressionCycleDTO(),
-        mockStorage: createMockStorage(),
-        mockTaskExecutor: createMockTaskExecutor(),
-        mockPlatformMappingRepo: createMockPlatformMappingRepo(),
-      };
+      mockDeps = createMockStateMachineDependencies();  // ✅ Use helper to ensure all required mocks are included
 
-      // Mock singletons (DTOs are now injected via constructor, not dynamically created)
-      (getTaskExecutor as jest.Mock).mockReturnValue(mockDeps.mockTaskExecutor);
-      (getStorage as jest.Mock).mockReturnValue(mockDeps.mockStorage);
+      // ✅ Mock storage.taskExecutor instead of factory (migrated from factory pattern)
+      const mockStorageWithTaskExecutor = {
+        ...mockDeps.mockStorage,
+        taskExecutor: mockDeps.mockTaskExecutor
+      };
+      (getStorage as jest.Mock).mockReturnValue(mockStorageWithTaskExecutor);
       (checkIntegrationAvailability as jest.Mock).mockResolvedValue({
         hasProjectManagementIntegration: true,
         hasTestPlatformIntegration: true,
@@ -987,7 +998,9 @@ describe('Release Orchestration - Unit Tests', () => {
           {} as any, // mockRegressionCycleDTO (not needed for Stage 3)
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         const preReleaseState = new PreReleaseState(stateMachine);
         
@@ -1015,7 +1028,9 @@ describe('Release Orchestration - Unit Tests', () => {
           {} as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
 
@@ -1044,7 +1059,9 @@ describe('Release Orchestration - Unit Tests', () => {
           {} as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
         await stateMachine.execute();
@@ -1076,7 +1093,9 @@ describe('Release Orchestration - Unit Tests', () => {
           {} as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
         await stateMachine.execute();
@@ -1110,7 +1129,9 @@ describe('Release Orchestration - Unit Tests', () => {
           {} as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
         await stateMachine.execute();
@@ -1146,7 +1167,9 @@ describe('Release Orchestration - Unit Tests', () => {
           {} as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
         await stateMachine.execute();
@@ -1180,7 +1203,9 @@ describe('Release Orchestration - Unit Tests', () => {
           {} as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
         
@@ -1213,7 +1238,9 @@ describe('Release Orchestration - Unit Tests', () => {
           {} as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
         
@@ -1247,7 +1274,9 @@ describe('Release Orchestration - Unit Tests', () => {
           {} as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
         await stateMachine.execute();
@@ -1314,7 +1343,9 @@ describe('Release Orchestration - Unit Tests', () => {
           {} as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         await stateMachine.initialize();
         
@@ -1361,7 +1392,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         
         await stateMachine.initialize();
@@ -1391,7 +1424,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         
         await stateMachine.initialize();
@@ -1422,7 +1457,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
         
         await stateMachine.initialize();
@@ -1458,7 +1495,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
 
         const complete = await stateMachine.isWorkflowComplete();
@@ -1481,7 +1520,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
 
         const complete = await stateMachine.isWorkflowComplete();
@@ -1506,7 +1547,9 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockRegressionCycleDTO as any,
           mockDeps.mockTaskExecutor as any,
           mockDeps.mockStorage as any,
-          mockDeps.mockPlatformMappingRepo as any
+          mockDeps.mockPlatformMappingRepo as any,
+          mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+          mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
         );
 
         // Verify: States can access all dependencies (method names changed to *Repo)
@@ -1514,7 +1557,9 @@ describe('Release Orchestration - Unit Tests', () => {
         expect(stateMachine.getReleaseRepo()).toBe(mockDeps.mockReleaseDTO);
         expect(stateMachine.getReleaseTaskRepo()).toBe(mockDeps.mockReleaseTasksDTO);
         expect(stateMachine.getRegressionCycleRepo()).toBe(mockDeps.mockRegressionCycleDTO);
-        expect(stateMachine.getTaskExecutor()).toBe(mockDeps.mockTaskExecutor);
+        // ✅ TaskExecutor is now accessed from storage, not factory
+        const storage = stateMachine.getStorage();
+        expect((storage as any).taskExecutor).toBe(mockDeps.mockTaskExecutor);
         expect(stateMachine.getStorage()).toBe(mockDeps.mockStorage);
         expect(stateMachine.getReleaseId()).toBe(mockReleaseId);
         

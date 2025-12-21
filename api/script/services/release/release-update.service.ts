@@ -76,24 +76,19 @@ export class ReleaseUpdateService {
     private readonly platformMappingRepository: ReleasePlatformTargetMappingRepository,
     private readonly activityLogService: ReleaseActivityLogService,
     private readonly cronJobService: CronJobService,
-    private readonly taskRepository?: ReleaseTaskRepository,
-    private readonly buildRepository?: BuildRepository,
-    private readonly regressionCycleRepository?: RegressionCycleRepository,
-    private readonly releaseNotificationService?: ReleaseNotificationService
+    private readonly taskRepository: ReleaseTaskRepository,  // ✅ Required - actively initialized in aws-storage.ts
+    private readonly buildRepository: BuildRepository,  // ✅ Required - actively initialized in aws-storage.ts
+    private readonly regressionCycleRepository: RegressionCycleRepository,  // ✅ Required - actively initialized in aws-storage.ts
+    private readonly releaseNotificationService?: ReleaseNotificationService  // Can be undefined if notifications not configured
   ) {}
 
   // Repository getters for manual upload flow
+  // ✅ Repositories are required - actively initialized in aws-storage.ts, no null checks needed
   getBuildRepository(): BuildRepository {
-    if (!this.buildRepository) {
-      throw new Error('BuildRepository not initialized');
-    }
     return this.buildRepository;
   }
 
   getTaskRepository(): ReleaseTaskRepository {
-    if (!this.taskRepository) {
-      throw new Error('ReleaseTaskRepository not initialized');
-    }
     return this.taskRepository;
   }
 
@@ -570,25 +565,19 @@ export class ReleaseUpdateService {
 
     const slots = this.parseRegressionSlots(cronJob.upcomingRegressions);
     
-    // If we have regression cycle repository, enrich with actual cycle status
-    if (this.regressionCycleRepository) {
-      const cycles = await this.regressionCycleRepository.findByReleaseId(releaseId);
-      
-      return slots.map((slot, index) => {
-        // Match slot to cycle by index (cycles are created in order)
-        const cycle = cycles[index];
-        return {
-          id: `slot-${index}`,
-          date: new Date(slot.date).toISOString(),
-          status: cycle?.status as RegressionCycleStatus | undefined
-        };
-      });
-    }
-
-    return slots.map((slot, index) => ({
-      id: `slot-${index}`,
-      date: new Date(slot.date).toISOString()
-    }));
+    // ✅ regressionCycleRepository is required - actively initialized in aws-storage.ts, no null check needed
+    const cycles = await this.regressionCycleRepository.findByReleaseId(releaseId);
+    
+    // Enrich slots with actual cycle status
+    return slots.map((slot, index) => {
+      // Match slot to cycle by index (cycles are created in order)
+      const cycle = cycles[index];
+      return {
+        id: `slot-${index}`,
+        date: new Date(slot.date).toISOString(),
+        status: cycle?.status as RegressionCycleStatus | undefined
+      };
+    });
   }
 
   // ===========================================================================
@@ -609,11 +598,8 @@ export class ReleaseUpdateService {
    * @returns RetryTaskResult with success status
    */
   async retryTask(taskId: string, accountId: string): Promise<RetryTaskResult> {
-    // Validate repositories are available
-    if (!this.taskRepository) {
-      return { success: false, error: 'Task repository not configured' };
-    }
-
+    // ✅ taskRepository is required - actively initialized in aws-storage.ts, no null check needed
+    
     // Step 1: Find the task
     const task = await this.taskRepository.findById(taskId);
     if (!task) {

@@ -226,7 +226,8 @@ export const createMockStateMachineDependencies = () => ({
   mockTaskExecutor: createMockTaskExecutor() as any,
   mockStorage: createMockStorage(),
   mockPlatformMappingRepo: createMockPlatformMappingRepo() as any,
-  mockReleaseUploadsRepo: createMockReleaseUploadsRepo() as any
+  mockReleaseUploadsRepo: createMockReleaseUploadsRepo() as any,
+  mockBuildRepo: createMockBuildRepo() as any  // ✅ Required - actively initialized in aws-storage.ts
 });
 
 /**
