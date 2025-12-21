@@ -36,6 +36,7 @@ import { PLATFORM_CONFIGS } from '~/constants/release-config';
 import { PLATFORMS, TARGET_PLATFORMS } from '~/types/release-config-constants';
 import { useConfig } from '~/contexts/ConfigContext';
 import { INTEGRATION_IDS } from '~/constants/integration-ui';
+import { IntegrationCategory } from '~/types/integrations';
 
 // Map target platforms to their integration provider IDs
 const TARGET_TO_INTEGRATION_MAP: Record<TargetPlatform, string> = {
@@ -73,11 +74,6 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
       if (!platform) return [];
 
       return platform.targets.filter((target) => {
-        // WEB doesn't require integration
-        if (target.id === TARGET_PLATFORMS.WEB) {
-          return target.available;
-        }
-
         // Check if integration is connected for this target
         const integrationId = TARGET_TO_INTEGRATION_MAP[target.id as TargetPlatform];
         if (!integrationId) {
@@ -101,7 +97,6 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
 
     return platform.targets
       .filter((target) => {
-        if (target.id === TARGET_PLATFORMS.WEB) return false; // WEB doesn't need integration
         const integrationId = TARGET_TO_INTEGRATION_MAP[target.id as TargetPlatform];
         return integrationId && !isIntegrationConnected(integrationId);
       })
@@ -305,7 +300,7 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
                   </Text>
                   <Button
                     component={Link}
-                    to={`/dashboard/${params.org}/integrations?tab=APP_DISTRIBUTION`}
+                    to={`/dashboard/${params.org}/integrations?tab=${IntegrationCategory.APP_DISTRIBUTION}`}
                     variant="light"
                     size="xs"
                     leftSection={<IconExternalLink size={14} />}

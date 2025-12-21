@@ -9,6 +9,7 @@ import { IconUpload, IconRocket, IconCheck, IconAlertCircle, IconPlug } from '@t
 import { Link, useParams } from '@remix-run/react';
 import type { BuildUploadSelectorProps } from '~/types/release-config-props';
 import { BUILD_UPLOAD_STEPS } from '~/types/release-config-constants';
+import { IntegrationCategory } from '~/types/integrations';
 
 export function BuildUploadSelector({
   hasManualBuildUpload,
@@ -154,7 +155,7 @@ export function BuildUploadSelector({
                         </Group>
                         <Anchor
                           component={Link}
-                          to={`/dashboard/${tenantId}/integrations?tab=CI_CD`}
+                          to={`/dashboard/${tenantId}/integrations?tab=${IntegrationCategory.CI_CD}`}
                           size="sm"
                           c={theme.colors.red[8]}
                           fw={600}

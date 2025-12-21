@@ -28,6 +28,7 @@ import { Link, useParams } from '@remix-run/react';
 import type { JiraProjectConfig, Platform, JiraPlatformConfig } from '~/types/release-config';
 import type { JiraProjectStepProps } from '~/types/release-config-props';
 import { PLATFORMS } from '~/types/release-config-constants';
+import { IntegrationCategory } from '~/types/integrations';
 import { DEFAULT_PROJECT_MANAGEMENT_CONFIG } from '~/constants/release-config';
 import { JiraPlatformConfigCard } from './JiraPlatformConfigCard';
 import { createDefaultPlatformConfigs } from '~/utils/jira-config-transformer';
@@ -273,7 +274,7 @@ export function JiraProjectStep({
                           </Text>
                           <Text
                             component={Link}
-                            to={`/dashboard/${orgId}/integrations?tab=PROJECT_MANAGEMENT`}
+                            to={`/dashboard/${orgId}/integrations?tab=${IntegrationCategory.PROJECT_MANAGEMENT}`}
                             size="xs"
                             c={theme.colors.red[8]}
                             fw={600}

@@ -25,6 +25,7 @@ import { Link, useParams } from '@remix-run/react';
 import type { TestManagementConfig, CheckmateSettings } from '~/types/release-config';
 import type { TestManagementSelectorProps } from '~/types/release-config-props';
 import { CheckmateConfigFormEnhanced } from './CheckmateConfigFormEnhanced';
+import { IntegrationCategory } from '~/types/integrations';
 
 export function TestManagementSelector({
   config,
@@ -204,7 +205,7 @@ export function TestManagementSelector({
                     </Text>
                     <Anchor
                       component={Link}
-                      to={`/dashboard/${tenantId}/integrations?tab=TEST_MANAGEMENT`}
+                      to={`/dashboard/${tenantId}/integrations?tab=${IntegrationCategory.TEST_MANAGEMENT}`}
                       size="xs"
                       c={theme.colors.yellow[8]}
                       fw={600}

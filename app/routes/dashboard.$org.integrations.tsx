@@ -131,21 +131,37 @@ export default function IntegrationsPage() {
   }, [allIntegrations]);
 
   // Get active tab from URL, default to SOURCE_CONTROL
-  const activeTabFromUrl = searchParams.get('tab') || IntegrationCategory.SOURCE_CONTROL;
+  const activeTabFromUrl = searchParams.get('tab');
   
-  // Validate that the tab exists in available categories
+  // Validate that the tab exists in available categories and convert to enum
   const validTab = useMemo(() => {
     const availableCategories = Object.keys(integrationsByCategory) as IntegrationCategory[];
-    if (availableCategories.includes(activeTabFromUrl as IntegrationCategory)) {
-      return activeTabFromUrl as IntegrationCategory;
+    
+    // Check if URL param matches any enum value
+    if (activeTabFromUrl) {
+      const enumValue = Object.values(IntegrationCategory).find(
+        (cat) => cat === activeTabFromUrl
+      ) as IntegrationCategory | undefined;
+      
+      if (enumValue && availableCategories.includes(enumValue)) {
+        return enumValue;
+      }
     }
+    
     return IntegrationCategory.SOURCE_CONTROL;
   }, [activeTabFromUrl, integrationsByCategory]);
 
-  // Handle tab change - update URL
+  // Handle tab change - update URL with enum value
   const handleTabChange = useCallback((value: string | null) => {
     if (value) {
-      setSearchParams({ tab: value });
+      // Validate that value is a valid IntegrationCategory enum
+      const enumValue = Object.values(IntegrationCategory).find(
+        (cat) => cat === value
+      ) as IntegrationCategory | undefined;
+      
+      if (enumValue) {
+        setSearchParams({ tab: enumValue });
+      }
     }
   }, [setSearchParams]);
 
@@ -301,7 +317,7 @@ export default function IntegrationsPage() {
       {/* Tabs Navigation */}
       <Tabs 
         value={validTab}
-        onTabChange={handleTabChange}
+        onChange={handleTabChange}
         variant="default"
         color="brand"
         classNames={{
