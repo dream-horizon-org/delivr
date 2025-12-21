@@ -1,9 +1,10 @@
 /**
  * Platform Selector Component
  * Two-level selection: First select platforms (Android/iOS), then select distribution targets
+ * Filters targets based on connected integrations
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Stack,
   Text,
@@ -16,6 +17,8 @@ import {
   ThemeIcon,
   UnstyledButton,
   useMantineTheme,
+  Alert,
+  Button,
 } from '@mantine/core';
 import {
   IconChevronDown,
@@ -23,14 +26,28 @@ import {
   IconBrandAndroid,
   IconBrandApple,
   IconTarget,
+  IconPlug,
+  IconExternalLink,
 } from '@tabler/icons-react';
+import { Link, useParams } from '@remix-run/react';
 import type { TargetPlatform } from '~/types/release-config';
 import type { PlatformSelectorProps } from '~/types/release-config-props';
 import { PLATFORM_CONFIGS } from '~/constants/release-config';
 import { PLATFORMS, TARGET_PLATFORMS } from '~/types/release-config-constants';
+import { useConfig } from '~/contexts/ConfigContext';
+import { INTEGRATION_IDS } from '~/constants/integration-ui';
+
+// Map target platforms to their integration provider IDs
+const TARGET_TO_INTEGRATION_MAP: Record<TargetPlatform, string> = {
+  [TARGET_PLATFORMS.PLAY_STORE]: INTEGRATION_IDS.PLAY_STORE,
+  [TARGET_PLATFORMS.APP_STORE]: INTEGRATION_IDS.APP_STORE,
+  [TARGET_PLATFORMS.WEB]: '', // WEB doesn't require integration
+};
 
 export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelectorProps) {
   const theme = useMantineTheme();
+  const { isIntegrationConnected } = useConfig();
+  const params = useParams<{ org: string }>();
   
   // Track which platforms are expanded
   const [expandedPlatforms, setExpandedPlatforms] = useState<Set<string>>(
@@ -49,28 +66,78 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
     [PLATFORMS.IOS]: 'blue',
   };
 
+  // Filter targets based on connected integrations
+  const getAvailableTargetsForPlatform = useMemo(() => {
+    return (platformId: typeof PLATFORMS.ANDROID | typeof PLATFORMS.IOS) => {
+      const platform = PLATFORM_CONFIGS.find((p) => p.id === platformId);
+      if (!platform) return [];
+
+      return platform.targets.filter((target) => {
+        // WEB doesn't require integration
+        if (target.id === TARGET_PLATFORMS.WEB) {
+          return target.available;
+        }
+
+        // Check if integration is connected for this target
+        const integrationId = TARGET_TO_INTEGRATION_MAP[target.id as TargetPlatform];
+        if (!integrationId) {
+          return target.available; // If no mapping, use default availability
+        }
+
+        return target.available && isIntegrationConnected(integrationId);
+      });
+    };
+  }, [isIntegrationConnected]);
+
+  // Check if platform has any available targets
+  const hasAvailableTargets = (platformId: typeof PLATFORMS.ANDROID | typeof PLATFORMS.IOS) => {
+    return getAvailableTargetsForPlatform(platformId).length > 0;
+  };
+
+  // Get missing integrations for a platform
+  const getMissingIntegrations = (platformId: typeof PLATFORMS.ANDROID | typeof PLATFORMS.IOS) => {
+    const platform = PLATFORM_CONFIGS.find((p) => p.id === platformId);
+    if (!platform) return [];
+
+    return platform.targets
+      .filter((target) => {
+        if (target.id === TARGET_PLATFORMS.WEB) return false; // WEB doesn't need integration
+        const integrationId = TARGET_TO_INTEGRATION_MAP[target.id as TargetPlatform];
+        return integrationId && !isIntegrationConnected(integrationId);
+      })
+      .map((target) => {
+        const integrationId = TARGET_TO_INTEGRATION_MAP[target.id as TargetPlatform];
+        return {
+          target: target.name,
+          integrationId,
+        };
+      });
+  };
+
   // Determine which platforms are selected based on their targets
   const isPlatformSelected = (platformId: typeof PLATFORMS.ANDROID | typeof PLATFORMS.IOS) => {
     const platform = PLATFORM_CONFIGS.find((p) => p.id === platformId);
     if (!platform) return false;
-    return platform.targets.some((target) => selectedPlatforms.includes(target.id));
+    const availableTargets = getAvailableTargetsForPlatform(platformId);
+    return availableTargets.some((target) => selectedPlatforms.includes(target.id));
   };
 
   const handlePlatformToggle = (platformId: typeof PLATFORMS.ANDROID | typeof PLATFORMS.IOS) => {
     const platform = PLATFORM_CONFIGS.find((p) => p.id === platformId);
     if (!platform) return;
 
-    const availableTargets = platform.targets.filter((t) => t.available).map((t) => t.id);
+    const availableTargets = getAvailableTargetsForPlatform(platformId);
+    const availableTargetIds = availableTargets.map((t) => t.id);
     const isCurrentlySelected = isPlatformSelected(platformId);
 
     if (isCurrentlySelected) {
       onChange(
-        selectedPlatforms.filter((p) => !(availableTargets as readonly TargetPlatform[]).includes(p))
+        selectedPlatforms.filter((p) => !(availableTargetIds as readonly TargetPlatform[]).includes(p))
       );
     } else {
       const newTargets = [
         ...selectedPlatforms,
-        ...availableTargets.filter((t) => !selectedPlatforms.includes(t)),
+        ...availableTargetIds.filter((t) => !selectedPlatforms.includes(t)),
       ];
       onChange(newTargets);
     }
@@ -102,6 +169,9 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
         const isSelected = isPlatformSelected(platform.id);
         const PlatformIcon = platformIcons[platform.id] || IconTarget;
         const platformColor = platformColors[platform.id] || 'brand';
+        const availableTargets = getAvailableTargetsForPlatform(platform.id);
+        const platformDisabled = !hasAvailableTargets(platform.id);
+        const missingIntegrations = getMissingIntegrations(platform.id);
 
         return (
           <Paper
@@ -110,15 +180,25 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
             radius="md"
             withBorder
             style={{
-              borderColor: isSelected ? theme.colors[platformColor][4] : theme.colors.slate[2],
-              backgroundColor: isSelected ? theme.colors[platformColor][0] : '#ffffff',
+              borderColor: isSelected 
+                ? theme.colors[platformColor][4] 
+                : platformDisabled 
+                  ? theme.colors.red[2] 
+                  : theme.colors.slate[2],
+              backgroundColor: isSelected 
+                ? theme.colors[platformColor][0] 
+                : platformDisabled 
+                  ? theme.colors.red[0] 
+                  : '#ffffff',
               transition: 'all 150ms ease',
+              opacity: platformDisabled ? 0.7 : 1,
             }}
           >
             {/* Platform Header */}
             <UnstyledButton
-              onClick={() => platform.available && toggleExpanded(platform.id)}
+              onClick={() => !platformDisabled && platform.available && toggleExpanded(platform.id)}
               w="100%"
+              disabled={platformDisabled}
             >
               <Group justify="space-between">
                 <Group gap="md">
@@ -140,9 +220,9 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
                   {/* Platform Checkbox */}
                   <Checkbox
                     checked={isSelected}
-                    onChange={() => handlePlatformToggle(platform.id)}
+                    onChange={() => !platformDisabled && handlePlatformToggle(platform.id)}
                     onClick={(e) => e.stopPropagation()}
-                    disabled={!platform.available}
+                    disabled={!platform.available || platformDisabled}
                     color={platformColor}
                     size="md"
                   />
@@ -161,9 +241,45 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
                   <Text fw={600} size="md" c={theme.colors.slate[8]}>
                     {platform.name}
                   </Text>
+
+                  {/* Disabled Badge */}
+                  {platformDisabled && (
+                    <Badge color="red" variant="light" size="sm">
+                      Integration Required
+                    </Badge>
+                  )}
                 </Group>
               </Group>
             </UnstyledButton>
+
+            {/* Missing Integration Message */}
+            {platformDisabled && missingIntegrations.length > 0 && (
+              <Alert
+                icon={<IconPlug size={16} />}
+                color="orange"
+                variant="light"
+                mt="md"
+                title="Integration Required"
+              >
+                <Stack gap="xs">
+                  <Text size="sm">
+                    {missingIntegrations.length === 1
+                      ? `Connect ${missingIntegrations[0].target} integration to enable this platform.`
+                      : `Connect ${missingIntegrations.map((m) => m.target).join(' or ')} integration(s) to enable this platform.`}
+                  </Text>
+                  <Button
+                    component={Link}
+                    to={`/dashboard/${params.org}/integrations`}
+                    variant="light"
+                    size="xs"
+                    leftSection={<IconExternalLink size={14} />}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Go to Integrations
+                  </Button>
+                </Stack>
+              </Alert>
+            )}
 
             {/* Distribution Targets */}
             <Collapse in={isExpanded}>
@@ -176,7 +292,7 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
                 }}
               >
                 <Stack gap="xs">
-                  {platform.targets.map((target) => {
+                  {availableTargets.map((target) => {
                     const isTargetSelected = selectedPlatforms.includes(target.id);
 
                     return (
