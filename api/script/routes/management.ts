@@ -657,6 +657,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
             id: i.id,
             providerId: i.scmType.toLowerCase(),
             name: i.displayName,
+            displayName: i.displayName,
             status: i.isActive ? 'CONNECTED' : 'DISCONNECTED',
             config: {
               owner: i.owner,
@@ -687,6 +688,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
             id: i.id,
             providerId: i.providerType.toLowerCase(),
             name: i.displayName,
+            displayName: i.displayName,
             status: i.verificationStatus === 'VALID' ? 'CONNECTED' : 'DISCONNECTED',
             config: {
               hostUrl: i.hostUrl,
@@ -735,6 +737,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
             id: i.id,
             providerId: i.storeType.toLowerCase(), // e.g., 'play_store', 'app_store'
             name: i.displayName,
+            displayName: i.displayName,
             status: i.status === 'VERIFIED' ? 'CONNECTED' : 'DISCONNECTED',
             config: {
               storeType: i.storeType,
