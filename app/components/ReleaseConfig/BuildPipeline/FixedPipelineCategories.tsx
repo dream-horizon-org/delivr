@@ -33,6 +33,7 @@ export function FixedPipelineCategories({
   availableIntegrations,
   selectedPlatforms,
   tenantId,
+  showValidation = false,
 }: FixedPipelineCategoriesProps) {
   const [editModalOpened, setEditModalOpened] = useState(false);
   const [editingCategory, setEditingCategory] = useState<PipelineCategoryConfig | null>(null);
@@ -193,7 +194,7 @@ export function FixedPipelineCategories({
           </Badge>
         </Group>
 
-        {missingRequired.length > 0 && (
+        {showValidation && missingRequired.length > 0 && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
             <Group gap="sm">
               <IconAlertCircle size={18} className="text-red-600" />
@@ -243,8 +244,12 @@ export function FixedPipelineCategories({
                       </Badge>
                     )}
                     {isConfigured && (
-                      <Badge color={BADGE_COLORS.SUCCESS} size="sm" variant="light">
-                        <IconCheck size={12} className="mr-1" />
+                      <Badge 
+                        color={BADGE_COLORS.SUCCESS} 
+                        size="sm" 
+                        variant="light"
+                        leftSection={<IconCheck size={12} />}
+                      >
                         {STATUS_LABELS.CONFIGURED}
                       </Badge>
                     )}

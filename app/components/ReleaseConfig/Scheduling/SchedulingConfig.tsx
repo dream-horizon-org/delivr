@@ -175,11 +175,13 @@ export function SchedulingConfig({ config, onChange, selectedPlatforms, showVali
                   <TextInput
                     key={platform}
                     label={
-                      <Group gap="xs">
+                      <Group gap="xs" wrap="nowrap" style={{ display: 'inline-flex' }}>
                         <Badge color={metadata.color} size="sm" variant="filled">
                           {metadata.label}
                         </Badge>
-                        <Text size="sm">{SCHEDULING_LABELS.INITIAL_VERSION_LABEL}</Text>
+                        <Text size="sm" component="span" style={{ whiteSpace: 'nowrap' }}>
+                          {SCHEDULING_LABELS.INITIAL_VERSION_LABEL}
+                        </Text>
                       </Group>
                     }
                     placeholder={SCHEDULING_LABELS.INITIAL_VERSION_PLACEHOLDER}

@@ -39,6 +39,7 @@ import { RELEASE_TABS } from '~/constants/release-tabs';
 import { useReleases } from '~/hooks/useReleases';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
+import { determineReleasePhase } from '~/utils/release-process-utils';
 
 /**
  * Server-side loader to fetch initial releases
@@ -160,8 +161,9 @@ export default function ReleasesListPage() {
 
         // Filter by stage
         if (stage !== STAGE_FILTERS.ALL) {
+          console.log('backend release:', release);
           const allowedPhases = STAGE_FILTER_TO_PHASES[stage];
-          const releasePhase = release.releasePhase;
+          const releasePhase = release.releasePhase || determineReleasePhase(release);
           
           if (!releasePhase) {
             return false; // No phase means not started, exclude unless ALL
