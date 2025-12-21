@@ -273,7 +273,7 @@ export function JiraProjectStep({
                           </Text>
                           <Text
                             component={Link}
-                            to={`/dashboard/${orgId}/integrations`}
+                            to={`/dashboard/${orgId}/integrations?tab=PROJECT_MANAGEMENT`}
                             size="xs"
                             c={theme.colors.red[8]}
                             fw={600}

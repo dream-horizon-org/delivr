@@ -75,7 +75,7 @@ export function CommunicationConfig({
               </Text>
               <Anchor
                 component={Link}
-                to={`/dashboard/${orgId}/integrations`}
+                to={`/dashboard/${orgId}/integrations?tab=COMMUNICATION`}
                 size="sm"
                 c={theme.colors.red[8]}
                 fw={600}

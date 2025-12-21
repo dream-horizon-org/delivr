@@ -154,7 +154,7 @@ export function BuildUploadSelector({
                         </Group>
                         <Anchor
                           component={Link}
-                          to={`/dashboard/${tenantId}/integrations`}
+                          to={`/dashboard/${tenantId}/integrations?tab=CI_CD`}
                           size="sm"
                           c={theme.colors.red[8]}
                           fw={600}

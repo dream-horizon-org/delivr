@@ -106,6 +106,23 @@ export function ConfigurationWizard({
       updateMetadata({ wizardStep: currentStep });
     }
   }, [currentStep, isEditMode, updateMetadata]);
+
+  // Auto-save draft when config changes (especially targets/platforms)
+  // This ensures draft stays in sync with UI state when integrations change
+  useEffect(() => {
+    // Only auto-save if:
+    // 1. Not in edit mode
+    // 2. Draft has been restored (to avoid saving before restoration)
+    // 3. Config has a name (indicates user has started filling the form)
+    if (!isEditMode && hasRestoredDraft.current && config.name) {
+      // Debounce to avoid too many saves
+      const timeoutId = setTimeout(() => {
+        saveDraft();
+      }, 500); // 500ms debounce
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [config.targets, config.platforms, isEditMode, saveDraft, config.name]);
   
   const handleNext = () => {
     // Mark this step as attempted

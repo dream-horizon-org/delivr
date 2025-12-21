@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { useParams, useRouteLoaderData } from '@remix-run/react';
+import { useParams, useRouteLoaderData, useSearchParams } from '@remix-run/react';
 import { useQueryClient } from 'react-query';
 import { 
   Box, 
@@ -63,6 +63,7 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
 export default function IntegrationsPage() {
   const theme = useMantineTheme();
   const params = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { 
     isLoadingMetadata,
@@ -128,6 +129,25 @@ export default function IntegrationsPage() {
       return acc;
     }, {} as Record<IntegrationCategory, Integration[]>);
   }, [allIntegrations]);
+
+  // Get active tab from URL, default to SOURCE_CONTROL
+  const activeTabFromUrl = searchParams.get('tab') || IntegrationCategory.SOURCE_CONTROL;
+  
+  // Validate that the tab exists in available categories
+  const validTab = useMemo(() => {
+    const availableCategories = Object.keys(integrationsByCategory) as IntegrationCategory[];
+    if (availableCategories.includes(activeTabFromUrl as IntegrationCategory)) {
+      return activeTabFromUrl as IntegrationCategory;
+    }
+    return IntegrationCategory.SOURCE_CONTROL;
+  }, [activeTabFromUrl, integrationsByCategory]);
+
+  // Handle tab change - update URL
+  const handleTabChange = useCallback((value: string | null) => {
+    if (value) {
+      setSearchParams({ tab: value });
+    }
+  }, [setSearchParams]);
 
   // Count connected integrations
   const connectedCount = useMemo(() => {
@@ -280,7 +300,8 @@ export default function IntegrationsPage() {
 
       {/* Tabs Navigation */}
       <Tabs 
-        defaultValue={IntegrationCategory.SOURCE_CONTROL}
+        value={validTab}
+        onTabChange={handleTabChange}
         variant="default"
         color="brand"
         classNames={{

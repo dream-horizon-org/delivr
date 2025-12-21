@@ -4,7 +4,7 @@
  * Filters targets based on connected integrations
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Stack,
   Text,
@@ -113,6 +113,42 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
         };
       });
   };
+
+  // Get all available target IDs across all platforms
+  const allAvailableTargetIds = useMemo(() => {
+    const available: TargetPlatform[] = [];
+    PLATFORM_CONFIGS.forEach((platform) => {
+      const platformTargets = getAvailableTargetsForPlatform(platform.id);
+      platformTargets.forEach((target) => {
+        if (!available.includes(target.id as TargetPlatform)) {
+          available.push(target.id as TargetPlatform);
+        }
+      });
+    });
+    return available;
+  }, [getAvailableTargetsForPlatform]);
+
+  // Filter out invalid targets when integrations change
+  useEffect(() => {
+    // Filter to only include targets that are currently available
+    const validTargets = selectedPlatforms.filter((target) =>
+      allAvailableTargetIds.includes(target)
+    );
+
+    // Only call onChange if there are invalid targets to remove
+    // Compare arrays to avoid unnecessary updates
+    if (validTargets.length !== selectedPlatforms.length) {
+      onChange(validTargets);
+    } else {
+      // Check if any target is invalid (same length but different content)
+      const hasInvalidTarget = selectedPlatforms.some(
+        (target) => !allAvailableTargetIds.includes(target)
+      );
+      if (hasInvalidTarget) {
+        onChange(validTargets);
+      }
+    }
+  }, [allAvailableTargetIds, selectedPlatforms, onChange]);
 
   // Determine which platforms are selected based on their targets
   const isPlatformSelected = (platformId: typeof PLATFORMS.ANDROID | typeof PLATFORMS.IOS) => {
@@ -269,7 +305,7 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
                   </Text>
                   <Button
                     component={Link}
-                    to={`/dashboard/${params.org}/integrations`}
+                    to={`/dashboard/${params.org}/integrations?tab=APP_DISTRIBUTION`}
                     variant="light"
                     size="xs"
                     leftSection={<IconExternalLink size={14} />}

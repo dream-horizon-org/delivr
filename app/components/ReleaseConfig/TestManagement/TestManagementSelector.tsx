@@ -204,7 +204,7 @@ export function TestManagementSelector({
                     </Text>
                     <Anchor
                       component={Link}
-                      to={`/dashboard/${tenantId}/integrations`}
+                      to={`/dashboard/${tenantId}/integrations?tab=TEST_MANAGEMENT`}
                       size="xs"
                       c={theme.colors.yellow[8]}
                       fw={600}
