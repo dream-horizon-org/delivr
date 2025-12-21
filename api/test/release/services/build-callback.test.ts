@@ -475,9 +475,12 @@ describe('Build Callback & Retry Tests (TDD)', () => {
         mocks.releaseRepo as any,
         mocks.cronJobRepo as any,
         mocks.platformMappingRepo as any,
+        {} as any, // activityLogService - ✅ Required - actively initialized in aws-storage.ts
         mocks.cronJobService as any,
-        mocks.taskRepo as any,
-        mocks.buildRepo as any
+        mocks.taskRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+        mocks.buildRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+        {} as any,  // regressionCycleRepository - ✅ Required - actively initialized in aws-storage.ts
+        undefined  // releaseNotificationService - optional
       );
       
       const result = await service.retryTask('task-123', 'user-1');
@@ -495,9 +498,12 @@ describe('Build Callback & Retry Tests (TDD)', () => {
         mocks.releaseRepo as any,
         mocks.cronJobRepo as any,
         mocks.platformMappingRepo as any,
+        {} as any, // activityLogService - ✅ Required - actively initialized in aws-storage.ts
         mocks.cronJobService as any,
-        mocks.taskRepo as any,
-        mocks.buildRepo as any
+        mocks.taskRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+        mocks.buildRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+        {} as any,  // regressionCycleRepository - ✅ Required - actively initialized in aws-storage.ts
+        undefined  // releaseNotificationService - optional
       );
       
       const result = await service.retryTask('task-123', 'user-1');
@@ -519,9 +525,12 @@ describe('Build Callback & Retry Tests (TDD)', () => {
         mocks.releaseRepo as any,
         mocks.cronJobRepo as any,
         mocks.platformMappingRepo as any,
+        {} as any, // activityLogService - ✅ Required - actively initialized in aws-storage.ts
         mocks.cronJobService as any,
-        mocks.taskRepo as any,
-        mocks.buildRepo as any
+        mocks.taskRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+        mocks.buildRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+        {} as any,  // regressionCycleRepository - ✅ Required - actively initialized in aws-storage.ts
+        undefined  // releaseNotificationService - optional
       );
       
       const result = await service.retryTask('task-123', 'user-1');
@@ -545,9 +554,12 @@ describe('Build Callback & Retry Tests (TDD)', () => {
         mocks.releaseRepo as any,
         mocks.cronJobRepo as any,
         mocks.platformMappingRepo as any,
+        {} as any, // activityLogService - ✅ Required - actively initialized in aws-storage.ts
         mocks.cronJobService as any,
-        mocks.taskRepo as any,
-        mocks.buildRepo as any
+        mocks.taskRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+        mocks.buildRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+        {} as any,  // regressionCycleRepository - ✅ Required - actively initialized in aws-storage.ts
+        undefined  // releaseNotificationService - optional
       );
       
       const result = await service.retryTask('task-123', 'user-1');
@@ -570,9 +582,12 @@ describe('Build Callback & Retry Tests (TDD)', () => {
         mocks.releaseRepo as any,
         mocks.cronJobRepo as any,
         mocks.platformMappingRepo as any,
+        {} as any, // activityLogService - ✅ Required - actively initialized in aws-storage.ts
         mocks.cronJobService as any,
-        mocks.taskRepo as any,
-        mocks.buildRepo as any
+        mocks.taskRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+        mocks.buildRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+        {} as any,  // regressionCycleRepository - ✅ Required - actively initialized in aws-storage.ts
+        undefined  // releaseNotificationService - optional
       );
       
       const result = await service.retryTask('task-123', 'user-1');
@@ -592,9 +607,12 @@ describe('Build Callback & Retry Tests (TDD)', () => {
         mocks.releaseRepo as any,
         mocks.cronJobRepo as any,
         mocks.platformMappingRepo as any,
+        {} as any, // activityLogService - ✅ Required - actively initialized in aws-storage.ts
         mocks.cronJobService as any,
-        mocks.taskRepo as any,
-        mocks.buildRepo as any
+        mocks.taskRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+        mocks.buildRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+        {} as any,  // regressionCycleRepository - ✅ Required - actively initialized in aws-storage.ts
+        undefined  // releaseNotificationService - optional
       );
       
       const result = await service.retryTask('task-123', 'user-1');

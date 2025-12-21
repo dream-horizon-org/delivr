@@ -13,8 +13,8 @@ import { ReleaseRepository } from '../../../models/release/release.repository';
 import type { Release, ReleaseTask } from '../../../models/release/release.interface';
 import { TaskType, TaskStatus, ReleaseStatus, TaskStage, PauseType } from '../../../models/release/release.interface';
 import { CronJobRepository } from '../../../models/release/cron-job.repository';
-import { getStorage } from '../../../storage/storage-instance';
-import { hasSequelize } from '../../../types/release/api-types';
+import { RegressionCycleRepository } from '../../../models/release/regression-cycle.repository';
+// Note: Removed getStorage() and hasSequelize imports - Sequelize is now passed directly to constructor (avoids circular dependency)
 
 // Phase 6: Real integration services (DI)
 import { SCMService } from '../../integrations/scm/scm.service';
@@ -118,9 +118,10 @@ export class TaskExecutor {
   private releaseTaskRepo: ReleaseTaskRepository;
   private releaseRepo: ReleaseRepository;
   private sequelize: Sequelize;
-  private releaseUploadsRepo: ReleaseUploadsRepository | null;
+  private releaseUploadsRepo: ReleaseUploadsRepository;
   private cicdConfigService: CICDConfigService;
-  private cronJobRepo: CronJobRepository | null;
+  private cronJobRepo: CronJobRepository;
+  private regressionCycleRepo: RegressionCycleRepository;
 
   constructor(
     private scmService: SCMService,
@@ -133,22 +134,22 @@ export class TaskExecutor {
     private releaseConfigRepository: ReleaseConfigRepository,
     releaseTaskRepo: ReleaseTaskRepository,
     releaseRepo: ReleaseRepository,
-    releaseUploadsRepo?: ReleaseUploadsRepository | null,
-    cronJobRepo?: CronJobRepository | null,
-    private releaseNotificationService?: ReleaseNotificationService
+    releaseUploadsRepo: ReleaseUploadsRepository,  // ✅ Required - actively initialized in aws-storage.ts
+    cronJobRepo: CronJobRepository,  // ✅ Required - actively initialized in aws-storage.ts
+    private releaseNotificationService: ReleaseNotificationService | undefined,
+    sequelize: Sequelize,  // ✅ Pass Sequelize directly instead of calling getStorage() (avoids circular dependency)
+    regressionCycleRepo: RegressionCycleRepository  // ✅ Required - actively initialized in aws-storage.ts
   ) {
     this.releaseTaskRepo = releaseTaskRepo;
     this.releaseRepo = releaseRepo;
-    this.releaseUploadsRepo = releaseUploadsRepo ?? null;
+    this.releaseUploadsRepo = releaseUploadsRepo;  // ✅ Active initialization - no lazy initialization
     this.cicdConfigService = cicdConfigService;
-    this.cronJobRepo = cronJobRepo ?? null;
+    this.cronJobRepo = cronJobRepo;  // ✅ Active initialization - no lazy initialization
+    this.regressionCycleRepo = regressionCycleRepo;  // ✅ Active initialization - no lazy initialization
     
-    // Initialize Sequelize instance (validate once at construction)
-    const storage = getStorage();
-    if (!hasSequelize(storage)) {
-      throw new Error(RELEASE_ERROR_MESSAGES.STORAGE_NO_SEQUELIZE);
-    }
-    this.sequelize = storage.sequelize;
+    // ✅ Use passed Sequelize instance instead of calling getStorage() (avoids circular dependency)
+    // This allows TaskExecutor to be created during storage setup without requiring storage to be initialized first
+    this.sequelize = sequelize;
   }
 
   /**
@@ -573,11 +574,10 @@ export class TaskExecutor {
       );
       
       // Set pauseType on cronJob so scheduler knows why it's paused
-      if (this.cronJobRepo) {
-        const cronJob = await this.cronJobRepo.findByReleaseId(context.releaseId);
-        if (cronJob) {
-          await this.cronJobRepo.update(cronJob.id, { pauseType: PauseType.TASK_FAILURE });
-        }
+      // ✅ cronJobRepo is required - actively initialized in aws-storage.ts, no null check needed
+      const cronJob = await this.cronJobRepo.findByReleaseId(context.releaseId);
+      if (cronJob) {
+        await this.cronJobRepo.update(cronJob.id, { pauseType: PauseType.TASK_FAILURE });
       }
       
       console.log(`[TaskExecutor] Release ${context.releaseId} PAUSED due to task failure. Can be resumed after fix.`);
@@ -915,9 +915,7 @@ export class TaskExecutor {
     if (release.hasManualBuildUpload) {
       console.log(`[TaskExecutor] Manual mode for KICKOFF: checking uploads for platforms [${platforms.join(', ')}]`);
       
-      if (!this.releaseUploadsRepo) {
-        throw new Error(RELEASE_ERROR_MESSAGES.RELEASE_UPLOADS_REPO_NOT_AVAILABLE);
-      }
+      // ✅ releaseUploadsRepo is required - actively initialized in aws-storage.ts, no null check needed
 
       // Check if all platforms have uploads ready
       const readiness = await this.releaseUploadsRepo.checkAllPlatformsReady(
@@ -1231,12 +1229,9 @@ export class TaskExecutor {
     }
 
     // Get previous tag (from previous cycle or base release)
+    // ✅ Use regressionCycleRepository from storage (passed via constructor) - actively initialized, always available
     let previousTag: string | undefined;
-    const { createRegressionCycleModel } = await import('../../../models/release/regression-cycle.sequelize.model');
-    const { RegressionCycleRepository } = await import('../../../models/release/regression-cycle.repository');
-    const regressionCycleModel = createRegressionCycleModel(this.sequelize);
-    const regressionCycleRepo = new RegressionCycleRepository(regressionCycleModel);
-    const previousCycle = await regressionCycleRepo.findPrevious(context.releaseId);
+    const previousCycle = await this.regressionCycleRepo.findPrevious(context.releaseId);
     if (previousCycle && previousCycle.length > 0) {
       previousTag = previousCycle[0].cycleTag || undefined;
     }
@@ -1299,9 +1294,7 @@ export class TaskExecutor {
     if (release.hasManualBuildUpload) {
       console.log(`[TaskExecutor] Manual mode for REGRESSION (cycle ${task.regressionId}): checking uploads for platforms [${platforms.join(', ')}]`);
       
-      if (!this.releaseUploadsRepo) {
-        throw new Error(RELEASE_ERROR_MESSAGES.RELEASE_UPLOADS_REPO_NOT_AVAILABLE);
-      }
+      // ✅ releaseUploadsRepo is required - actively initialized in aws-storage.ts, no null check needed
 
       // Check if all platforms have uploads ready
       const readiness = await this.releaseUploadsRepo.checkAllPlatformsReady(
@@ -1742,9 +1735,7 @@ export class TaskExecutor {
     if (release.hasManualBuildUpload) {
       console.log(`[TaskExecutor] Manual mode for PRE_RELEASE (TestFlight): checking uploads for IOS`);
       
-      if (!this.releaseUploadsRepo) {
-        throw new Error(RELEASE_ERROR_MESSAGES.RELEASE_UPLOADS_REPO_NOT_AVAILABLE);
-      }
+      // ✅ releaseUploadsRepo is required - actively initialized in aws-storage.ts, no null check needed
 
       // Check if IOS has upload ready
       const readiness = await this.releaseUploadsRepo.checkAllPlatformsReady(
@@ -1916,9 +1907,7 @@ export class TaskExecutor {
     if (release.hasManualBuildUpload) {
       console.log(`[TaskExecutor] Manual mode for PRE_RELEASE (AAB): checking uploads for ANDROID`);
       
-      if (!this.releaseUploadsRepo) {
-        throw new Error(RELEASE_ERROR_MESSAGES.RELEASE_UPLOADS_REPO_NOT_AVAILABLE);
-      }
+      // ✅ releaseUploadsRepo is required - actively initialized in aws-storage.ts, no null check needed
 
       // Check if ANDROID has upload ready
       const readiness = await this.releaseUploadsRepo.checkAllPlatformsReady(

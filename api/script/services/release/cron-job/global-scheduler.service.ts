@@ -203,8 +203,10 @@ export class GlobalSchedulerService {
           console.log(`[GlobalSchedulerService] 🔄 Instance ${instanceId} processing release ${cronJob.releaseId}...`);
           log.info(`Processing release ${cronJob.releaseId}...`);
 
-          // Create state machine and execute
+          // ✅ BUSINESS LOGIC: Create state machine, initialize it, then execute
+          // initialize() determines the starting state from DB - this is business logic, not factory responsibility
           const stateMachine = await this.stateMachineFactory(cronJob);
+          await stateMachine.initialize(); // Hybrid architecture: initialize on each webhook call
           await stateMachine.execute();
 
           processedCount++;

@@ -38,6 +38,12 @@ import { createReleaseModel } from '../../../script/models/release/release.seque
 import { createCronJobModel } from '../../../script/models/release/cron-job.sequelize.model';
 import { createReleaseTaskModel } from '../../../script/models/release/release-task.sequelize.model';
 import { createRegressionCycleModel } from '../../../script/models/release/regression-cycle.sequelize.model';
+import { createPlatformTargetMappingModel } from '../../../script/models/release/platform-target-mapping.sequelize.model';
+import { createReleaseUploadModel } from '../../../script/models/release/release-uploads.sequelize.model';
+import { createBuildModel } from '../../../script/models/release/build.sequelize.model';
+import { ReleasePlatformTargetMappingRepository } from '../../../script/models/release/release-platform-target-mapping.repository';
+import { ReleaseUploadsRepository } from '../../../script/models/release/release-uploads.repository';
+import { BuildRepository } from '../../../script/models/release/build.repository';
 // Enums and types
 import { 
   ReleaseStatus, 
@@ -66,6 +72,9 @@ let cachedRepos: {
   cronJobRepo: CronJobRepository;
   releaseTaskRepo: ReleaseTaskRepository;
   regressionCycleRepo: RegressionCycleRepository;
+  platformMappingRepo: ReleasePlatformTargetMappingRepository;
+  releaseUploadsRepo: ReleaseUploadsRepository;
+  buildRepo: BuildRepository;
 } | null = null;
 
 function getOrCreateRepos(sequelize: Sequelize) {
@@ -74,12 +83,18 @@ function getOrCreateRepos(sequelize: Sequelize) {
     const cronJobModel = createCronJobModel(sequelize);
     const releaseTaskModel = createReleaseTaskModel(sequelize);
     const regressionCycleModel = createRegressionCycleModel(sequelize);
+    const platformMappingModel = createPlatformTargetMappingModel(sequelize);
+    const releaseUploadsModel = createReleaseUploadModel(sequelize);
+    const buildModel = createBuildModel(sequelize);
     
     cachedRepos = {
       releaseRepo: new ReleaseRepository(releaseModel),
       cronJobRepo: new CronJobRepository(cronJobModel),
       releaseTaskRepo: new ReleaseTaskRepository(releaseTaskModel),
-      regressionCycleRepo: new RegressionCycleRepository(regressionCycleModel)
+      regressionCycleRepo: new RegressionCycleRepository(regressionCycleModel),
+      platformMappingRepo: new ReleasePlatformTargetMappingRepository(platformMappingModel),
+      releaseUploadsRepo: new ReleaseUploadsRepository(sequelize, releaseUploadsModel),
+      buildRepo: new BuildRepository(buildModel)
     };
   }
   return cachedRepos;
@@ -91,7 +106,7 @@ const createStateMachine = async (releaseId: string, storage: any, sequelize: Se
     executeTask: jest.fn().mockResolvedValue(undefined)
   } as unknown as TaskExecutor;
 
-  const { cronJobRepo, releaseRepo, releaseTaskRepo, regressionCycleRepo } = getOrCreateRepos(sequelize);
+  const { cronJobRepo, releaseRepo, releaseTaskRepo, regressionCycleRepo, platformMappingRepo, releaseUploadsRepo, buildRepo } = getOrCreateRepos(sequelize);
 
   const stateMachine = new CronJobStateMachine(
     releaseId,
@@ -100,7 +115,10 @@ const createStateMachine = async (releaseId: string, storage: any, sequelize: Se
     releaseTaskRepo,
     regressionCycleRepo,
     mockTaskExecutor,
-    storage
+    storage,
+    platformMappingRepo,  // ✅ Required - actively initialized in aws-storage.ts
+    releaseUploadsRepo,  // ✅ Required - actively initialized in aws-storage.ts
+    buildRepo  // ✅ Required - actively initialized in aws-storage.ts
   );
 
   // Initialize the state machine (must be called after construction)

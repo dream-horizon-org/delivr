@@ -1723,21 +1723,18 @@ export const uploadAabToPlayStoreInternal = async (
   // Determine target based on storeType
   const target: 'PLAY_STORE' | 'APP_STORE' = isPlayStoreType ? 'PLAY_STORE' : 'APP_STORE';
 
-  // Validate version against release_platforms_targets_mapping
+  // ✅ Get repositories from storage (centralized initialization - replaces factory)
   const storage = getStorage();
-  const sequelize = (storage as any).sequelize;
-  const sequelizeMissing = !sequelize;
+  const storageWithServices = storage as any; // Type guard would require importing StorageWithReleaseServices
   
-  if (sequelizeMissing) {
-    throw new Error('Sequelize instance not available');
+  // Verify repositories are available on storage
+  if (!storageWithServices.releaseRepository || !storageWithServices.releasePlatformTargetMappingRepository) {
+    throw new Error('Release repositories not available on storage instance');
   }
-
-  // Get repository instances
-  const ReleaseModel = sequelize.models.Release || createReleaseModel(sequelize);
-  const releaseRepo = new ReleaseRepository(ReleaseModel as any);
   
-  const PlatformTargetMappingModel = sequelize.models.PlatformTargetMapping || createPlatformTargetMappingModel(sequelize);
-  const platformTargetMappingRepo = new ReleasePlatformTargetMappingRepository(PlatformTargetMappingModel as any);
+  // ✅ Use repositories from storage (no new keyword)
+  const releaseRepo = storageWithServices.releaseRepository;
+  const platformTargetMappingRepo = storageWithServices.releasePlatformTargetMappingRepository;
 
   // First, verify that the release exists and belongs to the tenant
   // Note: releaseId parameter from client is actually the database 'id' field

@@ -25,6 +25,10 @@ import { createCronJobModel } from '../../../script/models/release/cron-job.sequ
 import { createReleaseTaskModel } from '../../../script/models/release/release-task.sequelize.model';
 import { createRegressionCycleModel } from '../../../script/models/release/regression-cycle.sequelize.model';
 import { createPlatformTargetMappingModel } from '../../../script/models/release/platform-target-mapping.sequelize.model';
+import { createReleaseUploadModel } from '../../../script/models/release/release-uploads.sequelize.model';
+import { createBuildModel } from '../../../script/models/release/build.sequelize.model';
+import { ReleaseUploadsRepository } from '../../../script/models/release/release-uploads.repository';
+import { BuildRepository } from '../../../script/models/release/build.repository';
 // State machine (for execute tests)
 import { CronJobStateMachine } from '../../../script/services/release/cron-job/cron-job-state-machine';
 import { TaskExecutor } from '../../../script/services/release/task-executor/task-executor';
@@ -62,6 +66,8 @@ let cachedRepos: {
   releaseTaskRepo: ReleaseTaskRepository;
   regressionCycleRepo: RegressionCycleRepository;
   platformMappingRepo: ReleasePlatformTargetMappingRepository;
+  releaseUploadsRepo: ReleaseUploadsRepository;
+  buildRepo: BuildRepository;
 } | null = null;
 
 function getOrCreateRepos(sequelize: Sequelize) {
@@ -71,13 +77,17 @@ function getOrCreateRepos(sequelize: Sequelize) {
     const releaseTaskModel = createReleaseTaskModel(sequelize);
     const regressionCycleModel = createRegressionCycleModel(sequelize);
     const platformMappingModel = createPlatformTargetMappingModel(sequelize);
+    const releaseUploadsModel = createReleaseUploadModel(sequelize);
+    const buildModel = createBuildModel(sequelize);
     
     cachedRepos = {
       releaseRepo: new ReleaseRepository(releaseModel),
       cronJobRepo: new CronJobRepository(cronJobModel),
       releaseTaskRepo: new ReleaseTaskRepository(releaseTaskModel),
       regressionCycleRepo: new RegressionCycleRepository(regressionCycleModel),
-      platformMappingRepo: new ReleasePlatformTargetMappingRepository(platformMappingModel)
+      platformMappingRepo: new ReleasePlatformTargetMappingRepository(platformMappingModel),
+      releaseUploadsRepo: new ReleaseUploadsRepository(sequelize, releaseUploadsModel),
+      buildRepo: new BuildRepository(buildModel)
     };
   }
   return cachedRepos;
@@ -174,6 +184,8 @@ async function createTestTask(
   let releaseTaskRepo: ReleaseTaskRepository;
   let regressionCycleRepo: RegressionCycleRepository;
   let platformMappingRepo: ReleasePlatformTargetMappingRepository;
+  let releaseUploadsRepo: ReleaseUploadsRepository;
+  let buildRepo: BuildRepository;
   let storage: any;
   
   const testTenantId = 'test-tenant-pause';
@@ -205,6 +217,8 @@ async function createTestTask(
       releaseTaskRepo = repos.releaseTaskRepo;
       regressionCycleRepo = repos.regressionCycleRepo;
       platformMappingRepo = repos.platformMappingRepo;
+      releaseUploadsRepo = repos.releaseUploadsRepo;
+      buildRepo = repos.buildRepo;
 
       // Initialize storage singleton
       const testStorage = createTestStorage(sequelize);
@@ -387,7 +401,9 @@ async function createTestTask(
         regressionCycleRepo,
         mockTaskExecutor,
         storage,
-        platformMappingRepo
+        platformMappingRepo,
+        releaseUploadsRepo,  // ✅ Required - actively initialized in aws-storage.ts
+        buildRepo  // ✅ Required - actively initialized in aws-storage.ts
       );
       await stateMachine.initialize();
 
@@ -429,7 +445,9 @@ async function createTestTask(
         regressionCycleRepo,
         mockTaskExecutor,
         storage,
-        platformMappingRepo
+        platformMappingRepo,
+        releaseUploadsRepo,  // ✅ Required - actively initialized in aws-storage.ts
+        buildRepo  // ✅ Required - actively initialized in aws-storage.ts
       );
       await stateMachine.initialize();
 
@@ -471,7 +489,9 @@ async function createTestTask(
         regressionCycleRepo,
         mockTaskExecutor,
         storage,
-        platformMappingRepo
+        platformMappingRepo,
+        releaseUploadsRepo,  // ✅ Required - actively initialized in aws-storage.ts
+        buildRepo  // ✅ Required - actively initialized in aws-storage.ts
       );
       await stateMachine.initialize();
 

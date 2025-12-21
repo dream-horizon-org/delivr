@@ -18,10 +18,8 @@ jest.mock('../../../script/models/release/cron-job.repository');
 jest.mock('../../../script/models/release/release.repository');
 jest.mock('../../../script/models/release/release-task.repository');
 jest.mock('../../../script/models/release/regression-cycle.repository');
+// ✅ Mock storage.taskExecutor instead of factory (migrated from factory pattern)
 // Note: cron-scheduler.ts removed - replaced by global-scheduler architecture
-jest.mock('../../../script/services/release/task-executor/task-executor-factory', () => ({
-  getTaskExecutor: jest.fn(),
-}));
 jest.mock('../../../script/storage/storage-instance', () => ({
   getStorage: jest.fn(),
 }));
@@ -70,7 +68,6 @@ import {
   PauseType,
   RegressionCycleStatus 
 } from '../../../script/models/release/release.interface';
-import { getTaskExecutor } from '../../../script/services/release/task-executor/task-executor-factory';
 import { getStorage } from '../../../script/storage/storage-instance';
 
 import {
@@ -143,8 +140,10 @@ describe('Stage Transition - AWAITING_STAGE_TRIGGER', () => {
         getReleaseRepo: jest.fn().mockReturnValue(mockDeps.mockReleaseDTO),
         getReleaseTaskRepo: jest.fn().mockReturnValue(mockDeps.mockReleaseTasksDTO),
         getRegressionCycleRepo: jest.fn().mockReturnValue(createMockRegressionCycleDTO()),
-        getTaskExecutor: jest.fn().mockReturnValue(mockDeps.mockTaskExecutor),
-        getStorage: jest.fn().mockReturnValue(mockDeps.mockStorage),
+        getStorage: jest.fn().mockReturnValue({
+          ...mockDeps.mockStorage,
+          taskExecutor: mockDeps.mockTaskExecutor
+        }),
         getPlatformMappingRepo: jest.fn().mockReturnValue(mockDeps.mockPlatformMappingRepo),
         setState: jest.fn(),
         setReleaseStatus: jest.fn(),
@@ -152,9 +151,12 @@ describe('Stage Transition - AWAITING_STAGE_TRIGGER', () => {
         getReleaseUploadsRepo: jest.fn().mockReturnValue(undefined),
       };
 
-      // Set up mocks for getTaskExecutor and getStorage
-      (getTaskExecutor as jest.Mock).mockReturnValue(mockDeps.mockTaskExecutor);
-      (getStorage as jest.Mock).mockReturnValue(mockDeps.mockStorage);
+      // ✅ Mock storage.taskExecutor instead of factory (migrated from factory pattern)
+      const mockStorageWithTaskExecutor = {
+        ...mockDeps.mockStorage,
+        taskExecutor: mockDeps.mockTaskExecutor
+      };
+      (getStorage as jest.Mock).mockReturnValue(mockStorageWithTaskExecutor);
     });
 
     /**
@@ -292,8 +294,10 @@ describe('Stage Transition - AWAITING_STAGE_TRIGGER', () => {
         getReleaseRepo: jest.fn().mockReturnValue(mockDeps.mockReleaseDTO),
         getReleaseTaskRepo: jest.fn().mockReturnValue(mockDeps.mockReleaseTasksDTO),
         getRegressionCycleRepo: jest.fn().mockReturnValue(mockRegressionCycleDTO),
-        getTaskExecutor: jest.fn().mockReturnValue(mockDeps.mockTaskExecutor),
-        getStorage: jest.fn().mockReturnValue(mockDeps.mockStorage),
+        getStorage: jest.fn().mockReturnValue({
+          ...mockDeps.mockStorage,
+          taskExecutor: mockDeps.mockTaskExecutor
+        }),
         getPlatformMappingRepo: jest.fn().mockReturnValue(mockDeps.mockPlatformMappingRepo),
         setState: jest.fn(),
         setReleaseStatus: jest.fn(),
@@ -301,7 +305,7 @@ describe('Stage Transition - AWAITING_STAGE_TRIGGER', () => {
         getReleaseUploadsRepo: jest.fn().mockReturnValue(undefined),
       };
 
-      (getTaskExecutor as jest.Mock).mockReturnValue(mockDeps.mockTaskExecutor);
+      // ✅ TaskExecutor is now on storage, no need to mock factory
       (getStorage as jest.Mock).mockReturnValue(mockDeps.mockStorage);
     });
 

@@ -35,7 +35,7 @@ export class ReleaseManagementController {
   private statusService: ReleaseStatusService;
   private updateService: ReleaseUpdateService;
   private cronJobService: CronJobService;
-  private manualUploadService: ManualUploadService | null;
+  private manualUploadService: ManualUploadService;  // ✅ Required - actively initialized in aws-storage.ts
   private activityLogService: ReleaseActivityLogService;
 
   constructor(
@@ -45,14 +45,14 @@ export class ReleaseManagementController {
     updateService: ReleaseUpdateService,
     activityLogService: ReleaseActivityLogService,
     cronJobService: CronJobService,
-    manualUploadService?: ManualUploadService
+    manualUploadService: ManualUploadService  // ✅ Required - actively initialized in aws-storage.ts
   ) {
     this.creationService = creationService;
     this.retrievalService = retrievalService;
     this.statusService = statusService;
     this.updateService = updateService;
     this.cronJobService = cronJobService;
-    this.manualUploadService = manualUploadService ?? null;
+    this.manualUploadService = manualUploadService;  // ✅ Active initialization - no lazy initialization
     this.activityLogService = activityLogService;
   }
 
@@ -863,13 +863,7 @@ export class ReleaseManagementController {
       }
 
       // Check if ManualUploadService is available
-      const serviceNotAvailable = !this.manualUploadService;
-      if (serviceNotAvailable) {
-        return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-          success: false,
-          error: RELEASE_MANAGEMENT_ERROR_MESSAGES.MANUAL_UPLOAD_SERVICE_NOT_CONFIGURED
-        });
-      }
+      // ✅ Service is always available - actively initialized in aws-storage.ts (no null check needed)
 
       // Check if file is provided (from multer middleware)
       const file = (req as any).file;

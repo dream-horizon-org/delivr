@@ -13,21 +13,16 @@
 import { CronJobStateMachine } from './cron-job-state-machine';
 import { GlobalSchedulerService, getSchedulerType } from './global-scheduler.service';
 import { CronJobRepository } from '~models/release/cron-job.repository';
-import { ReleaseRepository } from '~models/release/release.repository';
-import { ReleaseTaskRepository } from '~models/release/release-task.repository';
-import { RegressionCycleRepository } from '~models/release/regression-cycle.repository';
-import { ReleasePlatformTargetMappingRepository } from '~models/release/release-platform-target-mapping.repository';
-import { ReleaseUploadsRepository } from '~models/release/release-uploads.repository';
-import { createCronJobModel } from '~models/release/cron-job.sequelize.model';
-import { createReleaseModel } from '~models/release/release.sequelize.model';
-import { createReleaseTaskModel } from '~models/release/release-task.sequelize.model';
-import { createRegressionCycleModel } from '~models/release/regression-cycle.sequelize.model';
-import { createPlatformTargetMappingModel } from '~models/release/platform-target-mapping.sequelize.model';
-import { createReleaseUploadModel } from '~models/release/release-uploads.sequelize.model';
-import { getTaskExecutor } from '~services/release/task-executor/task-executor-factory';
-import { hasSequelize } from '~types/release/api-types';
+// Note: Repositories are now accessed from storage instance (migrated from factory)
+// Note: TaskExecutor is now accessed from storage instance (migrated from factory)
 import type { Storage } from '~storage/storage';
 import type { CronJob } from '~models/release/release.interface';
+import { 
+  hasTaskExecutor, 
+  hasGlobalSchedulerService, 
+  hasReleaseCreationService,
+  type StorageWithReleaseServices 
+} from '~types/release/storage-with-services.interface';
 import type { StateMachineFactory } from './global-scheduler.service';
 import type { Sequelize } from 'sequelize';
 import type { CronicleService } from '~services/cronicle';
@@ -69,19 +64,21 @@ let cachedService: GlobalSchedulerService | null = null;
 /**
  * Create GlobalSchedulerService
  * 
+ * @deprecated Use storage.globalSchedulerService instead (migrated to aws-storage.ts)
+ * This function is kept for backward compatibility but should not be used in new code.
+ * 
  * @param storage - Storage instance
  * @returns Service or null if storage doesn't have Sequelize
  */
 export function createGlobalSchedulerService(storage: Storage): GlobalSchedulerService | null {
-  if (!hasSequelize(storage)) {
-    console.warn('[SchedulerFactory] Storage does not have Sequelize, service not created');
+  // ✅ Use proper type guard instead of 'as any'
+  if (!hasGlobalSchedulerService(storage)) {
     return null;
   }
-
-  const sequelize = storage.sequelize;
-  const { cronJobRepo, stateMachineFactory } = createSchedulerDependencies(sequelize, storage);
   
-  return new GlobalSchedulerService(cronJobRepo, stateMachineFactory);
+  // TypeScript now knows storage is StorageWithReleaseServices
+  const storageWithServices: StorageWithReleaseServices = storage;
+  return storageWithServices.globalSchedulerService;
 }
 
 // ============================================================================
@@ -105,7 +102,10 @@ export async function initializeScheduler(storage: Storage): Promise<boolean> {
     console.log('[SchedulerFactory] Cronicle mode - registering job and webhook ready at POST /internal/cron/releases');
     
     // Register the Cronicle job (safe to call multiple times - idempotent)
-    const cronicleService = (storage as any).cronicleService as CronicleService | null | undefined;
+    // ✅ Use proper type guard instead of 'as any'
+    const cronicleService = hasReleaseCreationService(storage) 
+      ? storage.cronicleService 
+      : undefined;
     const result = await registerCronicleReleaseTick(cronicleService);
     
     if (result.success) {
@@ -118,11 +118,19 @@ export async function initializeScheduler(storage: Storage): Promise<boolean> {
     return result.success;
   }
 
-  // Create and cache service for setinterval mode
-  cachedService = createGlobalSchedulerService(storage);
+  // ✅ Get GlobalSchedulerService from storage instance (migrated from factory)
+  // Use proper type guard instead of 'as any'
+  if (!hasGlobalSchedulerService(storage)) {
+    console.warn('[SchedulerFactory] GlobalSchedulerService not available on storage, scheduler not started');
+    return false;
+  }
+  
+  // TypeScript now knows storage is StorageWithReleaseServices
+  const storageWithServices: StorageWithReleaseServices = storage;
+  cachedService = storageWithServices.globalSchedulerService;
   
   if (!cachedService) {
-    console.warn('[SchedulerFactory] Could not create service, scheduler not started');
+    console.warn('[SchedulerFactory] GlobalSchedulerService not available on storage, scheduler not started');
     return false;
   }
 
@@ -261,27 +269,56 @@ export function createSchedulerDependencies(
   sequelize: Sequelize,
   storage: Storage
 ): { cronJobRepo: CronJobRepository; stateMachineFactory: StateMachineFactory } {
-  // Create models
-  const CronJobModel = createCronJobModel(sequelize);
-  const ReleaseModel = createReleaseModel(sequelize);
-  const ReleaseTaskModel = createReleaseTaskModel(sequelize);
-  const RegressionCycleModel = createRegressionCycleModel(sequelize);
-  const PlatformMappingModel = createPlatformTargetMappingModel(sequelize);
-  const ReleaseUploadModel = createReleaseUploadModel(sequelize);
-
-  // Create repositories
-  const cronJobRepo = new CronJobRepository(CronJobModel);
-  const releaseRepo = new ReleaseRepository(ReleaseModel);
-  const releaseTaskRepo = new ReleaseTaskRepository(ReleaseTaskModel);
-  const regressionCycleRepo = new RegressionCycleRepository(RegressionCycleModel);
-  const platformMappingRepo = new ReleasePlatformTargetMappingRepository(PlatformMappingModel);
-  const releaseUploadsRepo = new ReleaseUploadsRepository(sequelize, ReleaseUploadModel);
+  // ✅ Use repositories from storage instead of creating new instances (centralized initialization)
+  // All repositories are already initialized in aws-storage.ts setup()
+  const storageWithServices = storage as StorageWithReleaseServices;
+  
+  // Verify all required repositories are available on storage
+  if (!storageWithServices.cronJobRepository) {
+    throw new Error('CronJobRepository not available on storage instance');
+  }
+  if (!storageWithServices.releaseRepository) {
+    throw new Error('ReleaseRepository not available on storage instance');
+  }
+  if (!storageWithServices.releaseTaskRepository) {
+    throw new Error('ReleaseTaskRepository not available on storage instance');
+  }
+  if (!storageWithServices.regressionCycleRepository) {
+    throw new Error('RegressionCycleRepository not available on storage instance');
+  }
+  if (!storageWithServices.platformMappingRepository) {
+    throw new Error('ReleasePlatformTargetMappingRepository not available on storage instance');
+  }
+  if (!storageWithServices.releaseUploadsRepository) {
+    throw new Error('ReleaseUploadsRepository not available on storage instance');
+  }
+  if (!storageWithServices.buildRepository) {
+    throw new Error('BuildRepository not available on storage instance');
+  }
+  
+  // ✅ Use repositories from storage (no new keyword)
+  const cronJobRepo = storageWithServices.cronJobRepository;
+  const releaseRepo = storageWithServices.releaseRepository;
+  const releaseTaskRepo = storageWithServices.releaseTaskRepository;
+  const regressionCycleRepo = storageWithServices.regressionCycleRepository;
+  const platformMappingRepo = storageWithServices.platformMappingRepository;
+  const releaseUploadsRepo = storageWithServices.releaseUploadsRepository;
+  const buildRepo = storageWithServices.buildRepository;  // ✅ Required - actively initialized in aws-storage.ts
 
   // Create state machine factory
+  // ✅ BUSINESS LOGIC: initialize() is called by the caller (GlobalSchedulerService), not here
+  // This factory only creates the state machine instance - initialization happens in business logic
   const stateMachineFactory: StateMachineFactory = async (
     cronJob: CronJob
   ): Promise<CronJobStateMachine> => {
-    const taskExecutor = getTaskExecutor();
+    // ✅ Use proper type guard instead of 'as any'
+    if (!hasTaskExecutor(storage)) {
+      throw new Error('TaskExecutor not available on storage instance');
+    }
+    
+    // TypeScript now knows storage is StorageWithReleaseServices
+    const storageWithServices: StorageWithReleaseServices = storage;
+    const taskExecutor = storageWithServices.taskExecutor;
 
     const stateMachine = new CronJobStateMachine(
       cronJob.releaseId,
@@ -292,10 +329,12 @@ export function createSchedulerDependencies(
       taskExecutor,
       storage,
       platformMappingRepo,
-      releaseUploadsRepo
+      releaseUploadsRepo,
+      buildRepo  // ✅ Required - actively initialized in aws-storage.ts
     );
 
-    await stateMachine.initialize();
+    // ✅ REMOVED: initialize() call - this is business logic, not factory responsibility
+    // The caller (GlobalSchedulerService) will call initialize() after creating the state machine
     return stateMachine;
   };
 
