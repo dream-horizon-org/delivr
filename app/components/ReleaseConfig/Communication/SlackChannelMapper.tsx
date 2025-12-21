@@ -60,7 +60,7 @@ export function SlackChannelMapper({
                 <Select
                   label="Slack Workspace"
                   placeholder="Select Slack integration"
-                  data={availableIntegrations.map(i => ({ value: i.id, label: i.name }))}
+                  data={availableIntegrations.map(i => ({ value: i.id, label: i.displayName || i.name }))}
                   value={integrationId}
                   onChange={(val) => onIntegrationChange(val || '')}
                   required

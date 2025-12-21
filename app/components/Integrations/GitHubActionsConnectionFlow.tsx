@@ -55,6 +55,10 @@ export function GitHubActionsConnectionFlow({
   const tenantId = params.org;
   const isInFlowRef = useRef(false);
 
+  console.log(
+    "existing data",existingData
+  )
+
   const { formData, setFormData, isDraftRestored, markSaveSuccessful } = useDraftStorage<GitHubActionsConnectionFormData>(
     {
       storageKey: generateStorageKey('github-actions-cicd', tenantId || ''),

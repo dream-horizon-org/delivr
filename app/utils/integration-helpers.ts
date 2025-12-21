@@ -193,3 +193,11 @@ export function validateAppStoreData(data: Partial<AppStorePayload>, isEditMode:
   return baseFieldsValid && !!data.privateKeyPem;
 }
 
+/**
+ * Get display name for a connected integration
+ * Prefers displayName if available, falls back to name
+ */
+export function getIntegrationDisplayName(integration: { name: string; displayName?: string }): string {
+  return integration.displayName || integration.name;
+}
+

@@ -168,7 +168,7 @@ export function SlackChannelConfigEnhanced({
                 <Select
                   label="Slack Workspace"
                   placeholder="Select a workspace"
-                  data={availableIntegrations.map((i) => ({ value: i.id, label: i.name }))}
+                  data={availableIntegrations.map((i) => ({ value: i.id, label: i.displayName || i.name }))}
                   value={integrationId}
                   onChange={(val) => handleIntegrationChange(val || '')}
                   required

@@ -145,7 +145,7 @@ export function JiraProjectStep({
 
   const integrationOptions = availableIntegrations.map((int) => ({
     value: int.id,
-    label: int.name,
+    label: int.displayName || int.name,
   }));
 
   return (
