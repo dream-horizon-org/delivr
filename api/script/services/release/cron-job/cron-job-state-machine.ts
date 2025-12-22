@@ -40,12 +40,9 @@ export class CronJobStateMachine {
     private regressionCycleRepo: RegressionCycleRepository,
     private taskExecutor: TaskExecutor,
     private storage: Storage,
-    // Platform mapping repo - required for production, optional for unit tests with mocks
-    private platformMappingRepo?: ReleasePlatformTargetMappingRepository,
-    // Optional repository for manual build upload feature
-    private releaseUploadsRepo?: ReleaseUploadsRepository,
-    // Optional repository for builds table (for manual build handler)
-    private buildRepo?: BuildRepository
+    private platformMappingRepo: ReleasePlatformTargetMappingRepository,  // ✅ Required - actively initialized in aws-storage.ts
+    private releaseUploadsRepo: ReleaseUploadsRepository,  // ✅ Required - actively initialized in aws-storage.ts
+    private buildRepo: BuildRepository  // ✅ Required - actively initialized in aws-storage.ts
   ) {
     // Note: We'll set initial state after async initialization
   }

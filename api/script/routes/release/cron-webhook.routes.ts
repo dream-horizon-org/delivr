@@ -14,8 +14,9 @@
 import { Router } from 'express';
 import { cronicleAuthMiddleware } from '~middleware/cronicle-auth.middleware';
 import { createCronWebhookController } from '~controllers/release/cron-webhook.controller';
-import { createGlobalSchedulerService } from '~services/release/cron-job/scheduler-factory';
+// Note: GlobalSchedulerService is now accessed from storage instance (migrated from factory)
 import type { Storage } from '~storage/storage';
+import { hasGlobalSchedulerService, type StorageWithReleaseServices } from '~types/release/storage-with-services.interface';
 
 // ============================================================================
 // ROUTE FACTORY
@@ -30,8 +31,17 @@ import type { Storage } from '~storage/storage';
 export const createCronWebhookRoutes = (storage: Storage): Router => {
   const router = Router();
 
-  // Create service using factory (handles storage validation)
-  const globalSchedulerService = createGlobalSchedulerService(storage);
+  // ✅ Get GlobalSchedulerService from storage instance (migrated from factory)
+  // Use proper type guard instead of 'as any'
+  if (!hasGlobalSchedulerService(storage)) {
+    console.warn('[Cron Webhook Routes] GlobalSchedulerService not available');
+    return router;
+  }
+  
+  // TypeScript now knows storage is StorageWithReleaseServices
+  const storageWithServices: StorageWithReleaseServices = storage;
+  // ✅ globalSchedulerService is required - actively initialized in aws-storage.ts, no null check needed
+  const globalSchedulerService = storageWithServices.globalSchedulerService;
 
   // Create controller (handles validation + HTTP concerns)
   const controller = createCronWebhookController(globalSchedulerService);

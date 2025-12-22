@@ -21,6 +21,7 @@ const secretsManager = new SecretsManager(); // Secrets Manager instance for fet
 import * as bodyParser from "body-parser";
 import * as express from "express";
 import { S3Storage } from "./storage/aws-storage";
+import { createWorkflowPollingRoutes } from "./routes/workflow-polling.routes";
 const domain = require("express-domain-middleware");
 const csrf = require('lusca').csrf;
 
@@ -166,6 +167,14 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
       if (process.env.DISABLE_ACQUISITION !== "true") {
         app.use(api.acquisition({ storage: storage, redisManager: redisManager, memcachedManager: memcachedManager }));
       }
+
+      // ============================================================================
+      // INTERNAL CRON ROUTES (Cronicle webhooks - NO user auth required)
+      // Mount at root level BEFORE auth middleware so they only use cronicleAuthMiddleware
+      // ============================================================================
+      const workflowPollingRoutes = createWorkflowPollingRoutes(storage);
+      app.use(workflowPollingRoutes);
+      console.log('[Server] Workflow Polling routes mounted (internal, no user auth)');
 
       if (process.env.DISABLE_MANAGEMENT !== "true") {
         if (process.env.DEBUG_DISABLE_AUTH === "true") {

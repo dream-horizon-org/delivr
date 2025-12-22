@@ -36,6 +36,8 @@ import { ReleasePlatformTargetMappingRepository } from '~models/release/release-
 import { createPlatformTargetMappingModel } from '~models/release/platform-target-mapping.sequelize.model';
 import { ReleaseRepository } from '~models/release/release.repository';
 import { createReleaseModel } from '~models/release/release.sequelize.model';
+import { AndroidSubmissionBuildRepository } from '~models/distribution';
+import { DistributionRepository } from '~models/distribution';
 import { decryptIfEncrypted, encryptForStorage, decryptFromStorage } from '../../utils/encryption';
 import { BUILD_PLATFORM, STORE_TYPE } from '~types/release-management/builds/build.constants';
 
@@ -1723,21 +1725,18 @@ export const uploadAabToPlayStoreInternal = async (
   // Determine target based on storeType
   const target: 'PLAY_STORE' | 'APP_STORE' = isPlayStoreType ? 'PLAY_STORE' : 'APP_STORE';
 
-  // Validate version against release_platforms_targets_mapping
+  // ✅ Get repositories from storage (centralized initialization - replaces factory)
   const storage = getStorage();
-  const sequelize = (storage as any).sequelize;
-  const sequelizeMissing = !sequelize;
+  const storageWithServices = storage as any; // Type guard would require importing StorageWithReleaseServices
   
-  if (sequelizeMissing) {
-    throw new Error('Sequelize instance not available');
+  // Verify repositories are available on storage
+  if (!storageWithServices.releaseRepository || !storageWithServices.releasePlatformTargetMappingRepository) {
+    throw new Error('Release repositories not available on storage instance');
   }
-
-  // Get repository instances
-  const ReleaseModel = sequelize.models.Release || createReleaseModel(sequelize);
-  const releaseRepo = new ReleaseRepository(ReleaseModel as any);
   
-  const PlatformTargetMappingModel = sequelize.models.PlatformTargetMapping || createPlatformTargetMappingModel(sequelize);
-  const platformTargetMappingRepo = new ReleasePlatformTargetMappingRepository(PlatformTargetMappingModel as any);
+  // ✅ Use repositories from storage (no new keyword)
+  const releaseRepo = storageWithServices.releaseRepository;
+  const platformTargetMappingRepo = storageWithServices.releasePlatformTargetMappingRepository;
 
   // First, verify that the release exists and belongs to the tenant
   // Note: releaseId parameter from client is actually the database 'id' field
@@ -2130,6 +2129,201 @@ export const getPlayStoreListings = async (req: Request, res: Response): Promise
     }
   } catch (error) {
     const message = getErrorMessage(error, 'Failed to get Play Store listings');
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      success: RESPONSE_STATUS.FAILURE,
+      error: message,
+    });
+  }
+};
+
+// ============================================================================
+// GET /integrations/store/play-store/production-state
+// ============================================================================
+
+export const getPlayStoreProductionState = async (req: Request, res: Response): Promise<void> => {
+  let editId: string | null = null;
+  let packageName: string | null = null;
+  let accessToken: string | null = null;
+  
+  try {
+    // Extract query parameters
+    const submissionId = req.query.submissionId as string;
+    const platform = req.query.platform as string;
+    const storeType = req.query.storeType as string;
+
+    const platformUpper = platform.toUpperCase() as 'ANDROID' | 'IOS';
+    const mappedStoreType = mapStoreTypeFromApi(storeType);
+
+    // Validate storeType and platform
+    const isPlayStore = mappedStoreType === StoreType.PLAY_STORE;
+    const isAndroid = platformUpper === BUILD_PLATFORM.ANDROID;
+    
+    if (!isPlayStore || !isAndroid) {
+      res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: RESPONSE_STATUS.FAILURE,
+        error: `storeType must be "play_store" and platform must be "${BUILD_PLATFORM.ANDROID}"`,
+      });
+      return;
+    }
+
+    // Get storage and repositories
+    const storage = getStorage();
+    const sequelize = (storage as any).sequelize;
+    const sequelizeMissing = !sequelize;
+    
+    if (sequelizeMissing) {
+      throw new Error('Sequelize instance not available');
+    }
+
+    // Get Android submission by submissionId
+    const AndroidSubmissionBuildModel = sequelize.models.AndroidSubmissionBuild;
+    const androidSubmissionRepo = new AndroidSubmissionBuildRepository(AndroidSubmissionBuildModel);
+    
+    const submission = await androidSubmissionRepo.findById(submissionId);
+    if (!submission) {
+      res.status(HTTP_STATUS.NOT_FOUND).json({
+        success: RESPONSE_STATUS.FAILURE,
+        error: `Android submission not found for submissionId: ${submissionId}`,
+      });
+      return;
+    }
+
+    // Get distributionId from submission
+    const distributionId = submission.distributionId;
+
+    // Get distribution to get tenantId
+    const DistributionModel = sequelize.models.Distribution;
+    const distributionRepo = new DistributionRepository(DistributionModel);
+    
+    const distribution = await distributionRepo.findById(distributionId);
+    if (!distribution) {
+      res.status(HTTP_STATUS.NOT_FOUND).json({
+        success: RESPONSE_STATUS.FAILURE,
+        error: `Distribution not found for distributionId: ${distributionId}`,
+      });
+      return;
+    }
+
+    const tenantId = distribution.tenantId;
+
+    // Find Play Store integration for tenant with VERIFIED status
+    const integrationController = getStoreController();
+    const integrations = await integrationController.findAll({
+      tenantId,
+      storeType: mappedStoreType,
+      platform: platformUpper,
+    });
+
+    if (integrations.length === 0) {
+      res.status(HTTP_STATUS.NOT_FOUND).json({
+        success: RESPONSE_STATUS.FAILURE,
+        error: PLAY_STORE_UPLOAD_ERROR_MESSAGES.INTEGRATION_NOT_FOUND_FOR_UPLOAD,
+      });
+      return;
+    }
+
+    // Find VERIFIED integration
+    const verifiedIntegration = integrations.find(i => i.status === IntegrationStatus.VERIFIED);
+    if (!verifiedIntegration) {
+      res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: RESPONSE_STATUS.FAILURE,
+        error: 'No verified Play Store integration found for this tenant',
+      });
+      return;
+    }
+
+    const integrationId = verifiedIntegration.id;
+    packageName = verifiedIntegration.appIdentifier;
+
+    // Validate integration status
+    validateIntegrationStatus(verifiedIntegration);
+
+    // Get GoogleAuth client and access token
+    const authResult = await getGoogleAuthClientFromIntegration(integrationId);
+    accessToken = authResult.accessToken;
+
+    const apiBaseUrl = PLAY_STORE_UPLOAD_CONSTANTS.API_BASE_URL;
+
+    // Step 1: Create edit
+    const createEditUrl = `${apiBaseUrl}/applications/${packageName}/edits`;
+    const createEditResponse = await fetch(createEditUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!createEditResponse.ok) {
+      const errorText = await createEditResponse.text().catch(() => 'Unknown error');
+      throw new Error(`Failed to create edit: ${createEditResponse.status} ${errorText}`);
+    }
+
+    const editData = await createEditResponse.json();
+    editId = editData.id;
+
+    // Step 2: Get production state
+    const productionStateUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editId}/tracks/production`;
+    const productionStateResponse = await fetch(productionStateUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // Step 3: Always delete edit (success or failure)
+    if (editId && packageName && accessToken) {
+      try {
+        const deleteEditUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editId}`;
+        await fetch(deleteEditUrl, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        });
+      } catch (deleteError) {
+        // Ignore delete errors - edit will expire automatically
+        console.warn('Failed to delete edit, it will expire automatically');
+      }
+    }
+
+    // Return response based on status
+    if (!productionStateResponse.ok) {
+      const errorText = await productionStateResponse.text().catch(() => 'Unknown error');
+      res.status(productionStateResponse.status).json({
+        success: RESPONSE_STATUS.FAILURE,
+        error: `Failed to get production state: ${productionStateResponse.status} ${errorText}`,
+      });
+      return;
+    }
+
+    const productionStateData = await productionStateResponse.json();
+
+    res.status(HTTP_STATUS.OK).json({
+      success: RESPONSE_STATUS.SUCCESS,
+      data: productionStateData,
+    });
+  } catch (error) {
+    // Clean up edit on error if it was created
+    if (editId && packageName && accessToken) {
+      try {
+        const apiBaseUrl = PLAY_STORE_UPLOAD_CONSTANTS.API_BASE_URL;
+        const deleteEditUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editId}`;
+        await fetch(deleteEditUrl, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        });
+      } catch (deleteError) {
+        // Ignore delete errors - edit will expire automatically
+        console.warn('Failed to delete edit after error, it will expire automatically');
+      }
+    }
+
+    const message = getErrorMessage(error, 'Failed to get Play Store production state');
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: RESPONSE_STATUS.FAILURE,
       error: message,

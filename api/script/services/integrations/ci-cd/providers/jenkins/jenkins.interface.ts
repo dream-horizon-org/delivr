@@ -1,3 +1,4 @@
+import { WorkflowStatus } from '~controllers/integrations/ci-cd/workflows/workflow-adapter.utils';
 import type { CICDProvider } from '../provider.interface';
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 
@@ -37,7 +38,7 @@ export type JenkinsJobParam = {
   type: 'boolean' | 'string' | 'choice';
   description?: string;
   defaultValue?: unknown;
-  choices?: string[];
+  options?: string[];
 };
 
 export type JenkinsJobParamsResult = {
@@ -66,15 +67,12 @@ export type JenkinsQueueStatusRequest = {
   authHeader: string;
   timeoutMs: number;
 };
-
-export type JenkinsQueueStatus = 'pending' | 'running' | 'completed' | 'cancelled';
-
 /**
  * Enhanced result from queue status check.
  * Includes executableUrl when job transitions from queue to running.
  */
 export type JenkinsQueueStatusResult = {
-  status: JenkinsQueueStatus;
+  status: WorkflowStatus;
   /** 
    * The actual build URL (executable.url from Jenkins API).
    * Available when job has started running (status !== 'pending').
@@ -93,13 +91,12 @@ export type JenkinsBuildStatusRequest = {
   timeoutMs: number;
 };
 
-export type JenkinsBuildStatus = 'running' | 'completed' | 'failed';
-
 /**
  * Result from build status check.
  */
 export type JenkinsBuildStatusResult = {
-  status: JenkinsBuildStatus;
+  status: WorkflowStatus;
+  buildUrl: string;
 };
 
 export interface JenkinsProviderContract extends CICDProvider {

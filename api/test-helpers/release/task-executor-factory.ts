@@ -107,7 +107,8 @@ export function createTaskExecutorForTests(sequelize: Sequelize): TaskExecutor {
   const releaseUploadsRepo = new ReleaseUploadsRepository(sequelize, releaseUploadModel as any);
 
   // Create and cache TaskExecutor (singleton for performance)
-  // TaskExecutor requires 11 arguments: 8 services + 3 repositories
+  // ✅ Pass Sequelize directly to avoid circular dependency (TaskExecutor no longer calls getStorage())
+  // ✅ Pass regressionCycleRepository (optional - undefined if not needed for tests)
   cachedTestTaskExecutor = new TaskExecutor(
     scmService,
     cicdIntegrationRepository,
@@ -119,7 +120,11 @@ export function createTaskExecutorForTests(sequelize: Sequelize): TaskExecutor {
     releaseConfigRepository,
     releaseTaskRepo,
     releaseRepo,
-    releaseUploadsRepo  // Optional: for Phase 18 manual build uploads
+    releaseUploadsRepo,  // Optional: for Phase 18 manual build uploads
+    undefined,  // cronJobRepo (optional)
+    undefined,  // releaseNotificationService (optional)
+    sequelize,  // ✅ Pass Sequelize directly instead of TaskExecutor calling getStorage()
+    undefined  // regressionCycleRepo (optional - not needed for all tests)
   );
   
   console.log('[TEST FACTORY] TaskExecutor created with ReleaseUploadsRepository ✅');

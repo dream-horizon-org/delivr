@@ -11,14 +11,13 @@ export type ParametersResult = {
   }>;
 };
 
-export type QueueStatus = 'pending' | 'running' | 'completed' | 'cancelled';
-export type RunStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type WorkflowStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 export type WorkflowAdapter = {
   fetchParameters: (tenantId: string, body: { workflowUrl?: string }) => Promise<ParametersResult>;
   trigger?: (tenantId: string, input: { workflowId?: string; workflowType?: string; platform?: string; jobParameters?: Record<string, unknown> }) => Promise<{ queueLocation: string }>;
-  queueStatus?: (tenantId: string, body: { queueUrl: string }) => Promise<QueueStatus>;
-  runStatus?: (tenantId: string, body: { runUrl?: string; owner?: string; repo?: string; runId?: string }) => Promise<RunStatus>;
+  queueStatus?: (tenantId: string, body: { queueUrl: string }) => Promise<WorkflowStatus>;
+  runStatus?: (tenantId: string, body: { runUrl?: string; owner?: string; repo?: string; runId?: string }) => Promise<WorkflowStatus>;
 };
 
 export const getWorkflowAdapter = (provider: CICDProviderType): WorkflowAdapter => {

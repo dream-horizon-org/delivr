@@ -57,6 +57,29 @@ const getPollingIntervalMinutes = (): number => {
   );
 };
 
+/**
+ * Build minutes array for Cronicle timing based on interval
+ * 
+ * Examples:
+ * - intervalMinutes = 1 → [0, 1, 2, 3, ..., 59] (every minute)
+ * - intervalMinutes = 5 → [0, 5, 10, 15, ..., 55] (every 5 minutes)
+ * - intervalMinutes = 10 → [0, 10, 20, 30, 40, 50] (every 10 minutes)
+ * 
+ * @param intervalMinutes - Interval in minutes (must be 1-59)
+ * @returns Array of minute values (0-59) spaced by interval
+ */
+const buildMinutesArray = (intervalMinutes: number): number[] => {
+  const minutes: number[] = [];
+  let minute = 0;
+  
+  while (minute < 60) {
+    minutes.push(minute);
+    minute += intervalMinutes;
+  }
+  
+  return minutes;
+};
+
 // ============================================================================
 // CREATE JOBS
 // ============================================================================
@@ -78,6 +101,7 @@ export const createWorkflowPollingJobs = async (
   const pendingJobId = CRONICLE_JOB_ID_PATTERNS.PENDING_POLLER(releaseId);
   const runningJobId = CRONICLE_JOB_ID_PATTERNS.RUNNING_POLLER(releaseId);
   const intervalMinutes = getPollingIntervalMinutes();
+  const minutesArray = buildMinutesArray(intervalMinutes);
 
   try {
     // Create pending poller job
@@ -87,14 +111,17 @@ export const createWorkflowPollingJobs = async (
       category: WORKFLOW_POLLING_CATEGORY,
       enabled: true,
       timing: {
-        minutes: [intervalMinutes], // Every N minutes
-        hours: Array.from({ length: 24 }, (_, i) => i) // Every hour
+        minutes: minutesArray, // Every N minutes (e.g., [0, 1, 2, ..., 59] for every minute)
+        hours: Array.from({ length: 24 }, (_, i) => i), // Every hour (0-23)
+        days: Array.from({ length: 31 }, (_, i) => i + 1), // Every day of the month (1-31)
+        months: Array.from({ length: 12 }, (_, i) => i + 1) // Every month (1-12)
       },
       params: {
         method: 'POST',
         url: cronicleService.buildDirectUrl('/internal/cron/builds/poll-pending-workflows'),
         body: { releaseId, tenantId }
       },
+      retries: 0,
       notes: `Polls PENDING CI/CD builds for release ${releaseId}`
     });
 
@@ -107,14 +134,17 @@ export const createWorkflowPollingJobs = async (
       category: WORKFLOW_POLLING_CATEGORY,
       enabled: true,
       timing: {
-        minutes: [intervalMinutes], // Every N minutes
-        hours: Array.from({ length: 24 }, (_, i) => i) // Every hour
+        minutes: minutesArray, // Every N minutes (e.g., [0, 1, 2, ..., 59] for every minute)
+        hours: Array.from({ length: 24 }, (_, i) => i), // Every hour (0-23)
+        days: Array.from({ length: 31 }, (_, i) => i + 1), // Every day of the month (1-31)
+        months: Array.from({ length: 12 }, (_, i) => i + 1) // Every month (1-12)
       },
       params: {
         method: 'POST',
         url: cronicleService.buildDirectUrl('/internal/cron/builds/poll-running-workflows'),
         body: { releaseId, tenantId }
       },
+      retries: 0,
       notes: `Polls RUNNING CI/CD builds for release ${releaseId}`
     });
 

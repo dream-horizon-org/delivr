@@ -24,7 +24,6 @@ import { createSCMIntegrationRoutes } from "./scm-integrations";
 import { createStoreIntegrationRoutes } from "./store-integrations";
 import { createReleaseConfigRoutes } from "./release-config-routes";
 import { createReleaseScheduleRoutes } from "./release-schedule.routes";
-import { createWorkflowPollingRoutes } from "./workflow-polling.routes";
 import { createCronWebhookRoutes } from "./release/cron-webhook.routes";
 import { getReleaseManagementRouter as getReleaseRoutes } from "./release/release-management";
 
@@ -209,13 +208,6 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   } else {
     console.warn('[Release Management] Release Schedule service not available (S3Storage required), routes not mounted');
   }
-
-  // ============================================================================
-  // WORKFLOW POLLING ROUTES (Internal webhook - Cronicle)
-  // ============================================================================
-  const workflowPollingRoutes = createWorkflowPollingRoutes(storage);
-  router.use(workflowPollingRoutes);
-  console.log('[Release Management] Workflow Polling routes mounted successfully');
 
   // ============================================================================
   // CRON WEBHOOK ROUTES (Global Scheduler - Cronicle)

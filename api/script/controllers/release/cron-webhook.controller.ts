@@ -25,10 +25,10 @@ import type { GlobalSchedulerService } from '~services/release/cron-job/global-s
 /**
  * Create cron webhook controller
  * 
- * @param globalSchedulerService - Service that handles release processing logic (may be null)
+ * @param globalSchedulerService - Service that handles release processing logic (✅ Required - actively initialized in aws-storage.ts)
  */
 export const createCronWebhookController = (
-  globalSchedulerService: GlobalSchedulerService | null
+  globalSchedulerService: GlobalSchedulerService  // ✅ Required - actively initialized in aws-storage.ts
 ) => {
   
   // ─────────────────────────────────────────────────────────────
@@ -38,22 +38,11 @@ export const createCronWebhookController = (
   /**
    * Handle release tick from Cronicle
    * 
-   * Validates service availability, then delegates to GlobalSchedulerService
-   * to process all active releases.
+   * Delegates to GlobalSchedulerService to process all active releases.
    */
   const handleReleaseTick = async (_req: Request, res: Response): Promise<void> => {
-    // Validation: Check if service is available
-    if (!globalSchedulerService) {
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        error: 'Cron webhook service not configured (no Sequelize)',
-        processedCount: 0,
-        errors: ['Service unavailable'],
-        durationMs: 0
-      });
-      return;
-    }
-
+    // ✅ globalSchedulerService is required - actively initialized in aws-storage.ts, no null check needed
+    
     // Delegate to service (business logic)
     const result = await globalSchedulerService.processAllActiveReleases();
     

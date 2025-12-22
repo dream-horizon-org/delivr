@@ -1,7 +1,8 @@
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
-import type { GitHubActionsProviderContract, GHAVerifyParams, GHAVerifyResult, GHAWorkflowInputsParams, GHAWorkflowInputsResult, GHARunStatusParams, GHARunStatus, GHAWorkflowDispatchParams, GHAWorkflowDispatchResult, GHAFindDispatchedRunParams, GHAFindDispatchedRunResult } from './github-actions.interface';
+import type { GitHubActionsProviderContract, GHAVerifyParams, GHAVerifyResult, GHAWorkflowInputsParams, GHAWorkflowInputsResult, GHARunStatusParams, GHAWorkflowDispatchParams, GHAWorkflowDispatchResult, GHAFindDispatchedRunParams, GHAFindDispatchedRunResult } from './github-actions.interface';
 import { fetchWithTimeout, parseGitHubWorkflowUrl, extractWorkflowDispatchInputs, mapGitHubRunStatus } from '../../utils/cicd.utils';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../../../../../controllers/integrations/ci-cd/constants';
+import { WorkflowStatus } from '~controllers/integrations/ci-cd/workflows/workflow-adapter.utils';
 
 export class GitHubActionsProvider implements GitHubActionsProviderContract {
   readonly type = CICDProviderType.GITHUB_ACTIONS;
@@ -60,7 +61,7 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
   /**
    * Get normalized run status for a workflow run.
    */
-  getRunStatus = async (params: GHARunStatusParams): Promise<GHARunStatus> => {
+  getRunStatus = async (params: GHARunStatusParams): Promise<WorkflowStatus> => {
     const { token, owner, repo, runId, acceptHeader, userAgent, timeoutMs } = params;
     const headers = { 'Authorization': `Bearer ${token}`, 'Accept': acceptHeader, 'User-Agent': userAgent };
     const runUrl = `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}`;

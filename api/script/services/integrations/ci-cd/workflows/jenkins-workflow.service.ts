@@ -20,7 +20,7 @@ export class JenkinsWorkflowService extends WorkflowService {
    * Validates tenant credentials and host match before forwarding to provider.
    */
   fetchJobParameters = async (tenantId: string, workflowUrl: string): Promise<{ parameters: Array<{
-    name: string; type: 'boolean' | 'string' | 'choice'; description?: string; defaultValue?: unknown; choices?: string[];
+    name: string; type: 'boolean' | 'string' | 'choice'; description?: string; defaultValue?: unknown; options?: string[];
   }>}> => {
     const integration = await this.integrationRepository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
     if (!integration) throw new Error(ERROR_MESSAGES.JENKINS_CONNECTION_NOT_FOUND);

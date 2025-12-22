@@ -13,10 +13,13 @@ import { Request, Response, Router } from 'express';
 import { cronicleAuthMiddleware } from '../middleware/cronicle-auth.middleware';
 import { createWorkflowPollingController } from '~controllers/release/workflow-polling.controller';
 import { WorkflowPollingService } from '~services/release/workflow-polling';
-import { BuildCallbackService } from '~services/release/build-callback.service';
 import { HTTP_STATUS } from '../constants/http';
 import type { Storage } from '../storage/storage';
-import { hasBuildCallbackDependencies } from '../types/release/storage-with-services.interface';
+import { 
+  hasBuildCallbackDependencies,
+  hasBuildCallbackService,
+  StorageWithReleaseServices
+} from '../types/release/storage-with-services.interface';
 
 // ============================================================================
 // ROUTE FACTORY
@@ -54,16 +57,27 @@ export const createWorkflowPollingRoutes = (storage: Storage): Router => {
     return router;
   }
 
-  // TypeScript now knows storage has the required repositories
-  const callbackService = new BuildCallbackService(
-    storage.buildRepository,
-    storage.releaseTaskRepository,
-    storage.releaseRepository,
-    storage.cronJobRepository,
-    storage.releaseRetrievalService,
-    storage.releaseNotificationService,
-    storage.buildArtifactService
-  );
+  // ✅ Get BuildCallbackService from storage (centralized initialization - replaces factory)
+  if (!hasBuildCallbackService(storage)) {
+    console.warn('[Workflow Polling Routes] BuildCallbackService not available on storage');
+    // Return fallback routes that return error
+    router.post('/internal/cron/builds/poll-pending-workflows', cronicleAuthMiddleware,
+      (_req: Request, res: Response) => res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: 'BuildCallbackService not available'
+      })
+    );
+    router.post('/internal/cron/builds/poll-running-workflows', cronicleAuthMiddleware,
+      (_req: Request, res: Response) => res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: 'BuildCallbackService not available'
+      })
+    );
+    return router;
+  }
+  
+  const storageWithServices = storage as StorageWithReleaseServices;
+  const callbackService = storageWithServices.buildCallbackService;
 
   const pollingService = new WorkflowPollingService(
     storage.buildRepository,

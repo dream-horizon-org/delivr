@@ -51,16 +51,28 @@ async function demonstrateFlexibleRegression() {
   const { createCronJobModel } = await import('../../../script/models/release/cron-job.sequelize.model');
   const { createReleaseTaskModel } = await import('../../../script/models/release/release-task.sequelize.model');
   const { createRegressionCycleModel } = await import('../../../script/models/release/regression-cycle.sequelize.model');
+  const { createPlatformTargetMappingModel } = await import('../../../script/models/release/platform-target-mapping.sequelize.model');
+  const { createReleaseUploadModel } = await import('../../../script/models/release/release-uploads.sequelize.model');
+  const { createBuildModel } = await import('../../../script/models/release/build.sequelize.model');
+  const { ReleasePlatformTargetMappingRepository } = await import('../../../script/models/release/release-platform-target-mapping.repository');
+  const { ReleaseUploadsRepository } = await import('../../../script/models/release/release-uploads.repository');
+  const { BuildRepository } = await import('../../../script/models/release/build.repository');
   
   const releaseModel = createReleaseModel(storage.sequelize);
   const cronJobModel = createCronJobModel(storage.sequelize);
   const releaseTaskModel = createReleaseTaskModel(storage.sequelize);
   const regressionCycleModel = createRegressionCycleModel(storage.sequelize);
+  const platformMappingModel = createPlatformTargetMappingModel(storage.sequelize);
+  const releaseUploadsModel = createReleaseUploadModel(storage.sequelize);
+  const buildModel = createBuildModel(storage.sequelize);
   
   const releaseRepo = new ReleaseRepository(releaseModel);
   const cronJobRepo = new CronJobRepository(cronJobModel);
   const releaseTaskRepo = new ReleaseTaskRepository(releaseTaskModel);
   const regressionCycleRepo = new RegressionCycleRepository(regressionCycleModel);
+  const platformMappingRepo = new ReleasePlatformTargetMappingRepository(platformMappingModel);
+  const releaseUploadsRepo = new ReleaseUploadsRepository(storage.sequelize, releaseUploadsModel);
+  const buildRepo = new BuildRepository(buildModel);
 
   let testReleaseId: string; // Will be assigned after creation
   const testAccountId = uuidv4();
@@ -247,7 +259,10 @@ async function demonstrateFlexibleRegression() {
       releaseTaskRepo,
       regressionCycleRepo,
       mockTaskExecutor,
-      storage
+      storage,
+      platformMappingRepo,  // ✅ Required - actively initialized in aws-storage.ts
+      releaseUploadsRepo,  // ✅ Required - actively initialized in aws-storage.ts
+      buildRepo  // ✅ Required - actively initialized in aws-storage.ts
     );
     await stateMachine.initialize();
 

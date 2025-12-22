@@ -21,7 +21,11 @@ import { TestFlightBuildVerificationService } from '../../services/release/testf
 import { UploadStage } from '../../models/release/release-uploads.sequelize.model';
 import { PlatformName, ReleasePlatformTargetMapping } from '../../models/release/release.interface';
 import { RELEASE_MANAGEMENT_ERROR_MESSAGES } from './release-management.constants';
-import { hasTestFlightVerificationDependencies } from '../../types/release/storage-with-services.interface';
+import { 
+  hasTestFlightVerificationDependencies,
+  hasTestFlightBuildVerificationService,
+  StorageWithReleaseServices
+} from '../../types/release/storage-with-services.interface';
 
 /**
  * Verify TestFlight Build and Stage for Task Consumption
@@ -96,20 +100,20 @@ export const verifyTestFlightBuild = async (req: Request, res: Response): Promis
       return;
     }
 
-    // TypeScript now knows these exist
-    const storeController = storage.storeIntegrationController;
-    const credentialController = storage.storeCredentialController;
-    const platformTargetMappingRepository = storage.releasePlatformTargetMappingRepository;
-    const releaseRepository = storage.releaseRepository;
-    const releaseUploadsRepository = storage.releaseUploadsRepository;
-
-    // Step 1: Verify build exists in App Store Connect
-    const verificationService = new TestFlightBuildVerificationService(
-      storeController,
-      credentialController,
-      platformTargetMappingRepository,
-      releaseRepository
-    );
+    // ✅ Get TestFlightBuildVerificationService from storage (centralized initialization - replaces factory)
+    if (!hasTestFlightBuildVerificationService(storage)) {
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+        validationErrorResponse('testFlightBuildVerificationService', 'TestFlight verification service not available')
+      );
+      return;
+    }
+    
+    const storageWithServices = storage as StorageWithReleaseServices;
+    const verificationService = storageWithServices.testFlightBuildVerificationService;
+    
+    // ✅ Get repositories from storage (centralized initialization - replaces factory)
+    const releaseUploadsRepository = storageWithServices.releaseUploadsRepository;
+    const platformTargetMappingRepository = storageWithServices.platformMappingRepository;
     
     const verificationResult = await verificationService.verifyBuild({
       releaseId,
