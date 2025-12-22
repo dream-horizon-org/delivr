@@ -4,8 +4,8 @@
  * Similar to KickoffStage but with enhanced TaskCards for build, approval, and promotion tasks
  */
 
-import { Stack, Group, Text, Badge } from '@mantine/core';
-import { IconCheck, IconX } from '@tabler/icons-react';
+import { Stack, Group, Text, Badge, Alert } from '@mantine/core';
+import { IconCheck, IconX, IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useRouteLoaderData } from '@remix-run/react';
 import { usePreReleaseStage, useProjectManagementStatus, useCompletePreReleaseStage } from '~/hooks/useReleaseProcess';
@@ -84,6 +84,10 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
   // Extract tasks and uploadedBuilds from data
   const tasks = data?.tasks || [];
   const uploadedBuilds = data?.uploadedBuilds || [];
+
+  // Check if we're in transition state (data loaded but no tasks yet)
+  // This happens when transitioning from stage 2 to stage 3 - tasks are being created
+  const isFetchingTasks = isLoading || (data && tasks.length === 0);
 
   // Calculate approval requirements for Pre-Release
   const requirements: ApprovalRequirement[] = useMemo(() => {
@@ -189,23 +193,38 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
 
   return (
     <StageErrorBoundary
-      isLoading={isLoading}
+      isLoading={false} // We handle loading state ourselves
       error={error}
       data={data}
       stageName="pre-release stage"
     >
       <Stack gap="lg" className={className}>
-      {/* Tasks List */}
-      <PreReleaseTasksList
-        tasks={tasks}
-        tenantId={tenantId}
-        releaseId={releaseId}
-        onRetry={handleRetry}
-        uploadedBuilds={uploadedBuilds}
-      />
+        {/* Show loading message when fetching tasks */}
+        {isFetchingTasks && (
+          <Alert 
+            icon={<IconInfoCircle size={16} />} 
+            color="blue" 
+            variant="light" 
+            radius="md"
+          >
+            <Text size="sm">Please wait while we are fetching the tasks...</Text>
+          </Alert>
+        )}
 
-      {/* Approval Section - Show if PM is configured OR if there are other requirements */}
-      {(hasProjectManagement || requirements.length > 0) && (
+        {/* Tasks List - Only show when tasks are available */}
+        {!isFetchingTasks && tasks.length > 0 && (
+          <PreReleaseTasksList
+            tasks={tasks}
+            tenantId={tenantId}
+            releaseId={releaseId}
+            onRetry={handleRetry}
+            uploadedBuilds={uploadedBuilds}
+          />
+        )}
+
+        {/* Approval Section - Show if PM is configured OR if there are other requirements */}
+        {/* Only show approval section when tasks are loaded */}
+        {!isFetchingTasks && (hasProjectManagement || requirements.length > 0) && (
         <StageApprovalSection
           title="Pre-Release Approval"
           canApprove={canPromote}
