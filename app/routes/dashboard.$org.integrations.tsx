@@ -33,7 +33,7 @@ import { IntegrationConnectModal } from '~/components/Integrations/IntegrationCo
 import type { Integration, IntegrationDetails } from '~/types/integrations';
 import { IntegrationCategory, IntegrationStatus } from '~/types/integrations';
 import { useConfig } from '~/contexts/ConfigContext';
-import { invalidateTenantConfig } from '~/utils/cache-invalidation';
+import { refetchTenantConfigInBackground } from '~/utils/cache-invalidation';
 import { INTEGRATION_DISPLAY_NAMES, INTEGRATION_CATEGORY_LABELS } from '~/constants/integration-ui';
 import { INTEGRATION_MESSAGES } from '~/constants/toast-messages';
 import { showSuccessToast, showInfoToast } from '~/utils/toast';
@@ -105,6 +105,8 @@ export default function IntegrationsPage() {
           category,
           status: connected ? IntegrationStatus.CONNECTED : IntegrationStatus.NOT_CONNECTED,
           ...(connected && {
+            // Include displayName from connected integration if available
+            ...(connected.displayName && { displayName: connected.displayName }),
             config: {
               id: connected.id,
               ...connected.config,
@@ -193,7 +195,8 @@ export default function IntegrationsPage() {
     const isKnownIntegration = integrationId in INTEGRATION_DISPLAY_NAMES;
     if (isKnownIntegration) {
       showSuccessToast(INTEGRATION_MESSAGES.CONNECT_SUCCESS(displayName, !!editingIntegration));
-      invalidateTenantConfig(queryClient, params.org);
+      // Refetch tenant config in background to reflect latest integration changes
+      refetchTenantConfigInBackground(queryClient, params.org);
     } else {
       showInfoToast(INTEGRATION_MESSAGES.DEMO_MODE(integrationId));
     }
@@ -211,7 +214,8 @@ export default function IntegrationsPage() {
 
   const handleDisconnectComplete = useCallback(() => {
     if (!params.org) return;
-    invalidateTenantConfig(queryClient, params.org);
+    // Refetch tenant config in background to reflect latest integration changes
+    refetchTenantConfigInBackground(queryClient, params.org);
   }, [params.org, queryClient]);
 
   const handleCloseDetailModal = useCallback(() => {

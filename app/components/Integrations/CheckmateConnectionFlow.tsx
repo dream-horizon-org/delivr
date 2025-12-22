@@ -50,15 +50,15 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
     },
     {
       name: existingData?.name || '',
-      baseUrl: existingData?.config?.baseUrl || '',
+      baseUrl: existingData?.baseUrl || '',
       authToken: '',
-      orgId: existingData?.config?.orgId || '',
+      orgId: existingData?.orgId || '',
     },
     isEditMode ? {
       name: existingData?.name || '',
-      baseUrl: existingData?.config?.baseUrl || '',
+      baseUrl: existingData?.baseUrl || '',
       authToken: '',
-      orgId: existingData?.config?.orgId || '',
+      orgId: existingData?.orgId || '',
     } : undefined
   );
 

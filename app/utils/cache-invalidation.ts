@@ -29,6 +29,34 @@ export async function invalidateTenantConfig(
 }
 
 /**
+ * Refetch tenant config in the background (non-blocking)
+ * Use this after integration create/update/delete operations to ensure UI reflects latest changes
+ * 
+ * @param queryClient - React Query client instance
+ * @param tenantId - Tenant ID to refetch config for
+ * 
+ * @example
+ * ```tsx
+ * import { refetchTenantConfigInBackground } from '~/utils/cache-invalidation';
+ * import { useQueryClient } from 'react-query';
+ * 
+ * const queryClient = useQueryClient();
+ * // After successful integration operation:
+ * refetchTenantConfigInBackground(queryClient, tenantId);
+ * ```
+ */
+export function refetchTenantConfigInBackground(
+  queryClient: QueryClient,
+  tenantId: string
+): void {
+  // Fire and forget - refetch in background without blocking
+  void invalidateTenantConfig(queryClient, tenantId).catch((error) => {
+    // Silently handle errors - background refetch failures shouldn't break the UI
+    console.warn('[Cache Invalidation] Failed to refetch tenant config in background:', error);
+  });
+}
+
+/**
  * Invalidate release configs cache
  * This will trigger a refetch of all release configurations for a tenant
  * 

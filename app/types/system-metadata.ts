@@ -19,6 +19,7 @@ export interface IntegrationProvider extends IntegrationProviderBackend {
   description: string;
   icon: string;
   comingSoon?: boolean;
+  displayName?: string; // User-friendly display name (merged from connected integration if available)
   // isAvailable inherited from IntegrationProviderBackend
 }
 
