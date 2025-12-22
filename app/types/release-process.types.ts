@@ -141,7 +141,7 @@ export interface BuildInfo {
   tenantId: string;
   releaseId: string;
   platform: Platform;
-  buildStage: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
+  buildStage: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE';
   artifactPath: string | null;
   internalTrackLink: string | null;     // Play Store Internal Track Link
   testflightNumber: string | null;      // TestFlight build number
@@ -495,21 +495,23 @@ export interface ApproveRegressionStageResponse {
 
 
 /**
- * Complete Pre-Release Request
+ * Complete Pre-Release Request (Trigger Distribution)
  */
 export interface CompletePreReleaseRequest {
-  notes?: string;
+  comments?: string;
+  forceApprove?: boolean;
 }
 
 /**
- * Complete Pre-Release Response - Matches backend contract
+ * Complete Pre-Release Response - Matches backend contract for trigger-distribution
  */
 export interface CompletePreReleaseResponse {
   success: true;
   message: string;
   releaseId: string;
-  completedAt: string;                  // ISO 8601
-  nextStage: 'RELEASE_SUBMISSION';
+  approvedAt: string;                   // ISO 8601
+  approvedBy: string;
+  nextStage: string;                    // e.g., 'DISTRIBUTION' or 'RELEASE_SUBMISSION'
 }
 
 

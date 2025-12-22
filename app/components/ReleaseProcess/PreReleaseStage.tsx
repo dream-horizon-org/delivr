@@ -177,7 +177,7 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
   const handleApprove = useCallback(async (comments?: string) => {
     try {
       await completeMutation.mutateAsync({
-        notes: comments || undefined,
+        comments: comments || undefined,
       });
       setApprovalModalOpened(false);
       showSuccessToast({ message: 'Pre-release stage approved successfully' });

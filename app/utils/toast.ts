@@ -68,7 +68,7 @@ export function showErrorToast(options: ToastOptions) {
     title: options.title || 'Error',
     message: options.message,
     color: 'red',
-    icon: React.createElement(IconX, { size: 20, strokeWidth: 2.5 }),
+    icon: React.createElement(IconAlertTriangle, { size: 20, strokeWidth: 2.5 }),
     autoClose: options.duration || 6000,
     position: options.position || 'top-right',
     withBorder: true,
