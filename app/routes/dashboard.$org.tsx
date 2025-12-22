@@ -41,17 +41,6 @@ export const loader = authenticateLoaderRequest(async ({ request, params, user }
       throw new Error('Organization not found in response');
     }
 
-    // Log raw API response for Slack integration debugging
-    const rawSlackIntegration = organisation?.releaseManagement?.config?.connectedIntegrations?.COMMUNICATION?.find(
-      (integration: any) => integration?.providerId?.toLowerCase() === 'slack'
-    );
-    if (rawSlackIntegration) {
-      console.log('[OrgLayout] Raw Slack Integration from API:', {
-        rawIntegration: rawSlackIntegration,
-        connectedBy: rawSlackIntegration.connectedBy,
-        fullConnectedIntegrations: organisation?.releaseManagement?.config?.connectedIntegrations?.COMMUNICATION
-      });
-    }
 
     // Extract tenant config from organisation response
     const config = organisation?.releaseManagement?.config;

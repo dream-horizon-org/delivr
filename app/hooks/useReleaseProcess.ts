@@ -881,7 +881,6 @@ export function useArchiveRelease(tenantId?: string, releaseId?: string) {
       onSuccess: () => {
         // Invalidate release queries to refresh data
         queryClient.invalidateQueries(['releases', tenantId]);
-        queryClient.refetchQueries(['releases', tenantId]); // Add this for immediate refetch
         queryClient.invalidateQueries(['release', tenantId, releaseId]);
         queryClient.invalidateQueries(['release-process', 'stage', tenantId, releaseId]);
         // Invalidate activity logs to show archive action
