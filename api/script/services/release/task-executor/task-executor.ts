@@ -1014,10 +1014,8 @@ export class TaskExecutor {
           platformName,
           WorkflowType.PRE_REGRESSION_BUILD,
           {
-            platform: platformName,
             version: mapping.version,
             branch: release.branch,
-            buildType: CICD_JOB_BUILD_TYPE.PRE_REGRESSION
           }
         );
 
@@ -1393,11 +1391,8 @@ export class TaskExecutor {
           platformName,
           WorkflowType.REGRESSION_BUILD,
           {
-            platform: platformName,
             version: mapping.version,
             branch: release.branch,
-            buildType: CICD_JOB_BUILD_TYPE.REGRESSION,
-            regressionId: task.regressionId
           }
         );
 
@@ -1827,10 +1822,8 @@ export class TaskExecutor {
         BUILD_PLATFORM.IOS,
         WorkflowType.TEST_FLIGHT_BUILD,
         {
-          platform: BUILD_PLATFORM.IOS,
           version: iosMapping?.version,
           branch: release.branch,
-          buildType: CICD_JOB_BUILD_TYPE.TESTFLIGHT
         }
       );
 
@@ -2001,10 +1994,8 @@ export class TaskExecutor {
         BUILD_PLATFORM.ANDROID,
         WorkflowType.AAB_BUILD,
         {
-          platform: BUILD_PLATFORM.ANDROID,
           version: androidMapping?.version,
           branch: release.branch,
-          buildType: CICD_JOB_BUILD_TYPE.AAB
         }
       );
 

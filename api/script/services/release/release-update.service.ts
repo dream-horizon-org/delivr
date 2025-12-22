@@ -642,7 +642,7 @@ export class ReleaseUpdateService {
 
     // Step 5: For build tasks, reset failed build entries
     if (this.isBuildTask(task.taskType) && this.buildRepository) {
-      const resetCount = await this.buildRepository.resetFailedBuildsForTask(taskId);
+      const resetCount = await this.buildRepository.deleteFailedBuildsForTask(taskId);
       console.log(`[ReleaseUpdateService] Reset ${resetCount} failed build entries for task ${taskId}`);
     }
 

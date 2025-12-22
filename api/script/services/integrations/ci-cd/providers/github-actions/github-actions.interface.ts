@@ -1,3 +1,4 @@
+import { WorkflowStatus } from '~controllers/integrations/ci-cd/workflows/workflow-adapter.utils';
 import type { CICDProvider } from '../provider.interface';
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 
@@ -45,8 +46,6 @@ export type GHARunStatusParams = {
   timeoutMs: number;
 };
 
-export type GHARunStatus = 'pending' | 'running' | 'completed' | 'failed';
-
 export type GHAWorkflowDispatchParams = {
   token: string;
   owner: string;
@@ -85,7 +84,7 @@ export interface GitHubActionsProviderContract extends CICDProvider {
   readonly type: CICDProviderType.GITHUB_ACTIONS;
   verifyConnection(params: GHAVerifyParams): Promise<GHAVerifyResult>;
   fetchWorkflowInputs(params: GHAWorkflowInputsParams): Promise<GHAWorkflowInputsResult>;
-  getRunStatus(params: GHARunStatusParams): Promise<GHARunStatus>;
+  getRunStatus(params: GHARunStatusParams): Promise<WorkflowStatus>;
   triggerWorkflowDispatch(params: GHAWorkflowDispatchParams): Promise<GHAWorkflowDispatchResult>;
   findLatestWorkflowDispatchRun(params: GHAFindDispatchedRunParams): Promise<GHAFindDispatchedRunResult>;
 }

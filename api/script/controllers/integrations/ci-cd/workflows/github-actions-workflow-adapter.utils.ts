@@ -1,6 +1,6 @@
 import { ERROR_MESSAGES } from "../constants";
 import { GitHubActionsWorkflowService } from "~services/integrations/ci-cd";
-import type { ParametersResult, RunStatus, WorkflowAdapter } from "./workflow-adapter.utils";
+import type { ParametersResult, WorkflowStatus, WorkflowAdapter } from "./workflow-adapter.utils";
 
 export const createGitHubActionsAdapter = (): WorkflowAdapter => {
   const service = new GitHubActionsWorkflowService();
@@ -43,7 +43,7 @@ export const createGitHubActionsAdapter = (): WorkflowAdapter => {
   const runStatus: WorkflowAdapter["runStatus"] = async (tenantId, body) => {
     const { runUrl, owner, repo, runId } = body;
     const status = await service.getRunStatus(tenantId, { runUrl, owner, repo, runId });
-    const validStatus: RunStatus = status;
+    const validStatus: WorkflowStatus = status;
     return validStatus;
   };
 

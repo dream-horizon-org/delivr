@@ -1,6 +1,6 @@
 import { ERROR_MESSAGES } from "../constants";
 import { JenkinsWorkflowService } from "~services/integrations/ci-cd";
-import type { ParametersResult, QueueStatus, WorkflowAdapter } from "./workflow-adapter.utils";
+import type { ParametersResult, WorkflowStatus, WorkflowAdapter } from "./workflow-adapter.utils";
 
 export const createJenkinsAdapter = (): WorkflowAdapter => {
   const service = new JenkinsWorkflowService();
@@ -23,7 +23,7 @@ export const createJenkinsAdapter = (): WorkflowAdapter => {
       type: p.type,
       description: p.description,
       defaultValue: p.defaultValue,
-      choices: p.choices
+      options: p.options
     }));
     const response: ParametersResult = { parameters: mapped };
     return response;
@@ -59,7 +59,7 @@ export const createJenkinsAdapter = (): WorkflowAdapter => {
     }
     const result = await service.getQueueStatus(tenantId, queueUrl as string);
     // Extract just the status for the adapter (executableUrl used by polling service directly)
-    const validStatus: QueueStatus = result.status;
+    const validStatus: WorkflowStatus = result.status;
     return validStatus;
   };
 
