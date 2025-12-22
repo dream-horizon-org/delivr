@@ -22,6 +22,13 @@ export const CODEPUSH_PACKAGE_KOTLIN = `
               BuildConfig.DEBUG
             ))`;
 
+export const CODEPUSH_PACKAGE_KOTLIN_WITH_PACKAGE_LIST = `
+            packages.add(CodePush.getInstance(
+              resources.getString(R.string.CodePushDeploymentKey),
+              applicationContext,
+              BuildConfig.DEBUG
+            ))`;
+
 export const CODEPUSH_PACKAGE_JAVA = `
             packages.add(CodePush.getInstance(
               getResources().getString(R.string.CodePushDeploymentKey),

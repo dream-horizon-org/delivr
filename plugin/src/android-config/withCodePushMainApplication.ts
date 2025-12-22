@@ -8,6 +8,7 @@ import {
   JS_BUNDLE_OVERRIDE_JAVA,
   CODEPUSH_PACKAGE_KOTLIN,
   CODEPUSH_PACKAGE_JAVA,
+  CODEPUSH_PACKAGE_KOTLIN_WITH_PACKAGE_LIST,
 } from "../constants";
 
 export const withCodePushMainApplication: ConfigPlugin = (config) => {
@@ -42,14 +43,35 @@ export const withCodePushMainApplication: ConfigPlugin = (config) => {
           offset: 1,
         }).contents;
 
-        config.modResults.contents = mergeContents({
-          src: config.modResults.contents,
-          newSrc: CODEPUSH_PACKAGE_KOTLIN,
-          tag: "d11-dota-package",
-          comment: "//",
-          anchor: /PackageList\(this\)\.packages\.apply \{/,
-          offset: 1,
-        }).contents;
+        const applyPattern = /PackageList\(this\)\.packages\.apply\s*\{/;
+
+        const variablePattern = /val\s+packages\s*=\s*PackageList\(this\)\.packages/;
+
+        if (applyPattern.test(contents)) {
+          config.modResults.contents = mergeContents({
+            src: config.modResults.contents,
+            newSrc: CODEPUSH_PACKAGE_KOTLIN,
+            tag: "d11-dota-package",
+            comment: "//",
+            anchor: applyPattern,
+            offset: 1, // Insert inside the opening brace '{'
+          }).contents;
+        } else if (variablePattern.test(contents)) {
+          config.modResults.contents = mergeContents({
+            src: config.modResults.contents,
+            newSrc: CODEPUSH_PACKAGE_KOTLIN_WITH_PACKAGE_LIST,
+            tag: "d11-dota-package",
+            comment: "//",
+            anchor: variablePattern,
+            offset: 1, // Insert on the line after the variable definition
+          }).contents;
+        } else {
+          // 4. Fallback / Warning
+          // It is good practice to throw or warn if the file structure is completely unrecognizable
+          console.warn(
+            "Could not find a suitable anchor for CodePush in MainApplication.kt. Please add it manually."
+          );
+        }
       } else {
         config.modResults.contents = mergeContents({
           src: config.modResults.contents,
