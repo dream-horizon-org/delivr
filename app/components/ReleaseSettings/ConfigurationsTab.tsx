@@ -31,8 +31,9 @@ import {
   IconAlertCircle,
 } from '@tabler/icons-react';
 import { ConfigurationListItem } from '~/components/ReleaseSettings/ConfigurationListItem';
+import { ConfirmationModal } from '~/components/Common/ConfirmationModal';
 import { apiDelete, apiPut, getApiErrorMessage } from '~/utils/api-client';
-import { showErrorToast, showSuccessToast, showInfoToast } from '~/utils/toast';
+import { showErrorToast, showInfoToast, showSuccessToast } from '~/utils/toast';
 import { RELEASE_CONFIG_MESSAGES, getErrorMessage } from '~/constants/toast-messages';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { CONFIG_STATUS, RELEASE_TYPE } from '~/constants/release-config-ui';
@@ -58,7 +59,13 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
-  const {updateReleaseConfigInCache} = useConfig()
+  const {updateReleaseConfigInCache} = useConfig();
+
+  // Confirmation modal states
+  const [archiveModal, setArchiveModal] = useState<{ opened: boolean; configId: string | null }>({ opened: false, configId: null });
+  const [unarchiveModal, setUnarchiveModal] = useState<{ opened: boolean; configId: string | null }>({ opened: false, configId: null });
+  const [deleteModal, setDeleteModal] = useState<{ opened: boolean; configId: string | null }>({ opened: false, configId: null });
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Clear statusFilter if it's set to DRAFT (since Draft filter is removed)
   useEffect(() => {
@@ -135,42 +142,51 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
     showInfoToast(RELEASE_CONFIG_MESSAGES.DUPLICATE_INFO);
   }, []);
   
-  const handleArchive = useCallback(async (configId: string) => {
-    const config = configurations.find((c: any) => c.id === configId);
+  const handleArchive = useCallback((configId: string) => {
+    setArchiveModal({ opened: true, configId });
+  }, []);
+
+  const confirmArchive = useCallback(async () => {
+    if (!archiveModal.configId) return;
+    
+    const config = configurations.find((c: any) => c.id === archiveModal.configId);
     const isDraft = config?.status === 'DRAFT';
     
-    const confirmMessage = isDraft 
-      ? 'Are you sure you want to delete this draft configuration?' 
-      : 'Are you sure you want to archive this configuration?';
-    
-    if (!confirm(confirmMessage)) {
-      return;
-    }
+    setIsProcessing(true);
     
     if (isDraft) {
       try {
         const draftKey = generateStorageKey('release-config', org);
         localStorage.removeItem(draftKey);
         invalidateReleaseConfigs();
+        setArchiveModal({ opened: false, configId: null });
       } catch (error) {
         showErrorToast(RELEASE_CONFIG_MESSAGES.DELETE_DRAFT_ERROR);
+      } finally {
+        setIsProcessing(false);
       }
       return;
     }
     
     try {
-      const result = await apiDelete<{ message?: string }>(
-        `/api/v1/tenants/${org}/release-config/${configId}`
+      // Archive by updating isActive and status via PUT (not DELETE)
+      const result = await apiPut<{ success: boolean; data?: any; error?: string }>(
+        `/api/v1/tenants/${org}/release-config/${archiveModal.configId}`,
+        {
+          isActive: false,
+          status: CONFIG_STATUS.ARCHIVED,
+        }
       );
       
       if (result.success) {
         invalidateReleaseConfigs();
-        showSuccessToast(RELEASE_CONFIG_MESSAGES.ARCHIVE_SUCCESS);
+        setArchiveModal({ opened: false, configId: null });
       } else {
         // ❌ Rollback optimistic update on failure
-        updateReleaseConfigInCache(configId, (config) => ({
+        updateReleaseConfigInCache(archiveModal.configId, (config) => ({
           ...config,
           isActive: true,
+          status: CONFIG_STATUS.ACTIVE,
         }));
         showErrorToast(getErrorMessage(
           result.error || 'Unknown error',
@@ -180,8 +196,113 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
     } catch (error) {
       const errorMessage = getApiErrorMessage(error, 'Failed to archive configuration');
       showErrorToast(getErrorMessage(errorMessage, RELEASE_CONFIG_MESSAGES.ARCHIVE_ERROR.title));
+    } finally {
+      setIsProcessing(false);
     }
-  }, [org, configurations, invalidateReleaseConfigs, updateReleaseConfigInCache]);
+  }, [archiveModal.configId, org, configurations, invalidateReleaseConfigs, updateReleaseConfigInCache]);
+  
+  const handleUnarchive = useCallback((configId: string) => {
+    setUnarchiveModal({ opened: true, configId });
+  }, []);
+
+  const confirmUnarchive = useCallback(async () => {
+    if (!unarchiveModal.configId) return;
+    
+    setIsProcessing(true);
+    
+    try {
+      // Unarchive by updating isActive and status via PUT
+      const result = await apiPut<{ success: boolean; data?: any; error?: string }>(
+        `/api/v1/tenants/${org}/release-config/${unarchiveModal.configId}`,
+        {
+          isActive: true,
+          status: CONFIG_STATUS.ACTIVE,
+        }
+      );
+      
+      if (result.success) {
+        invalidateReleaseConfigs();
+        setUnarchiveModal({ opened: false, configId: null });
+      } else {
+        // Rollback optimistic update on failure
+        updateReleaseConfigInCache(unarchiveModal.configId, (config) => ({
+          ...config,
+          isActive: false,
+          status: CONFIG_STATUS.ARCHIVED,
+        }));
+        showErrorToast(getErrorMessage(
+          result.error || 'Unknown error',
+          RELEASE_CONFIG_MESSAGES.UNARCHIVE_ERROR.title
+        ));
+      }
+    } catch (error) {
+      const errorMessage = getApiErrorMessage(error, 'Failed to unarchive configuration');
+      showErrorToast(getErrorMessage(errorMessage, RELEASE_CONFIG_MESSAGES.UNARCHIVE_ERROR.title));
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [unarchiveModal.configId, org, invalidateReleaseConfigs, updateReleaseConfigInCache]);
+  
+  const handleDelete = useCallback((configId: string) => {
+    setDeleteModal({ opened: true, configId });
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    if (!deleteModal.configId) return;
+    
+    const config = configurations.find((c: any) => c.id === deleteModal.configId);
+    
+    if (!config) {
+      showErrorToast(RELEASE_CONFIG_MESSAGES.DELETE_ERROR);
+      setDeleteModal({ opened: false, configId: null });
+      return;
+    }
+    
+    setIsProcessing(true);
+    
+    try {
+      const result = await apiDelete<{ success: boolean; error?: string }>(
+        `/api/v1/tenants/${org}/release-config/${deleteModal.configId}`
+      );
+      
+      if (result.success) {
+        invalidateReleaseConfigs();
+        setDeleteModal({ opened: false, configId: null });
+      } else {
+        // Check if error is due to foreign key constraint (config in use by releases)
+        const errorMessage = result.error || 'Unknown error';
+        const isForeignKeyError = 
+          errorMessage.includes('foreign key constraint') ||
+          errorMessage.includes('releaseConfigId') ||
+          errorMessage.includes('Cannot delete or update a parent row');
+        
+        if (isForeignKeyError) {
+          showErrorToast(RELEASE_CONFIG_MESSAGES.DELETE_IN_USE_ERROR);
+        } else {
+          showErrorToast(getErrorMessage(
+            errorMessage,
+            RELEASE_CONFIG_MESSAGES.DELETE_ERROR.title
+          ));
+        }
+      }
+    } catch (error) {
+      const errorMessage = getApiErrorMessage(error, 'Failed to delete configuration');
+      
+      // Check if error is due to foreign key constraint (config in use by releases)
+      const isForeignKeyError = 
+        errorMessage.includes('foreign key constraint') ||
+        errorMessage.includes('releaseConfigId') ||
+        errorMessage.includes('Cannot delete or update a parent row');
+      
+      if (isForeignKeyError) {
+        showErrorToast(RELEASE_CONFIG_MESSAGES.DELETE_IN_USE_ERROR);
+      } else {
+        showErrorToast(getErrorMessage(errorMessage, RELEASE_CONFIG_MESSAGES.DELETE_ERROR.title));
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [deleteModal.configId, org, configurations, invalidateReleaseConfigs]);
   
   const handleSetDefault = useCallback(async (configId: string) => {
     try {
@@ -207,7 +328,6 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
       }));
       
       // First, unset the previous default (if exists)
-      // Send the FULL config object to prevent backend from wiping out other fields
       if (currentDefault && currentDefault.id !== configId) {
         console.log('[ConfigurationsTab] Unsetting previous default:', currentDefault.id);
         const unsetResult = await apiPut(
@@ -221,6 +341,10 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
           updateReleaseConfigInCache(currentDefault.id, (config) => ({
             ...config,
             isDefault: true,
+          }));
+          updateReleaseConfigInCache(configId, (config) => ({
+            ...config,
+            isDefault: false,
           }));
           showErrorToast(getErrorMessage(
             unsetResult.error || 'Failed to unset previous default',
@@ -241,7 +365,9 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
         // Success! The optimistic update is already applied
         showSuccessToast(RELEASE_CONFIG_MESSAGES.SET_DEFAULT_SUCCESS);
         // Invalidate to ensure we're in sync with backend
-        invalidateReleaseConfigs();
+        setTimeout(() => {
+          invalidateReleaseConfigs();
+        }, 100);
       } else {
         // Rollback optimistic update
         updateReleaseConfigInCache(configId, (config) => ({
@@ -444,6 +570,8 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
               onEdit={() => handleEdit(config)}
               onDuplicate={() => handleDuplicate(config)}
               onArchive={() => handleArchive(config.id)}
+              onUnarchive={() => handleUnarchive(config.id)}
+              onDelete={() => handleDelete(config.id)}
               onExport={() => handleExport(config)}
               onSetDefault={() => handleSetDefault(config.id)}
             />
@@ -484,6 +612,65 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
           </Center>
         </Paper>
       )}
+
+      {/* Archive Confirmation Modal */}
+      {archiveModal.configId && (() => {
+        const config = configurations.find((c: any) => c.id === archiveModal.configId);
+        const isDraft = config?.status === 'DRAFT';
+        return (
+          <ConfirmationModal
+            opened={archiveModal.opened}
+            onClose={() => !isProcessing && setArchiveModal({ opened: false, configId: null })}
+            onConfirm={confirmArchive}
+            title={isDraft ? 'Delete Draft Configuration' : 'Archive Configuration'}
+            message={
+              isDraft
+                ? 'Are you sure you want to delete this draft configuration? This action cannot be undone.'
+                : `Are you sure you want to archive "${config?.name}"? You can unarchive it later if needed.`
+            }
+            confirmLabel={isDraft ? 'Delete' : 'Archive'}
+            cancelLabel="Cancel"
+            confirmColor={isDraft ? 'red' : 'orange'}
+            isLoading={isProcessing}
+          />
+        );
+      })()}
+
+      {/* Unarchive Confirmation Modal */}
+      {unarchiveModal.configId && (() => {
+        const config = configurations.find((c: any) => c.id === unarchiveModal.configId);
+        return (
+          <ConfirmationModal
+            opened={unarchiveModal.opened}
+            onClose={() => !isProcessing && setUnarchiveModal({ opened: false, configId: null })}
+            onConfirm={confirmUnarchive}
+            title="Unarchive Configuration"
+            message={`Are you sure you want to unarchive "${config?.name}"? It will be restored to active status.`}
+            confirmLabel="Unarchive"
+            cancelLabel="Cancel"
+            confirmColor="blue"
+            isLoading={isProcessing}
+          />
+        );
+      })()}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal.configId && (() => {
+        const config = configurations.find((c: any) => c.id === deleteModal.configId);
+        return (
+          <ConfirmationModal
+            opened={deleteModal.opened}
+            onClose={() => !isProcessing && setDeleteModal({ opened: false, configId: null })}
+            onConfirm={confirmDelete}
+            title="Delete Configuration"
+            message={`Are you sure you want to permanently delete "${config?.name}"? This action cannot be undone.`}
+            confirmLabel="Delete"
+            cancelLabel="Cancel"
+            confirmColor="red"
+            isLoading={isProcessing}
+          />
+        );
+      })()}
     </Stack>
   );
 });

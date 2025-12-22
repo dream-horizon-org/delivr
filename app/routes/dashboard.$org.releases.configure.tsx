@@ -262,7 +262,7 @@ export default function ReleasesConfigurePage() {
   
   const handleCloseDraftDialog = () => {
     setShowDraftDialog(false);
-    setUseDraft(true);
+    handleCancel();
   };
 
   // Breadcrumb items

@@ -21,6 +21,7 @@ import {
   SimpleGrid,
   Center,
   useMantineTheme,
+  Anchor,
 } from '@mantine/core';
 import { Link } from '@remix-run/react';
 import {
@@ -234,17 +235,27 @@ export function WorkflowList({
                             </Badge>
                           )}
                         </Group>
-                        <Text
+                        <Anchor
+                          href={workflow.workflowUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           size="xs"
                           c={theme.colors.slate[5]}
                           style={{
                             fontFamily: 'monospace',
                             wordBreak: 'break-all',
                             lineHeight: 1.4,
+                            textDecoration: 'none',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.textDecoration = 'underline';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.textDecoration = 'none';
                           }}
                         >
                           {workflow.workflowUrl}
-                        </Text>
+                        </Anchor>
                       </Box>
                       <Menu
                         shadow="md"
@@ -360,17 +371,27 @@ export function WorkflowList({
                             </Badge>
                           )}
                         </Group>
-                        <Text
+                        <Anchor
+                          href={workflow.workflowUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           size="xs"
                           c={theme.colors.slate[5]}
                           style={{
                             fontFamily: 'monospace',
                             wordBreak: 'break-all',
                             lineHeight: 1.4,
+                            textDecoration: 'none',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.textDecoration = 'underline';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.textDecoration = 'none';
                           }}
                         >
                           {workflow.workflowUrl}
-                        </Text>
+                        </Anchor>
                       </Box>
                       <Menu
                         shadow="md"

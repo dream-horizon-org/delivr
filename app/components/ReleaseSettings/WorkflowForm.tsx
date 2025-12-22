@@ -66,6 +66,8 @@ export interface WorkflowFormProps {
   };
   existingWorkflow?: CICDWorkflow | null;
   isEditMode?: boolean;
+  workflowId?: string; // Fallback workflow ID from URL params
+  workflows?: CICDWorkflow[]; // Optional: for duplicate name validation
 }
 
 export function WorkflowForm({
@@ -75,6 +77,8 @@ export function WorkflowForm({
   availableIntegrations,
   existingWorkflow,
   isEditMode = false,
+  workflowId,
+  workflows = [],
 }: WorkflowFormProps) {
   const theme = useMantineTheme();
 
@@ -106,10 +110,36 @@ export function WorkflowForm({
   // Initialize form from existing workflow
   useEffect(() => {
     if (existingWorkflow) {
+      
+      
       setName(existingWorkflow.displayName || '');
-      setPlatform(existingWorkflow.platform || PLATFORMS.ANDROID);
-      setEnvironment(workflowTypeToEnvironment[existingWorkflow.workflowType] || BUILD_ENVIRONMENTS.PRE_REGRESSION);
-      setProvider((existingWorkflow.providerType || defaultProvider) as BuildProvider);
+      
+      // Normalize platform to uppercase (backend may return lowercase)
+      const normalizedPlatform = existingWorkflow.platform?.toUpperCase() || PLATFORMS.ANDROID;
+      const validPlatform = (normalizedPlatform === PLATFORMS.ANDROID || normalizedPlatform === PLATFORMS.IOS) 
+        ? normalizedPlatform 
+        : PLATFORMS.ANDROID;
+      setPlatform(validPlatform);
+      
+      // Map workflowType to environment
+      const mappedEnvironment = existingWorkflow.workflowType 
+        ? workflowTypeToEnvironment[existingWorkflow.workflowType] 
+        : undefined;
+      
+      // Validate environment is valid for the platform
+      const validEnvironmentsForPlatform = getEnvironmentsForPlatform(validPlatform as Platform);
+      const validEnvironment = mappedEnvironment && validEnvironmentsForPlatform.includes(mappedEnvironment)
+        ? mappedEnvironment
+        : validEnvironmentsForPlatform[0] || BUILD_ENVIRONMENTS.PRE_REGRESSION;
+      
+      setEnvironment(validEnvironment);
+      
+     const workflowProvider = existingWorkflow.providerType as BuildProvider;
+     if(workflowProvider && (workflowProvider===BUILD_PROVIDERS.JENKINS || workflowProvider === BUILD_PROVIDERS.GITHUB_ACTIONS) ){
+      setProvider(workflowProvider);
+     }else{
+      setProvider(defaultProvider);
+     }
 
       // Reconstruct providerConfig from workflow data
       if (existingWorkflow.providerType === BUILD_PROVIDERS.JENKINS) {
@@ -146,6 +176,9 @@ export function WorkflowForm({
 
   // Reset provider config when provider changes and auto-inject integrationId
   useEffect(() => {
+    if (existingWorkflow) {
+      return;
+    }
     if (provider === BUILD_PROVIDERS.JENKINS) {
       const jenkinsIntegrations = availableIntegrations.jenkins || [];
       const autoIntegrationId = jenkinsIntegrations.length === 1 
@@ -184,6 +217,18 @@ export function WorkflowForm({
 
     if (!name || !name.trim()) {
       newErrors.name = 'Workflow name is required';
+    } else if (workflows && workflows.length > 0) {
+      // Check for duplicate display names (exclude current workflow if editing)
+      const trimmedName = name.trim();
+      const duplicateWorkflow = workflows.find(
+        (wf) => 
+          wf.displayName.toLowerCase() === trimmedName.toLowerCase() &&
+          (!existingWorkflow || wf.id !== existingWorkflow.id)
+      );
+      
+      if (duplicateWorkflow) {
+        newErrors.name = 'A workflow with this name already exists. Please use a different name.';
+      }
     }
 
     if (provider === BUILD_PROVIDERS.JENKINS) {
@@ -211,7 +256,7 @@ export function WorkflowForm({
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [name, provider, providerConfig]);
+  }, [name, provider, providerConfig, workflows, existingWorkflow]);
 
   const handleSave = useCallback(async () => {
     if (!validate()) {
@@ -265,8 +310,17 @@ export function WorkflowForm({
       }
 
       if (isEditMode && existingWorkflow) {
+        // Use existingWorkflow.id if available, otherwise fall back to workflowId from URL params
+        const idToUse = existingWorkflow.id || workflowId;
+        
+        if (!idToUse) {
+          showErrorToast({ title: 'Error', message: 'Workflow ID is missing. Cannot update workflow.' });
+          setIsSaving(false);
+          return;
+        }
+        
         const result = await apiPatch<{ success: boolean; error?: string }>(
-          `/api/v1/tenants/${tenantId}/workflows/${existingWorkflow.id}`,
+          `/api/v1/tenants/${tenantId}/workflows/${idToUse}`,
           workflowData
         );
 
@@ -296,7 +350,7 @@ export function WorkflowForm({
       showErrorToast({ title: 'Error', message: errorMessage });
       setIsSaving(false);
     }
-  }, [validate, provider, providerConfig, name, platform, environment, isSaving, isEditMode, existingWorkflow, tenantId, onSubmit]);
+  }, [validate, provider, providerConfig, name, platform, environment, isSaving, isEditMode, existingWorkflow, workflowId, tenantId, onSubmit]);
 
   const handlePlatformChange = useCallback((val: string | null) => {
     const newPlatform = (val || PLATFORMS.ANDROID) as Platform;

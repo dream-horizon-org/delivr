@@ -276,6 +276,7 @@ export function ConfigurationWizard({
             }}
             selectedPlatforms={config.platforms || []}
             tenantId={tenantId}
+            showValidation={attemptedSteps.has(STEP_INDEX.PIPELINES)}
           />
         );
         

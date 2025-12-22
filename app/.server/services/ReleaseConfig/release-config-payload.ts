@@ -325,7 +325,7 @@ export function prepareReleaseConfigPayload(
       // Map each platform in initialVersions to its corresponding target from platformTargets
       Object.entries(config.releaseSchedule.initialVersions).forEach(([platform, version]) => {
         // Find the target for this platform from platformTargets
-        const platformTarget = platformTargets.find(pt => pt.platform === platform.toUpperCase());
+        const platformTarget = platformTargets.find((pt: { platform: string; target: string }) => pt.platform === platform.toUpperCase());
         if (platformTarget && version) {
           initialVersionsArray.push({
             platform: platform.toUpperCase(),
@@ -765,11 +765,44 @@ export async function transformFromBackend(
  * Prepare update payload (same as create)
  */
 export function prepareUpdatePayload(
-  config: Partial<ReleaseConfiguration>,
+  updates: Partial<ReleaseConfiguration>,
   tenantId: string,
   userId: string
 ): any {
-  return prepareReleaseConfigPayload(config as ReleaseConfiguration, tenantId, userId);
+  // For minimal updates (like archive/unarchive), only send the fields being updated
+  // Don't transform or include fields that aren't being updated
+  // This prevents accidentally overwriting fields like platforms/targets
+  const updateKeys = Object.keys(updates);
+  const isMinimalUpdate = updateKeys.length <= 3 && 
+    (updateKeys.includes('isActive') || updateKeys.includes('status') || updateKeys.includes('isDefault'));
+  
+  if (isMinimalUpdate) {
+    // For minimal updates (archive/unarchive/set default), just pass through the updates
+    // without transformation. This prevents prepareReleaseConfigPayload from trying to
+    // derive platformTargets from missing targets/platforms fields, which would
+    // result in an empty array and overwrite existing platforms.
+    return {
+      ...updates,
+    };
+  }
+  
+  // Only transform platformTargets if targets/platforms are explicitly being updated
+  if (updates.targets && Array.isArray(updates.targets) && updates.platforms) {
+    const platformTargets = updates.platforms.flatMap((platform: string) =>
+      updates.targets!.map((target: string) => ({
+        platform,
+        target,
+      }))
+    );
+    const { platforms: _platforms, targets: _targets, ...rest } = updates as any;
+    return {
+      ...rest,
+      platformTargets,
+    };
+  }
+  
+  // For full updates, use the full transformation
+  return prepareReleaseConfigPayload(updates as ReleaseConfiguration, tenantId, userId);
 }
 
 /**

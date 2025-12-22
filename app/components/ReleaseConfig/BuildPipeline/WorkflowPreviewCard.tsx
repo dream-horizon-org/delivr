@@ -45,9 +45,14 @@ export function WorkflowPreviewCard({ workflow }: WorkflowPreviewCardProps) {
         </Group>
 
         <div className="bg-white rounded p-2 border border-gray-200">
-          <Text size="xs" c="dimmed" className="font-mono break-all">
+          <a
+            href={workflow.workflowUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-mono break-all text-xs text-gray-500 hover:text-blue-600 hover:underline"
+          >
             {workflow.workflowUrl}
-          </Text>
+          </a>
         </div>
 
         {hasParameters && workflow.parameters && (
