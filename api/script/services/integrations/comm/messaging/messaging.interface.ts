@@ -20,6 +20,7 @@ export enum Task {
   REGRESSION_BUILDS = 'regression-builds',
   REGRESSION_BUILDS_FAILED = 'regression-builds-failed',
   RELEASE_NOTES = 'release-notes',
+  FINAL_RELEASE_NOTES = 'final-release-notes',
   TEST_RESULTS_SUMMARY = 'test-results-summary',
   NEW_SLOT_ADDED = 'new-slot-added',
   
@@ -30,7 +31,7 @@ export enum Task {
   
   // Approvals
   REGRESSION_STAGE_APPROVAL_REQUEST = 'regression-stage-approval-request',
-  PRE_DISTRIBUTION_STAGE_APPROVAL_REQUEST = 'pre-distribution-stage-approval-request',
+  PRE_RELEASE_STAGE_APPROVAL_REQUEST = 'pre-release-stage-approval-request',
   
   // Release Updates
   TARGET_DATE_CHANGED = 'target-date-changed',
@@ -134,8 +135,9 @@ export const BUCKET_TASK_MAPPING: Record<ChannelBucket, Task[]> = {
   [ChannelBucket.RELEASE]: [
     Task.PRE_KICKOFF_REMINDER,
     Task.RELEASE_NOTES,
+    Task.FINAL_RELEASE_NOTES,
     Task.REGRESSION_STAGE_APPROVAL_REQUEST,
-    Task.PRE_DISTRIBUTION_STAGE_APPROVAL_REQUEST,
+    Task.PRE_RELEASE_STAGE_APPROVAL_REQUEST,
     Task.TARGET_DATE_CHANGED,
     Task.IOS_APPSTORE_BUILD_SUBMITTED,
     Task.ANDROID_PLAYSTORE_BUILD_SUBMITTED

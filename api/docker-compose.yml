@@ -31,6 +31,7 @@ services:
     # Cronicle - Job Scheduler
     # Auto-runs setup on first start (creates admin/admin user)
     # Login at http://localhost:3012 with admin/admin
+    # Configured to always run as master server (single-server mode)
     image: bluet/cronicle-docker:latest
     container_name: cronicle
     hostname: cronicle
@@ -44,6 +45,9 @@ services:
       - CRONICLE_web_socket_use_hostnames=1
       - CRONICLE_server_comm_use_hostnames=1
       - CRONICLE_web_direct_connect=0
+      - CRONICLE_master=1                    # Force this server to be master
+      - CRONICLE_master_lock_mode=1          # Lock as master (prevent failover)
+      - CRONICLE_skip_servers=1              # Skip server discovery (single-server mode)
       - TZ=Asia/Kolkata
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3012/api/app/ping"]
