@@ -72,6 +72,13 @@ export function createStoreIntegrationRoutes(): Router {
     storeControllers.getPlayStoreListings
   );
 
+  // Get Play Store production state for a submission
+  router.get(
+    '/integrations/store/play-store/production-state',
+    validateStore.validatePlayStoreProductionStateQuery,
+    storeControllers.getPlayStoreProductionState
+  );
+
   return router;
 }
 
