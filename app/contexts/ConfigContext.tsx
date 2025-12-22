@@ -5,6 +5,7 @@
  */
 
 import { createContext, useContext, ReactNode, useMemo, useCallback, useEffect } from 'react';
+import { createContext, useContext, ReactNode, useMemo, useCallback, useEffect } from 'react';
 
 // Centralized debug flag - set to true to enable console logs
 const DEBUG = false;
@@ -117,6 +118,22 @@ export function ConfigProvider({
     isLoading: isLoadingTenantConfig,
     error: tenantConfigError,
   } = useTenantConfig(tenantId, initialTenantConfig);
+  
+  // Log Slack integration when tenantConfig is received
+  useEffect(() => {
+    if (tenantConfig?.releaseManagement?.connectedIntegrations?.COMMUNICATION) {
+      const slackIntegration = tenantConfig.releaseManagement.connectedIntegrations.COMMUNICATION.find(
+        (integration: any) => integration?.providerId?.toLowerCase() === 'slack'
+      );
+      if (slackIntegration) {
+        console.log('[ConfigContext] Slack Integration in tenantConfig:', {
+          slackIntegration,
+          connectedBy: slackIntegration.connectedBy,
+          fullTenantConfig: tenantConfig
+        });
+      }
+    }
+  }, [tenantConfig]);
   
   // Fetch release configurations (cached)
   const {

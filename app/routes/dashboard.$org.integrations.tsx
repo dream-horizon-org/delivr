@@ -112,6 +112,7 @@ export default function IntegrationsPage() {
             connectedBy: connected.connectedBy,
           }),
         });
+        
       });
     });
           

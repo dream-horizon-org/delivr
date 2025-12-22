@@ -33,6 +33,18 @@ const getTenantInfo: AuthenticatedLoaderFunction = async ({ params, user }) => {
       tenantId,
     });
 
+    // Log Slack integration from backend response
+    const slackIntegration = response.data?.organisation?.releaseManagement?.config?.connectedIntegrations?.COMMUNICATION?.find(
+      (integration: any) => integration?.providerId?.toLowerCase() === 'slack'
+    );
+    if (slackIntegration) {
+      console.log('[BFF-TenantInfo] Slack Integration from backend service:', {
+        slackIntegration,
+        connectedBy: slackIntegration.connectedBy,
+        fullResponse: response.data?.organisation?.releaseManagement?.config?.connectedIntegrations?.COMMUNICATION
+      });
+    }
+
     // Fetch app distribution integrations
     const distributionsResponse = await AppDistributionService.listIntegrations(tenantId, user.user.id);
     // Flatten the grouped data into a single array

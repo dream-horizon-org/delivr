@@ -35,6 +35,18 @@ async function fetchTenantConfig(tenantId: string): Promise<TenantConfig | null>
   const data = result.data;
   if (!data) return null;
   
+  // Log raw API response for Slack integration debugging
+  const rawSlackIntegration = data.organisation?.releaseManagement?.config?.connectedIntegrations?.COMMUNICATION?.find(
+    (integration: any) => integration?.providerId?.toLowerCase() === 'slack'
+  );
+  if (rawSlackIntegration) {
+    console.log('[useTenantConfig] Raw Slack Integration from API:', {
+      rawIntegration: rawSlackIntegration,
+      connectedBy: rawSlackIntegration.connectedBy,
+      fullResponse: result.data
+    });
+  }
+  
   // Extract and structure the config
   const config = data.organisation?.releaseManagement?.config;
   if (!config) return null;
