@@ -509,16 +509,24 @@ export class AppleAppStoreConnectService {
   }
 
   /**
-   * Submit an app version for review
+   * Add an app store version item to a review submission
+   * This is required before the submission can be submitted to App Review
    * 
-   * @param appStoreVersionId - The ID of the app version to submit
-   * @returns Promise resolving when submission is successful
+   * @param reviewSubmissionId - The review submission ID
+   * @param appStoreVersionId - The app store version ID to add as an item
+   * @returns Promise resolving when item is added
    */
-  async submitForReview(appStoreVersionId: string): Promise<void> {
-    await this.makeRequest('POST', '/appStoreReviewSubmissions', {
+  async addReviewSubmissionItem(reviewSubmissionId: string, appStoreVersionId: string): Promise<void> {
+    const itemData = {
       data: {
-        type: 'appStoreReviewSubmissions',
+        type: 'reviewSubmissionItems',
         relationships: {
+          reviewSubmission: {
+            data: {
+              type: 'reviewSubmissions',
+              id: reviewSubmissionId
+            }
+          },
           appStoreVersion: {
             data: {
               type: 'appStoreVersions',
@@ -527,50 +535,201 @@ export class AppleAppStoreConnectService {
           }
         }
       }
-    });
+    };
+
+    console.log(`[AppleService] Adding appStoreVersion ${appStoreVersionId} to reviewSubmission ${reviewSubmissionId}`);
+    await this.makeRequest('POST', '/reviewSubmissionItems', itemData);
+    console.log(`[AppleService] Review submission item added successfully`);
   }
 
   /**
-   * Get app store review submission ID for a specific version
+   * Submit a review submission to App Review (final step - clicks "Submit for Review")
+   * This actually submits the submission after items have been added
    * 
-   * @param appStoreVersionId - The ID of the app store version
-   * @returns Promise with review submission ID or null if not found
+   * @param reviewSubmissionId - The review submission ID to submit
+   * @returns Promise resolving when submission is sent to App Review
    */
-  async getReviewSubmissionIdForVersion(appStoreVersionId: string): Promise<string | null> {
-    try {
-      // Query review submissions filtered by app store version
-      const response = await this.makeRequest<any>(
-        'GET',
-        `/appStoreReviewSubmissions?filter[appStoreVersion]=${appStoreVersionId}`
-      );
+  async submitReviewSubmission(reviewSubmissionId: string): Promise<void> {
+    const submitData = {
+      data: {
+        type: 'reviewSubmissions',
+        id: reviewSubmissionId,
+        attributes: {
+          submitted: true
+        }
+      }
+    };
 
-      const submissions = response?.data || [];
+    console.log(`[AppleService] Submitting reviewSubmission ${reviewSubmissionId} to App Review (clicking Submit button)`);
+    await this.makeRequest('PATCH', `/reviewSubmissions/${reviewSubmissionId}`, submitData);
+    console.log(`[AppleService] Review submission successfully sent to App Review!`);
+  }
+
+  /**
+   * Submit an app version for review using Apple's correct public API endpoint
+   * 
+   * Complete 3-step process:
+   * 1. Create reviewSubmission (links to app)
+   * 2. Add reviewSubmissionItems (adds the specific appStoreVersion)
+   * 3. Submit the reviewSubmission (clicks "Submit for Review" button)
+   * 
+   * Based on working implementation that uses:
+   * - relationships.app (not appStoreVersion)
+   * - attributes.platform
+   * - Handles 409 conflicts for existing submissions
+   * 
+   * @param appId - The app ID (from targetAppId in store integration)
+   * @param appStoreVersionId - The app store version ID to submit
+   * @returns Promise resolving with review submission ID
+   */
+  async submitForReview(appId: string, appStoreVersionId: string): Promise<string> {
+    const submitData = {
+      data: {
+        type: 'reviewSubmissions',
+        attributes: {
+          platform: 'IOS'
+        },
+        relationships: {
+          app: {
+            data: {
+              type: 'apps',
+              id: appId
+            }
+          }
+        }
+      }
+    };
+
+    console.log(`[AppleService] Step 1/3: Creating review submission for app ${appId}`);
+    
+    let reviewSubmissionId: string;
+    
+    try {
+      const response = await this.makeRequest<any>('POST', '/reviewSubmissions', submitData);
+      reviewSubmissionId = response?.data?.id;
       
-      if (submissions.length === 0) {
-        console.warn(`[AppleService] No review submission found for version ${appStoreVersionId}`);
-        return null;
+      if (!reviewSubmissionId) {
+        throw new Error('No review submission ID returned from Apple');
       }
 
-      // Return the most recent submission (first in the list)
-      const reviewSubmissionId = submissions[0].id;
-      console.log(`[AppleService] Found review submission: ${reviewSubmissionId} for version ${appStoreVersionId}`);
+      console.log(`[AppleService] ✓ Review submission created: ${reviewSubmissionId}`);
       
-      return reviewSubmissionId;
-    } catch (error) {
-      console.error(`[AppleService] Error fetching review submission:`, error);
-      return null;
+    } catch (error: any) {
+      const errorMessage = error.message || '';
+      
+      // Handle 409 conflict - submission already in progress
+      if (errorMessage.includes('409') && errorMessage.includes('still in progress')) {
+        console.log(`[AppleService] Submission already in progress, extracting existing ID`);
+        
+        // Extract existing submission ID from error message
+        const match = errorMessage.match(/id ([a-f0-9\-]{36})/i);
+        if (match) {
+          reviewSubmissionId = match[1];
+          console.log(`[AppleService] Using existing review submission ID: ${reviewSubmissionId}`);
+        } else {
+          throw error;
+        }
+      } else {
+        throw error;
+      }
     }
+
+    // Step 2: Add the appStoreVersion as an item to the submission
+    console.log(`[AppleService] Step 2/3: Adding appStoreVersion as item`);
+    await this.addReviewSubmissionItem(reviewSubmissionId, appStoreVersionId);
+    console.log(`[AppleService] ✓ Item added (1 item ready)`);
+    
+    // Step 3: Actually submit the reviewSubmission to App Review (clicks Submit button)
+    console.log(`[AppleService] Step 3/3: Submitting to App Review (clicking Submit button)`);
+    await this.submitReviewSubmission(reviewSubmissionId);
+    console.log(`[AppleService] ✓ Successfully submitted to App Review!`);
+    
+    return reviewSubmissionId;
   }
 
   /**
-   * Delete (cancel) an app store review submission
-   * This cancels the submission and allows resubmission
+   * Delete (cancel) a review submission
+   * This removes the submission from Apple's review queue
    * 
-   * @param reviewSubmissionId - The ID of the review submission to delete
+   * Strategy:
+   * Apple doesn't expose reviewSubmission as a relationship on appStoreVersion.
+   * We need to query reviewSubmissions filtered by app and find the one that includes this version.
+   * 
+   * @param appStoreVersionId - The ID of the app store version
+   * @param appId - The app ID (required to filter reviewSubmissions)
    * @returns Promise resolving when deletion is successful
    */
-  async deleteReviewSubmission(reviewSubmissionId: string): Promise<void> {
-    await this.makeRequest('DELETE', `/appStoreReviewSubmissions/${reviewSubmissionId}`);
+  async deleteVersionSubmissionRelationship(appStoreVersionId: string, appId?: string): Promise<void> {
+    if (!appId) {
+      throw new Error('appId is required to cancel review submission');
+    }
+
+    console.log(`[AppleService] Looking for review submissions for app ${appId}...`);
+
+    // Step 1: Get review submissions for this app
+    const reviewSubmissionsResponse = await this.makeRequest<any>(
+      'GET',
+      `/reviewSubmissions?filter[app]=${appId}&filter[state]=WAITING_FOR_REVIEW,IN_REVIEW`
+    );
+
+    const reviewSubmissions = reviewSubmissionsResponse?.data ?? [];
+
+    console.log(`[AppleService] Found ${reviewSubmissions.length} review submission(s) in progress`);
+
+    if (reviewSubmissions.length === 0) {
+      console.log(`[AppleService] No active review submissions found for app ${appId}`);
+      return; // Nothing to delete
+    }
+
+    // Step 2: For each submission, get its items and check if any contain our version
+    let targetSubmissionId: string | null = null;
+
+    for (const submission of reviewSubmissions) {
+      const submissionId = submission.id;
+      console.log(`[AppleService] Checking submission ${submissionId}...`);
+      
+      try {
+        // Get items for this submission with appStoreVersion included
+        const itemsResponse = await this.makeRequest<any>(
+          'GET',
+          `/reviewSubmissions/${submissionId}/items?include=appStoreVersion`
+        );
+
+        const items = itemsResponse?.data ?? [];
+        console.log(`[AppleService] Found ${items.length} item(s) in submission ${submissionId}`);
+
+        // Check if any item references our appStoreVersion
+        for (const item of items) {
+          const versionId = item.relationships?.appStoreVersion?.data?.id;
+          console.log(`[AppleService] Item has version: ${versionId}`);
+          
+          if (versionId === appStoreVersionId) {
+            // Found the item! Delete it to cancel the submission
+            const itemId = item.id;
+            console.log(`[AppleService] ✅ Found matching item: ${itemId} in submission ${submissionId}`);
+            console.log(`[AppleService] Deleting review submission item ${itemId}...`);
+            
+            try {
+              await this.makeRequest('DELETE', `/reviewSubmissionItems/${itemId}`);
+              console.log(`[AppleService] Successfully deleted review submission item ${itemId}`);
+              return; // Successfully cancelled
+            } catch (deleteError: any) {
+              console.log(`[AppleService] Error deleting item:`, deleteError.message);
+              throw deleteError;
+            }
+          }
+        }
+
+        if (targetSubmissionId) break;
+        
+      } catch (error) {
+        console.log(`[AppleService] Error getting items for submission ${submissionId}:`, error);
+        // Continue to next submission
+      }
+    }
+
+    // If we reach here, no matching item was found
+    console.log(`[AppleService] No review submission item found containing version ${appStoreVersionId}`);
   }
 
   /**
@@ -603,15 +762,23 @@ export class AppleAppStoreConnectService {
     appVersion: string
   ): Promise<string | null> {
     try {
-      console.log(`[AppleService] Fetching build ${testflightNumber} with version ${appVersion} for app ${appId}`);
+      console.log(`[AppleService] Fetching build ${testflightNumber} with version filter ${appVersion} for app ${appId}`);
       
-      // Use Apple API query parameters for server-side filtering
-      const endpoint = `/builds?filter[app]=${appId}&filter[version]=${appVersion}&filter[buildNumber]=${testflightNumber}`;
+      // Note: filter[version] searches build.attributes.version (not App Store version)
+      // For apps where build.attributes.version equals the build number, pass buildNumber as appVersion
+      const endpoint = `/builds?filter[app]=${appId}&filter[version]=${appVersion}`;
       const buildsResponse = await this.makeRequest<any>('GET', endpoint);
       const builds = buildsResponse?.data ?? [];
       
+      // Match by version attribute (in this app, version equals the build number)
+      // This is the same logic as TestFlight verification
+      const matchingBuilds = builds.filter((build: any) => {
+        const buildVersion = build.attributes?.version;
+        return buildVersion === testflightNumber || buildVersion === String(testflightNumber);
+      });
+      
       // Find VALID build (processingState cannot be filtered server-side)
-      const validBuild = builds.find(
+      const validBuild = matchingBuilds.find(
         (build: any) => build.attributes?.processingState === 'VALID'
       );
       
@@ -619,17 +786,25 @@ export class AppleAppStoreConnectService {
         console.warn(`[AppleService] No VALID build found with testflight number ${testflightNumber} and version ${appVersion}`);
         
         // Log available builds for debugging
-        const buildCount = builds.length;
+        const buildCount = matchingBuilds.length;
         if (buildCount > 0) {
           console.warn(`[AppleService] Found ${buildCount} matching build(s) but none are VALID:`);
-          console.warn(builds.map((b: any) => ({
+          console.warn(matchingBuilds.map((b: any) => ({
             id: b.id,
             appVersion: b.attributes?.version,
             buildNumber: b.attributes?.buildNumber,
             processingState: b.attributes?.processingState
           })));
         } else {
-          console.warn(`[AppleService] No builds found matching the criteria`);
+          console.warn(`[AppleService] No builds found with version matching ${testflightNumber}`);
+          console.warn(`[AppleService] Total builds returned for version filter ${appVersion}: ${builds.length}`);
+          if (builds.length > 0) {
+            console.warn(`[AppleService] Available builds:`, builds.map((b: any) => ({
+              version: b.attributes?.version,
+              buildNumber: b.attributes?.buildNumber,
+              processingState: b.attributes?.processingState
+            })));
+          }
         }
         
         return null;

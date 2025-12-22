@@ -19,6 +19,7 @@ export type IosSubmissionBuild = {
   appStoreVersionId: string | null;
   isActive: boolean;
   submittedBy: string | null;
+  cronicleJobId: string | null;  // Cronicle job ID for status sync
   createdAt: Date;
   updatedAt: Date;
   submittedAt: Date | null;
@@ -63,6 +64,8 @@ export type UpdateIosSubmissionDto = {
   isActive?: boolean;
   submittedBy?: string | null;
   submittedAt?: Date | null;
+  statusUpdatedAt?: Date;
+  cronicleJobId?: string | null;
 };
 
 /**
