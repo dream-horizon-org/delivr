@@ -4,8 +4,8 @@ import type {
   TenantTestManagementIntegration,
   UpdateTenantTestManagementIntegrationDto
 } from '~types/integrations/test-management/tenant-integration';
+import { decryptConfigFields, decryptFields, encryptConfigFields } from '~utils/encryption';
 import type { TenantTestManagementIntegrationModelType } from './tenant-integration.sequelize.model';
-import { encryptConfigFields, decryptConfigFields, decryptFields } from '~utils/encryption';
 
 export class TenantTestManagementIntegrationRepository {
   private model: TenantTestManagementIntegrationModelType;
@@ -17,6 +17,7 @@ export class TenantTestManagementIntegrationRepository {
   /**
    * Convert Sequelize model instance to plain object
    * Automatically decrypts sensitive fields (authToken) from backend storage
+   * Adds _encrypted flag to indicate sensitive fields are encrypted
    */
   private toPlainObject = (instance: InstanceType<TenantTestManagementIntegrationModelType>): TenantTestManagementIntegration => {
     const json = instance.toJSON();
@@ -24,6 +25,10 @@ export class TenantTestManagementIntegrationRepository {
     // Decrypt sensitive fields before returning (from backend storage)
     if (json.config) {
       json.config = decryptConfigFields(json.config, ['authToken', 'apiToken']);
+      
+      // Add _encrypted flag to indicate that sensitive fields are encrypted
+      // This matches the frontend expectation and indicates the config contains encrypted values
+      json.config._encrypted = true;
     }
     
     return json;
