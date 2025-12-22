@@ -260,7 +260,6 @@
       },
       "fields": [],
       "description": "We have scheduled a new regression slot at *{0}*."
-      "description": "We have scheduled a new regression slot at *{0}*."
     },
     "ios-test-flight-build": {
       "metadata": {
@@ -320,7 +319,7 @@
         "category": "release"
       },
       "fields": [],
-      "description": "iOS build version *{0}* submitted to the Appstore."
+      "description": "iOS build version *{0} ({1})* submitted to the Appstore by *{2}*."
     },
     "android-playstore-build-submitted": {
       "metadata": {
@@ -330,7 +329,27 @@
         "category": "release"
       },
       "fields": [],
-      "description": "Android build version *{0}* submitted to the Playstore."
+      "description": "Android build version *{0} ({1})* submitted to the Playstore by *{2}*."
+    },
+    "ios-appstore-build-resubmitted": {
+      "metadata": {
+        "name": "iOS App Store Build Resubmitted",
+        "emoji": "",
+        "color": "#17A2B8",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "iOS build version *{0} ({1})* resubmitted to the Appstore by *{2}*."
+    },
+    "android-playstore-build-resubmitted": {
+      "metadata": {
+        "name": "Android Playstore Build Resubmitted",
+        "emoji": "",
+        "color": "#17A2B8",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "Android build version *{0} ({1})* resubmitted to the Playstore by *{2}*."
     },
     "ios-appstore-live": {
       "metadata": {
@@ -340,7 +359,7 @@
         "category": "release"
       },
       "fields": [],
-      "description": "iOS Appstore version *{0}* is now LIVE!"
+      "description": "iOS Appstore version *{0} ({1})* is now LIVE!"
     },
     "android-playstore-live": {
       "metadata": {
@@ -350,7 +369,47 @@
         "category": "release"
       },
       "fields": [],
-      "description": "Android Playstore version *{0}* is now LIVE!"
+      "description": "Android Playstore version *{0} ({1})* is now LIVE!"
+    },
+    "ios-appstore-build-rejected": {
+      "metadata": {
+        "name": "iOS App Store Build Rejected",
+        "emoji": "",
+        "color": "#DC3545",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "iOS build *{0} ({1})* was rejected by the App Store due to *{2}*."
+    },
+    "ios-appstore-build-cancelled": {
+      "metadata": {
+        "name": "iOS App Store Build Cancelled",
+        "emoji": "",
+        "color": "#FFC107",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "iOS build *{0} ({1})* was cancelled by *{2}* due to *{3}*."
+    },
+    "android-playstore-user-action-pending": {
+      "metadata": {
+        "name": "Android Playstore User Action Pending",
+        "emoji": "",
+        "color": "#FFC107",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "It's been more than 5 days since Android Playstore version *{0} ({1})* was submitted by *{2}* but it is still not yet LIVE, can you please check the status on Google Play Console to take the next required steps."
+    },
+    "android-playstore-suspended": {
+      "metadata": {
+        "name": "Android Playstore Suspended",
+        "emoji": "",
+        "color": "#DC3545",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "It's been more than 15 days since Android Playstore version *{0} ({1})* was submitted by *{2}* but it is still not yet LIVE, will be marking it as SUSPENDED release which means No other actions like Pause/Resume/Halt can be taken on that."
     },
     "android-web-live": {
       "metadata": {

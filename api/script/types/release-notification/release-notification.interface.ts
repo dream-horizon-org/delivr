@@ -37,7 +37,13 @@ export enum NotificationType {
   ANDROID_PLAYSTORE_LIVE = 'ANDROID_PLAYSTORE_LIVE',
   ANDROID_WEB_LIVE = 'ANDROID_WEB_LIVE',
   TASK_FAILED = 'TASK_FAILED',
-  MANUAL_BUILD_UPLOAD_REMINDER = 'MANUAL_BUILD_UPLOAD_REMINDER'
+  MANUAL_BUILD_UPLOAD_REMINDER = 'MANUAL_BUILD_UPLOAD_REMINDER',
+  IOS_APPSTORE_BUILD_RESUBMITTED = 'IOS_APPSTORE_BUILD_RESUBMITTED',
+  ANDROID_PLAYSTORE_BUILD_RESUBMITTED = 'ANDROID_PLAYSTORE_BUILD_RESUBMITTED',
+  IOS_APPSTORE_BUILD_REJECTED = 'IOS_APPSTORE_BUILD_REJECTED',
+  IOS_APPSTORE_BUILD_CANCELLED = 'IOS_APPSTORE_BUILD_CANCELLED',
+  ANDROID_PLAYSTORE_USER_ACTION_PENDING = 'ANDROID_PLAYSTORE_USER_ACTION_PENDING',
+  ANDROID_PLAYSTORE_SUSPENDED = 'ANDROID_PLAYSTORE_SUSPENDED',
 }
 
 // Array of all notification types for validation
@@ -308,26 +314,76 @@ export type TargetDateChangedPayload = BaseNotificationPayload & {
 export type IosAppstoreBuildSubmittedPayload = BaseNotificationPayload & {
   type: NotificationType.IOS_APPSTORE_BUILD_SUBMITTED;
   version: string;   // {0}
+  testflightBuild: string;   // {1}
+  submittedBy: string;   // {2}
 };
 
 export type AndroidPlaystoreBuildSubmittedPayload = BaseNotificationPayload & {
   type: NotificationType.ANDROID_PLAYSTORE_BUILD_SUBMITTED;
   version: string;   // {0}
+  versionCode: string;   // {1}
+  submittedBy: string;   // {2}
 };
 
 export type IosAppstoreLivePayload = BaseNotificationPayload & {
   type: NotificationType.IOS_APPSTORE_LIVE;
   version: string;   // {0}
+  testflightBuild: string;   // {1}
 };
 
 export type AndroidPlaystoreLivePayload = BaseNotificationPayload & {
   type: NotificationType.ANDROID_PLAYSTORE_LIVE;
   version: string;   // {0}
+  versionCode: string;   // {1}
 };
 
 export type AndroidWebLivePayload = BaseNotificationPayload & {
   type: NotificationType.ANDROID_WEB_LIVE;
   version: string;   // {0}
+};
+
+
+export type IosAppstoreBuildResubmittedPayload = BaseNotificationPayload & {
+  type: NotificationType.IOS_APPSTORE_BUILD_RESUBMITTED;
+  version: string;   // {0}
+  testflightBuild: string;   // {1}
+  submittedBy: string;   // {2}
+};
+
+export type AndroidPlaystoreBuildResubmittedPayload = BaseNotificationPayload & {
+  type: NotificationType.ANDROID_PLAYSTORE_BUILD_RESUBMITTED;
+  version: string;   // {0}
+  versionCode: string;   // {1}
+  submittedBy: string;   // {2}
+};
+
+export type IosAppstoreBuildRejectedPayload = BaseNotificationPayload & {
+  type: NotificationType.IOS_APPSTORE_BUILD_REJECTED;
+  version: string;   // {0}
+  testflightBuild: string;   // {1}
+  reason: string;   // {2}
+};
+
+export type IosAppstoreBuildCancelledPayload = BaseNotificationPayload & {
+  type: NotificationType.IOS_APPSTORE_BUILD_CANCELLED;
+  version: string;   // {0}
+  testflightBuild: string;   // {1}
+  cancelledBy: string;   // {2}
+  reason: string;   // {3}
+};
+
+export type AndroidPlaystoreUserActionPendingPayload = BaseNotificationPayload & {
+  type: NotificationType.ANDROID_PLAYSTORE_USER_ACTION_PENDING;
+  version: string;   // {0}
+  versionCode: string;   // {1}
+  submittedBy: string;   // {2}
+};
+
+export type AndroidPlaystoreSuspendedPayload = BaseNotificationPayload & {
+  type: NotificationType.ANDROID_PLAYSTORE_SUSPENDED;
+  version: string;   // {0}
+  versionCode: string;   // {1}
+  submittedBy: string;   // {2}
 };
 
 // ============================================================================
@@ -398,9 +454,15 @@ export type NotificationPayload =
   | TargetDateChangedPayload
   | IosAppstoreBuildSubmittedPayload
   | AndroidPlaystoreBuildSubmittedPayload
+  | IosAppstoreBuildResubmittedPayload
+  | AndroidPlaystoreBuildResubmittedPayload
   | IosAppstoreLivePayload
   | AndroidPlaystoreLivePayload
   | AndroidWebLivePayload
+  | IosAppstoreBuildRejectedPayload
+  | IosAppstoreBuildCancelledPayload
+  | AndroidPlaystoreUserActionPendingPayload
+  | AndroidPlaystoreSuspendedPayload
   // Errors
   | TaskFailedPayload
   // Reminders
