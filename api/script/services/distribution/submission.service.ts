@@ -28,6 +28,7 @@ import { PLAY_STORE_UPLOAD_ERROR_MESSAGES, GOOGLE_PLAY_RELEASE_STATUS } from '..
 import type { BuildArtifactService } from '~services/release/build';
 import type { TestFlightBuildVerificationService } from '../release/testflight-build-verification.service';
 import type { CronicleService } from '~services/cronicle';
+import type { CronJobService } from '../release/cron-job/cron-job.service';
 
 /**
  * Submission response format for API
@@ -122,7 +123,7 @@ const getStoreIntegrationController = (): StoreIntegrationController => {
 
 /**
  * Submission Service
- * Handles business logic for fetching submission details
+ * Handles business logic for fetching submission details and Cronicle job management
  */
 export class SubmissionService {
   constructor(
@@ -133,7 +134,8 @@ export class SubmissionService {
     private readonly buildArtifactService: BuildArtifactService,
     private readonly cronicleService: CronicleService | null,
     private readonly testflightBuildVerificationService?: TestFlightBuildVerificationService,
-    private readonly appleAppStoreConnectService?: AppleAppStoreConnectService
+    private readonly appleAppStoreConnectService?: AppleAppStoreConnectService,
+    private readonly cronJobService?: CronJobService
   ) {}
 
   /**
@@ -927,7 +929,6 @@ export class SubmissionService {
     }
     
 
-    
     return { valid: true, statusCode: 200 };
   }
 
@@ -1218,7 +1219,7 @@ export class SubmissionService {
     // Step 9.5: Create Cronicle job for status sync (if Cronicle is available)
     if (this.cronicleService) {
       try {
-        const cronicleJobId = await this.createSubmissionJob(
+        const cronicleJobId = await this.createIosSubmissionJob(
           submissionId,
           finalSubmission.version
         );
@@ -1236,14 +1237,8 @@ export class SubmissionService {
     }
 
     // Step 10: Update distribution status based on configured platforms
-    // ONLY update if in submission phase (PENDING, PARTIALLY_SUBMITTED)
-    // Do NOT update if already in release phase (PARTIALLY_RELEASED, RELEASED)
     const configuredPlatforms = distribution.configuredListOfPlatforms;
     const currentDistributionStatus = distribution.status;
-
-    // Check if we should update status (only during submission phase)
-    const isInSubmissionPhase = currentDistributionStatus === DISTRIBUTION_STATUS.PENDING || 
-                                 currentDistributionStatus === DISTRIBUTION_STATUS.PARTIALLY_SUBMITTED;
 
     // Check if only iOS is configured
     const onlyIOS = configuredPlatforms.length === 1 && configuredPlatforms.includes(BUILD_PLATFORM.IOS);
@@ -1253,9 +1248,14 @@ export class SubmissionService {
 
     let newDistributionStatus = currentDistributionStatus;
 
-    if (isInSubmissionPhase) {
-    if (onlyIOS) {
-      // Only iOS configured → change to SUBMITTED
+    // Rule: Don't change if already in release phase (PARTIALLY_RELEASED or RELEASED)
+    const isInReleasePhase = currentDistributionStatus === DISTRIBUTION_STATUS.PARTIALLY_RELEASED || 
+                              currentDistributionStatus === DISTRIBUTION_STATUS.RELEASED;
+
+    if (isInReleasePhase) {
+      console.log(`[SubmissionService] Distribution already in release phase (${currentDistributionStatus}), not changing status`);
+    } else if (onlyIOS) {
+      // Only one platform configured → change to SUBMITTED
       newDistributionStatus = DISTRIBUTION_STATUS.SUBMITTED;
       console.log(`[SubmissionService] Only iOS configured, updating distribution status to SUBMITTED`);
     } else if (bothPlatforms) {
@@ -1263,16 +1263,12 @@ export class SubmissionService {
       if (currentDistributionStatus === DISTRIBUTION_STATUS.PENDING) {
         // First platform submitted → PARTIALLY_SUBMITTED
         newDistributionStatus = DISTRIBUTION_STATUS.PARTIALLY_SUBMITTED;
-        console.log(`[SubmissionService] First platform submitted, updating distribution status to PARTIALLY_SUBMITTED`);
+        console.log(`[SubmissionService] First platform submitted (iOS), updating distribution status to PARTIALLY_SUBMITTED`);
       } else if (currentDistributionStatus === DISTRIBUTION_STATUS.PARTIALLY_SUBMITTED) {
         // Second platform submitted → SUBMITTED
         newDistributionStatus = DISTRIBUTION_STATUS.SUBMITTED;
-        console.log(`[SubmissionService] Second platform submitted, updating distribution status to SUBMITTED`);
+        console.log(`[SubmissionService] Second platform submitted (iOS), updating distribution status to SUBMITTED`);
       }
-      }
-    } else {
-      // Already in release phase (PARTIALLY_RELEASED, RELEASED) - do not downgrade
-      console.log(`[SubmissionService] Distribution already in release phase (${currentDistributionStatus}), skipping status update`);
     }
 
     // Update distribution status if changed
@@ -1281,6 +1277,32 @@ export class SubmissionService {
         status: newDistributionStatus
       });
       console.log(`[SubmissionService] Updated distribution ${distribution.id} status from ${currentDistributionStatus} to ${newDistributionStatus}`);
+      
+      // Complete release if all platforms submitted (status is terminal submission state)
+      const shouldCompleteRelease = 
+        newDistributionStatus === DISTRIBUTION_STATUS.SUBMITTED ||
+        newDistributionStatus === DISTRIBUTION_STATUS.PARTIALLY_RELEASED ||
+        newDistributionStatus === DISTRIBUTION_STATUS.RELEASED;
+      
+      if (shouldCompleteRelease && distribution.releaseId && this.cronJobService) {
+        try {
+          console.log(`[SubmissionService] Distribution ${distribution.id} is ${newDistributionStatus} - calling completeRelease for release ${distribution.releaseId}`);
+          
+          const result = await this.cronJobService.completeRelease(
+            distribution.releaseId,
+            submittedBy
+          );
+
+          if (result.success) {
+            console.log(`[SubmissionService] Successfully completed release ${distribution.releaseId}:`, result.data);
+          } else {
+            console.warn(`[SubmissionService] Failed to complete release ${distribution.releaseId}:`, result);
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error('[SubmissionService] Error calling completeRelease:', errorMessage);
+        }
+      }
     }
 
     // Get action history and return
@@ -1457,18 +1479,112 @@ export class SubmissionService {
       console.log('[SubmitAndroidSubmission] Edit committed successfully:', JSON.stringify(commitResult, null, 2));
 
       // Step 12: If Google API call is successful, update status to SUBMITTED
-      const finalSubmission = await this.androidSubmissionRepository.update(submissionId, {
+    const finalSubmission = await this.androidSubmissionRepository.update(submissionId, {
         status: ANDROID_SUBMISSION_STATUS.SUBMITTED
-      });
+    });
 
-      if (!finalSubmission) {
-        throw new Error('Failed to update submission status to SUBMITTED');
+    if (!finalSubmission) {
+      throw new Error('Failed to update submission status to SUBMITTED');
+    }
+
+      console.log(`[SubmitAndroidSubmission] Updated Android submission ${submissionId} status to SUBMITTED`);
+
+      // Step 12.5: Create Cronicle job for status sync (if Cronicle is available)
+      if (this.cronicleService) {
+        try {
+          const cronicleJobId = await this.createAndroidSubmissionJob( // TODO: Implement this
+            submissionId,
+            finalSubmission.version
+          );
+
+          const cronicleCreatedDate = new Date();
+
+          // Store job ID and creation date in database
+          await this.androidSubmissionRepository.update(submissionId, {
+            cronicleJobId,
+            cronicleCreatedDate
+          });
+
+          console.log(`[SubmitAndroidSubmission] Created Cronicle job ${cronicleJobId} for submission ${submissionId} (created: ${cronicleCreatedDate.toISOString()})`);
+        } catch (error) {
+          console.error('[SubmitAndroidSubmission] Failed to create Cronicle job:', error);
+          // Don't fail the submission if job creation fails
+        }
       }
 
-      // Get action history
-      const actionHistory = await this.actionHistoryRepository.findBySubmissionId(submissionId);
+      // Step 13: Update distribution status based on configured platforms
+      const configuredPlatforms = distribution.configuredListOfPlatforms;
+      const currentDistributionStatus = distribution.status;
 
-      return this.mapAndroidSubmissionToResponse(finalSubmission, actionHistory);
+      // Check if only Android is configured
+      const onlyAndroid = configuredPlatforms.length === 1 && configuredPlatforms.includes(BUILD_PLATFORM.ANDROID);
+      
+      // Check if both platforms are configured
+      const bothPlatforms = configuredPlatforms.includes(BUILD_PLATFORM.IOS) && configuredPlatforms.includes(BUILD_PLATFORM.ANDROID);
+
+      let newDistributionStatus = currentDistributionStatus;
+
+      // Rule: Don't change if already in release phase (PARTIALLY_RELEASED or RELEASED)
+      const isInReleasePhase = currentDistributionStatus === DISTRIBUTION_STATUS.PARTIALLY_RELEASED || 
+                                currentDistributionStatus === DISTRIBUTION_STATUS.RELEASED;
+
+      if (isInReleasePhase) {
+        console.log(`[SubmitAndroidSubmission] Distribution already in release phase (${currentDistributionStatus}), not changing status`);
+      } else if (onlyAndroid) {
+        // Only one platform configured → change to SUBMITTED
+        newDistributionStatus = DISTRIBUTION_STATUS.SUBMITTED;
+        console.log(`[SubmitAndroidSubmission] Only Android configured, updating distribution status to SUBMITTED`);
+      } else if (bothPlatforms) {
+        // Both platforms configured
+        if (currentDistributionStatus === DISTRIBUTION_STATUS.PENDING) {
+          // First platform submitted → PARTIALLY_SUBMITTED
+          newDistributionStatus = DISTRIBUTION_STATUS.PARTIALLY_SUBMITTED;
+          console.log(`[SubmitAndroidSubmission] First platform submitted (Android), updating distribution status to PARTIALLY_SUBMITTED`);
+        } else if (currentDistributionStatus === DISTRIBUTION_STATUS.PARTIALLY_SUBMITTED) {
+          // Second platform submitted → SUBMITTED
+          newDistributionStatus = DISTRIBUTION_STATUS.SUBMITTED;
+          console.log(`[SubmitAndroidSubmission] Second platform submitted (Android), updating distribution status to SUBMITTED`);
+        }
+      }
+
+      // Update distribution status if changed
+      if (newDistributionStatus !== currentDistributionStatus) {
+        await this.distributionRepository.update(distribution.id, {
+          status: newDistributionStatus
+        });
+        console.log(`[SubmitAndroidSubmission] Updated distribution ${distribution.id} status from ${currentDistributionStatus} to ${newDistributionStatus}`);
+        
+        // Complete release if all platforms submitted (status is terminal submission state)
+        const shouldCompleteRelease = 
+          newDistributionStatus === DISTRIBUTION_STATUS.SUBMITTED ||
+          newDistributionStatus === DISTRIBUTION_STATUS.PARTIALLY_RELEASED ||
+          newDistributionStatus === DISTRIBUTION_STATUS.RELEASED;
+        
+        if (shouldCompleteRelease && distribution.releaseId && this.cronJobService) {
+          try {
+            console.log(`[SubmitAndroidSubmission] Distribution ${distribution.id} is ${newDistributionStatus} - calling completeRelease for release ${distribution.releaseId}`);
+            
+            const result = await this.cronJobService.completeRelease(
+              distribution.releaseId,
+              submittedBy
+            );
+
+            if (result.success) {
+              console.log(`[SubmitAndroidSubmission] Successfully completed release ${distribution.releaseId}:`, result.data);
+            } else {
+              console.warn(`[SubmitAndroidSubmission] Failed to complete release ${distribution.releaseId}:`, result);
+            }
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error('[SubmitAndroidSubmission] Error calling completeRelease:', errorMessage);
+          }
+        }
+      }
+
+    // Get action history
+    const actionHistory = await this.actionHistoryRepository.findBySubmissionId(submissionId);
+
+    return this.mapAndroidSubmissionToResponse(finalSubmission, actionHistory);
     } catch (error) {
       // Clean up: Delete edit if it was created
       console.log(`[SubmitAndroidSubmission] Error occurred, deleting edit ${editId}`);
@@ -1776,7 +1892,7 @@ export class SubmissionService {
     // Step 7.5: Create Cronicle job for status sync (if Cronicle is available)
     if (this.cronicleService) {
       try {
-        const cronicleJobId = await this.createSubmissionJob(
+        const cronicleJobId = await this.createIosSubmissionJob(
           newSubmissionId,
           finalSubmission.version
         );
@@ -3388,11 +3504,11 @@ export class SubmissionService {
 
   /**
    * iOS submission status update from Apple App Store Connect
-   * Called by Cronicle webhook every 2 hours
+   * Called by Cronicle webhook every 4 hours
    * 
    * Process:
    * 1. Get submission from database
-   * 2. Get current status from Apple API (via getIosSubmissionStatus)
+   * 2. Get current status from Apple API
    * 3. Map Apple status to DB status
    * 4. Update DB if status changed
    * 5. If rejected: add action history with reason
@@ -3536,7 +3652,7 @@ export class SubmissionService {
   }
 
   /**
-   * Create Cronicle job for submission status sync
+   * Create Cronicle job for iOS submission status sync
    * Called when submission is first submitted to App Store
    * Job runs every 2 hours and calls POST /submissions/:submissionId/status
    * 
@@ -3544,7 +3660,7 @@ export class SubmissionService {
    * @param version - App version (for job title)
    * @returns Cronicle job ID
    */
-  private async createSubmissionJob(
+  private async createIosSubmissionJob(
     submissionId: string,
     version: string
   ): Promise<string> {
@@ -3553,7 +3669,7 @@ export class SubmissionService {
     }
 
     const jobId = await this.cronicleService.createJob({
-      title: `Submission Status: ${version} (${submissionId})`,
+      title: `iOS Submission Status: ${version} (${submissionId})`,
       category: 'Submission Status',
       timing: {
         hours: [0, 4, 8, 12, 16, 20],  
@@ -3566,7 +3682,7 @@ export class SubmissionService {
         url: this.cronicleService.buildDirectUrl(`/api/v1/submissions/${submissionId}/status?platform=IOS`),
         body: {}
       },
-      notes: `Auto-generated job for iOS submission ${submissionId}. Checks status every 5 minutes. Stops when LIVE or REJECTED.`,
+      notes: `Auto-generated job for iOS submission ${submissionId}. Checks status every 4 hours. Stops when LIVE or REJECTED.`,
       catchUp: false
     });
 
@@ -3575,8 +3691,216 @@ export class SubmissionService {
   }
 
   /**
+   * Create Cronicle job for Android submission status sync
+   * Called when Android submission is successfully submitted to Play Store
+   * 
+   * Job configuration:
+   * - Runs every 4 hours, every day
+   * - Maximum duration: 15 days
+   * - Webhook: GET /api/v1/integrations/store/play-store/production-state?submissionId=X&platform=Android&store_type=play_store
+   * 
+   * Logic:
+   * - Day 1-4: Check status, if IN_PROGRESS/COMPLETED → stop
+   * - Day 5: If still SUBMITTED → update to USER_ACTION_PENDING
+   * - Day 6-14: Continue checking
+   * - Day 15: If not completed → update to SUSPENDED and stop
+   * 
+   * @param submissionId - Android submission ID
+   * @param version - App version (for job title)
+   * @returns Cronicle job ID
+   */
+  private async createAndroidSubmissionJob(
+    submissionId: string,
+    version: string
+  ): Promise<string> {
+    if (!this.cronicleService) {
+      throw new Error('Cronicle service not configured');
+    }
+
+    // Build production-state URL with query parameters
+    const productionStateUrl = `/api/v1/integrations/store/play-store/production-state?submissionId=${submissionId}&platform=Android&storeType=play_store`;
+
+    const jobId = await this.cronicleService.createJob({
+      title: `Android Submission Status: ${version} (${submissionId})`,
+      category: 'Submission Status',
+      timing: {
+        hours: [0, 12],  // Every 12 hours
+        minutes: [0],
+        days: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]  // Every day
+      },
+      timezone: 'UTC',
+      params: {
+        method: 'GET',  // ✅ GET request (different from iOS)
+        url: this.cronicleService.buildDirectUrl(productionStateUrl),
+        body: {}
+      },
+      notes: `Auto-generated job for Android submission ${submissionId}. Checks status every 4 hours for 15 days. Auto-stops on Day 15 or when IN_PROGRESS/COMPLETED.`,
+      catchUp: false
+    });
+
+    console.log(`[createAndroidSubmissionJob] Created Cronicle job ${jobId} for Android submission ${submissionId}`);
+    return jobId;
+  }
+
+  /**
+   * Android submission status update from Google Play Store production state
+   * Called by Cronicle webhook every 4 hours
+   * 
+   * Process:
+   * 1. Get submission from database
+   * 2. Check days elapsed since cronicleCreatedDate
+   * 3. Get current status from Play Store production-state API
+   * 4. Check if version exists in response with inProgress/completed status
+   * 5. Update DB status accordingly:
+   *    - If inProgress/completed found → update status and stop cron
+   *    - Day 5: No status change → USER_ACTION_PENDING
+   *    - Day 15: No status change → SUSPENDED and stop cron
+   * 
+   * @param submissionId - Android submission ID
+   * @param productionStateData - Response from Play Store production-state API
+   * @returns Status update result
+   */
+  async updateAndroidSubmissionStatus(
+    submissionId: string,
+    productionStateData: {
+      track: string;
+      releases: Array<{
+        name: string;
+        versionCodes: string[];
+        status: string;
+        userFraction?: number;
+        releaseNotes?: Array<{ language: string; text: string }>;
+      }>;
+    }
+  ): Promise<{
+    status: 'synced' | 'not_found' | 'no_change';
+    submissionId: string;
+    version?: string;
+    oldStatus?: string;
+    newStatus?: string;
+    daysElapsed?: number;
+    isTerminal?: boolean;
+    jobDeleted?: boolean;
+  }> {
+    console.log(`[updateAndroidSubmissionStatus] Updating submission status ${submissionId}`);
+
+    // Step 1: Get submission from database
+    const submission = await this.androidSubmissionRepository.findById(submissionId);
+    
+    if (!submission) {
+      console.warn(`[updateAndroidSubmissionStatus] Submission ${submissionId} not found`);
+      return { 
+        status: 'not_found',
+        submissionId
+      };
+    }
+
+    const oldStatus = submission.status;
+    const version = submission.version;
+    const versionCode = String(submission.versionCode);
+
+    // Step 2: Calculate days elapsed since cronicleCreatedDate
+    const cronicleCreatedDate = submission.cronicleCreatedDate;
+    
+    if (!cronicleCreatedDate) {
+      console.warn(`[updateAndroidSubmissionStatus] No cronicleCreatedDate for submission ${submissionId}`);
+      return {
+        status: 'no_change',
+        submissionId,
+        version,
+        oldStatus
+      };
+    }
+
+    const now = new Date();
+    const msElapsed = now.getTime() - cronicleCreatedDate.getTime();
+    const daysElapsed = Math.floor(msElapsed / (1000 * 60 * 60 * 24));
+    
+    console.log(`[updateAndroidSubmissionStatus] Days elapsed since cron started: ${daysElapsed}`);
+
+    // Step 3: Check if version exists in Play Store response with inProgress/completed status
+    const releases = productionStateData.releases ?? [];
+    const matchingRelease = releases.find(release => 
+      release.versionCodes && release.versionCodes.includes(versionCode)
+    );
+
+    let newStatus = oldStatus;
+    let isTerminal = false;
+    let jobDeleted = false;
+
+    if (matchingRelease) {
+      console.log(`[updateAndroidSubmissionStatus] Found version ${version} (${versionCode}) in Play Store with status: ${matchingRelease.status}`);
+      
+      // Step 4: Update status based on Play Store status
+      const playStoreStatus = matchingRelease.status.toLowerCase();
+      
+      if (playStoreStatus === 'inprogress') {
+        newStatus = ANDROID_SUBMISSION_STATUS.IN_PROGRESS;
+        isTerminal = true;
+        console.log(`[updateAndroidSubmissionStatus] Version is IN_PROGRESS in Play Store`);
+      } else if (playStoreStatus === 'completed') {
+        newStatus = ANDROID_SUBMISSION_STATUS.COMPLETED;
+        isTerminal = true;
+        console.log(`[updateAndroidSubmissionStatus] Version is COMPLETED in Play Store`);
+      }
+    } else {
+      console.log(`[updateAndroidSubmissionStatus] Version ${version} (${versionCode}) not found in Play Store response`);
+      
+      // Step 5: Check if we need to update status based on days elapsed
+      const userActionPendingDays = 5;
+      const suspendedDays = 15;
+      
+      if (daysElapsed >= suspendedDays && oldStatus !== ANDROID_SUBMISSION_STATUS.SUSPENDED) {
+        // Day 15+: Set to SUSPENDED and stop cron
+        newStatus = ANDROID_SUBMISSION_STATUS.SUSPENDED;
+        isTerminal = true;
+        console.log(`[updateAndroidSubmissionStatus] ${daysElapsed} days elapsed, setting status to SUSPENDED`);
+      } else if (daysElapsed >= userActionPendingDays && oldStatus === ANDROID_SUBMISSION_STATUS.SUBMITTED) {
+        // Day 5+: Set to USER_ACTION_PENDING (only if currently SUBMITTED)
+        newStatus = ANDROID_SUBMISSION_STATUS.USER_ACTION_PENDING;
+        console.log(`[updateAndroidSubmissionStatus] ${daysElapsed} days elapsed, setting status to USER_ACTION_PENDING`);
+      }
+    }
+
+    // Step 6: Update database if status changed
+    if (newStatus !== oldStatus) {
+      console.log(`[updateAndroidSubmissionStatus] Status changed: ${oldStatus} → ${newStatus}`);
+
+      await this.androidSubmissionRepository.update(submissionId, {
+        status: newStatus
+      });
+
+      // Step 7: Delete Cronicle job if terminal state reached
+      if (isTerminal && submission.cronicleJobId) {
+        console.log(`[updateAndroidSubmissionStatus] Terminal state reached: ${newStatus}`);
+        
+        await this.deleteSubmissionJob(submissionId, submission.cronicleJobId);
+        jobDeleted = true;
+
+        // Clear job ID from database
+        await this.androidSubmissionRepository.update(submissionId, {
+          cronicleJobId: null
+        });
+      }
+    } else {
+      console.log(`[updateAndroidSubmissionStatus] No status change (current: ${oldStatus})`);
+    }
+
+    return {
+      status: newStatus !== oldStatus ? 'synced' : 'no_change',
+      submissionId,
+      version,
+      oldStatus,
+      newStatus,
+      daysElapsed,
+      isTerminal,
+      jobDeleted
+    };
+  }
+
+  /**
    * Delete Cronicle job for submission
-   * Called when terminal state reached (LIVE or REJECTED)
+   * Called when terminal state reached (LIVE or REJECTED for iOS, IN_PROGRESS/COMPLETED/SUSPENDED for Android)
    * 
    * Strategy:
    * 1. Disable job first (prevents new runs while we're deleting)

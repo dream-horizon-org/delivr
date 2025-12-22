@@ -2301,9 +2301,31 @@ export const getPlayStoreProductionState = async (req: Request, res: Response): 
 
     const productionStateData = await productionStateResponse.json();
 
+    // Step 4: Update Android submission status based on production state
+    // Get submission service from storage to process status update
+    let statusUpdateResult = null;
+    try {
+      const storageWithServices = storage as any;
+      const submissionService = storageWithServices.submissionService;
+      
+      if (submissionService) {
+        statusUpdateResult = await submissionService.updateAndroidSubmissionStatus(
+          submissionId,
+          productionStateData
+        );
+        console.log('[getPlayStoreProductionState] Status update result:', statusUpdateResult);
+      } else {
+        console.warn('[getPlayStoreProductionState] SubmissionService not available in storage');
+      }
+    } catch (statusUpdateError) {
+      // Log error but don't fail the request - production state data is still valid
+      console.error('[getPlayStoreProductionState] Failed to update submission status:', statusUpdateError);
+    }
+
     res.status(HTTP_STATUS.OK).json({
       success: RESPONSE_STATUS.SUCCESS,
       data: productionStateData,
+      statusUpdate: statusUpdateResult
     });
   } catch (error) {
     // Clean up edit on error if it was created

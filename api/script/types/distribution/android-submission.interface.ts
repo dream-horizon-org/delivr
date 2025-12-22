@@ -18,6 +18,8 @@ export type AndroidSubmissionBuild = {
   rolloutPercentage: number | null;
   submittedBy: string | null;
   isActive: boolean;
+  cronicleJobId: string | null;
+  cronicleCreatedDate: Date | null;
   createdAt: Date;
   updatedAt: Date;
   submittedAt: Date | null;
@@ -60,6 +62,8 @@ export type UpdateAndroidSubmissionDto = {
   rolloutPercentage?: number | null;
   submittedBy?: string | null;
   isActive?: boolean;
+  cronicleJobId?: string | null;
+  cronicleCreatedDate?: Date | null;
   submittedAt?: Date | null;
 };
 

@@ -22,6 +22,8 @@ export type AndroidSubmissionBuildAttributes = {
   rolloutPercentage: number | null;
   submittedBy: string | null;
   isActive: boolean;
+  cronicleJobId: string | null;
+  cronicleCreatedDate: Date | null;
   createdAt: Date;
   updatedAt: Date;
   submittedAt: Date | null;
@@ -130,6 +132,18 @@ export const createAndroidSubmissionBuildModel = (
         defaultValue: true,
         field: 'isActive',
         comment: 'Whether this submission is active'
+      },
+      cronicleJobId: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: 'cronicleJobId',
+        comment: 'Cronicle job ID for status sync (runs every 4 hours for 15 days)'
+      },
+      cronicleCreatedDate: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: 'cronicleCreatedDate',
+        comment: 'Timestamp when Cronicle job was created (used for day calculation)'
       },
       createdAt: {
         type: DataTypes.DATE,
