@@ -660,6 +660,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
             displayName: i.displayName,
             status: i.isActive ? 'CONNECTED' : 'DISCONNECTED',
             config: {
+              ...(i.displayName && { displayName: i.displayName }), // Include displayName in config if available
               owner: i.owner,
               repo: i.repo,
               defaultBranch: i.defaultBranch,
@@ -684,28 +685,33 @@ export function getManagementRouter(config: ManagementConfig): Router {
             connectedAt: slackIntegration.createdAt,
             connectedBy: slackIntegration.createdByAccountId || 'System',
           }] : [],
-          CI_CD: cicdIntegrations.map((i: any) => ({
-            id: i.id,
-            providerId: i.providerType.toLowerCase(),
-            name: i.displayName,
-            displayName: i.displayName,
-            status: i.verificationStatus === 'VALID' ? 'CONNECTED' : 'DISCONNECTED',
-            config: {
-              hostUrl: i.hostUrl,
-              authType: i.authType,
-              username: i.username,
-              providerConfig: i.providerConfig,
-            },
-            verificationStatus: i.verificationStatus || 'UNKNOWN',
-            connectedAt: i.createdAt,
-            connectedBy: i.createdByAccountId || 'System',
-          })),
+          CI_CD: cicdIntegrations.map((i: any) => {
+            const mapped = {
+              id: i.id,
+              providerId: i.providerType.toLowerCase(),
+              name: i.displayName,
+              displayName: i.displayName,
+              status: i.verificationStatus === 'VALID' ? 'CONNECTED' : 'DISCONNECTED',
+              config: {
+                ...(i.displayName && { displayName: i.displayName }), // Include displayName in config if available
+                hostUrl: i.hostUrl,
+                authType: i.authType,
+                username: i.username,
+                providerConfig: i.providerConfig,
+              },
+              verificationStatus: i.verificationStatus || 'UNKNOWN',
+              connectedAt: i.createdAt,
+              connectedBy: i.createdByAccountId || 'System',
+            };
+            return mapped;
+          }),
           TEST_MANAGEMENT: testManagementIntegrations.map((i: any) => ({
             id: i.id,
             providerId: i.providerType.toLowerCase(),
             name: i.name,
             status: 'CONNECTED',  // If it exists in DB, it's connected
             config: {
+              name: i.name,
               providerType: i.providerType,
               tenantId: i.tenantId,
               // Include non-sensitive config fields
@@ -740,6 +746,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
             displayName: i.displayName,
             status: i.status === 'VERIFIED' ? 'CONNECTED' : 'DISCONNECTED',
             config: {
+              ...(i.displayName && { displayName: i.displayName }), // Include displayName in config if available
               storeType: i.storeType,
               platform: i.platform,
               appIdentifier: i.appIdentifier,
