@@ -1,14 +1,15 @@
 import type { WhereOptions } from 'sequelize';
 import type { Model } from 'sequelize';
 import type { BuildModelType, BuildAttributes } from './build.sequelize.model';
-import type {
-  BuildPlatform,
-  StoreType,
-  BuildUploadStatus,
-  BuildType,
-  BuildStage,
-  WorkflowStatus,
-  CiRunType
+import {
+  type BuildPlatform,
+  type StoreType,
+  type BuildUploadStatus,
+  type BuildType,
+  type BuildStage,
+  type WorkflowStatus,
+  type CiRunType,
+  BUILD_UPLOAD_STATUS
 } from '~types/release-management/builds';
 import { getTrimmedString, removeTrailingSlash } from '~utils/string.utils';
 
@@ -494,7 +495,7 @@ export class BuildRepository {
    */
   async updateTestflightNumber(id: string, testflightNumber: string): Promise<void> {
     await this.model.update(
-      { testflightNumber, buildNumber: testflightNumber },
+      { testflightNumber, buildNumber: testflightNumber, buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED },
       { where: { id } }
     );
   }
