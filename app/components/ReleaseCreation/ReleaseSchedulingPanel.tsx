@@ -591,9 +591,9 @@ export function ReleaseSchedulingPanel({
             onChange({
               ...state,
               regressionBuildSlots: slots,
-              // Automatically set hasManualBuildUpload based on slots
-              // If no slots = manual upload, if slots exist = automated builds
-              hasManualBuildUpload: slots.length === 0,
+              // Use hasManualBuildUpload from selected config (not derived from slots)
+              // If config is not available, keep existing state value
+              hasManualBuildUpload: config?.hasManualBuildUpload ?? state.hasManualBuildUpload,
             })
           }
           config={config}

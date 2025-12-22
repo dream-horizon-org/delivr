@@ -59,8 +59,36 @@ export function determineReleasePhase(release: BackendReleaseResponse): Phase {
 
 /**
  * Get current stage from phase
+ * @param phase - The release phase
+ * @param currentActiveStage - Optional active stage from backend (used for paused states)
  */
-export function getStageFromPhase(phase: Phase): TaskStage | null {
+export function getStageFromPhase(
+  phase: Phase,
+  currentActiveStage?: 'PRE_KICKOFF' | 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE' | 'RELEASE_SUBMISSION' | 'RELEASE' | null
+): TaskStage | null {
+  // Handle paused states - use currentActiveStage if available
+  if (phase === Phase.PAUSED_BY_FAILURE || phase === Phase.PAUSED_BY_USER) {
+    if (currentActiveStage) {
+      // Map backend ActiveStage to frontend TaskStage
+      switch (currentActiveStage) {
+        case 'PRE_KICKOFF':
+          return null; // Not a stage in stepper
+        case 'KICKOFF':
+          return TaskStageEnum.KICKOFF;
+        case 'REGRESSION':
+          return TaskStageEnum.REGRESSION;
+        case 'PRE_RELEASE':
+          return TaskStageEnum.PRE_RELEASE;
+        case 'RELEASE_SUBMISSION':
+        case 'RELEASE':
+          return TaskStageEnum.DISTRIBUTION;
+        default:
+          return TaskStageEnum.KICKOFF; // Fallback
+      }
+    }
+    // If no currentActiveStage, fall through to default
+  }
+
   switch (phase) {
     case Phase.NOT_STARTED:
       return null; // Pre-kickoff (not a stage in stepper)

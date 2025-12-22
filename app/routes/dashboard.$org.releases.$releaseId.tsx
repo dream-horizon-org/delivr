@@ -55,7 +55,7 @@ export default function ReleaseDetailsPage() {
   const currentPhase: Phase = release 
     ? (release.releasePhase || determineReleasePhase(release))
     : Phase.NOT_STARTED;
-  const currentStage = getStageFromPhase(currentPhase);
+  const currentStage = getStageFromPhase(currentPhase, release?.currentActiveStage);
 
   // State for selected stage (user can click stepper to view different stages)
   // Initialize to null, will be set to currentStage when release loads
@@ -218,6 +218,7 @@ export default function ReleaseDetailsPage() {
           releaseVersion={releaseVersion}
           currentStage={selectedStage}
           onUpdate={refetch}
+          onRefetch={refetch}
         />
 
         {/* Main Content with Stage Stepper Sidebar */}
