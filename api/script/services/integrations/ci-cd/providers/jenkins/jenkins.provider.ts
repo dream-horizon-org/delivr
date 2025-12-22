@@ -221,7 +221,6 @@ export class JenkinsProvider implements JenkinsProviderContract {
         return { status: 'failed', executableUrl };
       }
       const bJson: any = await bResp.json();
-      console.log("__DEV__ Jenkins queue status bJson", { bJson });
       const isBuilding = !!bJson.building;
       const result = bJson.result as string | null;
       const isSuccess = result === JENKINS_BUILD_RESULTS.SUCCESS;
