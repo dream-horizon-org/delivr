@@ -29,6 +29,8 @@ import type { BuildArtifactService } from '~services/release/build';
 import type { TestFlightBuildVerificationService } from '../release/testflight-build-verification.service';
 import type { CronicleService } from '~services/cronicle';
 import type { CronJobService } from '../release/cron-job/cron-job.service';
+import type { ReleaseNotificationService } from '~services/release-notification';
+import { NotificationType } from '~types/release-notification';
 
 /**
  * Submission response format for API
@@ -135,7 +137,8 @@ export class SubmissionService {
     private readonly cronicleService: CronicleService | null,
     private readonly testflightBuildVerificationService?: TestFlightBuildVerificationService,
     private readonly appleAppStoreConnectService?: AppleAppStoreConnectService,
-    private readonly cronJobService?: CronJobService
+    private readonly cronJobService?: CronJobService,
+    private readonly releaseNotificationService?: ReleaseNotificationService
   ) {}
 
   /**
@@ -1149,10 +1152,11 @@ export class SubmissionService {
       }
       
       console.log(`[SubmissionService] Fetching new build ${updatedSubmission.testflightNumber} (version ${updatedSubmission.version}) for association`);
+      // Note: Pass testflightNumber as BOTH parameters because build.attributes.version equals the TestFlight build number
       const buildId = await appleService.getBuildIdByBuildNumber(
         targetAppId,
         updatedSubmission.testflightNumber,
-        updatedSubmission.version
+        updatedSubmission.testflightNumber  
       );
       
       if (!buildId) {
@@ -1216,7 +1220,29 @@ export class SubmissionService {
 
     console.log(`[SubmissionService] Updated iOS submission ${submissionId} status to SUBMITTED, saved appStoreVersionId: ${appStoreVersionId}`);
 
-    // Step 9.5: Create Cronicle job for status sync (if Cronicle is available)
+    // Step 9.5: Send notification (iOS App Store Build Submitted)
+    if (this.releaseNotificationService && distribution.releaseId) {
+      try {
+        console.log(`[SubmissionService] Sending iOS App Store submission notification for release ${distribution.releaseId}`);
+        
+        await this.releaseNotificationService.notify({
+          type: NotificationType.IOS_APPSTORE_BUILD_SUBMITTED,
+          tenantId: distribution.tenantId,
+          releaseId: distribution.releaseId,
+          version: finalSubmission.version,
+          testflightBuild: finalSubmission.testflightNumber,
+          submittedBy: submittedBy
+        });
+        
+        console.log(`[SubmissionService] iOS App Store submission notification sent successfully`);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('[SubmissionService] Failed to send iOS submission notification:', errorMessage);
+        // Don't fail the submission if notification fails
+      }
+    }
+
+    // Step 9.6: Create Cronicle job for status sync (if Cronicle is available)
     if (this.cronicleService) {
       try {
         const cronicleJobId = await this.createIosSubmissionJob(
@@ -1489,7 +1515,29 @@ export class SubmissionService {
 
       console.log(`[SubmitAndroidSubmission] Updated Android submission ${submissionId} status to SUBMITTED`);
 
-      // Step 12.5: Create Cronicle job for status sync (if Cronicle is available)
+      // Step 12.5: Send notification (Android Play Store Build Submitted)
+      if (this.releaseNotificationService && distribution.releaseId) {
+        try {
+          console.log(`[SubmitAndroidSubmission] Sending Android Play Store submission notification for release ${distribution.releaseId}`);
+          
+          await this.releaseNotificationService.notify({
+            type: NotificationType.ANDROID_PLAYSTORE_BUILD_SUBMITTED,
+            tenantId: distribution.tenantId,
+            releaseId: distribution.releaseId,
+            version: finalSubmission.version,
+            versionCode: String(finalSubmission.versionCode),
+            submittedBy: submittedBy
+          });
+          
+          console.log(`[SubmitAndroidSubmission] Android Play Store submission notification sent successfully`);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error('[SubmitAndroidSubmission] Failed to send Android submission notification:', errorMessage);
+          // Don't fail the submission if notification fails
+        }
+      }
+
+      // Step 12.6: Create Cronicle job for status sync (if Cronicle is available)
       if (this.cronicleService) {
         try {
           const cronicleJobId = await this.createAndroidSubmissionJob( // TODO: Implement this
@@ -1817,10 +1865,11 @@ export class SubmissionService {
       }
       
       console.log(`[SubmissionService] Fetching new build ${data.testflightNumber} (version ${data.version}) for association`);
+      // Note: Pass testflightNumber as BOTH parameters because build.attributes.version equals the TestFlight build number
       const buildId = await appleService.getBuildIdByBuildNumber(
         targetAppId,
         data.testflightNumber,
-        data.version
+        data.testflightNumber  // ✅ Use testflightNumber for API filter (same as test API fix)
       );
       
       if (!buildId) {
@@ -1889,7 +1938,29 @@ export class SubmissionService {
 
     console.log(`[SubmissionService] Updated iOS submission ${newSubmissionId} status to SUBMITTED, saved appStoreVersionId: ${appStoreVersionId}`);
 
-    // Step 7.5: Create Cronicle job for status sync (if Cronicle is available)
+    // Step 7.5: Send notification (iOS App Store Build Resubmitted)
+    if (this.releaseNotificationService && distribution.releaseId) {
+      try {
+        console.log(`[SubmissionService] Sending iOS App Store resubmission notification for release ${distribution.releaseId}`);
+        
+        await this.releaseNotificationService.notify({
+          type: NotificationType.IOS_APPSTORE_BUILD_RESUBMITTED,
+          tenantId: distribution.tenantId,
+          releaseId: distribution.releaseId,
+          version: finalSubmission.version,
+          testflightBuild: finalSubmission.testflightNumber,
+          submittedBy: submittedBy
+        });
+        
+        console.log(`[SubmissionService] iOS App Store resubmission notification sent successfully`);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('[SubmissionService] Failed to send iOS resubmission notification:', errorMessage);
+        // Don't fail the submission if notification fails
+      }
+    }
+
+    // Step 7.6: Create Cronicle job for status sync (if Cronicle is available)
     if (this.cronicleService) {
       try {
         const cronicleJobId = await this.createIosSubmissionJob(
@@ -2041,18 +2112,22 @@ export class SubmissionService {
       throw new Error(`Failed to load Apple App Store Connect credentials: ${errorMessage}`);
     }
 
-    // Step 7: Get phased release ID using cached appStoreVersionId (optimized!)
-    let phasedReleaseId: string | null;
+    // Step 7: Get phased release ID using appStoreVersionId
+    const appStoreVersionId = iosSubmission.appStoreVersionId;
     
-    // Try to use cached appStoreVersionId first (skip 1 Apple API call!)
-    const cachedAppStoreVersionId = iosSubmission.appStoreVersionId;
+    if (!appStoreVersionId) {
+      throw new Error(
+        `Missing appStoreVersionId for submission ${submissionId}. ` +
+        'Cannot pause phased release without version ID.'
+      );
+    }
     
-    if (cachedAppStoreVersionId) {
-      console.log(`[SubmissionService] Using cached appStoreVersionId: ${cachedAppStoreVersionId}`);
-      
-      try {
-        // ✅ Direct API call using cached version ID (skip getAppStoreVersions call!)
-        const phasedReleaseResponse = await appleService.getPhasedReleaseForVersion(cachedAppStoreVersionId);
+    console.log(`[SubmissionService] Using appStoreVersionId: ${appStoreVersionId}`);
+    
+    let phasedReleaseId: string;
+    
+    try {
+      const phasedReleaseResponse = await appleService.getPhasedReleaseForVersion(appStoreVersionId);
         
         if (!phasedReleaseResponse || !phasedReleaseResponse.data) {
           throw new Error('No phased release found for this version');
@@ -2074,36 +2149,6 @@ export class SubmissionService {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         throw new Error(`Failed to fetch phased release from Apple App Store Connect: ${errorMessage}`);
-      }
-      
-    } else {
-      // Fallback: Use old method if appStoreVersionId is not cached (backward compatibility)
-      console.log(`[SubmissionService] No cached appStoreVersionId, using fallback method with targetAppId`);
-      
-    const targetAppId = integration.targetAppId;
-    
-    if (!targetAppId) {
-      throw new Error(
-        `Missing targetAppId in store integration ${integration.id}. ` +
-        'Please configure the App Store Connect integration with the target app ID.'
-      );
-    }
-
-    try {
-      console.log(`[SubmissionService] Fetching current ACTIVE phased release ID for app ${targetAppId}`);
-      phasedReleaseId = await appleService.getCurrentPhasedReleaseId(targetAppId, 'ACTIVE');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to fetch phased release from Apple App Store Connect: ${errorMessage}`);
-    }
-
-    if (!phasedReleaseId) {
-      throw new Error(
-        'No ACTIVE phased release found for this app. ' +
-        'The phased release may not be enabled, may already be paused, may have completed, ' +
-        'or no READY_FOR_SALE version exists. Only ACTIVE phased releases can be paused.'
-      );
-      }
     }
 
     // Step 10: Call Apple API to pause the phased release
@@ -2641,18 +2686,22 @@ export class SubmissionService {
       throw new Error(`Failed to load Apple App Store Connect credentials: ${errorMessage}`);
     }
 
-    // Step 6: Get phased release ID using cached appStoreVersionId (optimized!)
-    let phasedReleaseId: string | null;
+    // Step 6: Get phased release ID using appStoreVersionId
+    const appStoreVersionId = iosSubmission.appStoreVersionId;
     
-    // Try to use cached appStoreVersionId first (skip 1 Apple API call!)
-    const cachedAppStoreVersionId = iosSubmission.appStoreVersionId;
+    if (!appStoreVersionId) {
+      throw new Error(
+        `Missing appStoreVersionId for submission ${submissionId}. ` +
+        'Cannot resume phased release without version ID.'
+      );
+    }
     
-    if (cachedAppStoreVersionId) {
-      console.log(`[SubmissionService] Using cached appStoreVersionId: ${cachedAppStoreVersionId}`);
-      
-      try {
-        // ✅ Direct API call using cached version ID (skip getAppStoreVersions call!)
-        const phasedReleaseResponse = await appleService.getPhasedReleaseForVersion(cachedAppStoreVersionId);
+    console.log(`[SubmissionService] Using appStoreVersionId: ${appStoreVersionId}`);
+    
+    let phasedReleaseId: string;
+    
+    try {
+      const phasedReleaseResponse = await appleService.getPhasedReleaseForVersion(appStoreVersionId);
         
         if (!phasedReleaseResponse || !phasedReleaseResponse.data) {
           throw new Error('No phased release found for this version');
@@ -2674,36 +2723,6 @@ export class SubmissionService {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         throw new Error(`Failed to fetch phased release from Apple App Store Connect: ${errorMessage}`);
-      }
-      
-    } else {
-      // Fallback: Use old method if appStoreVersionId is not cached (backward compatibility)
-      console.log(`[SubmissionService] No cached appStoreVersionId, using fallback method with targetAppId`);
-      
-    const targetAppId = integration.targetAppId;
-    
-    if (!targetAppId) {
-      throw new Error(
-        `Missing targetAppId in store integration ${integration.id}. ` +
-        'Please configure the App Store Connect integration with the target app ID.'
-      );
-    }
-
-    try {
-      console.log(`[SubmissionService] Fetching current PAUSED phased release ID for app ${targetAppId}`);
-      phasedReleaseId = await appleService.getCurrentPhasedReleaseId(targetAppId, 'PAUSED');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to fetch phased release from Apple App Store Connect: ${errorMessage}`);
-    }
-
-    if (!phasedReleaseId) {
-      throw new Error(
-        'No PAUSED phased release found for this app. ' +
-        'The phased release may not be paused, may have completed, or does not exist. ' +
-        'Only PAUSED phased releases can be resumed.'
-      );
-      }
     }
 
     // Step 9: Call Apple API to resume the phased release
@@ -2834,18 +2853,22 @@ export class SubmissionService {
       throw new Error(`Failed to load Apple App Store Connect credentials: ${errorMessage}`);
     }
 
-    // Step 8: Get phased release ID using cached appStoreVersionId (optimized!)
-    let phasedReleaseId: string | null;
+    // Step 8: Get phased release ID using appStoreVersionId
+    const appStoreVersionId = iosSubmission.appStoreVersionId;
     
-    // Try to use cached appStoreVersionId first (skip 1 Apple API call!)
-    const cachedAppStoreVersionId = iosSubmission.appStoreVersionId;
+    if (!appStoreVersionId) {
+      throw new Error(
+        `Missing appStoreVersionId for submission ${submissionId}. ` +
+        'Cannot complete phased release without version ID.'
+      );
+    }
     
-    if (cachedAppStoreVersionId) {
-      console.log(`[SubmissionService] Using cached appStoreVersionId: ${cachedAppStoreVersionId}`);
-      
-      try {
-        // ✅ Direct API call using cached version ID (skip getAppStoreVersions call!)
-        const phasedReleaseResponse = await appleService.getPhasedReleaseForVersion(cachedAppStoreVersionId);
+    console.log(`[SubmissionService] Using appStoreVersionId: ${appStoreVersionId}`);
+    
+    let phasedReleaseId: string;
+    
+    try {
+      const phasedReleaseResponse = await appleService.getPhasedReleaseForVersion(appStoreVersionId);
         
         if (!phasedReleaseResponse || !phasedReleaseResponse.data) {
           throw new Error('No phased release found for this version');
@@ -2867,36 +2890,6 @@ export class SubmissionService {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         throw new Error(`Failed to fetch phased release from Apple App Store Connect: ${errorMessage}`);
-      }
-      
-    } else {
-      // Fallback: Use old method if appStoreVersionId is not cached (backward compatibility)
-      console.log(`[SubmissionService] No cached appStoreVersionId, using fallback method with targetAppId`);
-      
-    const targetAppId = integration.targetAppId;
-    
-    if (!targetAppId) {
-      throw new Error(
-        `Missing targetAppId in store integration ${integration.id}. ` +
-        'Please configure the App Store Connect integration with the target app ID.'
-      );
-    }
-
-    try {
-      console.log(`[SubmissionService] Fetching current ACTIVE phased release ID for app ${targetAppId}`);
-      phasedReleaseId = await appleService.getCurrentPhasedReleaseId(targetAppId, 'ACTIVE');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to fetch phased release from Apple App Store Connect: ${errorMessage}`);
-    }
-
-    if (!phasedReleaseId) {
-      throw new Error(
-        'No ACTIVE phased release found for this app. ' +
-        'If the release is PAUSED, please resume it first, then try completing. ' +
-        'Note: This limitation only applies to older submissions without cached version IDs.'
-      );
-      }
     }
 
     // Step 9: Call Apple API to complete the phased release (set to 100%)
@@ -3325,38 +3318,17 @@ export class SubmissionService {
       throw new Error(`Failed to load Apple App Store Connect credentials: ${errorMessage}`);
     }
 
-    // Step 7: Get app store review submission ID to delete
-    // We need to find the review submission for this version
-    let reviewSubmissionId: string | null = null;
-    
-    // Get appStoreVersionId (use cached if available, otherwise fetch)
-    let appStoreVersionId = iosSubmission.appStoreVersionId;
+    // Step 7: Get appStoreVersionId for cancelling review submission
+    const appStoreVersionId = iosSubmission.appStoreVersionId;
         
     if (!appStoreVersionId) {
-      // Fallback: Use targetAppId to find the version first (backward compatibility)
-      console.log(`[SubmissionService] No cached appStoreVersionId, using fallback method with targetAppId`);
-      
-      try {
-        // Get app store version by version string
-        const versionData = await appleService.getAppStoreVersionByVersionString(
-          targetAppId,
-          iosSubmission.version
-        );
-        
-        if (!versionData) {
-          throw new Error(`Version ${iosSubmission.version} not found in Apple App Store Connect`);
-        }
-        
-        appStoreVersionId = versionData.id;
-        console.log(`[SubmissionService] Found appStoreVersionId: ${appStoreVersionId}`);
-        
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        throw new Error(`Failed to fetch app store version from Apple App Store Connect: ${errorMessage}`);
+      throw new Error(
+        `Missing appStoreVersionId for submission ${submissionId}. ` +
+        'Cannot cancel review submission without version ID.'
+      );
       }
-    } else {
-      console.log(`[SubmissionService] Using cached appStoreVersionId: ${appStoreVersionId}`);
-    }
+    
+    console.log(`[SubmissionService] Using appStoreVersionId: ${appStoreVersionId}`);
 
     // Step 8: Call Apple API to delete the review submission (cancel the submission)
     // Find the review submission by querying with appId and checking which one contains this version
@@ -3378,6 +3350,29 @@ export class SubmissionService {
 
     if (!updatedSubmission) {
       throw new Error('Failed to update submission status to CANCELLED');
+    }
+
+    // Step 9.5: Send notification (iOS App Store Build Cancelled)
+    if (this.releaseNotificationService && distribution && distribution.releaseId) {
+      try {
+        console.log(`[SubmissionService] Sending iOS App Store cancellation notification for release ${distribution.releaseId}`);
+        
+        await this.releaseNotificationService.notify({
+          type: NotificationType.IOS_APPSTORE_BUILD_CANCELLED,
+          tenantId: distribution.tenantId,
+          releaseId: distribution.releaseId,
+          version: updatedSubmission.version,
+          testflightBuild: updatedSubmission.testflightNumber,
+          cancelledBy: createdBy,
+          reason: reason
+        });
+        
+        console.log(`[SubmissionService] iOS App Store cancellation notification sent successfully`);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('[SubmissionService] Failed to send iOS cancellation notification:', errorMessage);
+        // Don't fail the cancellation if notification fails
+      }
     }
 
     // Step 10: Record action in history
@@ -3512,7 +3507,7 @@ export class SubmissionService {
    * 3. Map Apple status to DB status
    * 4. Update DB if status changed
    * 5. If rejected: add action history with reason
-   * 6. If terminal state (LIVE/REJECTED): delete Cronicle job
+   * 6. If terminal state (LIVE/REJECTED/CANCELLED): delete Cronicle job
    * 
    * @param submissionId - iOS submission ID
    * @returns Status update result
@@ -3565,10 +3560,77 @@ export class SubmissionService {
 
       // Step 5: Check if terminal state reached
       const isTerminalState = newStatus === SUBMISSION_STATUS.LIVE || 
-                              newStatus === SUBMISSION_STATUS.REJECTED;
+                              newStatus === SUBMISSION_STATUS.REJECTED ||
+                              newStatus === SUBMISSION_STATUS.CANCELLED;
 
       if (isTerminalState) {
         console.log(`[IosSubmissionStatus] Terminal state reached: ${newStatus}`);
+
+        // Handle LIVE status - send notification and update distribution status
+        if (newStatus === SUBMISSION_STATUS.LIVE) {
+          const distribution = await this.distributionRepository.findById(submission.distributionId);
+          
+          if (this.releaseNotificationService && distribution && distribution.releaseId) {
+            try {
+              console.log(`[IosSubmissionStatus] Sending iOS App Store LIVE notification for release ${distribution.releaseId}`);
+              
+              await this.releaseNotificationService.notify({
+                type: NotificationType.IOS_APPSTORE_LIVE,
+                tenantId: distribution.tenantId,
+                releaseId: distribution.releaseId,
+                version: submission.version,
+                testflightBuild: submission.testflightNumber
+              });
+              
+              console.log(`[IosSubmissionStatus] iOS App Store LIVE notification sent successfully`);
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              console.error('[IosSubmissionStatus] Failed to send iOS LIVE notification:', errorMessage);
+              // Don't fail the status update if notification fails
+            }
+          }
+
+          // Update distribution status when submission goes LIVE
+          if (distribution) {
+            const configuredPlatforms = distribution.configuredListOfPlatforms;
+            const currentDistributionStatus = distribution.status;
+
+            // Check if only iOS is configured
+            const onlyIOS = configuredPlatforms.length === 1 && configuredPlatforms.includes(BUILD_PLATFORM.IOS);
+            
+            // Check if both platforms are configured
+            const bothPlatforms = configuredPlatforms.includes(BUILD_PLATFORM.IOS) && configuredPlatforms.includes(BUILD_PLATFORM.ANDROID);
+
+            let newDistributionStatus = currentDistributionStatus;
+
+            if (onlyIOS) {
+              // Only one platform configured → RELEASED
+              newDistributionStatus = DISTRIBUTION_STATUS.RELEASED;
+              console.log(`[IosSubmissionStatus] Only iOS configured, updating distribution status to RELEASED`);
+            } else if (bothPlatforms) {
+              // Both platforms configured
+              if (currentDistributionStatus === DISTRIBUTION_STATUS.PARTIALLY_RELEASED) {
+                // Already partially released (Android is live) → RELEASED
+                newDistributionStatus = DISTRIBUTION_STATUS.RELEASED;
+                console.log(`[IosSubmissionStatus] Both platforms configured, old status is PARTIALLY_RELEASED, updating to RELEASED`);
+              } else {
+                // Not partially released yet (Android not live) → PARTIALLY_RELEASED
+                newDistributionStatus = DISTRIBUTION_STATUS.PARTIALLY_RELEASED;
+                console.log(`[IosSubmissionStatus] Both platforms configured, old status is ${currentDistributionStatus}, updating to PARTIALLY_RELEASED`);
+              }
+            }
+
+            // Update distribution status if changed
+            if (newDistributionStatus !== currentDistributionStatus) {
+              await this.distributionRepository.update(distribution.id, {
+                status: newDistributionStatus
+              });
+              console.log(`[IosSubmissionStatus] Updated distribution ${distribution.id} status from ${currentDistributionStatus} to ${newDistributionStatus}`);
+            } else {
+              console.log(`[IosSubmissionStatus] Distribution status unchanged (${currentDistributionStatus})`);
+            }
+          }
+        }
 
         // Handle rejection - add action history with reason
         if (newStatus === SUBMISSION_STATUS.REJECTED) {
@@ -3592,7 +3654,8 @@ export class SubmissionService {
     }
 
     const isTerminal = newStatus === SUBMISSION_STATUS.LIVE || 
-                       newStatus === SUBMISSION_STATUS.REJECTED;
+                       newStatus === SUBMISSION_STATUS.REJECTED ||
+                       newStatus === SUBMISSION_STATUS.CANCELLED;
 
     return {
       status: 'synced',
@@ -3626,7 +3689,7 @@ export class SubmissionService {
   }
 
   /**
-   * Handle rejection - add action history with Apple's rejection reason
+   * Handle rejection - add action history with Apple's rejection reason and send notification
    */
   private async handleRejection(
     submissionId: string,
@@ -3637,6 +3700,36 @@ export class SubmissionService {
 
     // Build rejection reason (use Apple's description or fallback)
     const reason = resolutionDescription ?? 'App rejected by Apple';
+
+    // Get submission details for notification
+    const submission = await this.iosSubmissionRepository.findById(submissionId);
+    
+    if (submission) {
+      // Get distribution for notification
+      const distribution = await this.distributionRepository.findById(submission.distributionId);
+      
+      // Send notification (iOS App Store Build Rejected)
+      if (this.releaseNotificationService && distribution && distribution.releaseId) {
+        try {
+          console.log(`[handleRejection] Sending iOS App Store rejection notification for release ${distribution.releaseId}`);
+          
+          await this.releaseNotificationService.notify({
+            type: NotificationType.IOS_APPSTORE_BUILD_REJECTED,
+            tenantId: distribution.tenantId,
+            releaseId: distribution.releaseId,
+            version: submission.version,
+            testflightBuild: submission.testflightNumber,
+            reason: reason
+          });
+          
+          console.log(`[handleRejection] iOS App Store rejection notification sent successfully`);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error('[handleRejection] Failed to send iOS rejection notification:', errorMessage);
+          // Don't fail the rejection handling if notification fails
+        }
+      }
+    }
 
     // Add to action history
     await this.actionHistoryRepository.create({
@@ -3869,6 +3962,120 @@ export class SubmissionService {
       await this.androidSubmissionRepository.update(submissionId, {
         status: newStatus
       });
+
+      // Step 6.5: Send notification based on new status
+      const distribution = await this.distributionRepository.findById(submission.distributionId);
+      
+      if (this.releaseNotificationService && distribution && distribution.releaseId) {
+        try {
+          // Android Live (IN_PROGRESS status - rolling out)
+          if (newStatus === ANDROID_SUBMISSION_STATUS.IN_PROGRESS) {
+            console.log(`[updateAndroidSubmissionStatus] Sending Android Play Store LIVE (IN_PROGRESS) notification for release ${distribution.releaseId}`);
+            
+            await this.releaseNotificationService.notify({
+              type: NotificationType.ANDROID_PLAYSTORE_LIVE,
+              tenantId: distribution.tenantId,
+              releaseId: distribution.releaseId,
+              version: submission.version,
+              versionCode: String(submission.versionCode)
+            });
+            
+            console.log(`[updateAndroidSubmissionStatus] Android Play Store LIVE (IN_PROGRESS) notification sent successfully`);
+          }
+          
+          // Android Live (COMPLETED status)
+          else if (newStatus === ANDROID_SUBMISSION_STATUS.COMPLETED) {
+            console.log(`[updateAndroidSubmissionStatus] Sending Android Play Store LIVE notification for release ${distribution.releaseId}`);
+            
+            await this.releaseNotificationService.notify({
+              type: NotificationType.ANDROID_PLAYSTORE_LIVE,
+              tenantId: distribution.tenantId,
+              releaseId: distribution.releaseId,
+              version: submission.version,
+              versionCode: String(submission.versionCode)
+            });
+            
+            console.log(`[updateAndroidSubmissionStatus] Android Play Store LIVE notification sent successfully`);
+          }
+          
+          // Android User Action Pending
+          else if (newStatus === ANDROID_SUBMISSION_STATUS.USER_ACTION_PENDING) {
+            console.log(`[updateAndroidSubmissionStatus] Sending Android Play Store USER ACTION PENDING notification for release ${distribution.releaseId}`);
+            
+            await this.releaseNotificationService.notify({
+              type: NotificationType.ANDROID_PLAYSTORE_USER_ACTION_PENDING,
+              tenantId: distribution.tenantId,
+              releaseId: distribution.releaseId,
+              version: submission.version,
+              versionCode: String(submission.versionCode),
+              submittedBy: submission.submittedBy ?? 'Unknown'
+            });
+            
+            console.log(`[updateAndroidSubmissionStatus] Android Play Store USER ACTION PENDING notification sent successfully`);
+          }
+          
+          // Android Suspended
+          else if (newStatus === ANDROID_SUBMISSION_STATUS.SUSPENDED) {
+            console.log(`[updateAndroidSubmissionStatus] Sending Android Play Store SUSPENDED notification for release ${distribution.releaseId}`);
+            
+            await this.releaseNotificationService.notify({
+              type: NotificationType.ANDROID_PLAYSTORE_SUSPENDED,
+              tenantId: distribution.tenantId,
+              releaseId: distribution.releaseId,
+              version: submission.version,
+              versionCode: String(submission.versionCode),
+              submittedBy: submission.submittedBy ?? 'Unknown'
+            });
+            
+            console.log(`[updateAndroidSubmissionStatus] Android Play Store SUSPENDED notification sent successfully`);
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error('[updateAndroidSubmissionStatus] Failed to send Android status notification:', errorMessage);
+          // Don't fail the status update if notification fails
+        }
+      }
+
+      // Step 6.6: Update distribution status when Android submission goes LIVE (IN_PROGRESS or COMPLETED)
+      if (distribution && (newStatus === ANDROID_SUBMISSION_STATUS.IN_PROGRESS || newStatus === ANDROID_SUBMISSION_STATUS.COMPLETED)) {
+        const configuredPlatforms = distribution.configuredListOfPlatforms;
+        const currentDistributionStatus = distribution.status;
+
+        // Check if only Android is configured
+        const onlyAndroid = configuredPlatforms.length === 1 && configuredPlatforms.includes(BUILD_PLATFORM.ANDROID);
+        
+        // Check if both platforms are configured
+        const bothPlatforms = configuredPlatforms.includes(BUILD_PLATFORM.IOS) && configuredPlatforms.includes(BUILD_PLATFORM.ANDROID);
+
+        let newDistributionStatus = currentDistributionStatus;
+
+        if (onlyAndroid) {
+          // Only one platform configured → RELEASED
+          newDistributionStatus = DISTRIBUTION_STATUS.RELEASED;
+          console.log(`[updateAndroidSubmissionStatus] Only Android configured, updating distribution status to RELEASED`);
+        } else if (bothPlatforms) {
+          // Both platforms configured
+          if (currentDistributionStatus === DISTRIBUTION_STATUS.PARTIALLY_RELEASED) {
+            // Already partially released (iOS is live) → RELEASED
+            newDistributionStatus = DISTRIBUTION_STATUS.RELEASED;
+            console.log(`[updateAndroidSubmissionStatus] Both platforms configured, old status is PARTIALLY_RELEASED, updating to RELEASED`);
+          } else {
+            // Not partially released yet (iOS not live) → PARTIALLY_RELEASED
+            newDistributionStatus = DISTRIBUTION_STATUS.PARTIALLY_RELEASED;
+            console.log(`[updateAndroidSubmissionStatus] Both platforms configured, old status is ${currentDistributionStatus}, updating to PARTIALLY_RELEASED`);
+          }
+        }
+
+        // Update distribution status if changed
+        if (newDistributionStatus !== currentDistributionStatus) {
+          await this.distributionRepository.update(distribution.id, {
+            status: newDistributionStatus
+          });
+          console.log(`[updateAndroidSubmissionStatus] Updated distribution ${distribution.id} status from ${currentDistributionStatus} to ${newDistributionStatus}`);
+        } else {
+          console.log(`[updateAndroidSubmissionStatus] Distribution status unchanged (${currentDistributionStatus})`);
+        }
+      }
 
       // Step 7: Delete Cronicle job if terminal state reached
       if (isTerminal && submission.cronicleJobId) {
