@@ -177,6 +177,11 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
       app.use(workflowPollingRoutes);
       console.log('[Server] Workflow Polling routes mounted (internal, no user auth)');
 
+      // Cronicle Webhook Routes (internal, no /api/v1 prefix)
+      const cronicleRoutes = api.cronicle(storage);
+      app.use(cronicleRoutes);
+      console.log('[Server] Cronicle webhook routes mounted (internal, no user auth)');
+
       const releaseOrchestrationRoutes = createCronWebhookRoutes(storage);
       app.use(releaseOrchestrationRoutes);
       console.log('[Server] Release Orchestration routes mounted (internal, no user auth)');

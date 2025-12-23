@@ -26,7 +26,8 @@ import {
   isFirstScheduledRelease,
   subtractWorkingDays,
   parseISODate,
-  toDateString
+  toDateString,
+  calculateNextKickoffDate
 } from './utils';
 import {
   RELEASE_CREATION_ADVANCE_DAYS,
@@ -145,6 +146,16 @@ export class ReleaseScheduleService {
     // Generate ID for the schedule
     const scheduleId = shortid.generate();
 
+    // Calculate nextReleaseKickoffDate from firstReleaseKickoffDate if not provided
+    // The first release will use firstReleaseKickoffDate, and nextReleaseKickoffDate
+    // will be updated after the first release is created
+    const nextReleaseKickoffDate = scheduleData.nextReleaseKickoffDate ?? 
+      calculateNextKickoffDate(
+        scheduleData.firstReleaseKickoffDate,
+        scheduleData.releaseFrequency,
+        scheduleData.workingDays
+      );
+
     // Build DTO with releaseConfigId
     const createDto: CreateReleaseScheduleDto & { id: string } = {
       id: scheduleId,
@@ -161,7 +172,7 @@ export class ReleaseScheduleService {
       timezone: scheduleData.timezone,
       regressionSlots: scheduleData.regressionSlots,
       workingDays: scheduleData.workingDays,
-      nextReleaseKickoffDate: scheduleData.nextReleaseKickoffDate ?? scheduleData.firstReleaseKickoffDate,
+      nextReleaseKickoffDate,
       createdByAccountId
     };
 

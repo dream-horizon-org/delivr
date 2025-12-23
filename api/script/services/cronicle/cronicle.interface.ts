@@ -10,13 +10,18 @@
 /**
  * Array-based timing configuration
  * Specify exact hours, minutes, days, months to run
+ * 
+ * Note: In Cronicle, 'days' means days of the month (1-31), NOT days of the week.
+ * To run daily, omit 'days' (defaults to all days) or set to [1, 2, 3, ..., 31].
+ * Days of the week are specified using 'weekdays' (0=Sunday, 1=Monday, ..., 6=Saturday).
  */
 export type CronicleTimingArray = {
   hours: number[];      // 0-23
   minutes: number[];    // 0-59
-  days?: number[];      // 1-7 (1=Sunday)
-  months?: number[];    // 1-12
-  years?: number[];     // e.g., [2025, 2026]
+  days?: number[];      // Days of the month: 1-31 (omit for all days = daily)
+  months?: number[];    // 1-12 (omit for all months)
+  years?: number[];     // e.g., [2025, 2026] (omit for all years)
+  weekdays?: number[];  // Days of the week: 0=Sunday, 1=Monday, ..., 6=Saturday (omit for all days)
 };
 
 /**

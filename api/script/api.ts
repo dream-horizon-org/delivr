@@ -13,6 +13,7 @@ import { Authentication } from "./routes/authentication";
 import { AppInsights } from "./routes/app-insights";
 import { InputSanitizer } from "./routes/input-sanitizer";
 import { RequestTimeoutHandler } from "./routes/request-timeout";
+import { createCronicleRoutes } from "./routes/cronicle.routes";
 
 export function headers(config: HeadersConfig): RequestHandler {
   return getHeadersMiddleware(config);
@@ -62,4 +63,8 @@ export function inputSanitizer(): any {
 
 export function requestTimeoutHandler(): RequestHandler {
   return RequestTimeoutHandler;
+}
+
+export function cronicle(storage: any): Router {
+  return createCronicleRoutes(storage);
 }
