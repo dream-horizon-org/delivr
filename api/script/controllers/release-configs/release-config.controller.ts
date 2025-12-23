@@ -189,13 +189,23 @@ const updateConfigHandler = (service: ReleaseConfigService) =>
         return;
       }
 
-      // Update returns the basic config, but we need to return verbose format
-      const config = await service.updateConfig(configId, updateData, currentUserId);
+      // Update returns ServiceResult to handle validation errors
+      const result = await service.updateConfig(configId, updateData, currentUserId);
 
-      if (!config) {
-        res.status(HTTP_STATUS.NOT_FOUND).json(
-          notFoundResponse('Release configuration')
-        );
+      // Handle errors (NOT_FOUND, VALIDATION_ERROR, etc.)
+      const isError = result.success === false;
+      if (isError) {
+        const errorType = result.error.type;
+        const statusCode = errorType === 'NOT_FOUND' 
+          ? HTTP_STATUS.NOT_FOUND 
+          : HTTP_STATUS.BAD_REQUEST;
+        
+        res.status(statusCode).json({
+          success: false,
+          error: result.error.message,
+          code: result.error.code,
+          details: result.error.details
+        });
         return;
       }
 

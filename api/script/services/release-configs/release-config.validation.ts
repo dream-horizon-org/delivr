@@ -6,8 +6,18 @@ import type {
   CreateReleaseConfigDto, 
   ReleaseSchedule, 
   RegressionSlot,
-  FieldValidationError 
+  FieldValidationError,
+  ReleaseFrequency
 } from '~types/release-configs';
+import { RELEASE_FREQUENCIES } from '~types/release-schedules';
+import { isValidVersion } from '~services/release-schedules/utils';
+
+/**
+ * Check if value is a valid release frequency
+ */
+const isValidReleaseFrequency = (value: unknown): value is ReleaseFrequency => {
+  return typeof value === 'string' && RELEASE_FREQUENCIES.includes(value as ReleaseFrequency);
+};
 
 /**
  * Check if config has at least one integration configured
@@ -35,6 +45,11 @@ export const validateScheduling = (scheduling: ReleaseSchedule): FieldValidation
     errors.push({
       field: 'scheduling.releaseFrequency',
       message: 'Release frequency is required'
+    });
+  } else if (!isValidReleaseFrequency(scheduling.releaseFrequency)) {
+    errors.push({
+      field: 'scheduling.releaseFrequency',
+      message: `Release frequency "${scheduling.releaseFrequency}" is not valid. Must be one of: ${RELEASE_FREQUENCIES.join(', ')}`
     });
   }
 
@@ -118,6 +133,12 @@ export const validateScheduling = (scheduling: ReleaseSchedule): FieldValidation
           errors.push({
             field: `scheduling.initialVersions[${index}].version`,
             message: `Version at index ${index} must be a non-empty string`
+          });
+        } else if (!isValidVersion(entry.version)) {
+          // Validate semver format (e.g., 1.0.0, 2.1.3)
+          errors.push({
+            field: `scheduling.initialVersions[${index}].version`,
+            message: `Version "${entry.version}" at index ${index} is not a valid semver format (e.g., 1.0.0)`
           });
         }
       });

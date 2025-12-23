@@ -13,6 +13,9 @@ export type {
   UpdateReleaseScheduleDto
 } from './release-schedule.interface';
 
+// Export runtime constants (values, not types)
+export { RELEASE_FREQUENCIES } from './release-schedule.interface';
+
 export type {
   SemanticVersion,
   ReleaseType,

@@ -118,6 +118,131 @@ export class ReleaseConfigService {
   }
 
   /**
+   * Validate integration configurations for UPDATE operations
+   * Only validates integrations that are explicitly provided as objects
+   * 
+   * Skip validation when:
+   * - Field is absent (undefined) → keeping existing
+   * - Field is null → removing integration
+   * - Field is object with only 'id' → referencing existing config
+   * 
+   * Validate when:
+   * - Field is object with data → updating/creating
+   */
+  private async validateIntegrationsForUpdate(
+    existingConfig: ReleaseConfiguration,
+    updateData: any,
+    currentUserId: string
+  ): Promise<ValidationResult> {
+    const validationResults: IntegrationValidationResult[] = [];
+    const tenantId = existingConfig.tenantId;
+
+    // Helper to check if object has meaningful data (not just 'id')
+    const hasDataBeyondId = (obj: any): boolean => {
+      const isObject = obj !== null && typeof obj === 'object';
+      if (!isObject) return false;
+      
+      const keys = Object.keys(obj).filter(k => k !== 'id');
+      return keys.length > 0;
+    };
+
+    // Validate CI Config (only if object with data is provided)
+    if ('ciConfig' in updateData) {
+      const ciConfig = updateData.ciConfig;
+      const shouldValidate = ciConfig !== null && 
+                             ciConfig !== undefined && 
+                             hasDataBeyondId(ciConfig) &&
+                             this.cicdConfigService?.validateConfig;
+      
+      if (shouldValidate) {
+        const ciValidation = await this.cicdConfigService!.validateConfig({
+          tenantId,
+          workflows: ciConfig.workflows || [],
+          createdByAccountId: currentUserId
+        });
+        validationResults.push(ciValidation);
+      }
+    }
+
+    // Validate Test Management Config (only if object with data is provided)
+    if ('testManagementConfig' in updateData) {
+      const testMgmtConfig = updateData.testManagementConfig;
+      const shouldValidate = testMgmtConfig !== null && 
+                             testMgmtConfig !== undefined && 
+                             hasDataBeyondId(testMgmtConfig) &&
+                             this.testManagementConfigService?.validateConfig;
+      
+      if (shouldValidate) {
+        const testMgmtValidation = this.testManagementConfigService!.validateConfig({
+          tenantId,
+          integrationId: testMgmtConfig.integrationId || '',
+          name: testMgmtConfig.name || `Test Config for ${existingConfig.name}`,
+          passThresholdPercent: testMgmtConfig.passThresholdPercent ?? 100,
+          platformConfigurations: testMgmtConfig.platformConfigurations || [],
+          createdByAccountId: currentUserId
+        });
+        validationResults.push(testMgmtValidation);
+      }
+    }
+
+    // Validate Communication Config (only if object with data is provided)
+    if ('communicationConfig' in updateData) {
+      const commConfig = updateData.communicationConfig;
+      const shouldValidate = commConfig !== null && 
+                             commConfig !== undefined && 
+                             hasDataBeyondId(commConfig) &&
+                             this.commConfigService?.validateConfig;
+      
+      if (shouldValidate) {
+        const commValidation = this.commConfigService!.validateConfig({
+          tenantId,
+          channelData: commConfig.channelData || {}
+        });
+        validationResults.push(commValidation);
+      }
+    }
+
+    // Validate Project Management Config (only if object with data is provided)
+    if ('projectManagementConfig' in updateData) {
+      const pmConfig = updateData.projectManagementConfig;
+      const shouldValidate = pmConfig !== null && 
+                             pmConfig !== undefined && 
+                             hasDataBeyondId(pmConfig) &&
+                             this.projectManagementConfigService?.validateConfig;
+      
+      if (shouldValidate) {
+        const pmValidation = this.projectManagementConfigService!.validateConfig(pmConfig);
+        validationResults.push(pmValidation);
+      }
+    }
+
+    // Validate Release Schedule (only if object with data is provided)
+    if ('releaseSchedule' in updateData) {
+      const scheduleData = updateData.releaseSchedule;
+      const shouldValidate = scheduleData !== null && scheduleData !== undefined;
+      
+      if (shouldValidate) {
+        const schedulingErrors = validateScheduling(scheduleData);
+        if (schedulingErrors.length > 0) {
+          validationResults.push({
+            integration: 'releaseSchedule',
+            isValid: false,
+            errors: schedulingErrors
+          });
+        }
+      }
+    }
+
+    // Filter only invalid integrations
+    const invalidIntegrations = validationResults.filter(result => !result.isValid);
+
+    return {
+      isValid: invalidIntegrations.length === 0,
+      invalidIntegrations
+    };
+  }
+
+  /**
    * Create integration configs and return their IDs
    */
   private async createIntegrationConfigs(
@@ -437,16 +562,45 @@ export class ReleaseConfigService {
 
   /**
    * Update config with integration management
+   * Returns ServiceResult to handle validation errors
    */
   async updateConfig(
     id: string,
     data: any,  // UpdateReleaseConfigRequest
     currentUserId: string
-  ): Promise<ReleaseConfiguration | null> {
+  ): Promise<ServiceResult<ReleaseConfiguration | null>> {
     const existingConfig = await this.configRepo.findById(id);
 
     if (!existingConfig) {
-      return null;
+      return {
+        success: false,
+        error: {
+          type: 'NOT_FOUND',
+          message: 'Release configuration not found',
+          code: 'CONFIG_NOT_FOUND'
+        }
+      };
+    }
+
+    // Step 1: Validate integration configurations BEFORE any other operations
+    const validationResult = await this.validateIntegrationsForUpdate(
+      existingConfig,
+      data,
+      currentUserId
+    );
+
+    if (!validationResult.isValid) {
+      return {
+        success: false,
+        error: {
+          type: 'VALIDATION_ERROR',
+          message: 'Integration configuration validation failed',
+          code: 'INTEGRATION_CONFIG_INVALID',
+          details: {
+            invalidIntegrations: validationResult.invalidIntegrations
+          }
+        }
+      };
     }
 
     // Build the update DTO for the main config
@@ -601,7 +755,12 @@ export class ReleaseConfigService {
       await this.configRepo.unsetDefaultForTenant(existingConfig.tenantId, id);
     }
 
-    return this.configRepo.update(id, configUpdate);
+    const updatedConfig = await this.configRepo.update(id, configUpdate);
+    
+    return {
+      success: true,
+      data: updatedConfig
+    };
   }
 
   // ============================================================================
