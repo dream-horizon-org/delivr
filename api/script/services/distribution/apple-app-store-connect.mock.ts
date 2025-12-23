@@ -282,6 +282,8 @@ export class MockAppleAppStoreConnectService {
       appStoreState = 'INVALID_BINARY';  // Resubmission after binary issues
     } else if (versionString.startsWith('1.7')) {
       appStoreState = 'DEVELOPER_REJECTED';  // Resubmission after developer cancellation
+    } else if (versionString.startsWith('1.8')) {
+      appStoreState = 'READY_FOR_SALE';  // LIVE - for testing terminal state and job deletion
     } else {
       // Version doesn't exist in Apple - will trigger creation
       console.log(`[MockAppleService] Version ${versionString} not found (return null)`);
@@ -594,34 +596,21 @@ export class MockAppleAppStoreConnectService {
   }
 
   /**
-   * Mock: Get app store review submission ID for a specific version
-   * Returns mock review submission ID
+   * Mock: Delete (cancel) a review submission
+   * Simulates removing submission from Apple's review queue
    */
-  async getReviewSubmissionIdForVersion(appStoreVersionId: string): Promise<string | null> {
-    console.log(`[MockAppleService] Getting review submission for version ${appStoreVersionId}`);
+  async deleteVersionSubmissionRelationship(appStoreVersionId: string, appId?: string): Promise<void> {
+    console.log(`[MockAppleService] Looking for review submissions for app ${appId}...`);
+    console.log(`[MockAppleService] Checking for submissions containing version ${appStoreVersionId}...`);
     
-    // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
-    // Generate mock review submission ID
-    const reviewSubmissionId = `mock-review-submission-${Date.now()}`;
-    
-    console.log(`[MockAppleService] Found review submission: ${reviewSubmissionId}`);
-    
-    return reviewSubmissionId;
-  }
-
-  /**
-   * Mock: Delete (cancel) an app store review submission
-   * Simulates canceling a submission in Apple App Store Connect
-   */
-  async deleteReviewSubmission(reviewSubmissionId: string): Promise<void> {
-    console.log(`[MockAppleService] Deleting review submission ${reviewSubmissionId}`);
+    // Simulate finding review submission
+    const mockReviewSubmissionId = 'mock-review-submission-id';
+    console.log(`[MockAppleService] Found matching review submission: ${mockReviewSubmissionId}`);
     
     // Simulate processing delay
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    console.log(`[MockAppleService] Successfully deleted review submission ${reviewSubmissionId}`);
+    console.log(`[MockAppleService] Successfully deleted review submission ${mockReviewSubmissionId}`);
   }
 
   /**

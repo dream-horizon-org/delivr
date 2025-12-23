@@ -21,6 +21,9 @@ import { createRegressionCycleWithTasks } from '~utils/regression-cycle-creation
 import { getOrderedTasks, getTaskBlockReason, OptionalTaskConfig, isTaskRequired } from '~utils/task-sequencing';
 import { PreReleaseState } from './pre-release.state';
 import { processAwaitingManualBuildTasks } from '~utils/awaiting-manual-build.utils';
+import { NotificationType } from '~types/release-notification';
+import { buildDelivrUrl } from '../../task-executor/task-executor.utils';
+import { StorageWithReleaseServices } from '~types/release/storage-with-services.interface';
 
 export class RegressionState implements ICronJobState {
   constructor(public context: CronJobStateMachine) {}
@@ -530,6 +533,14 @@ export class RegressionState implements ICronJobState {
     } else {
       console.log(`[RegressionState] Stage 2 complete. Waiting for manual Stage 3 trigger (autoTransitionToStage3 = false)`);
       
+      // Check if stage is already COMPLETED (prevents duplicate notifications)
+      const isAlreadyCompleted = cronJob.stage2Status === StageStatus.COMPLETED;
+      
+      if (!isAlreadyCompleted) {
+        // Send approval request notification (only once when stage first completes)
+        await this.sendApprovalRequestNotification();
+      }
+      
       // Update database: Mark Stage 2 COMPLETED, set pauseType to AWAITING_STAGE_TRIGGER
       // Note: Scheduler keeps running but state machine will skip execution
       await cronJobRepo.update(cronJob.id, {
@@ -547,6 +558,45 @@ export class RegressionState implements ICronJobState {
   // ========================================================================
   // Private Helper Methods
   // ========================================================================
+
+  /**
+   * Send REGRESSION_STAGE_APPROVAL_REQUEST notification
+   * Only sends if stage is not already COMPLETED (prevents duplicate notifications)
+   */
+  private async sendApprovalRequestNotification(): Promise<void> {
+    try {
+      const releaseId = this.context.getReleaseId();
+      const storage = this.context.getStorage();
+      const storageWithServices = storage as StorageWithReleaseServices;
+      const releaseNotificationService = storageWithServices.releaseNotificationService;
+
+      // Get release for tenantId
+      const releaseRepo = this.context.getReleaseRepo();
+      const release = await releaseRepo.findById(releaseId);
+      if (!release) {
+        console.log(`[RegressionState] Release ${releaseId} not found, skipping notification`);
+        return;
+      }
+
+      // Build Delivr URL (same format as task failed notification)
+      const delivrUrl = buildDelivrUrl(release.tenantId, releaseId);
+
+      // Send notification
+      await releaseNotificationService.notify({
+        type: NotificationType.REGRESSION_STAGE_APPROVAL_REQUEST,
+        tenantId: release.tenantId,
+        releaseId: releaseId,
+        delivrUrl: delivrUrl,
+        isSystemGenerated: true
+      });
+
+      console.log(`[RegressionState] Sent REGRESSION_STAGE_APPROVAL_REQUEST notification for release ${releaseId}`);
+    } catch (error) {
+      // Log but don't throw - notification failure shouldn't block stage completion
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[RegressionState] Failed to send approval request notification:`, errorMessage);
+    }
+  }
 
 }
 

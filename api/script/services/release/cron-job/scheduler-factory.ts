@@ -32,10 +32,11 @@ import type { CronicleService } from '~services/cronicle';
 // ============================================================================
 
 const RELEASE_ORCHESTRATION_JOB = {
-  TITLE: 'Release Orchestration - 60s Tick',
-  CATEGORY: 'Release Orchestration',
-  NOTES: 'Processes all active releases every 60 seconds',
-  WEBHOOK_PATH: '/internal/cron/releases'
+  TITLE: 'release_orchestration',
+  CATEGORY: 'release_orchestration',
+  NOTES: 'Processes all active releases every 1 minute',
+  WEBHOOK_PATH: '/internal/cron/releases',
+  INTERVAL_MINUTES: 1
 } as const;
 
 // ============================================================================
@@ -109,8 +110,13 @@ export async function initializeScheduler(storage: Storage): Promise<boolean> {
     const result = await registerCronicleReleaseTick(cronicleService);
     
     if (result.success) {
-      const action = result.created ? 'created' : 'already exists';
-      console.log(`[SchedulerFactory] Cronicle job ${action}: ${result.jobId}`);
+      if (result.created) {
+        console.log(`[SchedulerFactory] Cronicle job created: ${result.jobId}`);
+      } else if (result.alreadyExists) {
+        console.log(`[SchedulerFactory] Cronicle job already exists: ${result.jobId ?? 'unknown'}`);
+      }  else {
+        console.log(`[SchedulerFactory] Cronicle job status: ${result.jobId ? `exists (${result.jobId})` : 'unknown'}`);
+      }
     } else {
       console.warn(`[SchedulerFactory] Could not register Cronicle job: ${result.error}`);
     }
@@ -200,23 +206,37 @@ export async function registerCronicleReleaseTick(
   }
 
   const categoryTitle = RELEASE_ORCHESTRATION_JOB.CATEGORY;
+  const jobTitle = RELEASE_ORCHESTRATION_JOB.TITLE;
 
   try {
-    // Check if category already exists (we have single job per category)
-    const existingCategoryId = await cronicleService.findCategoryByTitle(categoryTitle);
+    // ✅ NEW: Get category ID from categoryTitle (required for getJobs API)
+    const categoryId = await cronicleService.findCategoryByTitle(categoryTitle);
     
-    if (existingCategoryId !== null) {
-      console.log(`[SchedulerFactory] Category '${categoryTitle}' already exists, job assumed to exist - skipping creation`);
-      return {
-        success: true,
-        created: false,
-        alreadyExists: true
-      };
+    if (categoryId === null) {
+      // Category doesn't exist - no jobs in this category, proceed to create
+      console.warn(`[SchedulerFactory] Category '${categoryTitle}' not found. Job creation will auto-create category.`);
+    } else {
+      // ✅ NEW: Fetch jobs by categoryId (Cronicle API requires category ID, not title)
+      // We query by categoryId (derived from categoryTitle) and then filter by job title
+      const jobsInCategory = await cronicleService.getJobs({ category: categoryId });
+      
+      // Check if job with matching title already exists
+      const existingJob = jobsInCategory.find(job => job.title === jobTitle);
+      
+      if (existingJob) {
+        console.log(`[SchedulerFactory] Job '${jobTitle}' already exists (id: ${existingJob.id}) - skipping creation`);
+        return {
+          success: true,
+          created: false,
+          alreadyExists: true,
+          jobId: existingJob.id
+        };
+      }
     }
 
     // Build webhook URL using buildDirectUrl (route is at /internal/cron/releases)
     const webhookUrl = cronicleService.buildDirectUrl(RELEASE_ORCHESTRATION_JOB.WEBHOOK_PATH);
-
+    const minutesArray = buildMinutesArray(RELEASE_ORCHESTRATION_JOB.INTERVAL_MINUTES);
     // Create the job (Cronicle auto-generates ID)
     // CronicleService handles category creation if it doesn't exist
     const jobId = await cronicleService.createJob({
@@ -225,8 +245,10 @@ export async function registerCronicleReleaseTick(
       category: categoryTitle,  // CronicleService handles ID resolution/creation
       enabled: true,
       timing: {
-        minutes: Array.from({ length: 60 }, (_, i) => i), // Every minute (0-59)
-        hours: Array.from({ length: 24 }, (_, i) => i)    // Every hour (0-23)
+        minutes: minutesArray, // Every N minutes (e.g., [0, 1, 2, ..., 59] for every minute)
+        hours: Array.from({ length: 24 }, (_, i) => i), // Every hour (0-23)
+        days: Array.from({ length: 31 }, (_, i) => i + 1), // Every day of the month (1-31)
+        months: Array.from({ length: 12 }, (_, i) => i + 1) // Every month (1-12)
       },
       params: {
         method: 'POST',
@@ -255,6 +277,18 @@ export async function registerCronicleReleaseTick(
     };
   }
 }
+
+const buildMinutesArray = (intervalMinutes: number): number[] => {
+  const minutes: number[] = [];
+  let minute = 0;
+  
+  while (minute < 60) {
+    minutes.push(minute);
+    minute += intervalMinutes;
+  }
+  
+  return minutes;
+};
 
 // ============================================================================
 // INTERNAL: Dependency Creation

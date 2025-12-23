@@ -20,6 +20,7 @@ export enum Task {
   REGRESSION_BUILDS = 'regression-builds',
   REGRESSION_BUILDS_FAILED = 'regression-builds-failed',
   RELEASE_NOTES = 'release-notes',
+  FINAL_RELEASE_NOTES = 'final-release-notes',
   TEST_RESULTS_SUMMARY = 'test-results-summary',
   NEW_SLOT_ADDED = 'new-slot-added',
   
@@ -30,17 +31,25 @@ export enum Task {
   
   // Approvals
   REGRESSION_STAGE_APPROVAL_REQUEST = 'regression-stage-approval-request',
-  PRE_DISTRIBUTION_STAGE_APPROVAL_REQUEST = 'pre-distribution-stage-approval-request',
+  PRE_RELEASE_STAGE_APPROVAL_REQUEST = 'pre-release-stage-approval-request',
   
   // Release Updates
   TARGET_DATE_CHANGED = 'target-date-changed',
   IOS_APPSTORE_BUILD_SUBMITTED = 'ios-appstore-build-submitted',
   ANDROID_PLAYSTORE_BUILD_SUBMITTED = 'android-playstore-build-submitted',
+  IOS_APPSTORE_BUILD_RESUBMITTED = 'ios-appstore-build-resubmitted',
+  ANDROID_PLAYSTORE_BUILD_RESUBMITTED = 'android-playstore-build-resubmitted',
   
   // Release Live
   IOS_APPSTORE_LIVE = 'ios-appstore-live',
   ANDROID_PLAYSTORE_LIVE = 'android-playstore-live',
   ANDROID_WEB_LIVE = 'android-web-live',
+  
+  // Release Status Alerts
+  IOS_APPSTORE_BUILD_REJECTED = 'ios-appstore-build-rejected',
+  IOS_APPSTORE_BUILD_CANCELLED = 'ios-appstore-build-cancelled',
+  ANDROID_PLAYSTORE_USER_ACTION_PENDING = 'android-playstore-user-action-pending',
+  ANDROID_PLAYSTORE_SUSPENDED = 'android-playstore-suspended',
   
   // Failures & Reminders
   TASK_FAILED = 'task-failed',
@@ -126,8 +135,9 @@ export const BUCKET_TASK_MAPPING: Record<ChannelBucket, Task[]> = {
   [ChannelBucket.RELEASE]: [
     Task.PRE_KICKOFF_REMINDER,
     Task.RELEASE_NOTES,
+    Task.FINAL_RELEASE_NOTES,
     Task.REGRESSION_STAGE_APPROVAL_REQUEST,
-    Task.PRE_DISTRIBUTION_STAGE_APPROVAL_REQUEST,
+    Task.PRE_RELEASE_STAGE_APPROVAL_REQUEST,
     Task.TARGET_DATE_CHANGED,
     Task.IOS_APPSTORE_BUILD_SUBMITTED,
     Task.ANDROID_PLAYSTORE_BUILD_SUBMITTED
@@ -154,7 +164,13 @@ export const BUCKET_TASK_MAPPING: Record<ChannelBucket, Task[]> = {
     Task.TASK_FAILED,
     Task.IOS_APPSTORE_LIVE,
     Task.ANDROID_PLAYSTORE_LIVE,
-    Task.ANDROID_WEB_LIVE
+    Task.ANDROID_WEB_LIVE,
+    Task.IOS_APPSTORE_BUILD_REJECTED,
+    Task.IOS_APPSTORE_BUILD_CANCELLED,
+    Task.ANDROID_PLAYSTORE_USER_ACTION_PENDING,
+    Task.ANDROID_PLAYSTORE_SUSPENDED,
+    Task.IOS_APPSTORE_BUILD_RESUBMITTED,
+    Task.ANDROID_PLAYSTORE_BUILD_RESUBMITTED
   ]
 };
 

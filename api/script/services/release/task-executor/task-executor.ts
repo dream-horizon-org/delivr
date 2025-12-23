@@ -45,6 +45,8 @@ import {
   WORKFLOW_STATUS
 } from '~types/release-management/builds';
 import { generatePlatformVersionString } from '../release.utils';
+import { getTaskNameWithStage, TASK_TYPE_TO_NAME } from './task-executor.constants';
+import { buildDelivrUrl } from './task-executor.utils';
 
 /**
  * Task execution result
@@ -297,6 +299,14 @@ export class TaskExecutor {
           await this.notifyTestManagementLinks(context, externalData, externalId);
           break;
 
+        case TaskType.CREATE_RELEASE_NOTES:
+          await this.notifyReleaseNotes(context, externalData, externalId);
+          break;
+
+        case TaskType.CREATE_FINAL_RELEASE_NOTES:
+          await this.notifyFinalReleaseNotes(context, externalData, externalId);
+          break;
+
         default:
           // No notification for other task types yet
           console.log(`[TaskExecutor] No notification configured for task type: ${taskType}`);
@@ -449,6 +459,103 @@ export class TaskExecutor {
   }
 
   /**
+   * Send RELEASE_NOTES notification (for regression cycles)
+   */
+  private async notifyReleaseNotes(
+    context: TaskExecutionContext,
+    externalData: Record<string, unknown> | null,
+    _externalId: string | null
+  ): Promise<void> {
+    if (!externalData || !externalData.notes || !externalData.currentTag) {
+      console.log('[TaskExecutor] Missing release notes data, skipping notification');
+      return;
+    }
+
+    const { tenantId, releaseId } = context;
+    const notes = String(externalData.notes);
+    const currentTag = String(externalData.currentTag);
+    const previousTag = externalData.previousTag ? String(externalData.previousTag) : currentTag;
+
+    await this.releaseNotificationService!.notify({
+      type: NotificationType.RELEASE_NOTES,
+      tenantId,
+      releaseId,
+      startTag: previousTag,
+      endTag: currentTag,
+      tagChangeLog: notes,
+      isSystemGenerated: true
+    });
+
+    console.log(`[TaskExecutor] Sent RELEASE_NOTES notification for release ${releaseId}`);
+  }
+
+  /**
+   * Send FINAL_RELEASE_NOTES notification (for final release)
+   */
+  private async notifyFinalReleaseNotes(
+    context: TaskExecutionContext,
+    externalData: Record<string, unknown> | null,
+    _externalId: string | null
+  ): Promise<void> {
+    if (!externalData || !externalData.releaseUrl || !externalData.currentTag) {
+      console.log('[TaskExecutor] Missing final release notes data, skipping notification');
+      return;
+    }
+
+    const { tenantId, releaseId } = context;
+    const releaseUrl = String(externalData.releaseUrl);
+    const releaseTag = String(externalData.currentTag);
+
+    await this.releaseNotificationService!.notify({
+      type: NotificationType.FINAL_RELEASE_NOTES,
+      tenantId,
+      releaseId,
+      releaseTag,
+      releaseUrl,
+      isSystemGenerated: true
+    });
+
+    console.log(`[TaskExecutor] Sent FINAL_RELEASE_NOTES notification for release ${releaseId}`);
+  }
+
+  /**
+   * Send TASK_FAILED notification
+   */
+  private async notifyTaskFailure(
+    context: TaskExecutionContext,
+    task: ReleaseTask,
+    errorMessage: string
+  ): Promise<void> {
+    if (!this.releaseNotificationService) {
+      return; // Service not available, skip notification
+    }
+
+    try {
+      // Get task name with stage prefix (e.g., "Kickoff: Branch Forkout")
+      const taskName = getTaskNameWithStage(task.taskType);
+      
+      // Build Delivr URL
+      const delivrUrl = buildDelivrUrl(context.tenantId, context.releaseId);
+
+      // Send notification
+      await this.releaseNotificationService.notify({
+        type: NotificationType.TASK_FAILED,
+        tenantId: context.tenantId,
+        releaseId: context.releaseId,
+        taskName: taskName,
+        delivrUrl: delivrUrl,
+        isSystemGenerated: true
+      });
+
+      console.log(`[TaskExecutor] Sent TASK_FAILED notification for task ${task.id}`);
+    } catch (error) {
+      // Log but don't throw - notification failure shouldn't break the failure handler
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[TaskExecutor] Failed to send TASK_FAILED notification:`, errorMessage);
+    }
+  }
+
+  /**
    * Execute a single task
    * 
    * @param context - Task execution context
@@ -581,6 +688,9 @@ export class TaskExecutor {
       }
       
       console.log(`[TaskExecutor] Release ${context.releaseId} PAUSED due to task failure. Can be resumed after fix.`);
+
+      // Send TASK_FAILED notification
+      await this.notifyTaskFailure(context, task, errorMessage);
 
       return {
         success: false,
@@ -927,6 +1037,31 @@ export class TaskExecutor {
       console.log(`[TaskExecutor] Manual mode check for KICKOFF: allReady=${readiness.allReady}, uploaded=[${readiness.uploadedPlatforms.join(',')}], missing=[${readiness.missingPlatforms.join(',')}]`);
 
       if (!readiness.allReady) {
+        // Guard: Only send notification if task is NOT already AWAITING_MANUAL_BUILD
+        const isNotAlreadyAwaiting = task.taskStatus !== TaskStatus.AWAITING_MANUAL_BUILD;
+        
+        if (isNotAlreadyAwaiting && this.releaseNotificationService) {
+          try {
+            const buildType = TASK_TYPE_TO_NAME[task.taskType];
+            const delivrUrl = buildDelivrUrl(context.tenantId, context.releaseId);
+            
+            await this.releaseNotificationService.notify({
+              type: NotificationType.MANUAL_BUILD_UPLOAD_REMINDER,
+              tenantId: context.tenantId,
+              releaseId: context.releaseId,
+              buildType: buildType,
+              delivrUrl: delivrUrl,
+              isSystemGenerated: true
+            });
+            
+            console.log(`[TaskExecutor] Sent MANUAL_BUILD_UPLOAD_REMINDER notification for task ${task.id} (${buildType})`);
+          } catch (error) {
+            // Log but don't throw - notification failure shouldn't block status update
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(`[TaskExecutor] Failed to send manual build upload reminder notification:`, errorMessage);
+          }
+        }
+        
         // Set task to AWAITING_MANUAL_BUILD - waiting for user to upload builds
         await this.releaseTaskRepo.update(task.id, {
           taskStatus: TaskStatus.AWAITING_MANUAL_BUILD
@@ -1304,6 +1439,31 @@ export class TaskExecutor {
       console.log(`[TaskExecutor] Manual mode check for REGRESSION: allReady=${readiness.allReady}, uploaded=[${readiness.uploadedPlatforms.join(',')}], missing=[${readiness.missingPlatforms.join(',')}]`);
 
       if (!readiness.allReady) {
+        // Guard: Only send notification if task is NOT already AWAITING_MANUAL_BUILD
+        const isNotAlreadyAwaiting = task.taskStatus !== TaskStatus.AWAITING_MANUAL_BUILD;
+        
+        if (isNotAlreadyAwaiting && this.releaseNotificationService) {
+          try {
+            const buildType = TASK_TYPE_TO_NAME[task.taskType];
+            const delivrUrl = buildDelivrUrl(context.tenantId, context.releaseId);
+            
+            await this.releaseNotificationService.notify({
+              type: NotificationType.MANUAL_BUILD_UPLOAD_REMINDER,
+              tenantId: context.tenantId,
+              releaseId: context.releaseId,
+              buildType: buildType,
+              delivrUrl: delivrUrl,
+              isSystemGenerated: true
+            });
+            
+            console.log(`[TaskExecutor] Sent MANUAL_BUILD_UPLOAD_REMINDER notification for task ${task.id} (${buildType})`);
+          } catch (error) {
+            // Log but don't throw - notification failure shouldn't block status update
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(`[TaskExecutor] Failed to send manual build upload reminder notification:`, errorMessage);
+          }
+        }
+        
         // Set task to AWAITING_MANUAL_BUILD - waiting for user to upload regression builds
         await this.releaseTaskRepo.update(task.id, {
           taskStatus: TaskStatus.AWAITING_MANUAL_BUILD
@@ -1742,11 +1902,36 @@ export class TaskExecutor {
       console.log(`[TaskExecutor] Manual mode check for PRE_RELEASE (TestFlight): allReady=${readiness.allReady}`);
 
       if (!readiness.allReady) {
-        // Set task to AWAITING_CALLBACK and return special marker
+        // Guard: Only send notification if task is NOT already AWAITING_MANUAL_BUILD
+        const isNotAlreadyAwaiting = task.taskStatus !== TaskStatus.AWAITING_MANUAL_BUILD;
+        
+        if (isNotAlreadyAwaiting && this.releaseNotificationService) {
+          try {
+            const buildType = TASK_TYPE_TO_NAME[task.taskType];
+            const delivrUrl = buildDelivrUrl(context.tenantId, context.releaseId);
+            
+            await this.releaseNotificationService.notify({
+              type: NotificationType.MANUAL_BUILD_UPLOAD_REMINDER,
+              tenantId: context.tenantId,
+              releaseId: context.releaseId,
+              buildType: buildType,
+              delivrUrl: delivrUrl,
+              isSystemGenerated: true
+            });
+            
+            console.log(`[TaskExecutor] Sent MANUAL_BUILD_UPLOAD_REMINDER notification for task ${task.id} (${buildType})`);
+          } catch (error) {
+            // Log but don't throw - notification failure shouldn't block status update
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(`[TaskExecutor] Failed to send manual build upload reminder notification:`, errorMessage);
+          }
+        }
+        
+        // Set task to AWAITING_MANUAL_BUILD - waiting for manual TestFlight build
         await this.releaseTaskRepo.update(task.id, {
-          taskStatus: TaskStatus.AWAITING_CALLBACK
+          taskStatus: TaskStatus.AWAITING_MANUAL_BUILD
         });
-        console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_CALLBACK - waiting for manual TestFlight build`);
+        console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_MANUAL_BUILD - waiting for manual TestFlight build`);
         return 'AWAITING_MANUAL_BUILD';
       }
 
@@ -1912,11 +2097,36 @@ export class TaskExecutor {
       console.log(`[TaskExecutor] Manual mode check for PRE_RELEASE (AAB): allReady=${readiness.allReady}`);
 
       if (!readiness.allReady) {
-        // Set task to AWAITING_CALLBACK and return special marker
+        // Guard: Only send notification if task is NOT already AWAITING_MANUAL_BUILD
+        const isNotAlreadyAwaiting = task.taskStatus !== TaskStatus.AWAITING_MANUAL_BUILD;
+        
+        if (isNotAlreadyAwaiting && this.releaseNotificationService) {
+          try {
+            const buildType = TASK_TYPE_TO_NAME[task.taskType];
+            const delivrUrl = buildDelivrUrl(context.tenantId, context.releaseId);
+            
+            await this.releaseNotificationService.notify({
+              type: NotificationType.MANUAL_BUILD_UPLOAD_REMINDER,
+              tenantId: context.tenantId,
+              releaseId: context.releaseId,
+              buildType: buildType,
+              delivrUrl: delivrUrl,
+              isSystemGenerated: true
+            });
+            
+            console.log(`[TaskExecutor] Sent MANUAL_BUILD_UPLOAD_REMINDER notification for task ${task.id} (${buildType})`);
+          } catch (error) {
+            // Log but don't throw - notification failure shouldn't block status update
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(`[TaskExecutor] Failed to send manual build upload reminder notification:`, errorMessage);
+          }
+        }
+        
+        // Set task to AWAITING_MANUAL_BUILD - waiting for manual AAB build
         await this.releaseTaskRepo.update(task.id, {
-          taskStatus: TaskStatus.AWAITING_CALLBACK
+          taskStatus: TaskStatus.AWAITING_MANUAL_BUILD
         });
-        console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_CALLBACK - waiting for manual AAB build`);
+        console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_MANUAL_BUILD - waiting for manual AAB build`);
         return 'AWAITING_MANUAL_BUILD';
       }
 

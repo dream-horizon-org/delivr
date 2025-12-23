@@ -194,17 +194,17 @@
         "category": "release"
       },
       "fields": [],
-      "description": "*PR Titles between tags:* {0} and {1}\n\n*Features*\n{2}\n\n*Fixes*\n{3}\n\n*Improvements*\n{4}",
-      "usage": {
-        "parameters": [
-          "{0} = Start tag (e.g., pi_6.4.0)",
-          "{1} = End tag (e.g., v6.5.0_rc_0)",
-          "{2} = Features list (bullet points with •)",
-          "{3} = Fixes list (bullet points with •)",
-          "{4} = Improvements list (bullet points with •)"
-        ],
-        "example": "Use with structured PR data categorized by type"
-      }
+      "description": "*PR Titles between tags:* {0} and {1}\n\n{2}"
+    },
+    "final-release-notes": {
+      "metadata": {
+        "name": "Final Release Notes",
+        "emoji": "",
+        "color": "#0066CC",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "Final release notes for release tag *{0}* have been created.\n\n<{1}|View Release>"
     },
     "test-results-summary": {
       "platforms": {
@@ -248,7 +248,7 @@
         "category": "release"
       },
       "fields": [],
-      "description": "*We have a *{0}* release, please help with the what's new copy.\nBelow are the List of changes going live:*\n\n*Features*\n{1}\n\n*Fixes*\n{2}\n\n*Improvements*\n{3}"
+      "description": "*We have a {0} release, please help with the what's new copy.\nBelow are the List of changes going live:*\n\n{1}"
     },
     "new-slot-added": {
       "metadata": {
@@ -259,7 +259,6 @@
         "showTitle": false
       },
       "fields": [],
-      "description": "We have scheduled a new regression slot at *{0}*."
       "description": "We have scheduled a new regression slot at *{0}*."
     },
     "ios-test-flight-build": {
@@ -292,9 +291,9 @@
       "fields": [],
       "description": "Release is waiting for approval to complete the regression stage.\n\nPlease review and approve to continue.\n\n<{0}|Review in Delivr>"
     },
-    "pre-distribution-stage-approval-request": {
+    "pre-release-stage-approval-request": {
       "metadata": {
-        "name": "Pre-Distribution Stage Approval Request",
+        "name": "Pre-Release Stage Approval Request",
         "emoji": "",
         "color": "#6C757D",
         "category": "release"
@@ -320,7 +319,7 @@
         "category": "release"
       },
       "fields": [],
-      "description": "iOS build version *{0}* submitted to the Appstore."
+      "description": "iOS build version *{0} ({1})* submitted to the Appstore by *{2}*."
     },
     "android-playstore-build-submitted": {
       "metadata": {
@@ -330,7 +329,27 @@
         "category": "release"
       },
       "fields": [],
-      "description": "Android build version *{0}* submitted to the Playstore."
+      "description": "Android build version *{0} ({1})* submitted to the Playstore by *{2}*."
+    },
+    "ios-appstore-build-resubmitted": {
+      "metadata": {
+        "name": "iOS App Store Build Resubmitted",
+        "emoji": "",
+        "color": "#17A2B8",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "iOS build version *{0} ({1})* resubmitted to the Appstore by *{2}*."
+    },
+    "android-playstore-build-resubmitted": {
+      "metadata": {
+        "name": "Android Playstore Build Resubmitted",
+        "emoji": "",
+        "color": "#17A2B8",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "Android build version *{0} ({1})* resubmitted to the Playstore by *{2}*."
     },
     "ios-appstore-live": {
       "metadata": {
@@ -340,7 +359,7 @@
         "category": "release"
       },
       "fields": [],
-      "description": "iOS Appstore version *{0}* is now LIVE!"
+      "description": "iOS Appstore version *{0} ({1})* is now LIVE!"
     },
     "android-playstore-live": {
       "metadata": {
@@ -350,7 +369,47 @@
         "category": "release"
       },
       "fields": [],
-      "description": "Android Playstore version *{0}* is now LIVE!"
+      "description": "Android Playstore version *{0} ({1})* is now LIVE!"
+    },
+    "ios-appstore-build-rejected": {
+      "metadata": {
+        "name": "iOS App Store Build Rejected",
+        "emoji": "",
+        "color": "#DC3545",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "iOS build *{0} ({1})* was rejected by the App Store due to *{2}*."
+    },
+    "ios-appstore-build-cancelled": {
+      "metadata": {
+        "name": "iOS App Store Build Cancelled",
+        "emoji": "",
+        "color": "#FFC107",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "iOS build *{0} ({1})* was cancelled by *{2}* due to *{3}*."
+    },
+    "android-playstore-user-action-pending": {
+      "metadata": {
+        "name": "Android Playstore User Action Pending",
+        "emoji": "",
+        "color": "#FFC107",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "It's been more than 5 days since Android Playstore version *{0} ({1})* was submitted by *{2}* but it is still not yet LIVE, can you please check the status on Google Play Console to take the next required steps."
+    },
+    "android-playstore-suspended": {
+      "metadata": {
+        "name": "Android Playstore Suspended",
+        "emoji": "",
+        "color": "#DC3545",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "It's been more than 15 days since Android Playstore version *{0} ({1})* was submitted by *{2}* but it is still not yet LIVE, will be marking it as SUSPENDED release which means No other actions like Pause/Resume/Halt can be taken on that."
     },
     "android-web-live": {
       "metadata": {
@@ -370,7 +429,7 @@
         "category": "release"
       },
       "fields": [],
-      "description": "Following release task failed.\n\n*Task:* {0}\n\nPlease investigate and take appropriate action.\n\n<{1}|View in Delivr>"
+      "description": "Following release task failed.\n\n*{0}*\n\nPlease investigate and take appropriate action.\n\n<{1}|View in Delivr>"
     },
     "manual-build-upload-reminder": {
       "metadata": {

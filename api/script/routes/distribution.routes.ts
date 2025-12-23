@@ -329,6 +329,36 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
     }
   );
 
+  // ============================================================================
+  // INTERNAL - SUBMISSION STATUS UPDATE (Cronicle Webhook)
+  // ============================================================================
+  
+  /**
+   * POST /submissions/:submissionId/status
+   * 
+   * Internal webhook for Cronicle to update a specific submission's status.
+   * Each submission has its own Cronicle job that calls this endpoint every 2 hours.
+   * 
+   * - Checks current status from Apple App Store Connect (iOS) or Google Play Console (Android)
+   * - Updates database if status changed
+   * - Adds action history if rejected
+   * - Deletes Cronicle job when terminal state reached (LIVE or REJECTED)
+   * 
+   * Query Parameters:
+   * - platform: string (required) - "IOS" or "ANDROID"
+   * 
+   * Response:
+   * - status: 'synced' | 'not_found'
+   * - oldStatus: previous status
+   * - newStatus: current status
+   * - isTerminal: whether terminal state reached
+   * - jobDeleted: whether Cronicle job was deleted
+   */
+  router.post(
+    "/submissions/:submissionId/status",
+    submissionController.submissionStatus
+  );
+
   return router;
 }
 

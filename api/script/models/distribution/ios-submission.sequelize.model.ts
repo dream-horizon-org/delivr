@@ -21,6 +21,7 @@ export type IosSubmissionBuildAttributes = {
   resetRating: boolean | null;
   rolloutPercentage: number | null;
   appStoreVersionId: string | null;
+  cronicleJobId: string | null;
   isActive: boolean;
   submittedBy: string | null;
   createdAt: Date;
@@ -125,6 +126,12 @@ export const createIosSubmissionBuildModel = (
         allowNull: true,
         field: 'appStoreVersionId',
         comment: 'Apple App Store version ID (cached for performance)'
+      },
+      cronicleJobId: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: 'cronicleJobId',
+        comment: 'Cronicle job ID for status sync (null if no job or job deleted)'
       },
       isActive: {
         type: DataTypes.BOOLEAN,
