@@ -20,6 +20,7 @@ import type {
   CherryPickStatusResponse,
   ApproveRegressionStageRequest,
   ApproveRegressionStageResponse,
+  CompletePreReleaseRequest,
   CompletePreReleaseResponse,
   ActivityLogsResponse,
   GetReleaseDetailsResponse,
@@ -277,10 +278,10 @@ class ReleaseProcess {
   /**
    * Complete pre-release stage - Matches backend contract API #12
    */
-  async completePostRegressionStage(tenantId: string, releaseId: string, userId: string) {
-    return this.__client.post<null, AxiosResponse<CompletePreReleaseResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/pre-release/complete`,
-      undefined,
+  async completePostRegressionStage(tenantId: string, releaseId: string, request: CompletePreReleaseRequest, userId: string) {
+    return this.__client.post<CompletePreReleaseRequest, AxiosResponse<CompletePreReleaseResponse>>(
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/trigger-distribution`,
+      request,
       { headers: this.buildHeaders(userId) }
     );
   }

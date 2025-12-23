@@ -12,7 +12,7 @@ export type {
   CICDProviderType,
   WorkflowType,
   PlatformType,
-  JobParameter,
+  WorkflowParameter,
   CICDWorkflow,
   WorkflowFilters,
   CreateWorkflowRequest,

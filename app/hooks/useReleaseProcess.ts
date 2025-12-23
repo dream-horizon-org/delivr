@@ -556,7 +556,7 @@ export function useCompletePreReleaseStage(tenantId?: string, releaseId?: string
       }
 
       const result = await apiPost<CompletePreReleaseResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/pre-release/complete`,
+        `/api/v1/tenants/${tenantId}/releases/${releaseId}/trigger-distribution`,
         request || {}
       );
 

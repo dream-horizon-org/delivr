@@ -9,7 +9,7 @@ import { IconPlus, IconTrash, IconRefresh, IconCheck, IconAlertCircle } from '@t
 import { apiPost, getApiErrorMessage } from '~/utils/api-client';
 import type { GitHubActionsConfig } from '~/types/release-config';
 import type { GitHubActionsConfigFormProps } from '~/types/release-config-props';
-import type { JobParameter } from '~/.server/services/ReleaseManagement/integrations';
+import type { WorkflowParameter } from '~/.server/services/ReleaseManagement/integrations';
 import { FIELD_LABELS, PLACEHOLDERS, BUTTON_LABELS } from '~/constants/release-config-ui';
 
 export function GitHubActionsConfigForm({
@@ -27,7 +27,7 @@ export function GitHubActionsConfigForm({
   const [fetchingParams, setFetchingParams] = useState(false);
   const [parametersFetched, setParametersFetched] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [fetchedParameters, setFetchedParameters] = useState<JobParameter[]>([]);
+  const [fetchedParameters, setFetchedParameters] = useState<WorkflowParameter[]>([]);
   
   const inputs = config.inputs || {};
   
@@ -88,7 +88,7 @@ export function GitHubActionsConfigForm({
     }
     
     try {
-      const result = await apiPost<{ parameters: JobParameter[] }>(
+      const result = await apiPost<{ parameters: WorkflowParameter[] }>(
         `/api/v1/tenants/${tenantId}/workflows/job-parameters`,
         {
           providerType: 'GITHUB_ACTIONS',
@@ -96,26 +96,34 @@ export function GitHubActionsConfigForm({
           url: workflowUrl,
         }
       );
-
-      console.log('result', result);
       
       if (result.success && result.data?.parameters) {
-        setFetchedParameters(result.data.parameters);
+        const fetchedParams = result.data.parameters.map((param) => {
+          const hasChoices = (param as any).choices && (param as any).choices.length > 0;
+          const hasOptions = param.options && param.options.length > 0;
+          const options = hasOptions ? param.options : (hasChoices ? (param as any).choices : undefined);
+          
+          return {
+            ...param,
+            options,
+          };
+        });
         
-        // Initialize parameter values with defaults or existing values
+        setFetchedParameters(fetchedParams);
+        
         const newInputs: Record<string, string> = {};
-        result.data.parameters.forEach((param: JobParameter) => {
+        fetchedParams.forEach((param) => {
           newInputs[param.name] = 
             inputs[param.name] || 
             param.defaultValue?.toString() || 
-            param.default?.toString() || 
             '';
         });
         
         onChange({
           ...config,
           inputs: newInputs,
-        });
+          parameterDefinitions: fetchedParams,
+        } as any);
         
         setParametersFetched(true);
       } else {
@@ -237,12 +245,12 @@ export function GitHubActionsConfigForm({
                     </Text>
                   )}
                   
-                  {param.choices && param.choices.length > 0 ? (
+                  {param.options && param.options.length > 0 ? (
                     <Select
                       placeholder="Select a value"
-                      data={param.choices.map((choice) => ({
-                        value: choice,
-                        label: choice,
+                      data={param.options.map((option) => ({
+                        value: option,
+                        label: option,
                       }))}
                       value={inputs[param.name] || ''}
                       onChange={(val) => handleInputValueChange(param.name, val || '')}

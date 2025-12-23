@@ -217,7 +217,7 @@ export function ReleaseHeaderInfo({
     {
       key: 'startedAt',
       icon: <IconClock size={18} className="text-slate-600" />,
-      label: HEADER_LABELS.RELEASE_STARTED_AT,
+      label: HEADER_LABELS.RELEASE_STARTS_AT,
       getValue: () => release.kickOffDate ? formatReleaseDateTime(release.kickOffDate) : null,
       shouldShow: () => !!release.kickOffDate,
     },

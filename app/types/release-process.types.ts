@@ -498,6 +498,7 @@ export interface ApproveRegressionStageResponse {
  * Complete Pre-Release Request
  */
 export interface CompletePreReleaseRequest {
+  approvedBy?: string;                   // Account ID of approver (optional, will be set from authenticated user if not provided)
   notes?: string;
 }
 
