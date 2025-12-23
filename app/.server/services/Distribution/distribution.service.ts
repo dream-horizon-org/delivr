@@ -18,7 +18,6 @@ import type {
   DistributionsResponse,
   DistributionWithSubmissions,
   ExtraCommitsResponse,
-  HaltRolloutRequest,
   ManualApprovalRequest,
   PauseRolloutRequest,
   Platform,
@@ -35,11 +34,19 @@ import type {
 
 class Distribution {
   private __client = axios.create({
-    // In HYBRID_MODE or MOCK_MODE, Distribution APIs go to mock server
-    // Base URL should be just the backend URL, not including /api/v1/distributions
-    baseURL: getBackendBaseURL(),
+    // Don't set baseURL here - we'll determine it per-request in the interceptor
     timeout: 10000,
   });
+
+  constructor() {
+    // Add request interceptor to dynamically set base URL based on HYBRID_MODE
+    this.__client.interceptors.request.use((config) => {
+      const url = config.url || '';
+      const baseURL = getBackendBaseURL(url); // Pass URL to check hybrid mode
+      config.baseURL = baseURL;
+      return config;
+    });
+  }
 
   /**
    * Build headers with userId for authentication
@@ -335,17 +342,6 @@ class Distribution {
   async resumeRollout(submissionId: string, platform: Platform) {
     return this.__client.post<null, RolloutUpdateResponse>(
       `/api/v1/submissions/${submissionId}/rollout/resume?platform=${platform}`
-    );
-  }
-
-  /**
-   * Emergency halt rollout
-   * @param platform - Required for backend to identify which table to update (android_submission_builds or ios_submission_builds)
-   */
-  async haltRollout(submissionId: string, request: HaltRolloutRequest, platform: Platform) {
-    return this.__client.post<HaltRolloutRequest, RolloutUpdateResponse>(
-      `/api/v1/submissions/${submissionId}/rollout/halt?platform=${platform}`,
-      request
     );
   }
 

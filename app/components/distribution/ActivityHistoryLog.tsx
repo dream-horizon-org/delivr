@@ -45,6 +45,7 @@ function getActionIcon(action: ActionHistoryEntry['action']) {
     case 'HALTED':
       return <IconAlertTriangle size={DIST_ICON_SIZES.MD} className="text-red-600" />;
     case 'UPDATE_ROLLOUT':
+    case 'COMPLETE_EARLY':
       return <IconTrendingUp size={DIST_ICON_SIZES.MD} className="text-blue-600" />;
   }
 }
@@ -60,6 +61,7 @@ function getActionColor(action: ActionHistoryEntry['action']): string {
     case 'HALTED':
       return DS_COLORS.STATUS.ERROR;
     case 'UPDATE_ROLLOUT':
+    case 'COMPLETE_EARLY':
       return DS_COLORS.STATUS.INFO;
   }
 }
@@ -76,6 +78,8 @@ function getActionLabel(action: ActionHistoryEntry['action']): string {
       return 'Halted';
     case 'UPDATE_ROLLOUT':
       return 'Rollout Updated';
+    case 'COMPLETE_EARLY':
+      return 'Completed Early';
   }
 }
 
@@ -91,6 +95,8 @@ function getActionBadgeText(action: ActionHistoryEntry['action']): string {
       return 'HALTED';
     case 'UPDATE_ROLLOUT':
       return 'ROLLOUT ADJUSTED';
+    case 'COMPLETE_EARLY':
+      return 'COMPLETED EARLY';
   }
 }
 
@@ -139,8 +145,8 @@ export function ActivityHistoryLog({ actionHistory }: ActivityHistoryLogProps) {
                 <strong>By:</strong> {entry.createdBy}
               </Text>
 
-              {/* Rollout Change (for UPDATE_ROLLOUT) */}
-              {entry.action === 'UPDATE_ROLLOUT' && entry.previousRolloutPercentage !== undefined && (
+              {/* Rollout Change (for UPDATE_ROLLOUT or COMPLETE_EARLY) */}
+              {(entry.action === 'UPDATE_ROLLOUT' || entry.action === 'COMPLETE_EARLY') && entry.previousRolloutPercentage !== undefined && (
                 <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.SECONDARY}>
                   <strong>Rollout Change:</strong> {entry.previousRolloutPercentage}% → {entry.newRolloutPercentage}%
                 </Text>

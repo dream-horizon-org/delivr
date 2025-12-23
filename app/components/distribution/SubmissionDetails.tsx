@@ -17,17 +17,29 @@ export type SubmissionDetailsProps = {
 export function SubmissionDetails({ 
   submission 
 }: SubmissionDetailsProps) {
+  const isIOS = submission.platform === Platform.IOS;
+  const isAndroid = submission.platform === Platform.ANDROID;
+  const testflightNumber = isIOS && 'artifact' in submission && submission.artifact && 'testflightNumber' in submission.artifact 
+    ? submission.artifact.testflightNumber 
+    : null;
+
   return (
     <Stack gap={DS_SPACING.XS}>
       <Group gap={DS_SPACING.XS}>
         <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>Version:</Text>
         <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
           {submission.version}
-          {submission.platform === Platform.ANDROID && 'versionCode' in submission && ` (${submission.versionCode})`}
+          {isAndroid && 'versionCode' in submission && ` (${submission.versionCode})`}
         </Text>
       </Group>
       
-      {/* track field is not in API spec */}
+      {/* iOS-specific: TestFlight Build Number */}
+      {isIOS && testflightNumber && (
+        <Group gap={DS_SPACING.XS}>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>TestFlight Build:</Text>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>{testflightNumber}</Text>
+        </Group>
+      )}
 
       <Group gap={DS_SPACING.XS}>
         <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>Exposure:</Text>

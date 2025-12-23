@@ -170,7 +170,7 @@ export const DIST_BUTTON_PROPS = {
   },
   SUBTLE: {
     variant: 'subtle',
-    size: 'sm',
+    size: 'md',
     radius: 'sm',
   },
   DANGER: {

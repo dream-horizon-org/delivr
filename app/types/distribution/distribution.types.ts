@@ -70,16 +70,16 @@ export enum SubmissionStatus {
 
 /**
  * Action History Entry
- * Audit trail for manual actions (PAUSED, RESUMED, CANCELLED, HALTED, UPDATE_ROLLOUT)
+ * Audit trail for manual actions (PAUSED, RESUMED, CANCELLED, HALTED, UPDATE_ROLLOUT, COMPLETE_EARLY)
  * Per API spec lines 244-257, 330-338, 360-362, 745-762, 846-859
  */
 export interface ActionHistoryEntry {
-  action: 'PAUSED' | 'RESUMED' | 'CANCELLED' | 'HALTED' | 'UPDATE_ROLLOUT';
+  action: 'PAUSED' | 'RESUMED' | 'CANCELLED' | 'HALTED' | 'UPDATE_ROLLOUT' | 'COMPLETE_EARLY';
   createdBy: string;     // Email of user who performed the action
   createdAt: string;     // ISO timestamp
   reason: string;        // User-provided reason
-  previousRolloutPercentage?: number;  // For UPDATE_ROLLOUT: percentage before change
-  newRolloutPercentage?: number;       // For UPDATE_ROLLOUT: percentage after change
+  previousRolloutPercentage?: number;  // For UPDATE_ROLLOUT/COMPLETE_EARLY: percentage before change
+  newRolloutPercentage?: number;       // For UPDATE_ROLLOUT/COMPLETE_EARLY: percentage after change
 }
 
 // ============================================================================
@@ -338,14 +338,6 @@ export interface CancelSubmissionRequest {
   reason?: string;                // Optional reason for cancellation
 }
 
-/**
- * Halt Rollout Request (Emergency halt)
- * Per API spec lines 1236-1272
- */
-export interface HaltRolloutRequest {
-  reason: string;                 // Required reason for emergency halt
-}
-
 // ============================================================================
 // API RESPONSE TYPES
 // ============================================================================
@@ -440,18 +432,6 @@ export interface CancelSubmissionResponseData {
 }
 
 export type CancelSubmissionResponse = APISuccessResponse<CancelSubmissionResponseData>;
-
-/**
- * Halt Rollout Response
- * Per API spec lines 1261-1271
- */
-export interface HaltRolloutResponseData {
-  id: string;
-  status: 'HALTED';
-  statusUpdatedAt: string;
-}
-
-export type HaltRolloutResponse = APISuccessResponse<HaltRolloutResponseData>;
 
 // ============================================================================
 // UTILITY TYPES FOR UI
@@ -638,7 +618,7 @@ export interface Build extends EntityTimestamps, VersionInfo {
   platform: Platform;
   buildType: BuildType;
   artifactPath: string | null;
-  testflightNumber: string | null;
+  testflightNumber: number | null;
   internalTrackLink: string | null;
   checksum: string | null;
   buildStrategy: BuildStrategy;
@@ -715,7 +695,7 @@ export interface UploadAABRequest {
 /** Verify TestFlight Request */
 export interface VerifyTestFlightRequest {
   releaseId: string;
-  testflightNumber: string;
+  testflightNumber: number;
   versionName: string;
 }
 

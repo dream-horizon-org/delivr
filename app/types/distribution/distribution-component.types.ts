@@ -7,7 +7,6 @@
 
 import type {
   ApproverRole,
-  AvailableAction,
   Build,
   BuildStrategy,
   BuildUploadStatus,
@@ -231,17 +230,11 @@ export type RolloutProgressBarProps = BaseProps & {
 export type RolloutControlsProps = BaseProps & WithSubmissionId & WithPlatform & WithLoading & {
   currentPercentage: number;
   status: SubmissionStatus;
-  availableActions: AvailableAction[];
   phasedRelease?: boolean; // For iOS: true = phased (7-day), false = manual (immediate 100%)
   onUpdateRollout?: (percentage: number) => void;
-  onPause?: (reason?: string) => void; // Optional reason for pause
+  onPause?: (reason?: string) => void; // Optional reason for pause (Android→HALTED, iOS→PAUSED)
   onResume?: () => void;
-  onHalt?: (reason: string) => void; // Required reason for halt
-};
-
-export type HaltRolloutDialogProps = DialogState & RequiredClose & WithSubmissionId & WithPlatform & {
-  isHalting?: boolean;
-  onHalt: (reason: string) => void;
+  // Note: No onHalt - HALT is just Android's status name for PAUSE
 };
 
 // ============================================================================
@@ -290,13 +283,11 @@ export type ApprovalState = {
 /** Action availability state */
 export type ActionAvailability = {
   canUpdate: boolean;
-  canPause: boolean;
-  canResume: boolean;
-  canHalt: boolean;
+  canPause: boolean; // Android→HALTED, iOS→PAUSED (both displayed as "Rollout Paused")
+  canResume: boolean; // HALTED→IN_PROGRESS (Android), PAUSED→LIVE (iOS)
   updateReason?: string;
   pauseReason?: string;
   resumeReason?: string;
-  haltReason?: string;
   supportsRollout: boolean;
   isPaused: boolean;
   isComplete: boolean;

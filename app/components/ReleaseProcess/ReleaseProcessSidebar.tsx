@@ -29,6 +29,7 @@ interface ReleaseProcessSidebarProps {
   className?: string;
   // Optional: stage data to check completion status
   kickoffStageCompleted?: boolean; // True if kickoff stage is completed
+  distributionStageCompleted?: boolean; // True if distribution is submitted/released
 }
 
 // Stage definition type
@@ -104,6 +105,7 @@ export function ReleaseProcessSidebar({
   onStageSelect,
   className,
   kickoffStageCompleted = false,
+  distributionStageCompleted = false,
 }: ReleaseProcessSidebarProps) {
   // All stages are always visible
   const stages = RELEASE_PROCESS_STAGES;
@@ -169,7 +171,13 @@ export function ReleaseProcessSidebar({
           }}
         >
           {stages.map((stage, index) => {
-            const isComplete = currentStageIndex >= 0 && index < currentStageIndex;
+            // A stage is complete if:
+            // 1. It's before the current stage, OR
+            // 2. It's the Distribution stage AND distribution is submitted/released
+            const isComplete = 
+              (currentStageIndex >= 0 && index < currentStageIndex) ||
+              (stage.key === TaskStageEnum.DISTRIBUTION && distributionStageCompleted);
+            
             const isCurrent = index === currentStageIndex;
             const isSelected = index === selectedStageIndex;
             // Allow REGRESSION stage (index 1) if kickoff is completed, even if currentStage is still KICKOFF

@@ -56,12 +56,8 @@ type UseDistributionReturn = {
   
   // UI state
   showSubmitDialog: boolean;
-  showHaltDialog: boolean;
-  selectedSubmissionForHalt: string | null;
   openSubmitDialog: () => void;
   closeSubmitDialog: () => void;
-  openHaltDialog: (submissionId: string) => void;
-  closeHaltDialog: () => void;
 };
 
 // ============================================================================
@@ -73,8 +69,6 @@ export function useDistribution(params: UseDistributionParams): UseDistributionR
 
   // UI Dialog states
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
-  const [showHaltDialog, setShowHaltDialog] = useState(false);
-  const [selectedSubmissionForHalt, setSelectedSubmissionForHalt] = useState<string | null>(null);
 
   // Extract status info
   const releaseStatus = distributionStatus.releaseStatus;
@@ -142,16 +136,6 @@ export function useDistribution(params: UseDistributionParams): UseDistributionR
   // Dialog handlers
   const openSubmitDialog = useCallback(() => setShowSubmitDialog(true), []);
   const closeSubmitDialog = useCallback(() => setShowSubmitDialog(false), []);
-  
-  const openHaltDialog = useCallback((submissionId: string) => {
-    setSelectedSubmissionForHalt(submissionId);
-    setShowHaltDialog(true);
-  }, []);
-  
-  const closeHaltDialog = useCallback(() => {
-    setShowHaltDialog(false);
-    setSelectedSubmissionForHalt(null);
-  }, []);
 
   return {
     // Status
@@ -185,12 +169,8 @@ export function useDistribution(params: UseDistributionParams): UseDistributionR
     
     // UI state
     showSubmitDialog,
-    showHaltDialog,
-    selectedSubmissionForHalt,
     openSubmitDialog,
     closeSubmitDialog,
-    openHaltDialog,
-    closeHaltDialog,
   };
 }
 

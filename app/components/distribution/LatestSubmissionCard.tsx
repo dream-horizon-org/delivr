@@ -19,7 +19,6 @@ import {
   Tooltip,
 } from '@mantine/core';
 import {
-  IconAlertTriangle,
   IconDownload,
   IconExternalLink,
   IconInfoCircle,
@@ -63,9 +62,9 @@ export interface LatestSubmissionCardProps {
   onUpdateRollout?: () => void;
   onPause?: () => void;
   onResume?: () => void;
-  onHalt?: () => void;
   onCancel?: () => void;
   onResubmit?: () => void;
+  // Note: No onHalt - use onPause instead (Android→HALTED, iOS→PAUSED)
 }
 
 export function LatestSubmissionCard({
@@ -75,7 +74,6 @@ export function LatestSubmissionCard({
   onUpdateRollout,
   onPause,
   onResume,
-  onHalt,
   onCancel,
   onResubmit,
 }: LatestSubmissionCardProps) {
@@ -100,14 +98,25 @@ export function LatestSubmissionCard({
   const phasedRelease = isIOS && 'phasedRelease' in submission ? submission.phasedRelease : false;
   
   // Derive action availability using utility functions (clean, testable logic)
-  const canUpdateRollout = canUpdateRolloutUtil(submission.status, submission.platform);
-  const canPause = canPauseSubmission(submission.status, submission.platform);
+  let canUpdateRollout = canUpdateRolloutUtil(submission.status, submission.platform);
+  let canPause = canPauseSubmission(submission.status, submission.platform);
   const canResume = canResumeSubmission(submission.status, submission.platform);
   const canCancel = canCancelSubmission(submission.status, submission.platform);
   const canResubmit = canResubmitUtil(submission.status);
   
-  // Note: Emergency Halt is always available for active rollouts (not status-dependent)
-  const canHalt = (isInProgress || isLive) && !isComplete && !isPaused && !isHalted;
+  // Frontend safeguards: iOS Manual Release (phasedRelease=false) has NO rollout controls
+  if (isIOS && phasedRelease === false) {
+    canUpdateRollout = false;
+    canPause = false;
+  }
+  
+  // Frontend safeguards: Cannot pause or update at 100% (already complete)
+  if (isComplete) {
+    canUpdateRollout = false;
+    canPause = false;
+  }
+  
+  // Note: HALT = PAUSE for Android (no separate halt functionality)
 
   // UI Display Logic (No Logic in JSX Rule - extract complex expressions)
   const showPausedWarning = isPaused || isHalted;
@@ -211,11 +220,11 @@ export function LatestSubmissionCard({
           <Alert color={DS_COLORS.STATUS.WARNING} variant="light" icon={<IconInfoCircle size={16} />}>
             <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} mb={DS_SPACING.XS}>
               {isAndroid && 'Android rollout paused. Users at current percentage.'}
-              {isIOS && DIALOG_UI.PAUSE.WARNING_LINE1}
+              {isIOS && DIALOG_UI.PAUSE.IOS_WARNING_LINE1}
             </Text>
             <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
               {isAndroid && 'Click Resume to continue rollout.'}
-              {isIOS && DIALOG_UI.PAUSE.WARNING_LINE2}
+              {isIOS && DIALOG_UI.PAUSE.IOS_WARNING_LINE2}
             </Text>
           </Alert>
         )}
@@ -519,18 +528,6 @@ export function LatestSubmissionCard({
               radius={DS_SPACING.BORDER_RADIUS}
             >
               {DISTRIBUTION_MANAGEMENT_UI.BUTTONS.RESUME_ROLLOUT}
-            </Button>
-          )}
-
-          {canHalt && onHalt && (
-            <Button
-              variant="light"
-              color={DS_COLORS.STATUS.ERROR}
-              leftSection={<IconAlertTriangle size={16} />}
-              onClick={onHalt}
-              radius={DS_SPACING.BORDER_RADIUS}
-            >
-              {DISTRIBUTION_MANAGEMENT_UI.BUTTONS.EMERGENCY_HALT}
             </Button>
           )}
         </Group>

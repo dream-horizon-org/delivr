@@ -8,24 +8,24 @@
  */
 
 import {
-    Alert,
-    Button,
-    Group,
-    Paper,
-    Stack,
-    Text,
-    TextInput,
+  Alert,
+  Button,
+  Group,
+  Paper,
+  Stack,
+  Text,
+  TextInput,
 } from '@mantine/core';
 import { IconAlertCircle, IconBrandApple, IconCheck } from '@tabler/icons-react';
 import { useCallback, useEffect } from 'react';
 import {
-    DS_COLORS,
-    DS_SPACING,
-    DS_TYPOGRAPHY,
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
 } from '~/constants/distribution/distribution-design.constants';
 import {
-    BUTTON_LABELS,
-    VALIDATION_RULES,
+  BUTTON_LABELS,
+  VALIDATION_RULES,
 } from '~/constants/distribution/distribution.constants';
 import { useVerifyState } from '~/hooks/distribution';
 import type { VerifyTestFlightFormProps } from '~/types/distribution/distribution-component.types';
@@ -103,7 +103,7 @@ export function VerifyTestFlightForm({
 
     const formData = new FormData();
     formData.append('_action', 'verify-testflight');
-    formData.append('testflightNumber', buildNumber);  // Renamed from testflightBuildNumber
+    formData.append('testflightNumber', buildNumber);
     formData.append('versionName', versionName);
 
     fetcher.submit(formData, { method: 'post' });

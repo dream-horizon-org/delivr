@@ -21,20 +21,20 @@ import {
   Textarea,
   ThemeIcon,
 } from '@mantine/core';
-import { IconAlertCircle, IconX } from '@tabler/icons-react';
 import { useFetcher } from '@remix-run/react';
+import { IconAlertCircle, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { API_ROUTES } from '~/constants/distribution/distribution-api.constants';
 import {
   DIST_ALERT_PROPS,
   DIST_BUTTON_PROPS,
   DIST_CARD_PROPS,
-  DS_COLORS,
-  DS_TYPOGRAPHY,
   DIST_FONT_WEIGHTS,
   DIST_INPUT_PROPS,
   DIST_MODAL_PROPS,
+  DS_COLORS,
   DS_SPACING,
+  DS_TYPOGRAPHY,
 } from '~/constants/distribution/distribution-design.constants';
 import {
   BUTTON_LABELS,
@@ -172,19 +172,19 @@ export function CancelSubmissionDialog({
 
         <Group justify="flex-end" mt={DS_SPACING.LG}>
           <Button
-            variant="default"
+            {...DIST_BUTTON_PROPS.SUBTLE}
             onClick={handleClose}
             disabled={isSubmitting}
-            size="sm"
           >
-            Keep Submission
+            {BUTTON_LABELS.CANCEL}
           </Button>
           <Button
             {...DIST_BUTTON_PROPS.DANGER}
             onClick={handleCancel}
             loading={isSubmitting}
+            leftSection={<IconX size={DIALOG_ICON_SIZES.ACTION} />}
           >
-            Cancel Submission
+            {DIALOG_TITLES.CANCEL_SUBMISSION}
           </Button>
         </Group>
       </Stack>

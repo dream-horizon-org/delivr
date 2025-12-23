@@ -210,15 +210,15 @@ export const API_ENDPOINTS = {
   UPDATE_ROLLOUT: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
     `/api/v1/submissions/${submissionId}/rollout?platform=${platform}`,
   
-  // Pause Rollout - iOS Only (API Spec Line 1383)
-  PAUSE_ROLLOUT: (submissionId: string) => `/api/v1/submissions/${submissionId}/rollout/pause?platform=IOS`,
+  // Pause Rollout - Both Platforms (API Spec Line 1454)
+  // Android: IN_PROGRESS → HALTED, iOS: LIVE → PAUSED
+  PAUSE_ROLLOUT: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/submissions/${submissionId}/rollout/pause?platform=${platform}`,
   
-  // Resume Rollout - iOS Only (API Spec Line 1421)
-  RESUME_ROLLOUT: (submissionId: string) => `/api/v1/submissions/${submissionId}/rollout/resume?platform=IOS`,
-  
-  // Halt Rollout (API Spec Line 1449)
-  HALT_ROLLOUT: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
-    `/api/v1/submissions/${submissionId}/rollout/halt?platform=${platform}`,
+  // Resume Rollout - Both Platforms (API Spec Line 1509)
+  // Android: HALTED → IN_PROGRESS, iOS: PAUSED → LIVE
+  RESUME_ROLLOUT: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/submissions/${submissionId}/rollout/resume?platform=${platform}`,
 } as const;
 
 /**

@@ -63,7 +63,7 @@ type AndroidResubmissionFormData = {
 
 type IOSResubmissionFormData = {
   version: string;
-  testflightNumber: number | null;  // Renamed from testflightBuildNumber
+  testflightNumber: number | null;  // Renamed from testflightNumber
   phasedRelease: boolean;
   resetRating: boolean;
   releaseNotes: string;
@@ -139,7 +139,7 @@ export function ResubmissionDialog({
   const iosForm = useForm<IOSResubmissionFormData>({
     initialValues: {
       version: previousSubmission.version ?? '',
-      testflightNumber: null,  // Renamed from testflightBuildNumber
+      testflightNumber: null,  // Renamed from testflightNumber
       phasedRelease: iosSubmission?.phasedRelease ?? true,
       resetRating: iosSubmission?.resetRating ?? false,
       releaseNotes: previousSubmission.releaseNotes ?? '',
@@ -189,7 +189,7 @@ export function ResubmissionDialog({
     const payload = {
       platform: Platform.IOS,
       version: values.version,
-      testflightNumber: values.testflightNumber,  // Renamed from testflightBuildNumber
+      testflightNumber: values.testflightNumber,  // Renamed from testflightNumber
       phasedRelease: values.phasedRelease,
       resetRating: values.resetRating,
       releaseNotes: values.releaseNotes,

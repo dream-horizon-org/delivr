@@ -48,9 +48,10 @@ export interface PromoteIOSSubmissionDialogProps {
   onClose: () => void;
   submission: IOSSubmission;
   onPromoteComplete?: () => void;
+  action?: string; // Optional: custom form action URL (defaults to current route)
 }
 
-interface IOSPromoteFormData {
+export interface IOSPromoteFormData {
   phasedRelease: boolean;
   resetRating: boolean;
   releaseNotes: string;
@@ -65,6 +66,7 @@ export function PromoteIOSSubmissionDialog({
   onClose,
   submission,
   onPromoteComplete,
+  action,
 }: PromoteIOSSubmissionDialogProps) {
   const fetcher = useFetcher();
   const { isSuccess, error } = parseFetcherResponse(fetcher.data);
@@ -97,7 +99,12 @@ export function PromoteIOSSubmissionDialog({
     formData.append('phasedRelease', String(values.phasedRelease));
     formData.append('resetRating', String(values.resetRating));
     formData.append('releaseNotes', values.releaseNotes);
-    fetcher.submit(formData, { method: 'post' });
+    
+    // Submit to custom action URL if provided, otherwise current route
+    fetcher.submit(formData, { 
+      method: 'post',
+      ...(action && { action })
+    });
   };
 
   const isFormValid = isIOSPromoteFormValid(form.values);

@@ -1,63 +1,60 @@
 /**
- * RolloutControls - Controls for managing rollout (update, pause, resume, halt)
+ * RolloutControls - Controls for managing rollout (update, pause, resume)
  * 
  * Features:
  * - Update rollout percentage with presets
  * - Pause/resume rollout
- * - Emergency halt with confirmation
  * - Action availability based on platform/status
  */
 
 import {
-    Badge,
-    Button,
-    Card,
-    Divider,
-    Group,
-    Paper,
-    Slider,
-    Stack,
-    Text,
+  Badge,
+  Button,
+  Card,
+  Divider,
+  Group,
+  Paper,
+  Slider,
+  Stack,
+  Text,
 } from '@mantine/core';
 import {
-    IconAlertOctagon,
-    IconCheck,
-    IconPlayerPause,
-    IconPlayerPlay,
-    IconTrendingUp,
+  IconCheck,
+  IconPlayerPause,
+  IconPlayerPlay,
+  IconTrendingUp
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
-import {
-    BUTTON_LABELS,
-    MAX_ROLLOUT_PERCENT,
-    ROLLOUT_COMPLETE_PERCENT,
-    ROLLOUT_CONTROLS_ICON_SIZES,
-    ROLLOUT_CONTROLS_UI,
-} from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
 } from '~/constants/distribution/distribution-design.constants';
+import {
+  BUTTON_LABELS,
+  MAX_ROLLOUT_PERCENT,
+  ROLLOUT_COMPLETE_PERCENT,
+  ROLLOUT_CONTROLS_ICON_SIZES,
+  ROLLOUT_CONTROLS_UI,
+} from '~/constants/distribution/distribution.constants';
+import { useRolloutState } from '~/hooks/distribution';
+import type { RolloutControlsProps } from '~/types/distribution/distribution-component.types';
 import { Platform } from '~/types/distribution/distribution.types';
+import { deriveActionAvailability } from '~/utils/distribution';
 import { getPlatformRolloutLabel, getRolloutStatus } from '~/utils/distribution/distribution-ui.utils';
 import {
-    getIOSPhasedReleaseDay,
-    getPlatformRolloutDescription,
-    getPlatformRules,
-    getRolloutControlType,
+  getIOSPhasedReleaseDay,
+  getPlatformRolloutDescription,
+  getPlatformRules,
+  getRolloutControlType,
 } from '~/utils/platform-rules';
 import { ActionButton } from './ActionButton';
 import { CompleteEarlyDialog } from './CompleteEarlyDialog';
-import { HaltConfirmationDialog } from './HaltConfirmationDialog';
 import { IOSPhasedReleaseSchedule } from './IOSPhasedReleaseSchedule';
 import { PauseConfirmationDialog } from './PauseConfirmationDialog';
 import { PresetButtons } from './PresetButtons';
 import { ResumeConfirmationDialog } from './ResumeConfirmationDialog';
 import { RolloutProgressBar } from './RolloutProgressBar';
-import type { RolloutControlsProps } from '~/types/distribution/distribution-component.types';
-import { useRolloutState } from '~/hooks/distribution';
-import { deriveActionAvailability } from '~/utils/distribution';
 
 // ============================================================================
 // MAIN COMPONENT
@@ -69,18 +66,15 @@ export function RolloutControls({
   status,
   platform,
   phasedRelease,
-  availableActions,
   isLoading,
   onUpdateRollout,
   onPause,
   onResume,
-  onHalt,
   className,
 }: RolloutControlsProps) {
   // Dialog state
   const [showPauseDialog, setShowPauseDialog] = useState(false);
   const [showResumeDialog, setShowResumeDialog] = useState(false);
-  const [showHaltDialog, setShowHaltDialog] = useState(false);
   const [showCompleteEarlyDialog, setShowCompleteEarlyDialog] = useState(false);
 
   // Get platform-specific rules
@@ -106,14 +100,12 @@ export function RolloutControls({
     canUpdate,
     canPause,
     canResume,
-    canHalt,
     updateReason,
     pauseReason,
     resumeReason,
-    haltReason,
     supportsRollout,
     isComplete,
-  } = deriveActionAvailability(availableActions, status, platform, currentPercentage);
+  } = deriveActionAvailability(status, platform, currentPercentage, phasedRelease);
 
   // Memoized derived values
   const platformLabel = useMemo(() => getPlatformRolloutLabel(platform), [platform]);
@@ -178,17 +170,6 @@ export function RolloutControls({
     }
     setShowResumeDialog(false);
   }, [onResume]);
-
-  const handleHaltClick = useCallback(() => {
-    setShowHaltDialog(true);
-  }, []);
-
-  const handleHaltConfirm = useCallback((reason: string) => {
-    if (onHalt) {
-      onHalt(reason);
-    }
-    setShowHaltDialog(false);
-  }, [onHalt]);
 
   const handleCompleteEarlyClick = useCallback(() => {
     setShowCompleteEarlyDialog(true);
@@ -360,19 +341,6 @@ export function RolloutControls({
                   tooltip={resumeReason}
                 />
               )}
-
-              {canHalt && (
-                <ActionButton
-                  icon={
-                    <IconAlertOctagon size={ROLLOUT_CONTROLS_ICON_SIZES.ACTION_BUTTON} />
-                  }
-                  label={BUTTON_LABELS.HALT}
-                  color={DS_COLORS.STATUS.ERROR}
-                  onClick={handleHaltClick}
-                  disabled={isLoading}
-                  tooltip={haltReason}
-                />
-              )}
             </Group>
           </>
         )}
@@ -417,15 +385,6 @@ export function RolloutControls({
         onConfirm={handleResumeConfirm}
         platform={platformLabel}
         currentPercentage={currentPercentage}
-        isLoading={isLoading}
-      />
-
-      <HaltConfirmationDialog
-        opened={showHaltDialog}
-        onClose={() => setShowHaltDialog(false)}
-        onConfirm={handleHaltConfirm}
-        platform={platformLabel}
-        version={submissionId}
         isLoading={isLoading}
       />
 

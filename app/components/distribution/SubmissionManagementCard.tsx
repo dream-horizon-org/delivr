@@ -18,16 +18,15 @@ export interface SubmissionManagementCardProps {
   submission: Submission;
   onPause: () => void;
   onResume: () => void;
-  onHalt: () => void;
   onRetry: () => void;
   onViewHistory: () => void;
+  // Note: No onHalt - use onPause instead (Android→HALTED, iOS→PAUSED)
 }
 
 export function SubmissionManagementCard({
   submission,
   onPause,
   onResume,
-  onHalt,
   onRetry,
   onViewHistory,
 }: SubmissionManagementCardProps) {
@@ -100,12 +99,6 @@ export function SubmissionManagementCard({
                 Pause Rollout
               </Button>
             )
-          )}
-
-          {canHalt && (
-            <Button onClick={onHalt} color={DS_COLORS.STATUS.ERROR} variant="light">
-              Emergency Halt
-            </Button>
           )}
 
           <Button onClick={onViewHistory} variant="subtle">

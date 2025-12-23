@@ -22,7 +22,6 @@ export { VerifyTestFlightForm } from './VerifyTestFlightForm';
 // ============================================================================
 export { ActionButton } from './ActionButton';
 export { DistributionStatusPanel } from './DistributionStatusPanel';
-export { HaltRolloutDialog } from './HaltRolloutDialog';
 export { PauseRolloutDialog } from './PauseRolloutDialog';
 export { PlatformSubmissionCard } from './PlatformSubmissionCard';
 export { PresetButtons } from './PresetButtons';
@@ -43,7 +42,7 @@ export { VersionConflictDialog } from './VersionConflictDialog';
 // Rejection Recovery Components
 // ============================================================================
 export { RejectedSubmissionView } from './RejectedSubmissionView';
-export { ResubmissionDialog } from './ResubmissionDialog';
+export { ResubmissionDialog } from './ReSubmissionDialog';
 
 // ============================================================================
 // Release Complete View
@@ -64,11 +63,12 @@ export { SubmissionManagementCard } from './SubmissionManagementCard';
 // Component Types
 // ============================================================================
 export type {
-  BuildStatusCardProps,
+  ActionAvailability,
+  ApprovalState,
+  BuildState, BuildStatusCardProps,
   BuildSummaryState,
   DistributionStatusPanelProps,
   ExtraCommitsWarningProps,
-  HaltRolloutDialogProps,
   ManualApprovalDialogProps,
   PlatformSubmissionCardProps,
   PMApprovalStatusProps,
@@ -79,19 +79,16 @@ export type {
   SubmissionCardProps,
   SubmitToStoresFormProps,
   UploadAABFormProps,
-  VerifyTestFlightFormProps,
-  ActionAvailability,
-  ApprovalState,
-  BuildState,
+  VerifyTestFlightFormProps
 } from '~/types/distribution/distribution-component.types';
 
 export type { ExposureControlConflictDetails, ExposureControlDialogProps } from './ExposureControlDialog';
-export type { VersionConflictDetails, VersionConflictDialogProps } from './VersionConflictDialog';
-export type { RejectedSubmissionViewProps } from './RejectedSubmissionView';
-export type { ResubmissionDialogProps } from './ResubmissionDialog';
 export type { PauseRolloutDialogProps } from './PauseRolloutDialog';
-export type { ResumeRolloutDialogProps } from './ResumeRolloutDialog';
+export type { RejectedSubmissionViewProps } from './RejectedSubmissionView';
 export type { PlatformReleaseInfo, ReleaseCompleteViewProps } from './ReleaseCompleteView';
+export type { ResubmissionDialogProps } from './ReSubmissionDialog';
+export type { ResumeRolloutDialogProps } from './ResumeRolloutDialog';
+export type { VersionConflictDetails, VersionConflictDialogProps } from './VersionConflictDialog';
 
 // Page Layout Component Types
 export type { DistributionPageHeaderProps } from './DistributionPageHeader';
@@ -99,3 +96,4 @@ export type { EmptySubmissionsCardProps } from './EmptySubmissionsCard';
 export type { PlatformTabContentProps } from './PlatformTabContent';
 export type { PreReleaseTabProps } from './PreReleaseTab';
 export type { SubmissionManagementCardProps } from './SubmissionManagementCard';
+

@@ -343,7 +343,6 @@ export const DISTRIBUTION_UI_LABELS = {
   // Dialog Titles
   PAUSE_ROLLOUT_TITLE: 'Pause Rollout',
   RESUME_ROLLOUT_TITLE: 'Resume Rollout',
-  HALT_ROLLOUT_TITLE: 'Emergency Halt Rollout',
   MANUAL_APPROVAL_TITLE: 'Approve for Submission',
   
   // Dialog Fields
@@ -490,7 +489,6 @@ export const DIALOG_TITLES = {
   PM_APPROVAL: 'Approve Release',
   PAUSE_ROLLOUT: 'Pause Rollout',
   RESUME_ROLLOUT: 'Resume Rollout',
-  HALT_ROLLOUT: 'Emergency Halt',
   EXTRA_COMMITS_WARNING: 'Untested Commits Detected',
 } as const;
 
@@ -523,7 +521,6 @@ export const BUTTON_LABELS = {
   UPDATE_ROLLOUT: 'Update Rollout',
   KEEP_SUBMISSION: 'Keep Submission',
   PROCEED_NEW_VERSION: 'Proceed with New Version (Replace Old)',
-  HALT_ROLLOUT: 'Halt Rollout',
   PAUSE_ROLLOUT: 'Pause Rollout',
   RESUME_ROLLOUT: 'Resume Rollout',
 } as const;
@@ -563,8 +560,15 @@ export const DIALOG_UI = {
     CONFIRMATION: (platform: string, percentage: number) => 
       `Pause the ${platform} rollout at ${percentage}%?`,
     DESCRIPTION: 'The rollout will stop at the current percentage. New users will not receive this update until resumed.',
-    WARNING_LINE1: 'You can pause for up to 30 days total (cumulative). If you pause for 10 days, you\'ll have 20 days remaining.',
-    WARNING_LINE2: 'Resume will continue from where you left off. After 30 days of pause, the phased release will automatically resume.',
+    
+    // iOS-specific warnings (30-day Apple policy for phased releases)
+    IOS_WARNING_LINE1: 'You can pause for up to 30 days total (cumulative). If you pause for 10 days, you\'ll have 20 days remaining.',
+    IOS_WARNING_LINE2: 'Resume will continue from where you left off. After 30 days of pause, the phased release will automatically resume.',
+    
+    // Android-specific warnings (no time limit, but Managed Publishing requirement)
+    ANDROID_WARNING_LINE1: 'The rollout will be paused and will remain paused until you manually resume it.',
+    ANDROID_WARNING_LINE2: 'Resume will continue from where you left off. Ensure Managed Publishing is OFF on Play Console for this to work.',
+    
     REASON_LABEL: 'Reason for pausing',
     REASON_PLACEHOLDER: 'e.g., Found potential issue, need to investigate',
     REASON_REQUIRED: 'Please provide a reason for pausing the rollout',
@@ -926,7 +930,6 @@ export const DISTRIBUTION_MANAGEMENT_UI = {
     RESUME_ROLLOUT: 'Resume Rollout',
     CANCEL_SUBMISSION: 'Cancel Submission',
     RESUBMIT: 'Resubmit',
-    EMERGENCY_HALT: 'Emergency Halt',
   },
 } as const;
 
