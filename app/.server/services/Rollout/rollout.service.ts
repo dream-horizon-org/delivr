@@ -7,21 +7,29 @@ import axios, { type AxiosResponse } from 'axios';
 import { getBackendBaseURL } from '~/.server/utils/base-url.utils';
 import { ROLLOUT_COMPLETE_PERCENT } from '~/constants/distribution/distribution.constants';
 import type {
-  HaltRolloutRequest,
   PauseRolloutRequest,
   RolloutUpdateResponse,
   Submission,
-  UpdateRolloutRequest,
+  UpdateRolloutRequest
 } from '~/types/distribution/distribution.types';
 import { Platform, SubmissionStatus } from '~/types/distribution/distribution.types';
 import type { ApiResponse } from '~/utils/api-client';
 
 class Rollout {
   private __client = axios.create({
-    // Base URL should be just the backend URL, not including /api/v1/submissions
-    baseURL: getBackendBaseURL(),
+    // Don't set baseURL here - we'll determine it per-request in the interceptor
     timeout: 10000,
   });
+
+  constructor() {
+    // Add request interceptor to dynamically set base URL based on HYBRID_MODE
+    this.__client.interceptors.request.use((config) => {
+      const url = config.url || '';
+      const baseURL = getBackendBaseURL(url); // Pass URL to check hybrid mode
+      config.baseURL = baseURL;
+      return config;
+    });
+  }
 
   /**
    * Update rollout percentage for a submission
@@ -52,17 +60,6 @@ class Rollout {
     const response = await this.__client.patch<null, AxiosResponse<ApiResponse<Submission>>>(
       `/api/v1/submissions/${submissionId}/rollout/resume?platform=${platform}`,
       null
-    );
-    return response.data;
-  }
-
-  /**
-   * Emergency halt - stops rollout immediately
-   */
-  async haltRollout(submissionId: string, request: HaltRolloutRequest, platform: Platform): Promise<ApiResponse<Submission>> {
-    const response = await this.__client.patch<HaltRolloutRequest, AxiosResponse<ApiResponse<Submission>>>(
-      `/api/v1/submissions/${submissionId}/rollout/halt?platform=${platform}`,
-      request
     );
     return response.data;
   }

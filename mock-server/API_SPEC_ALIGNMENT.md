@@ -48,7 +48,7 @@
 |----------------|----------------|--------|
 | `artifactPath` | ✅ `artifactPath` | ✓ (was `buildUrl`) |
 | `internalTrackLink` | ✅ `internalTrackLink` | ✓ (was `internalTestingLink`) |
-| `testflightNumber` | ✅ `testflightNumber` | ✓ (was `testflightBuildNumber`) |
+| `testflightNumber` | ✅ `testflightNumber` | ✓ (was `testflightNumber`) |
 
 ---
 

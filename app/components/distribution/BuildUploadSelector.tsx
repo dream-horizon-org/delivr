@@ -9,35 +9,35 @@
  */
 
 import {
-    Alert,
-    Button,
-    Card,
-    FileInput,
-    Group,
-    Stack,
-    Text,
-    TextInput,
-    ThemeIcon,
+  Alert,
+  Button,
+  Card,
+  FileInput,
+  Group,
+  Stack,
+  Text,
+  TextInput,
+  ThemeIcon,
 } from '@mantine/core';
 import {
-    IconAlertCircle,
-    IconBrandAndroid,
-    IconBrandApple,
-    IconFileUpload,
-    IconRocket,
+  IconAlertCircle,
+  IconBrandAndroid,
+  IconBrandApple,
+  IconFileUpload,
+  IconRocket,
 } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import {
-    DS_COLORS,
-    DS_SPACING,
-    DS_TYPOGRAPHY,
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
 } from '~/constants/distribution/distribution-design.constants';
 import {
-    BUTTON_LABELS,
-    DIALOG_ICON_SIZES,
-    DISTRIBUTION_UI_LABELS,
-    FORM_ICON_SIZES,
-    PLATFORM_LABELS,
+  BUTTON_LABELS,
+  DIALOG_ICON_SIZES,
+  DISTRIBUTION_UI_LABELS,
+  FORM_ICON_SIZES,
+  PLATFORM_LABELS,
 } from '~/constants/distribution/distribution.constants';
 import { Platform } from '~/types/distribution/distribution.types';
 
@@ -60,7 +60,7 @@ export function BuildUploadSelector({
   disabled,
 }: BuildUploadSelectorProps) {
   const [aabFile, setAabFile] = useState<File | null>(null);
-  const [testflightNumber, setTestflightNumber] = useState('');  // Renamed from testflightBuildNumber
+  const [testflightNumber, setTestflightNumber] = useState('');  // Renamed from testflightNumber
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
 
@@ -109,7 +109,7 @@ export function BuildUploadSelector({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          testflightNumber: testflightNumber.trim(),  // Renamed from testflightBuildNumber
+          testflightNumber: testflightNumber.trim(),  // Renamed from testflightNumber
         }),
       });
 
@@ -125,10 +125,10 @@ export function BuildUploadSelector({
     } finally {
       setIsUploading(false);
     }
-  }, [testflightNumber, releaseId, onBuildReady]);  // Renamed from testflightBuildNumber
+  }, [testflightNumber, releaseId, onBuildReady]);
 
   const handleTestflightInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setTestflightNumber(e.currentTarget.value);  // Renamed from setTestflightBuildNumber
+    setTestflightNumber(e.currentTarget.value);
   }, []);
 
   const handleClearError = useCallback(() => {
@@ -207,7 +207,7 @@ export function BuildUploadSelector({
               label={DISTRIBUTION_UI_LABELS.TESTFLIGHT_BUILD_NUMBER}
               placeholder={DISTRIBUTION_UI_LABELS.TESTFLIGHT_BUILD_PLACEHOLDER}
               leftSection={<IconRocket size={FORM_ICON_SIZES.INPUT} />}
-              value={testflightNumber}  // Renamed from testflightBuildNumber
+              value={testflightNumber}  // Renamed from testflightNumber
               onChange={handleTestflightInputChange}
               disabled={disabled || isUploading}
               required
@@ -220,7 +220,7 @@ export function BuildUploadSelector({
             <Button
               leftSection={<IconRocket size={FORM_ICON_SIZES.BUTTON} />}
               onClick={handleTestflightVerify}
-              disabled={!testflightNumber.trim() || disabled}  // Renamed from testflightBuildNumber
+              disabled={!testflightNumber.trim() || disabled}  // Renamed from testflightNumber
               loading={isUploading}
               color={DS_COLORS.ACTION.PRIMARY}
               fullWidth

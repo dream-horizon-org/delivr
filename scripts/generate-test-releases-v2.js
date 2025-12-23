@@ -2588,7 +2588,7 @@ function createDistributionData(releaseId, config, baseDate, builds = []) {
       createdAt: submissionDate,
       updatedAt: submissionDate,
       artifact: {
-        testflightBuildNumber: (iosBuild && iosBuild.testflightNumber) ? String(iosBuild.testflightNumber) : '12345',
+        testflightNumber: (iosBuild && iosBuild.testflightNumber) ? String(iosBuild.testflightNumber) : '12345',
         testflightLink: 'https://appstoreconnect.apple.com/apps/123456/testflight',
       },
       actionHistory: [],

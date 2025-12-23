@@ -301,25 +301,7 @@ export default function DistributionsListPage() {
         </Group>
       </Paper>
 
-      {/* Error State - Full page error with retry */}
-      {error && !hasDistributions && (
-        <ErrorState
-          error={error}
-          onRetry={handleRetryLoad}
-          title="Failed to Load Distributions"
-        />
-      )}
-      
-      {/* Stale Data Warning */}
-      {!error && staleInfo?.shouldRefresh && hasDistributions && (
-        <StaleDataWarning
-          loadedAt={new Date(loadedAt)}
-          onRefresh={handleRetryLoad}
-          threshold={5}
-        />
-      )}
-
-      {/* Loading State */}
+      {/* Loading State - Priority 1: Show loading first */}
       {isLoading && !hasDistributions && (
         <Paper shadow="sm" p="xl" radius="md" withBorder>
           <Stack align="center" gap="md">
@@ -332,6 +314,24 @@ export default function DistributionsListPage() {
             </Text>
           </Stack>
         </Paper>
+      )}
+
+      {/* Error State - Priority 2: Show error only when NOT loading */}
+      {!isLoading && error && !hasDistributions && (
+        <ErrorState
+          error={error}
+          onRetry={handleRetryLoad}
+          title="Failed to Load Distributions"
+        />
+      )}
+      
+      {/* Stale Data Warning - Priority 3: Show when data loaded but stale */}
+      {!isLoading && !error && staleInfo?.shouldRefresh && hasDistributions && (
+        <StaleDataWarning
+          loadedAt={new Date(loadedAt)}
+          onRefresh={handleRetryLoad}
+          threshold={5}
+        />
       )}
 
       {/* Stats */}

@@ -7,7 +7,8 @@
 
 import { SUBMISSION_STATUS_CONFIG, getStatusConfig } from '~/constants/distribution/distribution-status-config.constants';
 import { ROLLOUT_COMPLETE_PERCENT } from '~/constants/distribution/distribution.constants';
-import type { Platform, SubmissionStatus } from '~/types/distribution/distribution.types';
+import type { SubmissionStatus } from '~/types/distribution/distribution.types';
+import { Platform } from '~/types/distribution/distribution.types';
 
 // ============================================================================
 // STATUS FLAGS - Query SSOT Configuration
@@ -165,10 +166,16 @@ export function canManageRollout(
 export function shouldShowRolloutControls(
   status: SubmissionStatus,
   platform: Platform,
-  rolloutPercentage: number
+  rolloutPercentage: number,
+  phasedRelease?: boolean | null
 ): boolean {
   // Don't show for complete submissions
   if (isSubmissionComplete(status, rolloutPercentage)) {
+    return false;
+  }
+  
+  // iOS Manual Release (phasedRelease=false): Always 100%, no rollout controls
+  if (platform === Platform.IOS && phasedRelease === false) {
     return false;
   }
   

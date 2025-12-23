@@ -20,7 +20,8 @@ import type {
   CherryPickStatusResponse,
   ApproveRegressionStageRequest,
   ApproveRegressionStageResponse,
-  CompletePreReleaseResponse,
+  TriggerDistributionRequest,
+  TriggerDistributionResponse,
   ActivityLogsResponse,
   GetReleaseDetailsResponse,
   GetBuildsResponse,
@@ -278,13 +279,13 @@ class ReleaseProcess {
    * Trigger Distribution (Stage 4) / Approve Pre-Release Stage
    * Backend contract: POST /api/v1/tenants/{tenantId}/releases/{releaseId}/trigger-distribution
    */
-  async completePostRegressionStage(
+  async triggerDistributionStage(
     tenantId: string, 
     releaseId: string, 
     userId: string,
     request?: { comments?: string; forceApprove?: boolean }
   ) {
-    return this.__client.post<{ approvedBy: string; comments?: string; forceApprove?: boolean }, AxiosResponse<CompletePreReleaseResponse>>(
+    return this.__client.post<{ approvedBy: string; comments?: string; forceApprove?: boolean }, AxiosResponse<TriggerDistributionResponse>>(
       `/api/v1/tenants/${tenantId}/releases/${releaseId}/trigger-distribution`,
       {
         approvedBy: userId,

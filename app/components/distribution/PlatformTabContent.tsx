@@ -21,7 +21,6 @@ export type PlatformTabContentProps = {
   onOpenSubmitDialog: () => void;
   onOpenPauseDialog: (submission: Submission) => void;
   onOpenResumeDialog: (submission: Submission) => void;
-  onOpenHaltDialog: (submission: Submission) => void;
   onOpenRetryDialog: (submission: Submission) => void;
   onOpenHistoryPanel: (submission: Submission) => void;
   fetcher: ReturnType<typeof useFetcher>;
@@ -33,7 +32,6 @@ export function PlatformTabContent({
   onOpenSubmitDialog,
   onOpenPauseDialog,
   onOpenResumeDialog,
-  onOpenHaltDialog,
   onOpenRetryDialog,
   onOpenHistoryPanel,
   fetcher,
@@ -43,7 +41,8 @@ export function PlatformTabContent({
   const isAndroid = platform === Platform.ANDROID;
   
   // Derive UI state using utility functions (clean, testable logic)
-  const showRolloutControls = submission ? shouldShowRolloutControls(submission.status, submission.platform, submission.rolloutPercentage) : false;
+  const phasedReleaseValue = submission && 'phasedRelease' in submission ? submission.phasedRelease : null;
+  const showRolloutControls = submission ? shouldShowRolloutControls(submission.status, submission.platform, submission.rolloutPercentage, phasedReleaseValue) : false;
   const showRejectedView = submission ? shouldShowRejectedView(submission.status) : false;
 
   // Extract phasedRelease prop (iOS only, convert null to omitted prop)
@@ -59,10 +58,6 @@ export function PlatformTabContent({
   const handleResume = useCallback(() => {
     if (submission) onOpenResumeDialog(submission);
   }, [submission, onOpenResumeDialog]);
-
-  const handleHalt = useCallback(() => {
-    if (submission) onOpenHaltDialog(submission);
-  }, [submission, onOpenHaltDialog]);
 
   const handleRetry = useCallback(() => {
     if (submission) onOpenRetryDialog(submission);
@@ -130,7 +125,6 @@ export function PlatformTabContent({
         submission={submission}
         onPause={handlePause}
         onResume={handleResume}
-        onHalt={handleHalt}
         onRetry={handleRetry}
         onViewHistory={handleViewHistory}
       />
@@ -147,10 +141,8 @@ export function PlatformTabContent({
             {...rolloutControlsProps}
             currentPercentage={submission.rolloutPercentage}
             status={submission.status}
-            availableActions={[]}
             onUpdateRollout={handleUpdateRollout}
             onPause={handlePause}
-            onHalt={handleHalt}
             isLoading={false}
           />
         </Card>

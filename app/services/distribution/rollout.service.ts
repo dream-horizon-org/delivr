@@ -6,7 +6,6 @@
 
 import { ROLLOUT_COMPLETE_PERCENT, ROLLOUT_PRESETS } from '~/constants/distribution/distribution.constants';
 import type {
-    HaltRolloutRequest,
     PauseRolloutRequest,
     RolloutUpdateResponse,
     Submission,
@@ -51,20 +50,6 @@ export class RolloutService {
   static async resumeRollout(submissionId: string, platform: Platform): Promise<ApiResponse<Submission>> {
     return apiPost<Submission>(
       `/api/v1/submissions/${submissionId}/rollout/resume?platform=${platform}`
-    );
-  }
-
-  /**
-   * Emergency halt rollout
-   */
-  static async haltRollout(
-    submissionId: string,
-    request: HaltRolloutRequest,
-    platform: Platform
-  ): Promise<ApiResponse<Submission>> {
-    return apiPost<Submission>(
-      `/api/v1/submissions/${submissionId}/rollout/halt?platform=${platform}`,
-      request
     );
   }
 

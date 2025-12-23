@@ -290,7 +290,7 @@ export function RegressionCyclesList({
       {/* No Active Cycle and No Upcoming Slot */}
       {!actualCurrentCycle && (!upcomingSlot || upcomingSlot.length === 0) && (
         <Alert icon={<IconInfoCircle size={16} />} color="gray" variant="light">
-          No regression cycles scheduled.
+          No upcoming regression cycles scheduled.
         </Alert>
       )}
 

@@ -14,12 +14,44 @@ import { apiGet, type ApiResponse } from '~/utils/api-client';
 const QUERY_KEY = (releaseId: string) => ['distribution-stage', releaseId];
 
 /**
+ * Type guard to check if data is already an APISuccessResponse
+ */
+function isAPISuccessResponse(data: unknown): data is APISuccessResponse<DistributionDetail> {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'success' in data &&
+    'data' in data &&
+    (data as APISuccessResponse<DistributionDetail>).success === true
+  );
+}
+
+/**
+ * Unwrap potentially double-wrapped API response
+ * BFF may return: { success: true, data: DistributionDetail }
+ * apiGet may wrap it: { success: true, data: { success: true, data: DistributionDetail } }
+ */
+function unwrapDistributionResponse(
+  response: ApiResponse<APISuccessResponse<DistributionDetail>>
+): APISuccessResponse<DistributionDetail> {
+  // If response.data is already the correct shape, return it (double-wrapped case)
+  if (isAPISuccessResponse(response.data)) {
+    return response.data;
+  }
+  
+  // Otherwise, assume response.data is DistributionDetail (single-wrapped case)
+  return {
+    success: true,
+    data: (response.data ?? {}) as DistributionDetail
+  };
+}
+
+/**
  * Fetch distribution data for the Distribution stage in release process
  * 
- * Response Flow:
- * 1. BFF returns: { success: true, data: DistributionDetail }
- * 2. apiGet wraps it: { success: true, data: { success: true, data: DistributionDetail } }
- * 3. We unwrap and return the inner APISuccessResponse
+ * Note: This hook does NOT poll automatically. Distribution updates are reactive:
+ * - User submits → triggers refetch
+ * - User manages in Distribution Management → updates there
  */
 export function useDistributionStage(tenantId: string, releaseId: string) {
   const {
@@ -34,31 +66,26 @@ export function useDistributionStage(tenantId: string, releaseId: string) {
         throw new Error('Release ID is required');
       }
 
-      // BFF endpoint that proxies to backend
-      // GET /api/v1/releases/:releaseId/distribution
-      // Returns: ApiResponse<APISuccessResponse<DistributionDetail>>
-      const response: ApiResponse<APISuccessResponse<DistributionDetail>> = await apiGet<
-        APISuccessResponse<DistributionDetail>
-      >(`/api/v1/releases/${releaseId}/distribution`);
+      const response = await apiGet<APISuccessResponse<DistributionDetail>>(
+        `/api/v1/releases/${releaseId}/distribution`
+      );
 
-      // Unwrap: apiGet wraps the BFF response, so we need response.data to get the actual API response
-      if (!response.success || !response.data) {
-        throw new Error(response.error || 'Failed to fetch distribution');
+      if (!response.success) {
+        throw new Error(response.error || response.message || 'Failed to fetch distribution');
       }
 
-      return response.data; // Return the inner APISuccessResponse<DistributionDetail>
+      return unwrapDistributionResponse(response);
     },
     {
       enabled: !!releaseId && !!tenantId,
-      staleTime: 30 * 1000, // 30 seconds - distribution status can change
-      cacheTime: 5 * 60 * 1000, // 5 minutes cache
-      refetchOnWindowFocus: true,
+      staleTime: 30000, // Cache for 30s
+      refetchOnWindowFocus: false, // Don't refetch on focus
       retry: 1,
     }
   );
 
   return {
-    distribution: data?.data || null,
+    distribution: data?.data ?? null,
     isLoading,
     error,
     refetch,

@@ -8,6 +8,7 @@
  * which queries the Single Source of Truth (SSOT) configuration.
  */
 
+import { getStatusConfig } from '~/constants/distribution/distribution-status-config.constants';
 import {
   BUILD_UPLOAD_STATUS_COLORS,
   BUILD_UPLOAD_STATUS_LABELS,
@@ -22,10 +23,8 @@ import type {
   BuildState,
 } from '~/types/distribution/distribution-component.types';
 import type {
-  AvailableAction,
   Build,
-  PMApprovalStatus,
-  RolloutAction,
+  PMApprovalStatus
 } from '~/types/distribution/distribution.types';
 import {
   BuildStrategy,
@@ -33,8 +32,7 @@ import {
   DistributionStatus,
   Platform,
   RolloutDisplayStatus,
-  SubmissionAction,
-  SubmissionStatus,
+  SubmissionStatus
 } from '~/types/distribution/distribution.types';
 import { isSubmissionPaused, isSubmissionTerminal } from './distribution-state.utils';
 
@@ -200,47 +198,100 @@ export function deriveApprovalState(pmStatus: PMApprovalStatus): ApprovalState {
 // ============================================================================
 
 /**
- * Derive action availability from props (pure function, not a hook)
+ * Derive action availability from SSOT configuration + UI state.
  * 
- * NOTE: This function uses backend-provided availableActions array.
- * For direct status-based checks, use distribution-state.utils.ts functions.
+ * Backend does NOT provide availableActions - frontend calculates everything
+ * from SSOT based on status, platform, and UI context.
+ * 
+ * Flow:
+ * 1. Query SSOT for base action availability by status + platform
+ * 2. Apply UI-specific safeguards (e.g., phasedRelease, 100% check)
+ * 3. Return complete action availability with reasons
  */
 export function deriveActionAvailability(
-  availableActions: AvailableAction[],
   status: SubmissionStatus,
   platform: Platform,
-  currentPercentage: number
+  currentPercentage: number,
+  phasedRelease?: boolean | null
 ): ActionAvailability {
-  const findAction = (actionName: RolloutAction) => 
-    availableActions.find(a => a.action === actionName);
+  // Get base configuration from SSOT with platform overrides
+  const config = getStatusConfig(status, platform);
 
-  const canUpdate = findAction(SubmissionAction.UPDATE_ROLLOUT as RolloutAction)?.enabled ?? false;
-  const canPause = findAction(SubmissionAction.PAUSE as RolloutAction)?.enabled ?? false;
-  const canResume = findAction(SubmissionAction.RESUME as RolloutAction)?.enabled ?? false;
-  const canHalt = findAction(SubmissionAction.HALT as RolloutAction)?.enabled ?? false;
+  // Start with SSOT base actions
+  let canUpdate = config.actions.canUpdateRollout;
+  let canPause = config.actions.canPause;
+  let canResume = config.actions.canResume;
 
-  const updateReason = findAction(SubmissionAction.UPDATE_ROLLOUT as RolloutAction)?.reason;
-  const pauseReason = findAction(SubmissionAction.PAUSE as RolloutAction)?.reason;
-  const resumeReason = findAction(SubmissionAction.RESUME as RolloutAction)?.reason;
-  const haltReason = findAction(SubmissionAction.HALT as RolloutAction)?.reason;
+  // Build reasons object conditionally
+  // Note: No canHalt - HALT is just Android's status name when PAUSE is clicked
+  const reasons: { updateReason?: string; pauseReason?: string; resumeReason?: string } = {};
 
-  const supportsRollout = isAndroidPlatform(platform);
+  // Add reasons for disabled actions
+  if (!canUpdate) {
+    if (config.flags.isPaused) {
+      reasons.updateReason = 'Cannot update rollout while paused - resume first';
+    } else if (config.flags.isTerminal) {
+      reasons.updateReason = 'Rollout is complete - no further updates allowed';
+    } else if (config.flags.isReviewable) {
+      reasons.updateReason = 'Rollout not yet approved by store';
+    }
+  }
+
+  if (!canResume && config.flags.isPaused) {
+    reasons.resumeReason = 'Already active';
+  } else if (!canResume) {
+    reasons.resumeReason = 'Rollout is not paused';
+  }
+
+  // Frontend-specific safeguards for UPDATE action
+  if (canUpdate) {
+    // iOS Manual Release - Cannot update rollout if phased release is disabled (already 100%)
+    if (platform === Platform.IOS && phasedRelease === false) {
+      canUpdate = false;
+      reasons.updateReason = 'Manual release is already at 100% - no rollout control';
+    }
+  }
+
+  // Frontend-specific safeguards for PAUSE action
+  if (canPause) {
+    // Safeguard 1: Cannot pause if already at 100% - nothing to pause
+    if (currentPercentage === ROLLOUT_COMPLETE_PERCENT) {
+      canPause = false;
+      reasons.pauseReason = 'Cannot pause rollout at 100% - already fully released';
+    }
+    // Safeguard 2: iOS Manual Release - Cannot pause if phased release is disabled
+    else if (platform === Platform.IOS && phasedRelease === false) {
+      canPause = false;
+      reasons.pauseReason = 'Manual release does not support pause - phased release is disabled';
+    }
+  } else if (!canPause) {
+    // Provide reason why pause is not available
+    if (config.flags.isPaused) {
+      reasons.pauseReason = 'Already paused';
+    } else if (config.flags.isTerminal) {
+      reasons.pauseReason = 'Rollout is complete';
+    } else if (config.flags.isReviewable || status === SubmissionStatus.PENDING) {
+      reasons.pauseReason = 'Rollout not yet started';
+    }
+  }
+
+  // Determine if platform supports rollout control
+  // Android: Always supports rollout (0.01-100%)
+  // iOS: Only supports rollout if phased release is enabled
+  const supportsRollout = isAndroidPlatform(platform) || 
+    (platform === Platform.IOS && phasedRelease === true);
   
-  // Query SSOT instead of hardcoded checks
-  const isPaused = isSubmissionPaused(status);
+  // Query SSOT for state flags
+  const isPaused = config.flags.isPaused;
   const isComplete = 
-    isSubmissionTerminal(status) || // Use SSOT for terminal check
+    config.flags.isTerminal || 
     currentPercentage === ROLLOUT_COMPLETE_PERCENT;
 
   return {
     canUpdate: canUpdate && supportsRollout,
     canPause,
     canResume,
-    canHalt,
-    updateReason,
-    pauseReason,
-    resumeReason,
-    haltReason,
+    ...reasons,
     supportsRollout,
     isPaused,
     isComplete,

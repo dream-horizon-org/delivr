@@ -13,13 +13,11 @@ import {
   Divider,
   Group,
   Loader,
-  Modal,
   NumberInput,
   Paper,
   Progress,
   Stack,
   Text,
-  Textarea,
   ThemeIcon,
   Title
 } from '@mantine/core';
@@ -31,7 +29,6 @@ import {
   IconArrowLeft,
   IconBrandAndroid,
   IconBrandApple,
-  IconPlayerPause,
   IconRotateClockwise,
   IconX
 } from '@tabler/icons-react';
@@ -40,7 +37,7 @@ import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import { RolloutService } from '~/.server/services/Rollout';
 import { CancelSubmissionDialog } from '~/components/Distribution/CancelSubmissionDialog';
-import { ResubmissionDialog } from '~/components/Distribution/ResubmissionDialog';
+import { ResubmissionDialog } from '~/components/Distribution/ReSubmissionDialog';
 import { SUBMISSION_STATUS_LABELS } from '~/constants/distribution/distribution.constants';
 import {
   Platform,
@@ -170,28 +167,6 @@ const resumeRollout: AuthenticatedActionFunction = async ({ params, request, use
   }
 };
 
-const haltRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { submissionId } = params;
-  if (!submissionId) {
-    return json({ error: 'Submission ID required' }, { status: 400 });
-  }
-
-  const formData = await request.formData();
-  const reason = formData.get('reason') as string;
-  const platform = formData.get('platform') as Platform;
-
-  if (!platform || (platform !== Platform.ANDROID && platform !== Platform.IOS)) {
-    return json({ error: 'Platform is required' }, { status: 400 });
-  }
-
-  try {
-    await RolloutService.haltRollout(submissionId, { reason }, platform);
-    return json({ success: true });
-  } catch (error) {
-    return json({ error: 'Failed to halt rollout' }, { status: 500 });
-  }
-};
-
 export const action = authenticateActionRequest({
   POST: async (args) => {
     const formData = await args.request.formData();
@@ -204,8 +179,6 @@ export const action = authenticateActionRequest({
         return pauseRollout(args);
       case 'resumeRollout':
         return resumeRollout(args);
-      case 'haltRollout':
-        return haltRollout(args);
       default:
         return json({ error: 'Invalid action' }, { status: 400 });
     }
@@ -339,61 +312,10 @@ function RolloutControlPanel({ submission }: { submission: Submission }) {
   );
 }
 
-function HaltDialog({ 
-  opened, 
-  onClose, 
-  submissionId,
-  platform
-}: { 
-  opened: boolean; 
-  onClose: () => void; 
-  submissionId: string;
-  platform: Platform;
-}) {
-  const [reason, setReason] = useState('');
-  const fetcher = useFetcher();
-
-  const handleSubmit = useCallback(() => {
-    fetcher.submit(
-      { _action: 'haltRollout', reason, platform },
-      { method: 'post' }
-    );
-    onClose();
-  }, [reason, platform, fetcher, onClose]);
-
-  return (
-    <Modal opened={opened} onClose={onClose} title="Emergency Halt" size="md" centered>
-      <Stack gap="md">
-        <Alert color="red" icon={<IconAlertCircle />}>
-          This will immediately halt the rollout. Users who already have the update will keep it,
-          but no new users will receive it.
-        </Alert>
-
-        <Textarea
-          label="Reason"
-          placeholder="Describe why this rollout needs to be halted..."
-          value={reason}
-          onChange={(e) => setReason(e.currentTarget.value)}
-          minRows={3}
-          required
-        />
-
-        <Group justify="flex-end">
-          <Button variant="subtle" onClick={onClose}>Cancel</Button>
-          <Button color="red" onClick={handleSubmit} disabled={!reason.trim()}>
-            Halt Rollout
-          </Button>
-        </Group>
-      </Stack>
-    </Modal>
-  );
-}
-
 
 export default function SubmissionDetailPage() {
   const { org, releaseId, submission, error } = useLoaderData<LoaderData>();
   const navigation = useNavigation();
-  const [haltDialogOpened, { open: openHaltDialog, close: closeHaltDialog }] = useDisclosure(false);
   const [retryDialogOpened, { open: openRetryDialog, close: closeRetryDialog }] = useDisclosure(false);
   const [cancelDialogOpened, { open: openCancelDialog, close: closeCancelDialog }] = useDisclosure(false);
   
@@ -404,14 +326,6 @@ export default function SubmissionDetailPage() {
   // Derive action availability using utility functions (clean, testable logic)
   const canRetry = canResubmitSubmission(submission.status);
   const canCancel = canCancelSubmission(submission.status, submission.platform);
-  
-  // Emergency Halt logic - available for active rollouts
-  const isInProgress = submission.status === SubmissionStatus.IN_PROGRESS;
-  const isLive = submission.status === SubmissionStatus.LIVE;
-  const isPaused = submission.status === SubmissionStatus.PAUSED;
-  const isHalted = submission.status === SubmissionStatus.HALTED;
-  const isComplete = submission.status === SubmissionStatus.COMPLETED || submission.rolloutPercentage === 100;
-  const canHalt = (isInProgress || isLive) && !isComplete && !isPaused && !isHalted;
 
   if (error || !submission.id) {
     return (
@@ -487,20 +401,8 @@ export default function SubmissionDetailPage() {
                 Cancel Submission
               </Button>
             )}
-            
-            {canHalt && (
-              <Button
-                color="red"
-                variant="light"
-                fullWidth
-                leftSection={<IconPlayerPause size={16} />}
-                onClick={openHaltDialog}
-              >
-                Emergency Halt
-              </Button>
-            )}
 
-            {!canRetry && !canCancel && !canHalt && (
+            {!canRetry && !canCancel && (
               <Text size="sm" c="dimmed" ta="center">
                 No actions available for current status
               </Text>
@@ -510,14 +412,6 @@ export default function SubmissionDetailPage() {
       </div>
 
       {/* Timeline */}
-
-      {/* Halt Dialog */}
-      <HaltDialog
-        opened={haltDialogOpened}
-        onClose={closeHaltDialog}
-        submissionId={submission.id}
-        platform={submission.platform}
-      />
 
       {/* Resubmission Dialog */}
       <ResubmissionDialog

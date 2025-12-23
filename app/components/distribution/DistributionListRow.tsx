@@ -5,18 +5,18 @@
 
 import { Badge, Button, Group, Table, Text, Tooltip } from '@mantine/core';
 import { Link } from '@remix-run/react';
-import { IconClock, IconEye } from '@tabler/icons-react';
+import { IconEye } from '@tabler/icons-react';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution/distribution-design.constants';
 import {
   DISTRIBUTION_STATUS_COLORS,
   DISTRIBUTIONS_LIST_ICON_SIZES,
   DISTRIBUTIONS_LIST_LAYOUT,
   DISTRIBUTIONS_LIST_UI,
 } from '~/constants/distribution/distribution.constants';
-import {
-  DS_COLORS,
-  DS_SPACING,
-  DS_TYPOGRAPHY,
-} from '~/constants/distribution/distribution-design.constants';
 import {
   Platform,
   SubmissionStatus,
@@ -52,11 +52,15 @@ export function DistributionListRow({
       case SubmissionStatus.PAUSED: return DS_COLORS.STATUS.WARNING;
       case SubmissionStatus.HALTED: return DS_COLORS.STATUS.WARNING;
       
-      // Error/terminal states
+      // Error/terminal states - ALL RED
       case SubmissionStatus.REJECTED: return DS_COLORS.STATUS.ERROR;
       case SubmissionStatus.SUSPENDED: return DS_COLORS.STATUS.ERROR;
+      case SubmissionStatus.CANCELLED: return DS_COLORS.STATUS.ERROR;
+      
+      // Action required
       case SubmissionStatus.USER_ACTION_PENDING: return DS_COLORS.STATUS.WARNING;
-      case SubmissionStatus.CANCELLED: return DS_COLORS.STATUS.MUTED;
+      
+      // Pending
       case SubmissionStatus.PENDING: return DS_COLORS.STATUS.MUTED;
       default: return DS_COLORS.STATUS.MUTED;
     }
@@ -92,6 +96,15 @@ export function DistributionListRow({
             if (submission) {
               // Platform has been submitted - show with status color and rollout %
               const statusColor = getSubmissionColor(submission.status);
+              
+              // Special statuses that should be prominently displayed
+              const isSpecialStatus = [
+                SubmissionStatus.SUSPENDED,
+                SubmissionStatus.USER_ACTION_PENDING,
+                SubmissionStatus.REJECTED,
+                SubmissionStatus.CANCELLED,
+              ].includes(submission.status);
+              
               const tooltipLabel = `${platformName}: ${formatStatus(submission.status)} (${submission.rolloutPercentage}%)`;
 
               return (
@@ -101,7 +114,7 @@ export function DistributionListRow({
                   withArrow
                   position="top"
                 >
-                  <Group gap={DS_SPACING.XS} style={{ cursor: 'pointer' }}>
+                  <Group gap={4} style={{ cursor: 'pointer' }}>
                     <Badge
                       variant="light"
                       color={statusColor}
@@ -109,7 +122,7 @@ export function DistributionListRow({
                       radius={DS_SPACING.BORDER_RADIUS}
                       leftSection={getPlatformIcon(platform, DISTRIBUTIONS_LIST_ICON_SIZES.PLATFORM_BADGE)}
                     >
-                      {submission.rolloutPercentage}%
+                      {isSpecialStatus ? formatStatus(submission.status) : `${submission.rolloutPercentage}%`}
                     </Badge>
                   </Group>
                 </Tooltip>

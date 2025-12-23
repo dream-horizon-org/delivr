@@ -20,15 +20,16 @@ import {
 import { IconInfoCircle, IconPlayerPause } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import {
-  BUTTON_LABELS,
-  DIALOG_ICON_SIZES,
-  DIALOG_UI,
-} from '~/constants/distribution/distribution.constants';
-import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
 } from '~/constants/distribution/distribution-design.constants';
+import {
+  BUTTON_LABELS,
+  DIALOG_ICON_SIZES,
+  DIALOG_UI,
+} from '~/constants/distribution/distribution.constants';
+import { Platform } from '~/types/distribution/distribution.types';
 
 // ============================================================================
 // TYPES
@@ -56,6 +57,9 @@ export function PauseConfirmationDialog({
   isLoading = false,
 }: PauseConfirmationDialogProps) {
   const [reason, setReason] = useState('');
+
+  // Determine if this is iOS (for platform-specific warning)
+  const isIOS = platform.toUpperCase() === Platform.IOS;
 
   const handleConfirm = useCallback(() => {
     const trimmedReason = reason.trim();
@@ -91,13 +95,13 @@ export function PauseConfirmationDialog({
       closeOnEscape={!isLoading}
     >
       <Stack gap={DS_SPACING.MD}>
-        {/* 30-Day Pause Limit Warning */}
+        {/* Platform-Specific Pause Warning */}
         <Alert color={DS_COLORS.STATUS.WARNING} variant="light" icon={<IconInfoCircle size={16} />}>
           <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} mb={DS_SPACING.XS}>
-            {DIALOG_UI.PAUSE.WARNING_LINE1}
+            {isIOS ? DIALOG_UI.PAUSE.IOS_WARNING_LINE1 : DIALOG_UI.PAUSE.ANDROID_WARNING_LINE1}
           </Text>
           <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
-            {DIALOG_UI.PAUSE.WARNING_LINE2}
+            {isIOS ? DIALOG_UI.PAUSE.IOS_WARNING_LINE2 : DIALOG_UI.PAUSE.ANDROID_WARNING_LINE2}
           </Text>
         </Alert>
 

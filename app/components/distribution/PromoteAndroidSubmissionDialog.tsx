@@ -56,6 +56,7 @@ export interface PromoteAndroidSubmissionDialogProps {
   onClose: () => void;
   submission: AndroidSubmission;
   onPromoteComplete?: () => void;
+  action?: string; // Optional: custom form action URL (defaults to current route)
 }
 
 interface AndroidPromoteFormData {
@@ -73,6 +74,7 @@ export function PromoteAndroidSubmissionDialog({
   onClose,
   submission,
   onPromoteComplete,
+  action,
 }: PromoteAndroidSubmissionDialogProps) {
   const fetcher = useFetcher();
   const { isSuccess, error } = parseFetcherResponse(fetcher.data);
@@ -107,7 +109,12 @@ export function PromoteAndroidSubmissionDialog({
     formData.append('rolloutPercentage', values.rolloutPercentage.toString());
     formData.append('inAppUpdatePriority', values.inAppUpdatePriority.toString());
     formData.append('releaseNotes', values.releaseNotes);
-    fetcher.submit(formData, { method: 'post' });
+    
+    // Submit to custom action URL if provided, otherwise current route
+    fetcher.submit(formData, { 
+      method: 'post',
+      ...(action && { action })
+    });
   };
 
   const isFormValid = isAndroidPromoteFormValid(form.values);

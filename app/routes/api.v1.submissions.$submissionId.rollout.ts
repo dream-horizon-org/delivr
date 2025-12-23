@@ -1,15 +1,19 @@
 /**
  * Remix API Route: Rollout Control
  * 
- * PATCH /api/v1/submissions/:submissionId/rollout?platform=<ANDROID|IOS>        - Update rollout percentage
- * PATCH /api/v1/submissions/:submissionId/rollout/pause?platform=IOS            - Pause rollout (iOS only)
- * PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=IOS           - Resume rollout (iOS only)
- * PATCH /api/v1/submissions/:submissionId/rollout/halt?platform=<ANDROID|IOS>   - Emergency halt
+ * PATCH /api/v1/submissions/:submissionId/rollout?platform=<ANDROID|IOS>         - Update rollout percentage
+ * PATCH /api/v1/submissions/:submissionId/rollout/pause?platform=<ANDROID|IOS>   - Pause rollout (both platforms)
+ * PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=<ANDROID|IOS>  - Resume rollout (both platforms)
  * 
  * IMPORTANT: Backend requires `platform` query parameter to identify which table to update
  * (android_submission_builds or ios_submission_builds)
  * 
- * Reference: DISTRIBUTION_API_SPEC.md lines 827-1193
+ * Platform-specific behavior:
+ * - Android: PAUSE changes status IN_PROGRESS → HALTED, RESUME changes HALTED → IN_PROGRESS
+ * - iOS: PAUSE changes status LIVE → PAUSED, RESUME changes PAUSED → LIVE
+ * - HALT is NOT a separate action - it's the Android status name for a paused rollout
+ * 
+ * Reference: DISTRIBUTION_API_SPEC.md lines 215-241, 1454-1550
  */
 
 import { json } from '@remix-run/node';
@@ -100,13 +104,17 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
 };
 
 /**
- * PATCH - Pause rollout (iOS phased release only)
+ * PATCH - Pause rollout (both Android and iOS)
  * 
  * Query Parameters:
- * - platform: Must be "IOS" (required - Android does not support pause)
+ * - platform: ANDROID | IOS (required)
  * 
  * Request body:
  * - reason: string (required)
+ * 
+ * Platform-specific behavior:
+ * - Android: IN_PROGRESS → HALTED (displayed as "Rollout Paused")
+ * - iOS: LIVE → PAUSED (displayed as "Rollout Paused", phased release only)
  */
 const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
   const { submissionId } = params;
@@ -115,17 +123,17 @@ const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user
     return createValidationError(ERROR_MESSAGES.SUBMISSION_ID_REQUIRED);
   }
 
-  // Extract and validate platform query parameter (must be IOS)
+  // Extract and validate platform query parameter
   const url = new URL(request.url);
   const platform = url.searchParams.get('platform');
   
-  if (platform !== Platform.IOS) {
+  if (!platform || (platform !== Platform.ANDROID && platform !== Platform.IOS)) {
     return json(
       {
         success: false,
         error: {
           code: 'INVALID_PLATFORM',
-          message: 'Platform query parameter must be IOS (Android does not support pause)',
+          message: 'Platform query parameter is required and must be either ANDROID or IOS',
         },
       },
       { status: HTTP_STATUS.BAD_REQUEST }
@@ -151,12 +159,16 @@ const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user
 };
 
 /**
- * PATCH - Resume rollout (iOS phased release only)
+ * PATCH - Resume rollout (both Android and iOS)
  * 
  * Query Parameters:
- * - platform: Must be "IOS" (required - Android does not support resume)
+ * - platform: ANDROID | IOS (required)
  * 
  * No request body required.
+ * 
+ * Platform-specific behavior:
+ * - Android: HALTED → IN_PROGRESS
+ * - iOS: PAUSED → LIVE
  */
 const resumeRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
   const { submissionId } = params;
@@ -165,17 +177,17 @@ const resumeRollout: AuthenticatedActionFunction = async ({ params, request, use
     return createValidationError(ERROR_MESSAGES.SUBMISSION_ID_REQUIRED);
   }
 
-  // Extract and validate platform query parameter (must be IOS)
+  // Extract and validate platform query parameter
   const url = new URL(request.url);
   const platform = url.searchParams.get('platform');
   
-  if (platform !== Platform.IOS) {
+  if (!platform || (platform !== Platform.ANDROID && platform !== Platform.IOS)) {
     return json(
       {
         success: false,
         error: {
           code: 'INVALID_PLATFORM',
-          message: 'Platform query parameter must be IOS (Android does not support resume)',
+          message: 'Platform query parameter is required and must be either ANDROID or IOS',
         },
       },
       { status: HTTP_STATUS.BAD_REQUEST }
@@ -192,69 +204,14 @@ const resumeRollout: AuthenticatedActionFunction = async ({ params, request, use
 };
 
 /**
- * PATCH - Emergency halt rollout
- * 
- * Query Parameters:
- * - platform: Must be "ANDROID" (iOS does not support halt)
- * 
- * Request body:
- * - reason: string (required)
- * 
- * Note: Severity field was removed from spec. Only reason is required.
- * Note: ANDROID ONLY - iOS does not support halt (uses pause/resume instead)
- */
-const haltRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { submissionId } = params;
-
-  if (!validateRequired(submissionId, ERROR_MESSAGES.SUBMISSION_ID_REQUIRED)) {
-    return createValidationError(ERROR_MESSAGES.SUBMISSION_ID_REQUIRED);
-  }
-
-  // Extract and validate platform query parameter (ANDROID ONLY)
-  const url = new URL(request.url);
-  const platform = url.searchParams.get('platform');
-  
-  if (platform !== Platform.ANDROID) {
-    return json(
-      {
-        success: false,
-        error: {
-          code: 'INVALID_PLATFORM',
-          message: 'Platform query parameter must be ANDROID. iOS does not support halt (use pause/resume instead).',
-        },
-      },
-      { status: HTTP_STATUS.BAD_REQUEST }
-    );
-  }
-
-  try {
-    const body = await request.json();
-    const { reason } = body;
-
-    if (!reason || typeof reason !== 'string') {
-      return createValidationError(ERROR_MESSAGES.REASON_REQUIRED);
-    }
-
-    const requestData = { reason };
-    const response = await DistributionService.haltRollout(submissionId, requestData, platform as Platform);
-
-    return json(response.data);
-  } catch (error) {
-    logApiError(LOG_CONTEXT.HALT_ROLLOUT_API, error);
-    return handleAxiosError(error, ERROR_MESSAGES.FAILED_TO_HALT_ROLLOUT);
-  }
-};
-
-/**
  * Route to sub-action based on URL path
  */
-function routeRolloutAction(request: Request): 'pause' | 'resume' | 'halt' | null {
+function routeRolloutAction(request: Request): 'pause' | 'resume' | null {
   const url = new URL(request.url);
   const pathname = url.pathname;
 
   if (pathname.endsWith('/pause')) return 'pause';
   if (pathname.endsWith('/resume')) return 'resume';
-  if (pathname.endsWith('/halt')) return 'halt';
 
   return null;
 }
@@ -267,7 +224,6 @@ const handlePatchRequest: AuthenticatedActionFunction = async (args) => {
 
   if (actionType === 'pause') return pauseRollout(args);
   if (actionType === 'resume') return resumeRollout(args);
-  if (actionType === 'halt') return haltRollout(args);
 
   // Base rollout update (no sub-action)
   return updateRollout(args);

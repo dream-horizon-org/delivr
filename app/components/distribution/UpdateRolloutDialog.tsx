@@ -21,36 +21,35 @@
  */
 
 import {
-    Alert,
-    Button,
-    Checkbox,
-    Group,
-    Modal,
-    Paper,
-    Slider,
-    Stack,
-    Text,
-    TextInput,
-    ThemeIcon,
+  Alert,
+  Button,
+  Checkbox,
+  Group,
+  Modal,
+  Paper,
+  Slider,
+  Stack,
+  Text,
+  TextInput,
+  ThemeIcon,
 } from '@mantine/core';
 import { IconAlertCircle, IconRocket } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
-import {
-    BUTTON_LABELS,
-    DIALOG_ICON_SIZES,
-    DIALOG_TITLES,
-    DIALOG_UI,
-    MAX_ROLLOUT_PERCENT,
-    MIN_ROLLOUT_PERCENT,
-    PLATFORM_LABELS,
-    ROLLOUT_COMPLETE_PERCENT,
-    ROLLOUT_PRESETS
-} from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
 } from '~/constants/distribution/distribution-design.constants';
+import {
+  BUTTON_LABELS,
+  DIALOG_ICON_SIZES,
+  DIALOG_UI,
+  MAX_ROLLOUT_PERCENT,
+  MIN_ROLLOUT_PERCENT,
+  PLATFORM_LABELS,
+  ROLLOUT_COMPLETE_PERCENT,
+  ROLLOUT_PRESETS
+} from '~/constants/distribution/distribution.constants';
 import { Platform } from '~/types/distribution/distribution.types';
 
 export interface UpdateRolloutDialogProps {
@@ -172,7 +171,7 @@ export function UpdateRolloutDialog({
       centered
     >
       <Stack gap={DS_SPACING.MD}>
-        {/* Warning Alert - FIRST (matching Emergency Halt pattern) */}
+        {/* Warning Alert - FIRST */}
         {!cannotUpdate && (
           <Alert icon={<IconAlertCircle size={DIALOG_ICON_SIZES.ALERT} />} color={DS_COLORS.STATUS.WARNING} variant="light" radius={DS_SPACING.BORDER_RADIUS}>
             <Stack gap={DS_SPACING.XS}>
@@ -201,7 +200,7 @@ export function UpdateRolloutDialog({
           </Alert>
         )}
 
-        {/* Platform & Current Rollout - SECOND (matching Emergency Halt pattern) */}
+        {/* Platform & Current Rollout - SECOND */}
         <Paper p={DS_SPACING.SM} withBorder bg={DS_COLORS.BACKGROUND.SURFACE} radius={DS_SPACING.BORDER_RADIUS}>
           <Group justify="space-between" align="center">
             <div>

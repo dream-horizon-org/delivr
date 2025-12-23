@@ -26,7 +26,7 @@ export function useFormState(availablePlatforms: Platform[]) {
   const [formState, setFormState] = useState<FormState>({
     selectedPlatforms: [...availablePlatforms],
     // Note: androidTrack removed - not used per API spec
-    androidRollout: 100,
+    androidRollout: 5, // Default to 5% for staged rollout (not 100%)
     androidPriority: 0,  // Per API Spec: default 0
     // Note: iosReleaseType removed - always "AFTER_APPROVAL" per API spec
     iosPhasedRelease: true,

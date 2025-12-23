@@ -28,7 +28,7 @@ import {
   IconArrowLeft,
   IconCheck,
 } from '@tabler/icons-react';
-import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
+import type { CICDWorkflow, WorkflowParameter } from '~/.server/services/ReleaseManagement/integrations';
 import { PipelineProviderSelect } from '~/components/ReleaseConfig/BuildPipeline/PipelineProviderSelect';
 import { JenkinsConfigForm } from '~/components/ReleaseConfig/BuildPipeline/JenkinsConfigForm';
 import { GitHubActionsConfigForm } from '~/components/ReleaseConfig/BuildPipeline/GitHubActionsConfigForm';
@@ -143,18 +143,38 @@ export function WorkflowForm({
 
       // Reconstruct providerConfig from workflow data
       if (existingWorkflow.providerType === BUILD_PROVIDERS.JENKINS) {
+        const params = existingWorkflow.parameters;
+        const parametersRecord = Array.isArray(params)
+          ? params.reduce((acc, param) => {
+              acc[param.name] = param.defaultValue?.toString() || '';
+              return acc;
+            }, {} as Record<string, string>)
+          : (params as Record<string, string>) || {};
+        
         setProviderConfig({
           type: BUILD_PROVIDERS.JENKINS,
           integrationId: existingWorkflow.integrationId,
           jobUrl: existingWorkflow.workflowUrl,
-          parameters: existingWorkflow.parameters || {},
+          parameters: parametersRecord,
         });
       } else if (existingWorkflow.providerType === BUILD_PROVIDERS.GITHUB_ACTIONS) {
+        const params = existingWorkflow.parameters;
+        let inputsRecord: Record<string, string> = {};
+        
+        if (Array.isArray(params)) {
+          inputsRecord = params.reduce((acc, param) => {
+            acc[param.name] = param.defaultValue?.toString() || '';
+            return acc;
+          }, {} as Record<string, string>);
+        } else if (params && typeof params === 'object') {
+          inputsRecord = (params as any).inputs || {};
+        }
+        
         setProviderConfig({
           type: BUILD_PROVIDERS.GITHUB_ACTIONS,
           integrationId: existingWorkflow.integrationId,
           workflowUrl: existingWorkflow.workflowUrl,
-          inputs: (existingWorkflow.parameters as any)?.inputs || {},
+          inputs: inputsRecord,
         });
       }
     } else {
@@ -278,18 +298,24 @@ export function WorkflowForm({
 
       if (provider === BUILD_PROVIDERS.JENKINS) {
         workflowData.workflowUrl = providerConfig.jobUrl;
-        workflowData.parameters = providerConfig.parameters || {};
+        const params = providerConfig.parameters || {};
+        const paramDefinitions = (providerConfig as any).parameterDefinitions as WorkflowParameter[] | undefined;
+        
+        if (paramDefinitions && paramDefinitions.length > 0) {
+          workflowData.parameters = paramDefinitions.map((def) => ({
+            ...def,
+            defaultValue: params[def.name] || def.defaultValue?.toString() || '',
+          }));
+        } else {
+          workflowData.parameters = Object.entries(params).map(([name, value]): WorkflowParameter => ({
+            name,
+            type: 'string',
+            defaultValue: value as string,
+          }));
+        }
       } else if (provider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
         const workflowUrl = providerConfig.workflowUrl || providerConfig.workflowPath;
         workflowData.workflowUrl = workflowUrl;
-        
-        let branch = 'main';
-        if (workflowUrl) {
-          const branchMatch = workflowUrl.match(/\/blob\/([^/]+)\//);
-          if (branchMatch) {
-            branch = branchMatch[1];
-          }
-        }
         
         let workflowFileName = '';
         if (workflowUrl) {
@@ -299,10 +325,22 @@ export function WorkflowForm({
           }
         }
         
-        workflowData.parameters = {
-          branch: branch,
-          ...(providerConfig.inputs && { inputs: providerConfig.inputs }),
-        };
+        const inputs = providerConfig.inputs || {};
+        const paramDefinitions = (providerConfig as any).parameterDefinitions as WorkflowParameter[] | undefined;
+        
+        if (paramDefinitions && paramDefinitions.length > 0) {
+          workflowData.parameters = paramDefinitions.map((def) => ({
+            ...def,
+            defaultValue: inputs[def.name] || def.defaultValue?.toString() || '',
+          }));
+        } else {
+          workflowData.parameters = Object.entries(inputs).map(([name, value]): WorkflowParameter => ({
+            name,
+            type: 'string',
+            defaultValue: value as string,
+          }));
+        }
+        
         workflowData.providerIdentifiers = {
           workflowPath: workflowUrl,
           ...(workflowFileName && { workflowFileName }),

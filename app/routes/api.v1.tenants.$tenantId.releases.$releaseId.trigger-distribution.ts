@@ -19,12 +19,11 @@ import {
   logApiError,
   validateRequired,
 } from '~/utils/api-route-helpers';
-import type { CompletePreReleaseResponse } from '~/types/release-process.types';
+import type { TriggerDistributionResponse } from '~/types/release-process.types';
 
 const triggerDistribution: AuthenticatedActionFunction = async ({ params, request, user }) => {
   const { tenantId, releaseId } = params;
 
-  // Validate required path parameters
   if (!validateRequired(tenantId, 'Tenant ID is required')) {
     return createValidationError('Tenant ID is required');
   }
@@ -38,16 +37,15 @@ const triggerDistribution: AuthenticatedActionFunction = async ({ params, reques
     const body = await request.json().catch(() => ({})) as { comments?: string; forceApprove?: boolean };
     
     console.log('[BFF] Triggering distribution for release:', releaseId, body);
-    const response = await ReleaseProcessService.completePostRegressionStage(
+    const response = await ReleaseProcessService.triggerDistributionStage(
       tenantId, 
       releaseId, 
       user.user.id,
       body
     );
     
-    // Axios response structure: response.data contains the actual response body
     console.log('[BFF] Trigger distribution response:', response.data);
-    return json(response.data as CompletePreReleaseResponse);
+    return json(response.data as TriggerDistributionResponse);
   } catch (error) {
     logApiError('[Trigger Distribution API]', error);
     return handleAxiosError(error, 'Failed to trigger distribution');

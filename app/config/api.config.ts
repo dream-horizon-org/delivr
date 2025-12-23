@@ -89,7 +89,7 @@ export const RELEASE_PROCESS_API_PATTERNS = [
   '/api/v1/tenants/*/releases/*/project-management-run-status',  // Project Management Status (API #18)
   '/api/v1/tenants/*/releases/*/check-cherry-pick-status',  // Cherry Pick Status (API #19)
   '/api/v1/tenants/*/releases/*/trigger-pre-release',  // Approve Regression (API #11)
-  '/api/v1/tenants/*/releases/*/stages/pre-release/complete',  // Complete Pre-Release (API #12)
+  '/api/v1/tenants/*/releases/*/trigger-distribution',  // Complete Pre-Release (API #12)
   '/api/v1/tenants/*/releases/*/notifications',       // Get Notifications (API #20)
   '/api/v1/tenants/*/releases/*/notify',              // Send Notification (API #21)
   '/api/v1/tenants/*/releases/*/activity-logs',       // Activity Logs (API #23)
@@ -210,15 +210,15 @@ export const API_ENDPOINTS = {
   UPDATE_ROLLOUT: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
     `/api/v1/submissions/${submissionId}/rollout?platform=${platform}`,
   
-  // Pause Rollout - iOS Only (API Spec Line 1383)
-  PAUSE_ROLLOUT: (submissionId: string) => `/api/v1/submissions/${submissionId}/rollout/pause?platform=IOS`,
+  // Pause Rollout - Both Platforms (API Spec Line 1454)
+  // Android: IN_PROGRESS → HALTED, iOS: LIVE → PAUSED
+  PAUSE_ROLLOUT: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/submissions/${submissionId}/rollout/pause?platform=${platform}`,
   
-  // Resume Rollout - iOS Only (API Spec Line 1421)
-  RESUME_ROLLOUT: (submissionId: string) => `/api/v1/submissions/${submissionId}/rollout/resume?platform=IOS`,
-  
-  // Halt Rollout (API Spec Line 1449)
-  HALT_ROLLOUT: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
-    `/api/v1/submissions/${submissionId}/rollout/halt?platform=${platform}`,
+  // Resume Rollout - Both Platforms (API Spec Line 1509)
+  // Android: HALTED → IN_PROGRESS, iOS: PAUSED → LIVE
+  RESUME_ROLLOUT: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/submissions/${submissionId}/rollout/resume?platform=${platform}`,
 } as const;
 
 /**

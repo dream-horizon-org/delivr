@@ -18,7 +18,7 @@ import {
   Title,
 } from '@mantine/core';
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
-import { Link, useFetcher, useLoaderData, useNavigation, useRevalidator } from '@remix-run/react';
+import { Link, useFetcher, useLoaderData, useNavigate, useNavigation, useRevalidator } from '@remix-run/react';
 import { IconArrowLeft, IconBrandAndroid, IconBrandApple, IconExternalLink, IconRefresh } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { User } from '~/.server/services/Auth/Auth.interface';
@@ -27,12 +27,11 @@ import { RolloutService } from '~/.server/services/Rollout';
 import { ActivityHistoryLog } from '~/components/Distribution/ActivityHistoryLog';
 import { CancelSubmissionDialog } from '~/components/Distribution/CancelSubmissionDialog';
 import { ErrorState, StaleDataWarning } from '~/components/Distribution/ErrorRecovery';
-import { HaltRolloutDialog } from '~/components/Distribution/HaltRolloutDialog';
 import { LatestSubmissionCard } from '~/components/Distribution/LatestSubmissionCard';
 import { PauseRolloutDialog } from '~/components/Distribution/PauseRolloutDialog';
 import { PromoteAndroidSubmissionDialog } from '~/components/Distribution/PromoteAndroidSubmissionDialog';
 import { PromoteIOSSubmissionDialog } from '~/components/Distribution/PromoteIOSSubmissionDialog';
-import { ResubmissionDialog } from '~/components/Distribution/ResubmissionDialog';
+import { ResubmissionDialog } from '~/components/Distribution/ReSubmissionDialog';
 import { ResumeRolloutDialog } from '~/components/Distribution/ResumeRolloutDialog';
 import { SubmissionHistoryTimeline } from '~/components/Distribution/SubmissionHistoryTimeline';
 import { UpdateRolloutDialog } from '~/components/Distribution/UpdateRolloutDialog';
@@ -161,12 +160,6 @@ export const action = authenticateLoaderRequest(
           return json({ success: true });
         }
 
-        case 'haltRollout': {
-          const reason = formData.get('reason') as string;
-          await RolloutService.haltRollout(submissionId, { reason }, platform);
-          return json({ success: true });
-        }
-
         case 'updateRollout': {
           const rolloutPercentage = parseFloat(formData.get('rolloutPercentage') as string);
           await RolloutService.updateRollout(submissionId, { rolloutPercentage }, platform);
@@ -191,6 +184,7 @@ export const action = authenticateLoaderRequest(
 export default function DistributionDetailPage() {
   const { org, distribution, loadedAt, error } = useLoaderData<LoaderData>();
   const navigation = useNavigation();
+  const navigate = useNavigate();
   const fetcher = useFetcher();
   const revalidator = useRevalidator();
 
@@ -203,7 +197,6 @@ export default function DistributionDetailPage() {
   const [isPromoteIOSDialogOpen, setIsPromoteIOSDialogOpen] = useState(false);
   const [isPauseDialogOpen, setIsPauseDialogOpen] = useState(false);
   const [isResumeDialogOpen, setIsResumeDialogOpen] = useState(false);
-  const [isHaltDialogOpen, setIsHaltDialogOpen] = useState(false);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [isUpdateRolloutDialogOpen, setIsUpdateRolloutDialogOpen] = useState(false);
   const [isResubmitDialogOpen, setIsResubmitDialogOpen] = useState(false);
@@ -222,10 +215,6 @@ export default function DistributionDetailPage() {
     setIsResumeDialogOpen(true);
   }, []);
 
-  const handleOpenHaltDialog = useCallback((submission: Submission) => {
-    setSelectedSubmission(submission);
-    setIsHaltDialogOpen(true);
-  }, []);
 
   const handleOpenCancelDialog = useCallback((submission: Submission) => {
     setSelectedSubmission(submission);
@@ -247,7 +236,6 @@ export default function DistributionDetailPage() {
     setIsPromoteIOSDialogOpen(false);
     setIsPauseDialogOpen(false);
     setIsResumeDialogOpen(false);
-    setIsHaltDialogOpen(false);
     setIsCancelDialogOpen(false);
     setIsUpdateRolloutDialogOpen(false);
     setIsResubmitDialogOpen(false);
@@ -255,16 +243,13 @@ export default function DistributionDetailPage() {
   }, []);
 
   // Close specific dialog after action completes (without clearing selectedSubmission)
-  const handleCloseSpecificDialog = useCallback((dialogType: 'pause' | 'resume' | 'halt' | 'updateRollout' | 'cancel') => {
+  const handleCloseSpecificDialog = useCallback((dialogType: 'pause' | 'resume' | 'updateRollout' | 'cancel') => {
     switch (dialogType) {
       case 'pause':
         setIsPauseDialogOpen(false);
         break;
       case 'resume':
         setIsResumeDialogOpen(false);
-        break;
-      case 'halt':
-        setIsHaltDialogOpen(false);
         break;
       case 'updateRollout':
         setIsUpdateRolloutDialogOpen(false);
@@ -310,17 +295,6 @@ export default function DistributionDetailPage() {
     fetcher.submit(formData, { method: 'post' });
   }, [selectedSubmission, fetcher]);
 
-  const handleHalt = useCallback((reason: string) => {
-    if (!selectedSubmission) return;
-    
-    const formData = new FormData();
-    formData.append('intent', 'haltRollout');
-    formData.append('submissionId', selectedSubmission.id);
-    formData.append('platform', selectedSubmission.platform);
-    formData.append('reason', reason);
-    
-    fetcher.submit(formData, { method: 'post' });
-  }, [selectedSubmission, fetcher]);
 
   const handleUpdateRolloutSubmit = useCallback((rolloutPercentage: number) => {
     if (!selectedSubmission) return;
@@ -335,7 +309,7 @@ export default function DistributionDetailPage() {
   }, [selectedSubmission, fetcher]);
 
   // Helper: Revalidate data and then close dialogs
-  const revalidateAndCloseSpecific = useCallback((dialogType: 'pause' | 'resume' | 'halt' | 'updateRollout' | 'cancel') => {
+  const revalidateAndCloseSpecific = useCallback((dialogType: 'pause' | 'resume' | 'updateRollout' | 'cancel') => {
     // Close only the specific dialog immediately
     handleCloseSpecificDialog(dialogType);
     // Trigger revalidation to fetch fresh data
@@ -366,9 +340,6 @@ export default function DistributionDetailPage() {
     revalidateAndCloseSpecific('resume');
   }, [revalidateAndCloseSpecific]);
 
-  const handleHaltComplete = useCallback(() => {
-    revalidateAndCloseSpecific('halt');
-  }, [revalidateAndCloseSpecific]);
 
   const handleUpdateRolloutComplete = useCallback(() => {
     revalidateAndCloseSpecific('updateRollout');
@@ -385,8 +356,6 @@ export default function DistributionDetailPage() {
           handlePauseComplete();
         } else if (isResumeDialogOpen) {
           handleResumeComplete();
-        } else if (isHaltDialogOpen) {
-          handleHaltComplete();
         } else if (isUpdateRolloutDialogOpen) {
           handleUpdateRolloutComplete();
         }
@@ -412,7 +381,6 @@ export default function DistributionDetailPage() {
         let actionName = 'Action';
         if (isPauseDialogOpen) actionName = 'Pause Rollout';
         else if (isResumeDialogOpen) actionName = 'Resume Rollout';
-        else if (isHaltDialogOpen) actionName = 'Halt Rollout';
         else if (isUpdateRolloutDialogOpen) actionName = 'Update Rollout';
         else if (isCancelDialogOpen) actionName = 'Cancel Submission';
         else if (isPromoteAndroidDialogOpen || isPromoteIOSDialogOpen) actionName = 'Submit to Store';
@@ -432,14 +400,12 @@ export default function DistributionDetailPage() {
     fetcher.data,
     isPauseDialogOpen,
     isResumeDialogOpen,
-    isHaltDialogOpen,
     isUpdateRolloutDialogOpen,
     isCancelDialogOpen,
     isPromoteAndroidDialogOpen,
     isPromoteIOSDialogOpen,
     handlePauseComplete,
     handleResumeComplete,
-    handleHaltComplete,
     handleUpdateRolloutComplete,
   ]);
 
@@ -534,11 +500,6 @@ export default function DistributionDetailPage() {
     }
   }, [latestAndroidSubmission, handleOpenResumeDialog]);
 
-  const handleOpenAndroidHaltDialog = useCallback(() => {
-    if (latestAndroidSubmission) {
-      handleOpenHaltDialog(latestAndroidSubmission);
-    }
-  }, [latestAndroidSubmission, handleOpenHaltDialog]);
 
   const handleOpenAndroidCancelDialog = useCallback(() => {
     if (latestAndroidSubmission) {
@@ -558,11 +519,6 @@ export default function DistributionDetailPage() {
     }
   }, [latestIOSSubmission, handleOpenResumeDialog]);
 
-  const handleOpenIOSHaltDialog = useCallback(() => {
-    if (latestIOSSubmission) {
-      handleOpenHaltDialog(latestIOSSubmission);
-    }
-  }, [latestIOSSubmission, handleOpenHaltDialog]);
 
   const handleOpenIOSCancelDialog = useCallback(() => {
     if (latestIOSSubmission) {
@@ -573,16 +529,14 @@ export default function DistributionDetailPage() {
   if (error || !distribution.id) {
     return (
       <Container size="lg" className="py-8">
-        {/* Back Button - Same style as success state */}
+        {/* Back Button - Navigate back to preserve page state */}
         <Group mb="lg">
           <Button
-            component={Link}
-            to={`/dashboard/${org}/distributions`}
+            onClick={() => navigate(-1)}
             variant="subtle"
             color="gray"
             leftSection={<IconArrowLeft size={16} />}
             size="sm"
-            preventScrollReset
           >
             Back to Distributions
           </Button>
@@ -611,13 +565,11 @@ export default function DistributionDetailPage() {
       {/* Back Button - Outside of header */}
       <Group mb="lg">
         <Button
-          component={Link}
-          to={`/dashboard/${org}/distributions`}
+          onClick={() => navigate(-1)}
           variant="subtle"
           color="gray"
           leftSection={<IconArrowLeft size={16} />}
           size="sm"
-          preventScrollReset
         >
           Back to Distributions
         </Button>
@@ -775,7 +727,6 @@ export default function DistributionDetailPage() {
                     onUpdateRollout={handleOpenAndroidUpdateRolloutDialog}
                     onPause={handleOpenAndroidPauseDialog}
                     onResume={handleOpenAndroidResumeDialog}
-                    onHalt={handleOpenAndroidHaltDialog}
                     onCancel={handleOpenAndroidCancelDialog}
                     onResubmit={handleOpenAndroidResubmitDialog}
                   />
@@ -853,7 +804,6 @@ export default function DistributionDetailPage() {
                     onUpdateRollout={handleOpenIOSUpdateRolloutDialog}
                     onPause={handleOpenIOSPauseDialog}
                     onResume={handleOpenIOSResumeDialog}
-                    onHalt={handleOpenIOSHaltDialog}
                     onCancel={handleOpenIOSCancelDialog}
                     onResubmit={handleOpenIOSResubmitDialog}
                   />
@@ -958,16 +908,6 @@ export default function DistributionDetailPage() {
             currentPercentage={selectedSubmission.rolloutPercentage}
             onConfirm={handleResume}
             isLoading={fetcher.state === 'submitting'}
-          />
-
-          {/* Halt Rollout Dialog */}
-          <HaltRolloutDialog
-            opened={isHaltDialogOpen}
-            onClose={handleCloseDialogs}
-            submissionId={selectedSubmission.id}
-            platform={selectedSubmission.platform}
-            isHalting={fetcher.state === 'submitting'}
-            onHalt={handleHalt}
           />
 
           {/* Cancel Submission Dialog */}

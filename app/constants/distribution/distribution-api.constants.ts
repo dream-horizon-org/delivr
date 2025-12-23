@@ -29,7 +29,7 @@ export const ERROR_MESSAGES = {
   PLATFORMS_REQUIRED: 'At least one platform must be specified',
   PERCENTAGE_REQUIRED: 'Percentage must be between 0 and 100',
   PERCENTAGE_OUT_OF_RANGE: 'Percentage must be between 0 and 100',
-  REASON_REQUIRED: 'Reason is required for emergency halt',
+  REASON_REQUIRED: 'Reason is required for pausing rollout',
   
   // Generic Errors
   FAILED_TO_FETCH_BUILDS: 'Failed to fetch builds',
@@ -48,7 +48,6 @@ export const ERROR_MESSAGES = {
   FAILED_TO_UPDATE_ROLLOUT: 'Failed to update rollout',
   FAILED_TO_PAUSE_ROLLOUT: 'Failed to pause rollout',
   FAILED_TO_RESUME_ROLLOUT: 'Failed to resume rollout',
-  FAILED_TO_HALT_ROLLOUT: 'Failed to halt rollout',
   FAILED_TO_FETCH_DISTRIBUTION: 'Failed to fetch distribution details',
   FAILED_TO_FETCH_DISTRIBUTIONS: 'Failed to fetch distributions list',
   FAILED_TO_CANCEL_SUBMISSION: 'Failed to cancel submission',
@@ -86,7 +85,6 @@ export const LOG_CONTEXT = {
   UPDATE_ROLLOUT_API: '[Update Rollout API]',
   PAUSE_ROLLOUT_API: '[Pause Rollout API]',
   RESUME_ROLLOUT_API: '[Resume Rollout API]',
-  HALT_ROLLOUT_API: '[Halt Rollout API]',
   CANCEL_SUBMISSION_API: '[Cancel Submission API]',
   EDIT_SUBMISSION_API: '[Edit Submission API]',
   SUBMIT_SUBMISSION_API: '[Submit Submission API]',
@@ -192,15 +190,6 @@ export const API_ROUTES = {
    */
   resumeRollout: (submissionId: string, platform: string) =>
     `/api/v1/submissions/${submissionId}/rollout/resume?platform=${platform}`,
-  
-  /**
-   * Emergency halt rollout (Android only - iOS uses pause/resume)
-   * @param submissionId - Submission ID
-   * @param platform - Platform (ANDROID)
-   * @returns PATCH /api/v1/submissions/:submissionId/rollout/halt?platform={platform}
-   */
-  haltRollout: (submissionId: string, platform: string) =>
-    `/api/v1/submissions/${submissionId}/rollout/halt?platform=${platform}`,
   
   // ============================================================================
   // ARTIFACTS & DOWNLOADS

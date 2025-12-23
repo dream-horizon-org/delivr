@@ -17,8 +17,10 @@ import { DistributionStage, KickoffStage, PreKickoffStage, PreReleaseStage, Regr
 import { IntegrationsStatusSidebar } from '~/components/ReleaseProcess/IntegrationsStatusSidebar';
 import { ReleaseNotFound } from '~/components/Releases/ReleaseNotFound';
 import { BUTTON_LABELS } from '~/constants/release-process-ui';
+import { useDistributionStage } from '~/hooks/useDistributionStage';
 import { useRelease } from '~/hooks/useRelease';
 import { useKickoffStage, usePreReleaseStage, useRegressionStage } from '~/hooks/useReleaseProcess';
+import { DistributionStatus } from '~/types/distribution/distribution.types';
 import { Phase, StageStatus, TaskStage } from '~/types/release-process-enums';
 import {
   determineReleasePhase,
@@ -66,14 +68,24 @@ export default function ReleaseDetailsPage() {
   const shouldPollKickoff = currentStage === TaskStage.KICKOFF;
   const shouldPollRegression = currentStage === TaskStage.REGRESSION;
   const shouldPollPreRelease = currentStage === TaskStage.PRE_RELEASE;
+  // Note: Distribution does NOT poll - it's reactive (updates via user actions)
 
   // Fetch stage data - only current active stage will poll every 30 seconds
   const kickoffData = useKickoffStage(org, releaseId, shouldPollKickoff);
   const regressionData = useRegressionStage(org, releaseId, shouldPollRegression);
   const preReleaseData = usePreReleaseStage(org, releaseId, shouldPollPreRelease);
+  const { distribution } = useDistributionStage(org, releaseId);
 
   // Check if kickoff stage is completed
   const isKickoffCompleted = kickoffData.data?.stageStatus === StageStatus.COMPLETED;
+  
+  // Check if distribution stage is completed (submitted or released)
+  const isDistributionCompleted = !!distribution && (
+    distribution.status === DistributionStatus.SUBMITTED ||
+    distribution.status === DistributionStatus.PARTIALLY_SUBMITTED ||
+    distribution.status === DistributionStatus.PARTIALLY_RELEASED ||
+    distribution.status === DistributionStatus.RELEASED
+  );
 
   // Always land on active stage when release loads or current stage changes
   // If kickoff is completed, automatically navigate to REGRESSION stage
@@ -108,13 +120,6 @@ export default function ReleaseDetailsPage() {
       })));
     }
   }, [selectedStage, release, releaseId, kickoffData.data, regressionData.data, preReleaseData.data]);
-
-  // Handle navigation to distribution stage
-  useEffect(() => {
-    if (selectedStage === 'DISTRIBUTION') {
-      navigate(`/dashboard/${org}/releases/${releaseId}/distribution`);
-    }
-  }, [selectedStage, navigate, org, releaseId]);
 
   // Handle retry with loading state
   const handleRetry = async () => {
@@ -236,6 +241,7 @@ export default function ReleaseDetailsPage() {
             selectedStage={selectedStage}
             onStageSelect={handleStageSelect}
             kickoffStageCompleted={isKickoffCompleted}
+            distributionStageCompleted={isDistributionCompleted}
           />
 
             {/* Integration Status Sidebar - Real-time status from individual APIs */}

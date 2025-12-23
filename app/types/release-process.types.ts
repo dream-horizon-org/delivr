@@ -495,24 +495,34 @@ export interface ApproveRegressionStageResponse {
 
 
 /**
- * Complete Pre-Release Request (Trigger Distribution)
+ * Trigger Distribution Request
  */
-export interface CompletePreReleaseRequest {
+export interface TriggerDistributionRequest {
   comments?: string;
   forceApprove?: boolean;
 }
 
 /**
- * Complete Pre-Release Response - Matches backend contract for trigger-distribution
+ * Trigger Distribution Response - Matches backend contract
  */
-export interface CompletePreReleaseResponse {
+export interface TriggerDistributionResponse {
   success: true;
   message: string;
   releaseId: string;
-  approvedAt: string;                   // ISO 8601
+  approvedAt: string;                  // ISO 8601
   approvedBy: string;
-  nextStage: string;                    // e.g., 'DISTRIBUTION' or 'RELEASE_SUBMISSION'
+  nextStage: 'DISTRIBUTION'; // Updated to DISTRIBUTION
 }
+
+/**
+ * @deprecated Use TriggerDistributionRequest instead
+ */
+export interface CompletePreReleaseRequest extends TriggerDistributionRequest {}
+
+/**
+ * @deprecated Use TriggerDistributionResponse instead
+ */
+export interface CompletePreReleaseResponse extends TriggerDistributionResponse {}
 
 
 /**

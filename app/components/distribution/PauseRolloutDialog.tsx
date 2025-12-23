@@ -10,12 +10,12 @@ import { IconInfoCircle, IconPlayerPause } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import {
   DIST_BUTTON_PROPS,
-  DS_COLORS,
-  DS_TYPOGRAPHY,
   DIST_FONT_WEIGHTS,
   DIST_INPUT_PROPS,
   DIST_MODAL_PROPS,
+  DS_COLORS,
   DS_SPACING,
+  DS_TYPOGRAPHY,
 } from '~/constants/distribution/distribution-design.constants';
 import {
   BUTTON_LABELS,
@@ -51,6 +51,11 @@ export function PauseRolloutDialog({
     () => DIALOG_UI.PAUSE.CONFIRMATION(platformLabel, currentPercentage),
     [platformLabel, currentPercentage]
   );
+
+  // Platform-specific warnings
+  const isIOS = platform === Platform.IOS;
+  const warningLine1 = isIOS ? DIALOG_UI.PAUSE.IOS_WARNING_LINE1 : DIALOG_UI.PAUSE.ANDROID_WARNING_LINE1;
+  const warningLine2 = isIOS ? DIALOG_UI.PAUSE.IOS_WARNING_LINE2 : DIALOG_UI.PAUSE.ANDROID_WARNING_LINE2;
 
   const handleReasonChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setReason(e.target.value);
@@ -92,13 +97,13 @@ export function PauseRolloutDialog({
       {...DIST_MODAL_PROPS.DEFAULT}
     >
       <Stack gap={DS_SPACING.MD}>
-        {/* 30-Day Pause Limit Warning */}
+        {/* Platform-specific Pause Limit Warning */}
         <Alert color={DS_COLORS.STATUS.WARNING} variant="light" icon={<IconInfoCircle size={16} />}>
           <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.MEDIUM} mb={DS_SPACING.XS}>
-            {DIALOG_UI.PAUSE.WARNING_LINE1}
+            {warningLine1}
           </Text>
           <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.MEDIUM}>
-            {DIALOG_UI.PAUSE.WARNING_LINE2}
+            {warningLine2}
           </Text>
         </Alert>
 

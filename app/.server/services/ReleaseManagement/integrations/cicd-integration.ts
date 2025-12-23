@@ -16,14 +16,13 @@ export type CICDProviderType = 'JENKINS' | 'GITHUB_ACTIONS';
 export type WorkflowType = 'PRE_REGRESSION' | 'REGRESSION' | 'TESTFLIGHT' | 'PRODUCTION' | 'AAB_BUILD';
 export type PlatformType = 'ANDROID' | 'IOS' | 'WEB';
 
-export interface JobParameter {
+export interface WorkflowParameter {
   name: string;
   type: string;
   description?: string;
-  defaultValue?: any;
-  default?: any;
+  defaultValue?: unknown;
+  options?: string[];
   required?: boolean;
-  choices?: string[];
 }
 
 export interface CICDWorkflow {
@@ -55,7 +54,7 @@ export interface CreateWorkflowRequest {
   workflowUrl: string;
   platform: PlatformType;
   workflowType: WorkflowType;
-  parameters?: Record<string, any>;
+  parameters?: WorkflowParameter[];
   providerIdentifiers?: any;
 }
 
@@ -67,7 +66,7 @@ export interface WorkflowListResponse {
 
 export interface JobParametersResponse {
   success: boolean;
-  parameters?: JobParameter[];
+  parameters?: WorkflowParameter[];
   error?: string;
 }
 
