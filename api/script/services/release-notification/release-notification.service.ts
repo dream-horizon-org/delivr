@@ -288,9 +288,13 @@ export class ReleaseNotificationService {
         return [
           payload.startTag,     // {0}
           payload.endTag,       // {1}
-          payload.features,     // {2}
-          payload.fixes,        // {3}
-          payload.improvements  // {4}
+          payload.tagChangeLog  // {2} - Already formatted by SCM service
+        ];
+
+      case NotificationType.FINAL_RELEASE_NOTES:
+        return [
+          payload.releaseTag,   // {0}
+          payload.releaseUrl    // {1}
         ];
 
       case NotificationType.NEW_SLOT_ADDED:
@@ -338,10 +342,8 @@ export class ReleaseNotificationService {
 
       case NotificationType.WHATS_NEW:
         return [
-          payload.releaseType,  // {0}
-          payload.features,     // {1}
-          payload.fixes,        // {2}
-          payload.improvements  // {3}
+          payload.releaseType,   // {0}
+          payload.tagChangeLog    // {1} - Already formatted by SCM service
         ];
 
       case NotificationType.REGRESSION_STAGE_APPROVAL_REQUEST:
@@ -349,7 +351,7 @@ export class ReleaseNotificationService {
           payload.delivrUrl     // {0}
         ];
 
-      case NotificationType.PRE_DISTRIBUTION_STAGE_APPROVAL_REQUEST:
+      case NotificationType.PRE_RELEASE_STAGE_APPROVAL_REQUEST:
         return [
           payload.delivrUrl     // {0}
         ];

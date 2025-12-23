@@ -29,6 +29,7 @@ import type { UploadValidationService } from '../../services/release/upload-vali
 import type { ManualUploadService } from '../../services/release/manual-upload.service';
 import type { BuildCallbackService } from '../../services/release/build-callback.service';
 import type { TestFlightBuildVerificationService } from '../../services/release/testflight-build-verification.service';
+import type { ReleaseScheduleService } from '../../services/release-schedules/release-schedule.service';
 
 /**
  * Storage with release management services attached
@@ -51,6 +52,7 @@ export type StorageWithReleaseServices = storageTypes.Storage & {
   manualUploadService: ManualUploadService;
   buildCallbackService: BuildCallbackService;
   testFlightBuildVerificationService: TestFlightBuildVerificationService;
+  releaseScheduleService: ReleaseScheduleService;
 
   // Repositories
   releaseRepository: ReleaseRepository;
@@ -180,6 +182,16 @@ export const hasBuildCallbackService = (
 ): storage is StorageWithReleaseServices => {
   const storageWithServices = storage as StorageWithReleaseServices;
   return storageWithServices.buildCallbackService !== undefined;
+};
+
+/**
+ * Type guard to check if storage has releaseScheduleService
+ */
+export const hasReleaseScheduleService = (
+  storage: storageTypes.Storage
+): storage is StorageWithReleaseServices => {
+  const storageWithServices = storage as StorageWithReleaseServices;
+  return storageWithServices.releaseScheduleService !== undefined;
 };
 
 /**

@@ -194,17 +194,17 @@
         "category": "release"
       },
       "fields": [],
-      "description": "*PR Titles between tags:* {0} and {1}\n\n*Features*\n{2}\n\n*Fixes*\n{3}\n\n*Improvements*\n{4}",
-      "usage": {
-        "parameters": [
-          "{0} = Start tag (e.g., pi_6.4.0)",
-          "{1} = End tag (e.g., v6.5.0_rc_0)",
-          "{2} = Features list (bullet points with •)",
-          "{3} = Fixes list (bullet points with •)",
-          "{4} = Improvements list (bullet points with •)"
-        ],
-        "example": "Use with structured PR data categorized by type"
-      }
+      "description": "*PR Titles between tags:* {0} and {1}\n\n{2}"
+    },
+    "final-release-notes": {
+      "metadata": {
+        "name": "Final Release Notes",
+        "emoji": "",
+        "color": "#0066CC",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "Final release notes for release tag *{0}* have been created.\n\n<{1}|View Release>"
     },
     "test-results-summary": {
       "platforms": {
@@ -248,7 +248,7 @@
         "category": "release"
       },
       "fields": [],
-      "description": "*We have a *{0}* release, please help with the what's new copy.\nBelow are the List of changes going live:*\n\n*Features*\n{1}\n\n*Fixes*\n{2}\n\n*Improvements*\n{3}"
+      "description": "*We have a {0} release, please help with the what's new copy.\nBelow are the List of changes going live:*\n\n{1}"
     },
     "new-slot-added": {
       "metadata": {
@@ -291,9 +291,9 @@
       "fields": [],
       "description": "Release is waiting for approval to complete the regression stage.\n\nPlease review and approve to continue.\n\n<{0}|Review in Delivr>"
     },
-    "pre-distribution-stage-approval-request": {
+    "pre-release-stage-approval-request": {
       "metadata": {
-        "name": "Pre-Distribution Stage Approval Request",
+        "name": "Pre-Release Stage Approval Request",
         "emoji": "",
         "color": "#6C757D",
         "category": "release"
@@ -429,7 +429,7 @@
         "category": "release"
       },
       "fields": [],
-      "description": "Following release task failed.\n\n*Task:* {0}\n\nPlease investigate and take appropriate action.\n\n<{1}|View in Delivr>"
+      "description": "Following release task failed.\n\n*{0}*\n\nPlease investigate and take appropriate action.\n\n<{1}|View in Delivr>"
     },
     "manual-build-upload-reminder": {
       "metadata": {

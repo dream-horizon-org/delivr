@@ -3,4 +3,3 @@
  */
 
 export { ReleaseNotificationService } from './release-notification.service';
-

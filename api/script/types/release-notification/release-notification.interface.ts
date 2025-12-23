@@ -23,13 +23,14 @@ export enum NotificationType {
   REGRESSION_BUILDS = 'REGRESSION_BUILDS',
   REGRESSION_BUILDS_FAILED = 'REGRESSION_BUILDS_FAILED',
   RELEASE_NOTES = 'RELEASE_NOTES',
+  FINAL_RELEASE_NOTES = 'FINAL_RELEASE_NOTES',
   TEST_RESULTS_SUMMARY = 'TEST_RESULTS_SUMMARY',
   NEW_SLOT_ADDED = 'NEW_SLOT_ADDED',
   IOS_TEST_FLIGHT_BUILD = 'IOS_TEST_FLIGHT_BUILD',
   ANDROID_AAB_BUILD = 'ANDROID_AAB_BUILD',
   WHATS_NEW = 'WHATS_NEW',
   REGRESSION_STAGE_APPROVAL_REQUEST = 'REGRESSION_STAGE_APPROVAL_REQUEST',
-  PRE_DISTRIBUTION_STAGE_APPROVAL_REQUEST = 'PRE_DISTRIBUTION_STAGE_APPROVAL_REQUEST',
+  PRE_RELEASE_STAGE_APPROVAL_REQUEST = 'PRE_RELEASE_STAGE_APPROVAL_REQUEST',
   TARGET_DATE_CHANGED = 'TARGET_DATE_CHANGED',
   IOS_APPSTORE_BUILD_SUBMITTED = 'IOS_APPSTORE_BUILD_SUBMITTED',
   ANDROID_PLAYSTORE_BUILD_SUBMITTED = 'ANDROID_PLAYSTORE_BUILD_SUBMITTED',
@@ -241,9 +242,13 @@ export type ReleaseNotesPayload = BaseNotificationPayload & {
   type: NotificationType.RELEASE_NOTES;
   startTag: string;      // {0} - e.g., "pi_6.4.0"
   endTag: string;        // {1} - e.g., "v6.5.0_rc_0"
-  features: string;      // {2} - bullet points
-  fixes: string;         // {3} - bullet points
-  improvements: string;  // {4} - bullet points
+  tagChangeLog: string;   // {2} - Formatted changelog string from SCM service
+};
+
+export type FinalReleaseNotesPayload = BaseNotificationPayload & {
+  type: NotificationType.FINAL_RELEASE_NOTES;
+  releaseTag: string;    // {0} - e.g., "v6.5.0"
+  releaseUrl: string;    // {1} - SCM release URL
 };
 
 export type TestResultsSummaryPayload = BaseNotificationPayload & {
@@ -286,9 +291,7 @@ export type AndroidAabBuildPayload = BaseNotificationPayload & {
 export type WhatsNewPayload = BaseNotificationPayload & {
   type: NotificationType.WHATS_NEW;
   releaseType: string;   // {0} - e.g., "planned"
-  features: string;      // {1} - bullet points
-  fixes: string;         // {2} - bullet points
-  improvements: string;  // {3} - bullet points
+  tagChangeLog: string;   // {1} - Formatted changelog string from SCM service
 };
 
 export type RegressionStageApprovalRequestPayload = BaseNotificationPayload & {
@@ -296,8 +299,8 @@ export type RegressionStageApprovalRequestPayload = BaseNotificationPayload & {
   delivrUrl: string;   // {0} - link to review page
 };
 
-export type PreDistributionStageApprovalRequestPayload = BaseNotificationPayload & {
-  type: NotificationType.PRE_DISTRIBUTION_STAGE_APPROVAL_REQUEST;
+export type PreReleaseStageApprovalRequestPayload = BaseNotificationPayload & {
+  type: NotificationType.PRE_RELEASE_STAGE_APPROVAL_REQUEST;
   delivrUrl: string;   // {0} - link to review page
 };
 
@@ -442,6 +445,7 @@ export type NotificationPayload =
   | RegressionBuildsPayload
   | RegressionBuildsFailedPayload
   | ReleaseNotesPayload
+  | FinalReleaseNotesPayload
   | TestResultsSummaryPayload
   | NewSlotAddedPayload
   // Stage 3: Post-Regression
@@ -449,7 +453,7 @@ export type NotificationPayload =
   | AndroidAabBuildPayload
   | WhatsNewPayload
   | RegressionStageApprovalRequestPayload
-  | PreDistributionStageApprovalRequestPayload
+  | PreReleaseStageApprovalRequestPayload
   // Release Lifecycle
   | TargetDateChangedPayload
   | IosAppstoreBuildSubmittedPayload

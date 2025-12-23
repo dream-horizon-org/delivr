@@ -20,6 +20,8 @@ import { getOrderedTasks, getTaskBlockReason, OptionalTaskConfig, isTaskRequired
 import { processAwaitingManualBuildTasks } from '~utils/awaiting-manual-build.utils';
 import { deleteWorkflowPollingJobs } from '~services/release/workflow-polling';
 import { StorageWithReleaseServices } from '~types/release/storage-with-services.interface';
+import { NotificationType } from '~types/release-notification';
+import { buildDelivrUrl } from '../../task-executor/task-executor.utils';
 
 export class PreReleaseState implements ICronJobState {
   constructor(public context: CronJobStateMachine) {}
@@ -327,6 +329,14 @@ export class PreReleaseState implements ICronJobState {
 
     console.log(`[PreReleaseState] Stage 3 complete. Ending workflow (no Stage 4)...`);
     
+    // Check if stage is already COMPLETED (prevents duplicate notifications)
+    const isAlreadyCompleted = cronJob.stage3Status === StageStatus.COMPLETED;
+    
+    if (!isAlreadyCompleted) {
+      // Send approval request notification (only once when stage first completes)
+      await this.sendApprovalRequestNotification();
+    }
+    
     await cronJobRepo.update(cronJob.id, {
       stage3Status: StageStatus.COMPLETED,
       pauseType: PauseType.AWAITING_STAGE_TRIGGER
@@ -337,6 +347,45 @@ export class PreReleaseState implements ICronJobState {
 
     // Delete workflow polling Cronicle jobs (release is COMPLETED)
     await this.deleteWorkflowPollingJobs(releaseId);
+  }
+
+  /**
+   * Send PRE_RELEASE_STAGE_APPROVAL_REQUEST notification
+   * Only sends if stage is not already COMPLETED (prevents duplicate notifications)
+   */
+  private async sendApprovalRequestNotification(): Promise<void> {
+    try {
+      const releaseId = this.context.getReleaseId();
+      const storage = this.context.getStorage();
+      const storageWithServices = storage as StorageWithReleaseServices;
+      const releaseNotificationService = storageWithServices.releaseNotificationService;
+
+      // Get release for tenantId
+      const releaseRepo = this.context.getReleaseRepo();
+      const release = await releaseRepo.findById(releaseId);
+      if (!release) {
+        console.log(`[PreReleaseState] Release ${releaseId} not found, skipping notification`);
+        return;
+      }
+
+      // Build Delivr URL (same format as task failed notification)
+      const delivrUrl = buildDelivrUrl(release.tenantId, releaseId);
+
+      // Send notification
+      await releaseNotificationService.notify({
+        type: NotificationType.PRE_RELEASE_STAGE_APPROVAL_REQUEST,
+        tenantId: release.tenantId,
+        releaseId: releaseId,
+        delivrUrl: delivrUrl,
+        isSystemGenerated: true
+      });
+
+      console.log(`[PreReleaseState] Sent PRE_RELEASE_STAGE_APPROVAL_REQUEST notification for release ${releaseId}`);
+    } catch (error) {
+      // Log but don't throw - notification failure shouldn't block stage completion
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[PreReleaseState] Failed to send approval request notification:`, errorMessage);
+    }
   }
 
   /**
