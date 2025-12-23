@@ -33,7 +33,6 @@ import fetch from 'node-fetch';
 const { GoogleAuth } = require('google-auth-library');
 import { decryptFromStorage } from '../../utils/encryption';
 import { StoreCredentialController } from '../../storage/integrations/store/store-controller';
-import { NOW } from 'sequelize';
 
 /**
  * Submission response format for API
