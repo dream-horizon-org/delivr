@@ -27,7 +27,8 @@ import {
   subtractWorkingDays,
   parseISODate,
   toDateString,
-  calculateNextKickoffDate
+  calculateNextKickoffDate,
+  getCurrentDateInTimezone
 } from './utils';
 import {
   RELEASE_CREATION_ADVANCE_DAYS,
@@ -693,7 +694,7 @@ export class ReleaseScheduleService {
   /**
    * Check if it's time to create a release for this schedule
    * 
-   * A release should be created if today (in UTC) is
+   * A release should be created if today (in the schedule's timezone) is
    * RELEASE_CREATION_ADVANCE_DAYS working days before nextReleaseKickoffDate.
    * 
    * @param schedule - The release schedule to check
@@ -710,9 +711,8 @@ export class ReleaseScheduleService {
       schedule.workingDays
     );
 
-    // Get today's date (in UTC for comparison)
-    const today = new Date();
-    const todayDateStr = toDateString(today);
+    // Get today's date in the schedule's timezone
+    const todayDateStr = getCurrentDateInTimezone(schedule.timezone);
     const creationDateStr = toDateString(creationDate);
 
     // Check if today is the creation date

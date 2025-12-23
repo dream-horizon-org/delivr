@@ -157,15 +157,22 @@ export const validateScheduling = (scheduling: ReleaseSchedule): FieldValidation
     });
   }
 
-  // Validate regressionSlots if present (optional field)
-  if (scheduling.regressionSlots !== undefined) {
-    if (!Array.isArray(scheduling.regressionSlots)) {
-      errors.push({
-        field: 'scheduling.regressionSlots',
-        message: 'Regression slots must be an array if provided'
-      });
-    }
-    // Note: regressionSlots array can be empty, but if elements exist, they must be valid
+  // Validate regressionSlots (required, must have at least one element)
+  if (scheduling.regressionSlots === undefined || scheduling.regressionSlots === null) {
+    errors.push({
+      field: 'scheduling.regressionSlots',
+      message: 'Regression slots are required'
+    });
+  } else if (!Array.isArray(scheduling.regressionSlots)) {
+    errors.push({
+      field: 'scheduling.regressionSlots',
+      message: 'Regression slots must be an array'
+    });
+  } else if (scheduling.regressionSlots.length === 0) {
+    errors.push({
+      field: 'scheduling.regressionSlots',
+      message: 'At least one regression slot must be specified'
+    });
   }
 
   // Validate business rules if basic validation passes

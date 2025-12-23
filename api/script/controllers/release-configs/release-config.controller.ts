@@ -8,8 +8,9 @@ import { HTTP_STATUS } from '~constants/http';
 import type { ReleaseConfigService } from '~services/release-configs';
 import type { ReleaseConfigActivityLogService } from '~services/release-configs';
 import type { CreateReleaseConfigRequest } from '~types/release-configs';
+import type { PlatformTargetMappingAttributes } from '~models/release';
 import { errorResponse, getErrorStatusCode, notFoundResponse, successResponse, validationErrorResponse } from '~utils/response.utils';
-import { RELEASE_CONFIG_ERROR_MESSAGES, RELEASE_CONFIG_SUCCESS_MESSAGES } from './constants';
+import { RELEASE_CONFIG_ERROR_MESSAGES, RELEASE_CONFIG_SUCCESS_MESSAGES, VALID_PLATFORMS, VALID_TARGETS } from './constants';
 
 type AuthenticatedRequest = Request & {
   user?: {
@@ -17,6 +18,27 @@ type AuthenticatedRequest = Request & {
     email?: string;
     name?: string;
   };
+};
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Normalize releaseSchedule.releaseFrequency to uppercase
+ * Frontend may send lowercase values, but backend expects uppercase enum values
+ */
+const normalizeReleaseSchedule = (data: any): any => {
+  if (data?.releaseSchedule?.releaseFrequency && typeof data.releaseSchedule.releaseFrequency === 'string') {
+    return {
+      ...data,
+      releaseSchedule: {
+        ...data.releaseSchedule,
+        releaseFrequency: data.releaseSchedule.releaseFrequency.toUpperCase()
+      }
+    };
+  }
+  return data;
 };
 
 // ============================================================================
@@ -31,9 +53,12 @@ type AuthenticatedRequest = Request & {
 const createConfigHandler = (service: ReleaseConfigService) =>
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const requestBody: CreateReleaseConfigRequest = req.body;
+      const rawRequestBody: CreateReleaseConfigRequest = req.body;
+      // Normalize releaseSchedule.releaseFrequency to uppercase
+      const requestBody = normalizeReleaseSchedule(rawRequestBody);
       const { tenantId } = req.params;
       const currentUserId = req.user?.id || 'default-user';
+      console.log('createConfigHandler requestBody:', requestBody);
 
       // Validate required fields
       if (!requestBody.name) {
@@ -58,9 +83,6 @@ const createConfigHandler = (service: ReleaseConfigService) =>
       }
 
       // Validate each platform-target pair
-      const validPlatforms = ['IOS', 'ANDROID', 'WEB'];
-      const validTargets = ['WEB', 'PLAY_STORE', 'APP_STORE'];
-      
       for (const pt of requestBody.platformTargets) {
         if (!pt.platform || !pt.target) {
           res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -69,16 +91,20 @@ const createConfigHandler = (service: ReleaseConfigService) =>
           return;
         }
 
-        if (!validPlatforms.includes(pt.platform)) {
+        // Type-safe validation: check if platform is in valid list
+        const isValidPlatform = VALID_PLATFORMS.includes(pt.platform as PlatformTargetMappingAttributes['platform']);
+        if (!isValidPlatform) {
           res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('platformTargets', `Invalid platform: ${pt.platform}. Must be one of: ${validPlatforms.join(', ')}`)
+            validationErrorResponse('platformTargets', `Invalid platform: ${pt.platform}. Must be one of: ${VALID_PLATFORMS.join(', ')}`)
           );
           return;
         }
 
-        if (!validTargets.includes(pt.target)) {
+        // Type-safe validation: check if target is in valid list
+        const isValidTarget = VALID_TARGETS.includes(pt.target as PlatformTargetMappingAttributes['target']);
+        if (!isValidTarget) {
           res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('platformTargets', `Invalid target: ${pt.target}. Must be one of: ${validTargets.join(', ')}`)
+            validationErrorResponse('platformTargets', `Invalid target: ${pt.target}. Must be one of: ${VALID_TARGETS.join(', ')}`)
           );
           return;
         }
@@ -94,6 +120,16 @@ const createConfigHandler = (service: ReleaseConfigService) =>
       
       if (!result.success) {
         const errorResult = result as { success: false; error: any };
+        
+        // Log full error details for debugging
+        console.error('[createConfigHandler] Error response:', JSON.stringify({
+          tenantId,
+          errorType: errorResult.error.type,
+          errorMessage: errorResult.error.message,
+          errorCode: errorResult.error.code,
+          errorDetails: errorResult.error.details
+        }, null, 2));
+        
         res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
           error: errorResult.error.message,
@@ -179,9 +215,12 @@ const updateConfigHandler = (service: ReleaseConfigService) =>
     try {
       const { configId } = req.params;
       // Strip tenantId from update data - configs cannot change tenant (defense in depth)
-      const { tenantId: _ignoredTenantId, ...updateData } = req.body;
+      const { tenantId: _ignoredTenantId, ...rawUpdateData } = req.body;
+      // Normalize releaseSchedule.releaseFrequency to uppercase
+      const updateData = normalizeReleaseSchedule(rawUpdateData);
       const currentUserId = req.user?.id;
-
+      console.log('updateConfigHandler updateData:', updateData);
+      
       if (!currentUserId) {
         res.status(HTTP_STATUS.UNAUTHORIZED).json(
           errorResponse(new Error('User ID not found'), 'Authentication required')
@@ -199,6 +238,16 @@ const updateConfigHandler = (service: ReleaseConfigService) =>
         const statusCode = errorType === 'NOT_FOUND' 
           ? HTTP_STATUS.NOT_FOUND 
           : HTTP_STATUS.BAD_REQUEST;
+        
+        // Log full error details for debugging
+        console.error('[updateConfigHandler] Error response:', JSON.stringify({
+          configId,
+          errorType,
+          statusCode,
+          errorMessage: result.error.message,
+          errorCode: result.error.code,
+          errorDetails: result.error.details
+        }, null, 2));
         
         res.status(statusCode).json({
           success: false,

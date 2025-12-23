@@ -20,6 +20,10 @@ import type {
 } from '~types/release-schedules';
 import { validateScheduling } from './release-config.validation';
 import { IntegrationConfigMapper } from './integration-config.mapper';
+import {
+  TARGET_TO_STORE_TYPE,
+  TARGETS_BYPASS_STORE_INTEGRATION_VALIDATION
+} from './release-config.constants';
 import type { TestManagementConfigService } from '~services/integrations/test-management/test-management-config';
 import type { CreateTestManagementConfigDto } from '~types/integrations/test-management/test-management-config';
 import type { CICDConfigService } from '../integrations/ci-cd/config/config.service';
@@ -27,6 +31,9 @@ import type { CommConfigService } from '../integrations/comm/comm-config/comm-co
 import type { ProjectManagementConfigService } from '~services/integrations/project-management/configuration';
 import type { ReleaseConfigActivityLogService } from './release-config-activity-log.service';
 import type { ReleaseScheduleService } from '~services/release-schedules';
+import type { StoreIntegrationController } from '~storage/integrations/store/store-controller';
+import { StoreType, IntegrationStatus } from '~storage/integrations/store/store-types';
+import type { FieldValidationError } from '~types/release-configs';
 
 shortid.characters('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-');
 
@@ -43,7 +50,8 @@ export class ReleaseConfigService {
     private readonly commConfigService?: CommConfigService,
     private readonly projectManagementConfigService?: ProjectManagementConfigService,
     private readonly activityLogService?: ReleaseConfigActivityLogService,
-    private readonly activityLogRepository?: ReleaseConfigActivityLogRepository
+    private readonly activityLogRepository?: ReleaseConfigActivityLogRepository,
+    private readonly storeIntegrationController?: StoreIntegrationController
   ) {}
 
   /**
@@ -108,12 +116,79 @@ export class ReleaseConfigService {
       }
     }
 
+    // Validate store integrations for platform-targets
+    if (this.storeIntegrationController && requestData.platformTargets) {
+      const storeValidation = await this.validateStoreIntegrations(
+        requestData.tenantId,
+        requestData.platformTargets
+      );
+      if (!storeValidation.isValid) {
+        validationResults.push({
+          integration: 'storeIntegration',
+          isValid: false,
+          errors: storeValidation.errors
+        });
+      }
+    }
+
     // Filter only invalid integrations
     const invalidIntegrations = validationResults.filter(result => !result.isValid);
 
     return {
       isValid: invalidIntegrations.length === 0,
       invalidIntegrations
+    };
+  }
+
+  /**
+   * Validate that store integrations exist for all platform-target combinations
+   * that require store integrations (APP_STORE, PLAY_STORE).
+   * WEB targets don't require store integrations.
+   */
+  private async validateStoreIntegrations(
+    tenantId: string,
+    platformTargets: Array<{ platform: string; target: string }>
+  ): Promise<{ isValid: boolean; errors: FieldValidationError[] }> {
+    const errors: FieldValidationError[] = [];
+
+    // Get all VERIFIED store integrations for this tenant
+    const allStoreIntegrations = await this.storeIntegrationController!.findAll({
+      tenantId,
+      status: IntegrationStatus.VERIFIED
+    });
+
+    // Check each platform-target that requires a store integration
+    for (let i = 0; i < platformTargets.length; i++) {
+      const pt = platformTargets[i];
+      const { platform, target } = pt;
+
+      // Skip targets that don't require store integration validation
+      if (TARGETS_BYPASS_STORE_INTEGRATION_VALIDATION.includes(target)) {
+        continue;
+      }
+
+      // Get required storeType for this target
+      const requiredStoreType = TARGET_TO_STORE_TYPE[target];
+
+      // Check if there's a matching store integration
+      // Note: All integrations are already VERIFIED (filtered at DB level)
+      const hasMatchingIntegration = allStoreIntegrations.some(
+        integration =>
+          integration.storeType === requiredStoreType &&
+          integration.platform === platform.toUpperCase()
+      );
+
+      if (!hasMatchingIntegration) {
+        errors.push({
+          field: `platformTargets[${i}]`,
+          message: `No verified ${requiredStoreType} integration found for ${platform.toUpperCase()} platform. Please set up the store integration first.`
+        });
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
     };
   }
 
@@ -233,8 +308,35 @@ export class ReleaseConfigService {
       }
     }
 
+    // Validate store integrations if platformTargets are being updated
+    if (this.storeIntegrationController && 'platformTargets' in updateData && updateData.platformTargets) {
+      const storeValidation = await this.validateStoreIntegrations(
+        tenantId,
+        updateData.platformTargets
+      );
+      if (!storeValidation.isValid) {
+        validationResults.push({
+          integration: 'storeIntegration',
+          isValid: false,
+          errors: storeValidation.errors
+        });
+      }
+    }
+
     // Filter only invalid integrations
     const invalidIntegrations = validationResults.filter(result => !result.isValid);
+
+    // Log validation failures for debugging
+    if (invalidIntegrations.length > 0) {
+      console.error('[validateIntegrationsForUpdate] Validation failed:', JSON.stringify({
+        configId: existingConfig.id,
+        tenantId,
+        invalidIntegrations: invalidIntegrations.map(inv => ({
+          integration: inv.integration,
+          errors: inv.errors
+        }))
+      }, null, 2));
+    }
 
     return {
       isValid: invalidIntegrations.length === 0,
@@ -339,6 +441,17 @@ export class ReleaseConfigService {
     const validationResult = await this.validateAllIntegrations(requestData, currentUserId);
     
     if (!validationResult.isValid) {
+      // Log detailed validation errors for debugging
+      console.error('[createConfig] Validation failed:', JSON.stringify({
+        tenantId: requestData.tenantId,
+        configName: requestData.name,
+        invalidIntegrations: validationResult.invalidIntegrations.map(inv => ({
+          integration: inv.integration,
+          errorCount: inv.errors?.length || 0,
+          errors: inv.errors
+        }))
+      }, null, 2));
+
       return {
         success: false,
         error: {
@@ -590,6 +703,18 @@ export class ReleaseConfigService {
     );
 
     if (!validationResult.isValid) {
+      // Log detailed validation errors for debugging
+      console.error('[updateConfig] Validation failed for config:', JSON.stringify({
+        configId: id,
+        tenantId: existingConfig.tenantId,
+        invalidIntegrations: validationResult.invalidIntegrations.map(inv => ({
+          integration: inv.integration,
+          errorCount: inv.errors?.length || 0,
+          errors: inv.errors
+        })),
+        updateDataKeys: Object.keys(data)
+      }, null, 2));
+
       return {
         success: false,
         error: {

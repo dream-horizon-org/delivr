@@ -1180,7 +1180,8 @@ export class S3Storage implements storage.Storage {
             this.commConfigService,
             this.projectManagementConfigService,
             this.releaseConfigActivityLogService,
-            this.releaseConfigActivityLogRepository
+            this.releaseConfigActivityLogRepository,
+            this.storeIntegrationController
           );
           console.log("Release Config Service initialized");
           

@@ -14,7 +14,8 @@ export {
   parseTimeString,
   toUTCISOString,
   toDateString,
-  parseISODate
+  parseISODate,
+  getCurrentDateInTimezone
 } from './working-days.utils';
 
 // Version Utilities
