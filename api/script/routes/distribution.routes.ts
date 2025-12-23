@@ -344,8 +344,12 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * - Adds action history if rejected
    * - Deletes Cronicle job when terminal state reached (LIVE or REJECTED)
    * 
+   * Path Parameters:
+   * - submissionId: string (required) - Submission ID
+   * 
    * Query Parameters:
-   * - platform: string (required) - "IOS" or "ANDROID"
+   * - platform: string (required) - "IOS" 
+   * - storeType: string (required) - "APP_STORE" 
    * 
    * Response:
    * - status: 'synced' | 'not_found'

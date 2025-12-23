@@ -38,6 +38,7 @@ import type { CronicleService } from '~services/cronicle';
 import type { CronJobService } from '../release/cron-job/cron-job.service';
 import type { ReleaseNotificationService } from '~services/release-notification';
 import { NotificationType } from '~types/release-notification';
+import { getAccountDetails } from '~utils/account.utils';
 
 /**
  * Submission response format for API
@@ -261,6 +262,21 @@ export class SubmissionService {
     private readonly cronJobService?: CronJobService,
     private readonly releaseNotificationService?: ReleaseNotificationService
   ) {}
+
+  /**
+   * Get user email from user ID
+   * Helper method to look up email for notifications
+   */
+  private async getUserEmail(userId: string): Promise<string | null> {
+    try {
+      const storage = getStorage();
+      const accountDetails = await getAccountDetails(storage, userId, 'SubmissionService');
+      return accountDetails?.email ?? null;
+    } catch (error) {
+      console.error(`[SubmissionService] Failed to get email for user ${userId}:`, error);
+      return null;
+    }
+  }
 
   /**
    * Get submission details by ID
@@ -1346,16 +1362,23 @@ export class SubmissionService {
       try {
         console.log(`[SubmissionService] Sending iOS App Store submission notification for release ${distribution.releaseId}`);
         
-        await this.releaseNotificationService.notify({
-          type: NotificationType.IOS_APPSTORE_BUILD_SUBMITTED,
-          tenantId: distribution.tenantId,
-          releaseId: distribution.releaseId,
-          version: finalSubmission.version,
-          testflightBuild: finalSubmission.testflightNumber,
-          submittedBy: submittedBy
-        });
+        // Get user email from ID for notification
+        const submitterEmail = await this.getUserEmail(submittedBy);
         
-        console.log(`[SubmissionService] iOS App Store submission notification sent successfully`);
+        if (submitterEmail) {
+          await this.releaseNotificationService.notify({
+            type: NotificationType.IOS_APPSTORE_BUILD_SUBMITTED,
+            tenantId: distribution.tenantId,
+            releaseId: distribution.releaseId,
+            version: finalSubmission.version,
+            testflightBuild: finalSubmission.testflightNumber,
+            submittedBy: submitterEmail
+          });
+          
+          console.log(`[SubmissionService] iOS App Store submission notification sent successfully`);
+        } else {
+          console.warn('[SubmissionService] Skipping notification: submitter email not found for user ID:', submittedBy);
+        }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error('[SubmissionService] Failed to send iOS submission notification:', errorMessage);
@@ -1641,16 +1664,23 @@ export class SubmissionService {
         try {
           console.log(`[SubmitAndroidSubmission] Sending Android Play Store submission notification for release ${distribution.releaseId}`);
           
-          await this.releaseNotificationService.notify({
-            type: NotificationType.ANDROID_PLAYSTORE_BUILD_SUBMITTED,
-            tenantId: distribution.tenantId,
-            releaseId: distribution.releaseId,
-            version: finalSubmission.version,
-            versionCode: String(finalSubmission.versionCode),
-            submittedBy: submittedBy
-          });
+          // Get user email from ID for notification
+          const submitterEmail = await this.getUserEmail(submittedBy);
           
-          console.log(`[SubmitAndroidSubmission] Android Play Store submission notification sent successfully`);
+          if (submitterEmail) {
+            await this.releaseNotificationService.notify({
+              type: NotificationType.ANDROID_PLAYSTORE_BUILD_SUBMITTED,
+              tenantId: distribution.tenantId,
+              releaseId: distribution.releaseId,
+              version: finalSubmission.version,
+              versionCode: String(finalSubmission.versionCode),
+              submittedBy: submitterEmail
+            });
+            
+            console.log(`[SubmitAndroidSubmission] Android Play Store submission notification sent successfully`);
+          } else {
+            console.warn('[SubmitAndroidSubmission] Skipping notification: submitter email not found for user ID:', submittedBy);
+          }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           console.error('[SubmitAndroidSubmission] Failed to send Android submission notification:', errorMessage);
@@ -2064,16 +2094,23 @@ export class SubmissionService {
       try {
         console.log(`[SubmissionService] Sending iOS App Store resubmission notification for release ${distribution.releaseId}`);
         
-        await this.releaseNotificationService.notify({
-          type: NotificationType.IOS_APPSTORE_BUILD_RESUBMITTED,
-          tenantId: distribution.tenantId,
-          releaseId: distribution.releaseId,
-          version: finalSubmission.version,
-          testflightBuild: finalSubmission.testflightNumber,
-          submittedBy: submittedBy
-        });
+        // Get user email from ID for notification
+        const submitterEmail = await this.getUserEmail(submittedBy);
         
-        console.log(`[SubmissionService] iOS App Store resubmission notification sent successfully`);
+        if (submitterEmail) {
+          await this.releaseNotificationService.notify({
+            type: NotificationType.IOS_APPSTORE_BUILD_RESUBMITTED,
+            tenantId: distribution.tenantId,
+            releaseId: distribution.releaseId,
+            version: finalSubmission.version,
+            testflightBuild: finalSubmission.testflightNumber,
+            submittedBy: submitterEmail
+          });
+          
+          console.log(`[SubmissionService] iOS App Store resubmission notification sent successfully`);
+        } else {
+          console.warn('[SubmissionService] Skipping notification: submitter email not found for user ID:', submittedBy);
+        }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error('[SubmissionService] Failed to send iOS resubmission notification:', errorMessage);
@@ -2192,15 +2229,28 @@ export class SubmissionService {
       `Will mark as inactive with status ${ANDROID_SUBMISSION_STATUS.SUSPENDED} and create new submission.`
     );
 
-    // Step 3: Mark old submission as inactive and set status to SUSPENDED
+    // Step 3: Stop old Cronicle job if it exists
+    if (activeSubmission.cronicleJobId) {
+      console.log(`[SubmissionService] Step 3: Stopping Cronicle job ${activeSubmission.cronicleJobId} for old submission ${activeSubmission.id}`);
+      try {
+        await this.deleteSubmissionJob(activeSubmission.id, activeSubmission.cronicleJobId);
+        console.log(`[SubmissionService] Step 3 completed: Stopped Cronicle job ${activeSubmission.cronicleJobId}`);
+      } catch (error) {
+        console.error(`[SubmissionService] Failed to stop Cronicle job ${activeSubmission.cronicleJobId}:`, error);
+        // Continue even if job deletion fails
+      }
+    }
+
+    // Step 4: Mark old submission as inactive and set status to SUSPENDED
     await this.androidSubmissionRepository.update(activeSubmission.id, {
       isActive: false,
-      status: ANDROID_SUBMISSION_STATUS.SUSPENDED
+      status: ANDROID_SUBMISSION_STATUS.SUSPENDED,
+      cronicleJobId: null // Clear the job ID
     });
 
-    console.log(`[SubmissionService] Step 3 completed: Marked old Android submission ${activeSubmission.id} as inactive with status ${ANDROID_SUBMISSION_STATUS.SUSPENDED}`);
+    console.log(`[SubmissionService] Step 4 completed: Marked old Android submission ${activeSubmission.id} as inactive with status ${ANDROID_SUBMISSION_STATUS.SUSPENDED}`);
 
-      // Step 4: Get store integration to get packageName and credentials
+      // Step 5: Get store integration to get packageName and credentials
       const storeIntegrationController = getStoreIntegrationController();
       const integrations = await storeIntegrationController.findAll({
         tenantId,
@@ -2228,8 +2278,8 @@ export class SubmissionService {
 
       const apiBaseUrl = PLAY_STORE_UPLOAD_CONSTANTS.API_BASE_URL;
 
-      // Step 5: Check for active releases in production track and mark as SUSPENDED
-      console.log(`[SubmissionService] Step 5: Checking for active releases in production track`);
+      // Step 6: Check for active releases in production track and mark as SUSPENDED
+      console.log(`[SubmissionService] Step 6: Checking for active releases in production track`);
       
       // Create edit to check for active releases
       const createEditUrlForCheck = `${apiBaseUrl}/applications/${packageName}/edits`;
@@ -2265,7 +2315,7 @@ export class SubmissionService {
           // Store the full production track state response
           productionTrackState = await productionStateResponse.json();
           
-          console.log(`[SubmissionService] Step 5: Fetched production track state`);
+          console.log(`[SubmissionService] Step 6: Fetched production track state`);
           console.log(`[SubmissionService] Response body:`, JSON.stringify(productionTrackState, null, 2));
           
           // Remove the release containing previousVersionCode
@@ -2283,11 +2333,11 @@ export class SubmissionService {
             releases: filteredReleases
           };
           
-          console.log(`[SubmissionService] Step 5 completed: Removed release with versionCode ${previousVersionCode} from track state`);
+          console.log(`[SubmissionService] Step 6 completed: Removed release with versionCode ${previousVersionCode} from track state`);
           console.log(`[SubmissionService] Remaining releases:`, JSON.stringify(filteredReleases, null, 2));
         } else {
           // If we can't get the track state, we'll need to fetch it later
-          console.warn(`[SubmissionService] Step 5: Could not fetch production track state, will fetch later`);
+          console.warn(`[SubmissionService] Step 6: Could not fetch production track state, will fetch later`);
         }
       } finally {
         // Always delete the check edit
@@ -2304,8 +2354,8 @@ export class SubmissionService {
         }
       }
 
-      // Step 6: Upload AAB to S3 first
-      console.log(`[SubmissionService] Step 6: Uploading AAB to S3`);
+      // Step 7: Upload AAB to S3 first
+      console.log(`[SubmissionService] Step 7: Uploading AAB to S3`);
       const storage = getStorage();
       const isS3Storage = storage instanceof S3Storage;
       
@@ -2333,10 +2383,10 @@ export class SubmissionService {
 
       // Generate S3 URI
       artifactPath = buildS3Uri(bucketName, s3Key);
-      console.log(`[SubmissionService] Step 6 completed: AAB uploaded to S3 at ${artifactPath}`);
+      console.log(`[SubmissionService] Step 7 completed: AAB uploaded to S3 at ${artifactPath}`);
 
-      // Step 7: Create new submission record
-      console.log(`[SubmissionService] Step 7: Creating new Android submission record`);
+      // Step 8: Create new submission record
+      console.log(`[SubmissionService] Step 8: Creating new Android submission record`);
       const newSubmissionId = uuidv4();
       
       // Extract versionCode from AAB if not provided (will be updated after Google API call)
@@ -2358,10 +2408,10 @@ export class SubmissionService {
         isActive: true,
       });
 
-      console.log(`[SubmissionService] Step 7 completed: Created new Android submission ${newSubmissionId}`);
+      console.log(`[SubmissionService] Step 8 completed: Created new Android submission ${newSubmissionId}`);
 
-      // Step 8: Create edit session for resubmission
-      console.log(`[SubmissionService] Step 8: Creating edit session for resubmission`);
+      // Step 9: Create edit session for resubmission
+      console.log(`[SubmissionService] Step 9: Creating edit session for resubmission`);
       console.log(`[SubmissionService] Request body: {}`);
       
       const createEditUrl = `${apiBaseUrl}/applications/${packageName}/edits`;
@@ -2382,11 +2432,11 @@ export class SubmissionService {
       const editData = await createEditResponse.json();
       editId = editData.id;
 
-      console.log(`[SubmissionService] Step 8 completed: Edit session created with ID ${editId}`);
+      console.log(`[SubmissionService] Step 9 completed: Edit session created with ID ${editId}`);
       console.log(`[SubmissionService] Response body:`, JSON.stringify(editData, null, 2));
 
-      // Step 9: Upload bundle to Google Play
-      console.log(`[SubmissionService] Step 9: Uploading AAB bundle to Google Play`);
+      // Step 10: Upload bundle to Google Play
+      console.log(`[SubmissionService] Step 10: Uploading AAB bundle to Google Play`);
       const uploadBundleUrl = `https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/${packageName}/edits/${editId}/bundles?uploadType=media`;
       
       const uploadBundleResponse = await fetch(uploadBundleUrl, {
@@ -2410,7 +2460,7 @@ export class SubmissionService {
         throw new Error('Failed to get version code from bundle upload response');
       }
 
-      console.log(`[SubmissionService] Step 9 completed: Bundle uploaded with versionCode ${uploadedVersionCode}`);
+      console.log(`[SubmissionService] Step 10 completed: Bundle uploaded with versionCode ${uploadedVersionCode}`);
       console.log(`[SubmissionService] Response body:`, JSON.stringify(bundleData, null, 2));
 
       // Update submission with actual versionCode
@@ -2418,9 +2468,9 @@ export class SubmissionService {
         versionCode: uploadedVersionCode,
       });
 
-      // Step 10: Update track (assigning the release)
-      // Using stored productionTrackState from Step 5 (already has previousVersionCode release removed)
-      console.log(`[SubmissionService] Step 10: Updating production track with new release`);
+      // Step 11: Update track (assigning the release)
+      // Using stored productionTrackState from Step 6 (already has previousVersionCode release removed)
+      console.log(`[SubmissionService] Step 11: Updating production track with new release`);
       
       if (!productionTrackState) {
         throw new Error('Production track state not available. Cannot update track without track state data.');
@@ -2551,7 +2601,30 @@ export class SubmissionService {
 
       console.log(`[SubmissionService] Step 14 completed: Submission status updated to SUBMITTED`);
 
-      // Step 15: Get full submission details for response
+      // Step 15: Create Cronicle job for status sync (if Cronicle is available)
+      if (this.cronicleService) {
+        try {
+          const cronicleJobId = await this.createAndroidSubmissionJob(
+            newSubmissionId,
+            data.version
+          );
+
+          // Store job ID and creation date in database
+          const cronicleCreatedDate = new Date();
+          
+          await this.androidSubmissionRepository.update(newSubmissionId, {
+            cronicleJobId,
+            cronicleCreatedDate
+          });
+
+          console.log(`[SubmissionService] Step 15 completed: Created Cronicle job ${cronicleJobId} for new submission ${newSubmissionId} (created: ${cronicleCreatedDate.toISOString()})`);
+        } catch (error) {
+          console.error('[SubmissionService] Failed to create Cronicle job for new submission:', error);
+          // Don't fail the submission if job creation fails
+        }
+      }
+
+      // Step 16: Get full submission details for response
       const finalSubmission = await this.androidSubmissionRepository.findById(newSubmissionId);
       if (!finalSubmission) {
         throw new Error('Failed to retrieve created submission');
@@ -3922,17 +3995,24 @@ export class SubmissionService {
       try {
         console.log(`[SubmissionService] Sending iOS App Store cancellation notification for release ${distribution.releaseId}`);
         
-        await this.releaseNotificationService.notify({
-          type: NotificationType.IOS_APPSTORE_BUILD_CANCELLED,
-          tenantId: distribution.tenantId,
-          releaseId: distribution.releaseId,
-          version: updatedSubmission.version,
-          testflightBuild: updatedSubmission.testflightNumber,
-          cancelledBy: createdBy,
-          reason: reason
-        });
+        // Get user email from ID for notification
+        const cancellerEmail = await this.getUserEmail(createdBy);
         
-        console.log(`[SubmissionService] iOS App Store cancellation notification sent successfully`);
+        if (cancellerEmail) {
+          await this.releaseNotificationService.notify({
+            type: NotificationType.IOS_APPSTORE_BUILD_CANCELLED,
+            tenantId: distribution.tenantId,
+            releaseId: distribution.releaseId,
+            version: updatedSubmission.version,
+            testflightBuild: updatedSubmission.testflightNumber,
+            cancelledBy: cancellerEmail,
+            reason: reason
+          });
+          
+          console.log(`[SubmissionService] iOS App Store cancellation notification sent successfully`);
+        } else {
+          console.warn('[SubmissionService] Skipping notification: canceller email not found for user ID:', createdBy);
+        }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error('[SubmissionService] Failed to send iOS cancellation notification:', errorMessage);
@@ -4337,7 +4417,7 @@ export class SubmissionService {
       timezone: 'UTC',
       params: {
         method: 'POST',
-        url: this.cronicleService.buildDirectUrl(`/api/v1/submissions/${submissionId}/status?platform=IOS`),
+        url: this.cronicleService.buildDirectUrl(`/api/v1/submissions/${submissionId}/status?platform=IOS&storeType=APP_STORE`),
         body: {}
       },
       notes: `Auto-generated job for iOS submission ${submissionId}. Checks status every 4 hours. Stops when LIVE or REJECTED.`,
@@ -4567,32 +4647,48 @@ export class SubmissionService {
           else if (newStatus === ANDROID_SUBMISSION_STATUS.USER_ACTION_PENDING) {
             console.log(`[updateAndroidSubmissionStatus] Sending Android Play Store USER ACTION PENDING notification for release ${distribution.releaseId}`);
             
-            await this.releaseNotificationService.notify({
-              type: NotificationType.ANDROID_PLAYSTORE_USER_ACTION_PENDING,
-              tenantId: distribution.tenantId,
-              releaseId: distribution.releaseId,
-              version: submission.version,
-              versionCode: String(submission.versionCode),
-              submittedBy: submission.submittedBy ?? 'Unknown'
-            });
+            // Get user email from ID for notification (submittedBy is already an ID in DB)
+            const submittedById = submission.submittedBy;
+            const submitterEmail = submittedById ? await this.getUserEmail(submittedById) : null;
             
-            console.log(`[updateAndroidSubmissionStatus] Android Play Store USER ACTION PENDING notification sent successfully`);
+            if (!submitterEmail) {
+              console.warn('[updateAndroidSubmissionStatus] Cannot send USER ACTION PENDING notification: submitter email not found for user ID:', submittedById);
+            } else {
+              await this.releaseNotificationService.notify({
+                type: NotificationType.ANDROID_PLAYSTORE_USER_ACTION_PENDING,
+                tenantId: distribution.tenantId,
+                releaseId: distribution.releaseId,
+                version: submission.version,
+                versionCode: String(submission.versionCode),
+                submittedBy: submitterEmail
+              });
+              
+              console.log(`[updateAndroidSubmissionStatus] Android Play Store USER ACTION PENDING notification sent successfully`);
+            }
           }
           
           // Android Suspended
           else if (newStatus === ANDROID_SUBMISSION_STATUS.SUSPENDED) {
             console.log(`[updateAndroidSubmissionStatus] Sending Android Play Store SUSPENDED notification for release ${distribution.releaseId}`);
             
-            await this.releaseNotificationService.notify({
-              type: NotificationType.ANDROID_PLAYSTORE_SUSPENDED,
-              tenantId: distribution.tenantId,
-              releaseId: distribution.releaseId,
-              version: submission.version,
-              versionCode: String(submission.versionCode),
-              submittedBy: submission.submittedBy ?? 'Unknown'
-            });
+            // Get user email from ID for notification (submittedBy is already an ID in DB)
+            const submittedById = submission.submittedBy;
+            const submitterEmail = submittedById ? await this.getUserEmail(submittedById) : null;
             
-            console.log(`[updateAndroidSubmissionStatus] Android Play Store SUSPENDED notification sent successfully`);
+            if (!submitterEmail) {
+              console.warn('[updateAndroidSubmissionStatus] Cannot send SUSPENDED notification: submitter email not found for user ID:', submittedById);
+            } else {
+              await this.releaseNotificationService.notify({
+                type: NotificationType.ANDROID_PLAYSTORE_SUSPENDED,
+                tenantId: distribution.tenantId,
+                releaseId: distribution.releaseId,
+                version: submission.version,
+                versionCode: String(submission.versionCode),
+                submittedBy: submitterEmail
+              });
+              
+              console.log(`[updateAndroidSubmissionStatus] Android Play Store SUSPENDED notification sent successfully`);
+            }
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
