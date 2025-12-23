@@ -330,12 +330,58 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
           submittedBy
         );
       } else {
-        // Android resubmission - not yet implemented
-        res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
-          error: "Not implemented yet",
-          message: "Android resubmission will be implemented later"
-        });
-        return;
+        // Android resubmission
+        const { version, versionCode, rolloutPercent, inAppPriority, releaseNotes } = req.body;
+        const aabFile = (req as any).file;
+
+        // Validate Android fields
+        if (!version || typeof version !== 'string') {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            validationErrorResponse('version', 'version is required')
+          );
+          return;
+        }
+
+        if (!aabFile || !aabFile.buffer) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            validationErrorResponse('aabFile', 'aabFile is required')
+          );
+          return;
+        }
+
+        if (typeof rolloutPercent !== 'number' || rolloutPercent < 0 || rolloutPercent > 100) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            validationErrorResponse('rolloutPercent', 'rolloutPercent must be a number between 0 and 100')
+          );
+          return;
+        }
+
+        if (typeof inAppPriority !== 'number' || inAppPriority < 0 || inAppPriority > 5) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            validationErrorResponse('inAppPriority', 'inAppPriority must be a number between 0 and 5')
+          );
+          return;
+        }
+
+        if (!releaseNotes || typeof releaseNotes !== 'string') {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            validationErrorResponse('releaseNotes', 'releaseNotes is required')
+          );
+          return;
+        }
+
+        result = await service.createNewAndroidSubmission(
+          distributionId,
+          {
+            version,
+            versionCode: versionCode ? Number(versionCode) : undefined,
+            aabFile: aabFile.buffer,
+            rolloutPercent,
+            inAppPriority,
+            releaseNotes
+          },
+          submittedBy
+        );
       }
 
       res.status(HTTP_STATUS.OK).json(
