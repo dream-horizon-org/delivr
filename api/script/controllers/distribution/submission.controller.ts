@@ -80,12 +80,12 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
       const { submissionId } = req.params;
       const { platform } = req.query;
       
-      // Get user email from authentication - required
-      const submittedBy = req.user?.email;
+      // Get user ID from authentication - required
+      const submittedBy = req.user?.id;
       if (!submittedBy) {
         res.status(HTTP_STATUS.UNAUTHORIZED).json(
           errorResponse(
-            new Error('User email not found'),
+            new Error('User ID not found'),
             'Authentication required'
           )
         );
@@ -248,12 +248,12 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
       const { distributionId } = req.params;
       const { platform } = req.body;
       
-      // Get user email from authentication - required
-      const submittedBy = req.user?.email;
+      // Get user ID from authentication - required
+      const submittedBy = req.user?.id;
       if (!submittedBy) {
         res.status(HTTP_STATUS.UNAUTHORIZED).json(
           errorResponse(
-            new Error('User email not found'),
+            new Error('User ID not found'),
             'Authentication required'
           )
         );
@@ -415,12 +415,12 @@ const pauseRolloutHandler = (service: SubmissionService) =>
       const { platform } = req.query;
       const { reason } = req.body;
       
-      // Get user email from authentication - required
-      const createdBy = req.user?.email;
+      // Get user ID from authentication - required
+      const createdBy = req.user?.id;
       if (!createdBy) {
         res.status(HTTP_STATUS.UNAUTHORIZED).json(
           errorResponse(
-            new Error('User email not found'),
+            new Error('User ID not found'),
             'Authentication required'
           )
         );
@@ -505,12 +505,12 @@ const resumeRolloutHandler = (service: SubmissionService) =>
       const { submissionId } = req.params;
       const { platform } = req.query;
       
-      // Get user email from authentication - required
-      const createdBy = req.user?.email;
+      // Get user ID from authentication - required
+      const createdBy = req.user?.id;
       if (!createdBy) {
         res.status(HTTP_STATUS.UNAUTHORIZED).json(
           errorResponse(
-            new Error('User email not found'),
+            new Error('User ID not found'),
             'Authentication required'
           )
         );
@@ -670,12 +670,12 @@ const cancelSubmissionHandler = (service: SubmissionService) =>
       const { platform } = req.query;
       const { reason } = req.body;
       
-      // Get user email from authentication - required
-      const createdBy = req.user?.email;
+      // Get user ID from authentication - required
+      const createdBy = req.user?.id;
       if (!createdBy) {
         res.status(HTTP_STATUS.UNAUTHORIZED).json(
           errorResponse(
-            new Error('User email not found'),
+            new Error('User ID not found'),
             'Authentication required'
           )
         );
@@ -760,7 +760,7 @@ const SubmissionStatusHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { submissionId } = req.params;
-      const { platform } = req.query;
+      const { platform, storeType } = req.query;
 
       if (!submissionId || typeof submissionId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -782,6 +782,23 @@ const SubmissionStatusHandler = (service: SubmissionService) =>
 
       const platformUpper = platform.toUpperCase();
 
+      // Validate storeType parameter
+      if (!storeType || typeof storeType !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('storeType', 'storeType query parameter is required')
+        );
+        return;
+      }
+
+      const storeTypeUpper = storeType.toUpperCase();
+
+      if (storeTypeUpper !== 'APP_STORE') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('storeType', 'storeType must be APP_STORE')
+        );
+        return;
+      }
+
       if (platformUpper !== 'IOS' ) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('platform', 'platform must be IOS ')
@@ -789,7 +806,7 @@ const SubmissionStatusHandler = (service: SubmissionService) =>
         return;
       }
 
-      console.log(`[SubmissionStatus] Webhook received for ${platformUpper} submission ${submissionId}`);
+      console.log(`[SubmissionStatus] Webhook received for ${platformUpper} submission ${submissionId} (storeType: ${storeTypeUpper})`);
 
       let result;
 

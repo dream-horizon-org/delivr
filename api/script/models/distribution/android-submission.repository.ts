@@ -124,6 +124,8 @@ export class AndroidSubmissionBuildRepository {
       ...(data.rolloutPercentage !== undefined && { rolloutPercentage: data.rolloutPercentage }),
       ...(data.submittedBy !== undefined && { submittedBy: data.submittedBy }),
       ...(data.isActive !== undefined && { isActive: data.isActive }),
+      ...(data.cronicleJobId !== undefined && { cronicleJobId: data.cronicleJobId }),
+      ...(data.cronicleCreatedDate !== undefined && { cronicleCreatedDate: data.cronicleCreatedDate }),
       ...(data.submittedAt !== undefined && { submittedAt: data.submittedAt })
     });
 
