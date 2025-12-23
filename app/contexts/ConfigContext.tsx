@@ -119,22 +119,6 @@ export function ConfigProvider({
     error: tenantConfigError,
   } = useTenantConfig(tenantId, initialTenantConfig);
   
-  // Log Slack integration when tenantConfig is received
-  useEffect(() => {
-    if (tenantConfig?.releaseManagement?.connectedIntegrations?.COMMUNICATION) {
-      const slackIntegration = tenantConfig.releaseManagement.connectedIntegrations.COMMUNICATION.find(
-        (integration: any) => integration?.providerId?.toLowerCase() === 'slack'
-      );
-      if (slackIntegration) {
-        console.log('[ConfigContext] Slack Integration in tenantConfig:', {
-          slackIntegration,
-          connectedBy: slackIntegration.connectedBy,
-          fullTenantConfig: tenantConfig
-        });
-      }
-    }
-  }, [tenantConfig]);
-  
   // Fetch release configurations (cached)
   const {
     configs: releaseConfigs,
