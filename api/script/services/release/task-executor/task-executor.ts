@@ -863,6 +863,13 @@ export class TaskExecutor {
     for (const mapping of platformMappings) {
       const platformName = mapping.platform;
       
+      // ✅ Idempotency check: Skip if ticket already created for this platform
+      if (mapping.projectManagementRunId) {
+        console.log(`[TaskExecutor] [CREATE_PROJECT_MANAGEMENT_TICKET] Skipping ${platformName} - ticket already exists: ${mapping.projectManagementRunId}`);
+        ticketIds.push(mapping.projectManagementRunId);
+        continue;
+      }
+      
       // Call PM service for this platform
       const results = await this.pmTicketService.createTickets({
         pmConfigId: pmConfigId,
@@ -952,6 +959,13 @@ export class TaskExecutor {
     // Create test run for EACH platform and store result in mapping
     for (const mapping of platformMappings) {
       const platformName = mapping.platform;
+      
+      // ✅ Idempotency check: Skip if test run already created for this platform
+      if (mapping.testManagementRunId) {
+        console.log(`[TaskExecutor] [CREATE_TEST_SUITE] Skipping ${platformName} - test run already exists: ${mapping.testManagementRunId}`);
+        runIds.push(mapping.testManagementRunId);
+        continue;
+      }
       
       // Call service with specific platform filter to avoid creating duplicate runs
       const results = await this.testRunService.createTestRuns({
@@ -1141,6 +1155,21 @@ export class TaskExecutor {
     for (const mapping of platformMappings) {
       const platformName = mapping.platform;
       const targetName = mapping.target;
+
+      // ✅ Idempotency check: Skip if build already uploaded for this platform
+      const existingBuild = await BuildModel.findOne({
+        where: {
+          taskId: task.id,
+          platform: platformName,
+          buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED
+        }
+      });
+
+      if (existingBuild) {
+        console.log(`[TaskExecutor] [TRIGGER_PRE_REGRESSION_BUILDS] Skipping ${platformName} - build already uploaded: ${existingBuild.get('id')}`);
+        buildIds.push(existingBuild.get('id') as string);
+        continue;
+      }
 
       try {
         const result = await this.triggerWorkflowByConfigId(
@@ -1543,6 +1572,21 @@ export class TaskExecutor {
     for (const mapping of platformMappings) {
       const platformName = mapping.platform;
       const targetName = mapping.target;
+
+      // ✅ Idempotency check: Skip if build already uploaded for this platform
+      const existingBuild = await BuildModel.findOne({
+        where: {
+          taskId: task.id,
+          platform: platformName,
+          buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED
+        }
+      });
+
+      if (existingBuild) {
+        console.log(`[TaskExecutor] [TRIGGER_REGRESSION_BUILDS] Skipping ${platformName} - build already uploaded: ${existingBuild.get('id')}`);
+        buildIds.push(existingBuild.get('id') as string);
+        continue;
+      }
 
       try {
         const result = await this.triggerWorkflowByConfigId(
