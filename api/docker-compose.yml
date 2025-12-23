@@ -48,6 +48,7 @@ services:
       - CRONICLE_master=1                    # Force this server to be master
       - CRONICLE_master_lock_mode=1          # Lock as master (prevent failover)
       - CRONICLE_skip_servers=1              # Skip server discovery (single-server mode)
+
       - TZ=Asia/Kolkata
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3012/api/app/ping"]

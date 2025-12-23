@@ -11,10 +11,10 @@
  * scheduler that Cronicle calls every 60 seconds.
  */
 
-import { Router } from 'express';
+import { Request, Response, Router } from 'express';
 import { cronicleAuthMiddleware } from '~middleware/cronicle-auth.middleware';
 import { createCronWebhookController } from '~controllers/release/cron-webhook.controller';
-// Note: GlobalSchedulerService is now accessed from storage instance (migrated from factory)
+import { HTTP_STATUS } from '~constants/http';
 import type { Storage } from '~storage/storage';
 import { hasGlobalSchedulerService, type StorageWithReleaseServices } from '~types/release/storage-with-services.interface';
 
@@ -25,22 +25,31 @@ import { hasGlobalSchedulerService, type StorageWithReleaseServices } from '~typ
 /**
  * Create cron webhook routes
  * 
- * @param storage - Storage instance with Sequelize
+ * @param storage - Storage instance with GlobalSchedulerService
  * @returns Express Router with cron webhook routes
  */
 export const createCronWebhookRoutes = (storage: Storage): Router => {
   const router = Router();
 
-  // ✅ Get GlobalSchedulerService from storage instance (migrated from factory)
-  // Use proper type guard instead of 'as any'
-  if (!hasGlobalSchedulerService(storage)) {
-    console.warn('[Cron Webhook Routes] GlobalSchedulerService not available');
+  // Check if GlobalSchedulerService is available using type guard
+  const hasScheduler = hasGlobalSchedulerService(storage);
+  const schedulerNotAvailable = !hasScheduler;
+
+  if (schedulerNotAvailable) {
+    console.warn('[Cron Webhook Routes] GlobalSchedulerService not available, routes disabled');
+    
+    // Return fallback route that returns error
+    router.post('/internal/cron/releases', cronicleAuthMiddleware,
+      (_req: Request, res: Response) => res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: 'Global scheduler service not configured'
+      })
+    );
     return router;
   }
-  
-  // TypeScript now knows storage is StorageWithReleaseServices
-  const storageWithServices: StorageWithReleaseServices = storage;
-  // ✅ globalSchedulerService is required - actively initialized in aws-storage.ts, no null check needed
+
+  // ✅ Get GlobalSchedulerService from storage (centralized initialization - replaces factory)
+  const storageWithServices = storage as StorageWithReleaseServices;
   const globalSchedulerService = storageWithServices.globalSchedulerService;
 
   // Create controller (handles validation + HTTP concerns)
