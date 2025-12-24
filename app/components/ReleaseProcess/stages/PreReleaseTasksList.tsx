@@ -13,6 +13,7 @@ interface PreReleaseTasksListProps {
   releaseId: string;
   onRetry: (taskId: string) => void;
   uploadedBuilds?: BuildInfo[];
+  isArchived?: boolean;
 }
 
 export function PreReleaseTasksList({
@@ -21,6 +22,7 @@ export function PreReleaseTasksList({
   releaseId,
   onRetry,
   uploadedBuilds = [],
+  isArchived = false,
 }: PreReleaseTasksListProps) {
   return (
     <TasksList
@@ -30,6 +32,7 @@ export function PreReleaseTasksList({
       onRetry={onRetry}
       emptyMessage={PRE_RELEASE_LABELS.NO_TASKS || 'No tasks available'}
       uploadedBuilds={uploadedBuilds}
+      isArchived={isArchived}
     />
   );
 }

@@ -28,8 +28,8 @@ export function WizardNavigation({
       <Group gap="sm">
         {onCancel && (
           <Button
-            variant="subtle"
-            color="gray"
+            variant="default"
+            color="red"
             leftSection={<IconX size={16} />}
             onClick={onCancel}
             disabled={isLoading}

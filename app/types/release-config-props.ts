@@ -287,8 +287,7 @@ export interface SchedulingConfigProps {
 
 export interface ReleaseFrequencySelectorProps {
   frequency: ReleaseFrequency;
-  customDays?: number;
-  onChange: (frequency: ReleaseFrequency, customDays?: number) => void;
+  onChange: (frequency: ReleaseFrequency) => void;
 }
 
 export interface WorkingDaysSelectorProps {

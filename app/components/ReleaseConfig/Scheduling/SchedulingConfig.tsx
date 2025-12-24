@@ -59,11 +59,10 @@ export function SchedulingConfig({
     return formatValidationErrors(backendValidationErrors);
   }, [config]);
   
-  const handleFrequencyChange = (frequency: ReleaseFrequency, customDays?: number) => {
+  const handleFrequencyChange = (frequency: ReleaseFrequency) => {
     onChange({
       ...config,
       releaseFrequency: frequency,
-      customFrequencyDays: customDays,
     });
   };
   
@@ -130,7 +129,6 @@ export function SchedulingConfig({
       {/* Release Frequency */}
       <ReleaseFrequencySelector
         frequency={config.releaseFrequency}
-        customDays={config.customFrequencyDays}
         onChange={handleFrequencyChange}
       />
 

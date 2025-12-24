@@ -6,6 +6,7 @@
 import { Stack } from '@mantine/core';
 import { KICKOFF_LABELS } from '~/constants/release-process-ui';
 import { useKickoffStage } from '~/hooks/useReleaseProcess';
+import { useRelease } from '~/hooks/useRelease';
 import { useTaskHandlers } from '~/hooks/useTaskHandlers';
 import { validateStageProps } from '~/utils/prop-validation';
 import { StageErrorBoundary } from './shared/StageErrorBoundary';
@@ -22,6 +23,8 @@ export function KickoffStage({ tenantId, releaseId, className }: KickoffStagePro
   validateStageProps({ tenantId, releaseId }, 'KickoffStage');
 
   const { data, isLoading, error, refetch } = useKickoffStage(tenantId, releaseId);
+  const { release } = useRelease(tenantId, releaseId);
+  const isArchived = release?.status === 'ARCHIVED';
 
   // Use shared task handlers
   const { handleRetry } = useTaskHandlers({
@@ -49,6 +52,7 @@ export function KickoffStage({ tenantId, releaseId, className }: KickoffStagePro
           onRetry={handleRetry}
           emptyMessage={KICKOFF_LABELS.NO_TASKS}
           uploadedBuilds={uploadedBuilds}
+          isArchived={isArchived}
         />
       </Stack>
     </StageErrorBoundary>

@@ -31,7 +31,6 @@ const createDefaultSchedulingConfig = (platforms: Platform[]): SchedulingConfigT
 
   return {
     releaseFrequency: DEFAULT_SCHEDULING_CONFIG.RELEASE_FREQUENCY,
-    customFrequencyDays: undefined,
     firstReleaseKickoffDate: '',
     initialVersions,
     kickoffTime: DEFAULT_SCHEDULING_CONFIG.KICKOFF_TIME,

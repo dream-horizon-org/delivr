@@ -203,7 +203,7 @@ export const RELEASE_TYPE_UI_METADATA: Record<string, {
     color: 'orange',
     defaultScheduling: {
       kickoffLeadDays: 0,
-      releaseFrequency: 'CUSTOM',
+      releaseFrequency: 'WEEKLY',
     },
   },
   EMERGENCY: {
@@ -212,7 +212,7 @@ export const RELEASE_TYPE_UI_METADATA: Record<string, {
     color: 'red',
     defaultScheduling: {
       kickoffLeadDays: 0,
-      releaseFrequency: 'CUSTOM',
+      releaseFrequency: 'WEEKLY',
     },
   },
   PATCH: {
@@ -221,7 +221,7 @@ export const RELEASE_TYPE_UI_METADATA: Record<string, {
     color: 'green',
     defaultScheduling: {
       kickoffLeadDays: 1,
-      releaseFrequency: 'CUSTOM',
+      releaseFrequency: 'WEEKLY',
     },
   },
 };

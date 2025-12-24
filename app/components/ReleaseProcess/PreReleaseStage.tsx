@@ -217,6 +217,7 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
             tasks={tasks}
             tenantId={tenantId}
             releaseId={releaseId}
+            isArchived={release?.status === 'ARCHIVED'}
             onRetry={handleRetry}
             uploadedBuilds={uploadedBuilds}
           />

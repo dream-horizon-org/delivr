@@ -292,7 +292,6 @@ export const RELEASE_FREQUENCY_OPTIONS = [
   { value: 'BIWEEKLY', label: 'Biweekly', description: 'Release every 14 days', days: 14 },
   { value: 'TRIWEEKLY', label: 'Triweekly', description: 'Release every 21 days', days: 21 },
   { value: 'MONTHLY', label: 'Monthly', description: 'Release every 30 days', days: 30 },
-  { value: 'CUSTOM', label: 'Custom', description: 'Define custom frequency', days: 0 },
 ] as const;
 
 // Days of the week

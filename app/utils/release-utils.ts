@@ -104,8 +104,13 @@ export function getTaskStatusColor(status: string): string {
 export function getReleaseActiveStatus(release: BackendReleaseResponse): typeof RELEASE_ACTIVE_STATUS[keyof typeof RELEASE_ACTIVE_STATUS] {
   const now = new Date();
   
-  // COMPLETED: status is COMPLETED or ARCHIVED
-  if (release.status === RELEASE_STATUS.COMPLETED || release.status === RELEASE_STATUS.ARCHIVED) {
+  // ARCHIVED: status is ARCHIVED (separate from COMPLETED)
+  if (release.status === RELEASE_STATUS.ARCHIVED) {
+    return RELEASE_ACTIVE_STATUS.ARCHIVED;
+  }
+  
+  // COMPLETED: status is COMPLETED
+  if (release.status === RELEASE_STATUS.COMPLETED) {
     return RELEASE_ACTIVE_STATUS.COMPLETED;
   }
   
@@ -147,6 +152,8 @@ export function getActiveStatusColor(status: typeof RELEASE_ACTIVE_STATUS[keyof 
     case RELEASE_ACTIVE_STATUS.PAUSED:
       return MANTINE_COLORS.YELLOW;
     case RELEASE_ACTIVE_STATUS.COMPLETED:
+      return MANTINE_COLORS.GREEN;
+    case RELEASE_ACTIVE_STATUS.ARCHIVED:
       return MANTINE_COLORS.GRAY;
     default:
       return MANTINE_COLORS.GRAY;
