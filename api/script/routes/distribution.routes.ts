@@ -49,7 +49,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   const distributionController = createDistributionController(distributionService, storage);
 
   // ============================================================================
-// DISTRIBUTION - LIST, GET BY RELEASE ID OR DISTRIBUTION ID
+  // DISTRIBUTION - LIST, GET BY RELEASE ID OR DISTRIBUTION ID
   // ============================================================================
 
 
@@ -98,7 +98,6 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
       tenantPermissions.requireTenantMembership({ storage }),
       distributionController.getDistributionById
   );
- 
   // ============================================================================
   // SUBMISSION - SUBMIT EXISTING (FIRST-TIME)
   // ============================================================================
