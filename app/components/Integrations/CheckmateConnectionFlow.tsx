@@ -14,7 +14,7 @@ import {
   useMantineTheme,
 } from '@mantine/core';
 import { IconCheck, IconAlertCircle } from '@tabler/icons-react';
-import { apiPost, apiPut, getApiErrorMessage } from '~/utils/api-client';
+import { apiGet, apiPost, apiPut, getApiErrorMessage } from '~/utils/api-client';
 import { TEST_PROVIDERS } from '~/types/release-config-constants';
 import { CHECKMATE_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
 import { ActionButtons } from './shared/ActionButtons';
@@ -42,6 +42,9 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
   const tenantId = params.org;
   const isInFlowRef = useRef(false);
 
+  // State to store fetched integration data
+  const [fetchedIntegrationData, setFetchedIntegrationData] = useState<any>(null);
+
   const { formData, setFormData, isDraftRestored, markSaveSuccessful } = useDraftStorage<CheckmateConnectionFormData>(
     {
       storageKey: generateStorageKey('checkmate-tm', tenantId || ''),
@@ -49,16 +52,16 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
       shouldSaveDraft: (data) => !isInFlowRef.current && !isEditMode && !!(data.baseUrl || data.name || data.orgId),
     },
     {
-      name: existingData?.name || '',
-      baseUrl: existingData?.config?.baseUrl || '',
+      name: existingData?.name || existingData?.displayName || '',
+      baseUrl: existingData?.baseUrl || '',
       authToken: '',
-      orgId: existingData?.config?.orgId || '',
+      orgId: existingData?.orgId ? String(existingData.orgId) : '',
     },
     isEditMode ? {
-      name: existingData?.name || '',
-      baseUrl: existingData?.config?.baseUrl || '',
+      name: existingData?.name || existingData?.displayName || '',
+      baseUrl: existingData?.baseUrl || '',
       authToken: '',
-      orgId: existingData?.config?.orgId || '',
+      orgId: existingData?.orgId ? String(existingData.orgId) : '',
     } : undefined
   );
 
@@ -68,13 +71,58 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
   const [error, setError] = useState<string | null>(null);
   const [integrationId, setIntegrationId] = useState<string | null>(existingData?.id || null);
 
+  // Fetch full integration details in edit mode to get name
+  useEffect(() => {
+    if (isEditMode && existingData?.id && !fetchedIntegrationData) {
+      const fetchIntegrationDetails = async () => {
+        try {
+          const result = await apiGet<any>(
+            `/api/v1/tenants/${tenantId}/integrations/test-management?providerType=CHECKMATE`
+          );
+          if (result.success) {
+            // The API returns { success: true, data: CheckmateIntegration[] }
+            const integrations = result.data;
+            if (Array.isArray(integrations)) {
+              // Find the integration with matching ID
+              const integration = integrations.find((i: any) => i.id === existingData.id);
+              if (integration) {
+                setFetchedIntegrationData(integration);
+              }
+            }
+          }
+        } catch (error) {
+          // Silently fail - will use existingData as fallback
+        }
+      };
+      fetchIntegrationDetails();
+    }
+  }, [isEditMode, existingData?.id, tenantId, fetchedIntegrationData]);
+
   // Check encryption configuration on mount
   useEffect(() => {
     if (!isEncryptionConfigured()) {
-      console.error('❌ VITE_ENCRYPTION_KEY is not configured!');
       setError('Encryption is not configured. Please contact your system administrator.');
     }
   }, []);
+
+  // Update form data when existingData or fetchedIntegrationData changes in edit mode
+  useEffect(() => {
+    if (isEditMode && (existingData || fetchedIntegrationData)) {
+      const source = fetchedIntegrationData?.config || existingData;
+      const displayNameValue = fetchedIntegrationData?.name 
+        || existingData?.name 
+        || existingData?.displayName 
+        || '';
+      
+      setFormData({
+        name: displayNameValue,
+        baseUrl: source?.baseUrl || existingData?.baseUrl || '',
+        authToken: '',
+        orgId: source?.orgId ? String(source.orgId) : (existingData?.orgId ? String(existingData.orgId) : ''),
+      });
+    }
+  }, [isEditMode, existingData, fetchedIntegrationData, setFormData]);
+
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const markTouched = (field: string) => {
@@ -216,6 +264,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
         onBlur={() => markTouched('name')}
         error={getFieldError('name', formData.name)}
         size="sm"
+        disabled={isVerified}
       />
 
       <TextInput
@@ -228,6 +277,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
         error={getFieldError('baseUrl', formData.baseUrl)}
         description={CHECKMATE_LABELS.BASE_URL_DESCRIPTION}
         size="sm"
+        disabled={isVerified}
       />
 
       <TextInput
@@ -241,6 +291,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
         error={getFieldError('orgId', formData.orgId)}
         description={CHECKMATE_LABELS.ORG_ID_DESCRIPTION}
         size="sm"
+        disabled={isVerified}
       />
 
       <PasswordInput
@@ -253,6 +304,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
         error={!isEditMode ? getFieldError('authToken', formData.authToken) : undefined}
         description={isEditMode ? "Only provide a new token if you want to update it" : CHECKMATE_LABELS.AUTH_TOKEN_DESCRIPTION}
         size="sm"
+        disabled={isVerified}
       />
 
       {error && (

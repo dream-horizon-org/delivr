@@ -268,6 +268,7 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         onBlur={() => markTouched('hostUrl')}
         error={getFieldError('hostUrl', !formData.hostUrl, 'Host URL is required')}
         size="sm"
+        disabled={verificationResult?.success}
       />
 
       <TextInput
@@ -279,6 +280,7 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         onBlur={() => markTouched('username')}
         error={getFieldError('username', !formData.username, 'Username is required')}
         size="sm"
+        disabled={verificationResult?.success}
       />
 
       <PasswordInput
@@ -291,6 +293,7 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         error={!isEditMode ? getFieldError('apiToken', !formData.apiToken, 'API Token is required') : undefined}
         description={isEditMode ? "Only provide a new token if you want to update it" : undefined}
         size="sm"
+        disabled={verificationResult?.success}
       />
 
       <Box

@@ -306,6 +306,7 @@ export function AppDistributionConnectionFlow({
         }
         required
         size="sm"
+        disabled={isVerified}
       />
 
       <TextInput
@@ -317,6 +318,7 @@ export function AppDistributionConnectionFlow({
         }
         required
         size="sm"
+        disabled={isVerified}
       />
 
       <Select
@@ -333,6 +335,7 @@ export function AppDistributionConnectionFlow({
         }
         required
         size="sm"
+        disabled={isVerified}
       />
 
       <Divider label="Service Account Credentials" labelPosition="center" />
@@ -352,6 +355,7 @@ export function AppDistributionConnectionFlow({
         }
         required
         size="sm"
+        disabled={isVerified}
       />
 
       <TextInput
@@ -369,6 +373,7 @@ export function AppDistributionConnectionFlow({
         }
         required
         size="sm"
+        disabled={isVerified}
       />
 
       <Textarea
@@ -387,6 +392,7 @@ export function AppDistributionConnectionFlow({
         required
         minRows={4}
         size="sm"
+        disabled={isVerified}
       />
     </Stack>
   );
@@ -402,6 +408,7 @@ export function AppDistributionConnectionFlow({
         }
         required
         size="sm"
+        disabled={isVerified}
       />
 
       <TextInput
@@ -413,6 +420,7 @@ export function AppDistributionConnectionFlow({
         }
         required
         size="sm"
+        disabled={isVerified}
       />
 
       <TextInput
@@ -424,6 +432,7 @@ export function AppDistributionConnectionFlow({
         }
         required
         size="sm"
+        disabled={isVerified}
       />
 
       <TextInput
@@ -435,6 +444,7 @@ export function AppDistributionConnectionFlow({
         }
         required
         size="sm"
+        disabled={isVerified}
       />
 
       <Divider label="App Store Connect API Credentials" labelPosition="center" />
@@ -448,6 +458,7 @@ export function AppDistributionConnectionFlow({
         }
         required
         size="sm"
+        disabled={isVerified}
       />
 
       <TextInput
@@ -459,6 +470,7 @@ export function AppDistributionConnectionFlow({
         }
         required
         size="sm"
+        disabled={isVerified}
       />
 
       <Textarea
@@ -471,6 +483,7 @@ export function AppDistributionConnectionFlow({
         required
         minRows={4}
         size="sm"
+        disabled={isVerified}
       />
 
       <TextInput
