@@ -7,7 +7,6 @@ import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from
 import { useLoaderData, useNavigate, useNavigation, Link } from '@remix-run/react';
 import { useMemo } from 'react';
 import { authenticateLoaderRequest, authenticateActionRequest } from '~/utils/authenticate';
-import { authenticateLoaderRequest, authenticateActionRequest } from '~/utils/authenticate';
 import { useConfig } from '~/contexts/ConfigContext';
 import { WorkflowForm } from '~/components/ReleaseSettings/WorkflowForm';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
