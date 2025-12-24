@@ -38,13 +38,9 @@ export class ProjectManagementIntegrationService {
         `${PROJECT_MANAGEMENT_ERROR_MESSAGES.INVALID_CONFIG}: Failed to connect to ${data.providerType}. Please check your credentials (baseUrl, apiToken, email) and try again.`
       );
     }
-    // Create integration
-    const integration = await this.repository.create(data);
     
-    // Update verification status since we validated before creating
-    await this.repository.updateVerificationStatus(integration.id, VerificationStatus.VALID);
-    
-    return await this.repository.findById(integration.id) ?? integration;
+    // Create integration with VALID status since we validated before creating
+    return await this.repository.create(data, VerificationStatus.VALID);
   }
 
   /**

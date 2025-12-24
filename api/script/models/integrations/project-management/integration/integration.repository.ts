@@ -40,15 +40,20 @@ export class ProjectManagementIntegrationRepository {
   /**
    * Create new integration
    * Double-layer encryption: Decrypt frontend-encrypted values, then encrypt with backend storage key
+   * @param verificationStatus - Optional verification status. If VALID, also sets lastVerifiedAt
    */
   create = async (
-    data: CreateProjectManagementIntegrationDto
+    data: CreateProjectManagementIntegrationDto,
+    verificationStatus?: VerificationStatus
   ): Promise<ProjectManagementIntegration> => {
     // Step 1: Decrypt any frontend-encrypted values (using ENCRYPTION_KEY)
     const { decrypted: decryptedConfig } = decryptFields(data.config, ['apiToken']);
     
     // Step 2: Encrypt with backend storage encryption (using BACKEND_STORAGE_ENCRYPTION_KEY)
     const encryptedConfig = encryptConfigFields(decryptedConfig, ['apiToken']);
+    
+    const status = verificationStatus ?? VerificationStatus.NOT_VERIFIED;
+    const verifiedAt = status === VerificationStatus.VALID ? new Date() : null;
     
     const integration = await this.model.create({
       id: this.generateId(),
@@ -57,8 +62,8 @@ export class ProjectManagementIntegrationRepository {
       providerType: data.providerType,
       config: encryptedConfig,
       isEnabled: true,
-      verificationStatus: VerificationStatus.NOT_VERIFIED,
-      lastVerifiedAt: null,
+      verificationStatus: status,
+      lastVerifiedAt: verifiedAt,
       createdByAccountId: data.createdByAccountId ?? 'system',
       createdAt: new Date(),
       updatedAt: new Date()
