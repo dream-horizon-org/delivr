@@ -128,12 +128,17 @@ export class TestManagementRunService {
    * We need testManagementConfigId to get the threshold from our config
    */
   async getTestStatus(request: GetTestStatusRequest): Promise<TestStatusResponse> {
-    const { runId, testManagementConfigId } = request;
+    const { runId, testManagementConfigId, platform } = request;
 
     // 1. Get test management config to get threshold
     const config = await this.configRepo.findById(testManagementConfigId);
     if (!config) {
       throw new Error(`Test management config not found: ${testManagementConfigId}`);
+    }
+
+    const platformConfig = config.platformConfigurations.find(pc => pc.platform === platform);
+    if (!platformConfig) {
+      throw new Error(`Platform not found in config: ${platform}`);
     }
 
     // 2. Get integration (credentials)
@@ -146,7 +151,7 @@ export class TestManagementRunService {
     const provider = ProviderFactory.getProvider(integration.providerType);
 
     // 4. Query test status from provider
-    const providerStatus = await provider.getTestStatus(integration.config, runId);
+    const providerStatus = await provider.getTestStatus(integration.config, runId, platformConfig.parameters.projectId);
 
     // 5. Calculate pass percentage (rounded to whole number to match integer threshold)
     const total = providerStatus.total ?? 0;

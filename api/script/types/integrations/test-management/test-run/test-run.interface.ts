@@ -67,6 +67,7 @@ export type CreateTestRunsResponse = {
 export type GetTestStatusRequest = {
   runId: string;
   testManagementConfigId: string;  // Needed to get threshold
+  platform: TestPlatform;
 };
 
 /**
