@@ -70,8 +70,9 @@ export interface StoreCredential {
 
 /**
  * Safe Store Integration (without sensitive data)
+ * Note: createdByAccountId is included as it's metadata, not sensitive data
  */
-export interface SafeStoreIntegration extends Omit<StoreIntegration, 'createdByAccountId'> {
+export interface SafeStoreIntegration extends StoreIntegration {
   hasCredentials?: boolean;
 }
 

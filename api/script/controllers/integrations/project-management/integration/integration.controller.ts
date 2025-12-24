@@ -22,9 +22,11 @@ import {
   validateProviderType
 } from './integration.validation';
 
-interface AuthenticatedRequest extends Request {
-  accountId?: string;
-}
+type AuthenticatedRequest = Request & {
+  user?: {
+    id: string;
+  };
+};
 
 /**
  * Mask sensitive data in config for API responses
@@ -101,7 +103,7 @@ const createIntegrationHandler = (service: ProjectManagementIntegrationService) 
         name,
         providerType,
         config,
-        createdByAccountId: req.accountId ?? 'test_account_123'
+        createdByAccountId: req.user?.id
       };
 
       const integration = await service.createIntegration(data);

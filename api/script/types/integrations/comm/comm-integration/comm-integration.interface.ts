@@ -54,6 +54,7 @@ export interface TenantCommunicationIntegration {
   verificationStatus: VerificationStatus;
   
   // Metadata
+  createdByAccountId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -71,6 +72,7 @@ export type TenantSlackIntegration = TenantCommunicationIntegration;
 export interface CreateSlackIntegrationDto {
   tenantId: string;
   communicationType?: CommunicationType;  // Defaults to SLACK
+  createdByAccountId?: string | null;
   
   // Slack fields (required)
   slackBotToken: string;                  // Will be encrypted before storage

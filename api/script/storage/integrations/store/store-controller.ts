@@ -142,8 +142,11 @@ export class StoreIntegrationController {
   }
 
   private toSafeObject(data: StoreIntegration): SafeStoreIntegration {
-    const { createdByAccountId, ...safe } = data;
-    return safe;
+    // Include createdByAccountId - it's metadata, not sensitive data
+    return {
+      ...data,
+      hasCredentials: false // Default to false; will be set to true by findAll() if credentials exist
+    };
   }
 }
 
