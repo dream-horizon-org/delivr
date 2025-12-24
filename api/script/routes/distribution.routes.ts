@@ -96,7 +96,11 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
       tenantPermissions.requireTenantMembership({ storage }),
       distributionController.getDistributionById
   );
-
+  router.get(
+    "/distributions",
+    tenantPermissions.requireTenantMembership({ storage }),
+    distributionController.listDistributions
+  );
   // ============================================================================
   // SUBMISSION - SUBMIT EXISTING (FIRST-TIME)
   // ============================================================================
