@@ -41,8 +41,8 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
 
   // Check if user is owner - only owners can access config settings
   try {
-    const isOwner = await PermissionService.isTenantOwner(org, user.user.id);
-    if (!isOwner) {
+    const isEditor = await PermissionService.isTenantEditor(org, user.user.id);
+    if (!isEditor) {
       throw redirect(`/dashboard/${org}/releases`);
     }
   } catch (error) {

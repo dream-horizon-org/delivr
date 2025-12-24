@@ -17,6 +17,7 @@ export type SubItem = {
   path: string;
   prefetch?: "intent" | "render" | "none";
   isOwnerOnly?: boolean;
+  isEditorOnly?: boolean;
 };
 
 export type ModuleConfig = {
@@ -55,14 +56,14 @@ export function getNavigationModules(org: Organization): ModuleConfig[] {
           icon: IconAdjustmentsHorizontal,
           path: `/dashboard/${org.id}/releases/settings`,
           prefetch: "intent",
-          isOwnerOnly: true,
+          isEditorOnly: true,
         },
         {
           label: "Workflows",
           icon: IconGitBranch,
           path: `/dashboard/${org.id}/releases/workflows`,
           prefetch: "intent",
-          isOwnerOnly: true,
+          isEditorOnly: true,
         },
       ],
     },

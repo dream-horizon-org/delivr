@@ -6,7 +6,7 @@
 import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from '@remix-run/node';
 import { useLoaderData, useNavigate, useNavigation, Link } from '@remix-run/react';
 import { useMemo } from 'react';
-import { authenticateLoaderRequest } from '~/utils/authenticate';
+import { authenticateLoaderRequest, authenticateActionRequest } from '~/utils/authenticate';
 import { useConfig } from '~/contexts/ConfigContext';
 import { WorkflowForm } from '~/components/ReleaseSettings/WorkflowForm';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
@@ -30,8 +30,9 @@ import {
   IconRefresh,
 } from '@tabler/icons-react';
 import { apiGet, getApiErrorMessage } from '~/utils/api-client';
+import { PermissionService } from '~/utils/permissions.server';
 
-export const loader = authenticateLoaderRequest(async ({ params, request }: LoaderFunctionArgs & { user: any }) => {
+export const loader = authenticateLoaderRequest(async ({ params, request, user }: LoaderFunctionArgs & { user: any }) => {
   const { org, workflowId } = params;
   
   if (!org) {
@@ -42,6 +43,16 @@ export const loader = authenticateLoaderRequest(async ({ params, request }: Load
     throw new Response('Workflow ID not found', { status: 404 });
   }
   
+  // Check if user is available
+  if (!user || !user.user || !user.user.id) {
+    throw redirect(`/dashboard/${org}/releases`);
+  }
+  
+  // Check permissions - only editors and owners can access
+  const isEditor = await PermissionService.isTenantEditor(org, user.user.id);
+  if (!isEditor) {
+    throw redirect(`/dashboard/${org}/releases`);
+  }
   let existingWorkflow: CICDWorkflow | null = null;
   let fetchError: string | null = null;
   
@@ -105,16 +116,33 @@ export const loader = authenticateLoaderRequest(async ({ params, request }: Load
   });
 });
 
-export async function action({ request, params }: ActionFunctionArgs) {
-  const { org } = params;
-  
-  if (!org) {
-    throw new Response('Organization not found', { status: 404 });
-  }
-  
-  // Redirect back to workflows page after save
-  return redirect(`/dashboard/${org}/releases/workflows`);
-}
+export const action = authenticateActionRequest({
+  PUT: async ({ request, params, user }: ActionFunctionArgs & { user: any }) => {
+    const { org, workflowId } = params;
+    
+    if (!org) {
+      throw new Response('Organization not found', { status: 404 });
+    }
+    
+    if (!workflowId) {
+      throw new Response('Workflow ID not found', { status: 404 });
+    }
+    
+    // Check if user is available
+    if (!user || !user.user || !user.user.id) {
+      return json({ error: 'User not authenticated' }, { status: 401 });
+    }
+    
+    // Check permissions - only editors and owners can edit workflows
+    const isEditor = await PermissionService.isTenantEditor(org, user.user.id);
+    if (!isEditor) {
+      return json({ error: 'Only editors and owners can edit workflows' }, { status: 403 });
+    }
+    
+    // Redirect back to workflows page after save
+    return redirect(`/dashboard/${org}/releases/workflows`);
+  },
+});
 
 export default function EditWorkflowPage() {
   const theme = useMantineTheme();

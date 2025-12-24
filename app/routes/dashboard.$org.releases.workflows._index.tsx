@@ -3,7 +3,7 @@
  * Manage CI/CD workflows (Jenkins and GitHub Actions)
  */
 
-import { json } from '@remix-run/node';
+import { json, redirect } from '@remix-run/node';
 import { useLoaderData, Link } from '@remix-run/react';
 import type { LoaderFunctionArgs } from '@remix-run/node';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
@@ -29,12 +29,24 @@ import {
   IconRefresh,
 } from '@tabler/icons-react';
 import { CICDTab } from '~/components/ReleaseSettings/CICDTab';
+import { PermissionService } from '~/utils/permissions.server';
 
 export const loader = authenticateLoaderRequest(async ({ params, user, request }: LoaderFunctionArgs & { user: any }) => {
   const { org } = params;
   
   if (!org) {
     throw new Response('Organization not found', { status: 404 });
+  }
+  
+  // Check if user is available
+  if (!user || !user.user || !user.user.id) {
+    throw redirect(`/dashboard/${org}/releases`);
+  }
+  
+  // Check permissions - only editors and owners can access
+  const isEditor = await PermissionService.isTenantEditor(org, user.user.id);
+  if (!isEditor) {
+    throw redirect(`/dashboard/${org}/releases`);
   }
   
   return json({ org, user });

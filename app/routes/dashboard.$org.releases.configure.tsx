@@ -45,8 +45,8 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
 
   // Check if user is owner - only owners can create/edit configs
   try {
-    const isOwner = await PermissionService.isTenantOwner(org, user.user.id);
-    if (!isOwner) {
+    const isEditor = await PermissionService.isTenantEditor(org, user.user.id);
+    if (!isEditor) {
       throw redirect(`/dashboard/${org}/releases`);
     }
   } catch (error) {
@@ -132,8 +132,8 @@ export const action = authenticateActionRequest({
 
     // Check if user is owner - only owners can create/edit configs
     try {
-      const isOwner = await PermissionService.isTenantOwner(org, user.user.id);
-      if (!isOwner) {
+      const isEditor = await PermissionService.isTenantEditor(org, user.user.id);
+      if (!isEditor) {
         return json({ success: false, error: 'Only organization owners can create/edit configurations' }, { status: 403 });
       }
     } catch (error) {

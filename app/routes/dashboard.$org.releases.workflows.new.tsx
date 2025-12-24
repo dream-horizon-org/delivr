@@ -6,7 +6,7 @@
 import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from '@remix-run/node';
 import { useLoaderData, useNavigate, useNavigation, Link } from '@remix-run/react';
 import { useMemo } from 'react';
-import { authenticateLoaderRequest } from '~/utils/authenticate';
+import { authenticateLoaderRequest, authenticateActionRequest } from '~/utils/authenticate';
 import { useConfig } from '~/contexts/ConfigContext';
 import { WorkflowForm } from '~/components/ReleaseSettings/WorkflowForm';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
@@ -16,7 +16,14 @@ import {
   Skeleton,
   Stack,
 } from '@mantine/core';
-
+import { PermissionService } from '~/utils/permissions.server';
+interface WorkflowLoaderData {
+  organizationId: string;
+  existingWorkflow: CICDWorkflow | null;
+  isEditMode: boolean;
+  fetchError: string | null;
+  workflows: CICDWorkflow[];
+}
 export const loader = authenticateLoaderRequest(async ({ params, user, request }: LoaderFunctionArgs & { user: any }) => {
   const { org } = params;
   
@@ -24,6 +31,14 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
     throw new Response('Organization not found', { status: 404 });
   }
   
+  // Check if user is available
+  if (!user || !user.user || !user.user.id) {
+    throw redirect(`/dashboard/${org}/releases`);
+  }
+  const isEditor = await PermissionService.isTenantEditor(org, user.user.id);
+  if (!isEditor) {
+    throw redirect(`/dashboard/${org}/releases`);
+  }
   // Fetch workflows for duplicate name validation
   let workflows: CICDWorkflow[] = [];
   try {
@@ -50,19 +65,32 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
   });
 });
 
-export async function action({ request, params }: ActionFunctionArgs) {
-  const { org } = params;
-  
-  if (!org) {
-    throw new Response('Organization not found', { status: 404 });
-  }
-  
-  // Redirect back to workflows page after save
-  return redirect(`/dashboard/${org}/releases/workflows`);
-}
+export const action = authenticateActionRequest({
+  POST: async ({ request, params, user }: ActionFunctionArgs & { user: any }) => {
+    const { org } = params;
+    
+    if (!org) {
+      throw new Response('Organization not found', { status: 404 });
+    }
+    
+    // Check if user is available
+    if (!user || !user.user || !user.user.id) {
+      return json({ error: 'User not authenticated' }, { status: 401 });
+    }
+    
+    const isEditor = await PermissionService.isTenantEditor(org, user.user.id);
+    if (!isEditor) {
+      return json({ error: 'Only editors and owners can create workflows' }, { status: 403 });
+    }
+    
+    // Redirect back to workflows page after save
+    return redirect(`/dashboard/${org}/releases/workflows`);
+  },
+});
 
 export default function CreateWorkflowPage() {
-  const { organizationId, existingWorkflow, isEditMode, fetchError, workflows } = useLoaderData<typeof loader>();
+  const loaderData = useLoaderData<WorkflowLoaderData>();
+  const { organizationId, existingWorkflow, isEditMode, fetchError, workflows } = loaderData;
   const navigate = useNavigate();
   const navigation = useNavigation();
   const { getConnectedIntegrations } = useConfig();
