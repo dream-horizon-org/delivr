@@ -1728,11 +1728,17 @@ export class TaskExecutor {
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
-    const { release, tenantId: _tenantId, task } = context;
+    const { release, tenantId: _tenantId, task, platformTargetMappings } = context;
 
     if (!this.testRunService) {
       throw new Error(RELEASE_ERROR_MESSAGES.TEST_PLATFORM_NOT_AVAILABLE);
     }
+
+    // Get first platform from platformTargetMappings
+    if (!platformTargetMappings || platformTargetMappings.length === 0) {
+      throw new Error('No platform targets configured for release');
+    }
+    const platform = platformTargetMappings[0].platform as TestPlatform;
 
     // Get automation run ID from TRIGGER_AUTOMATION_RUNS task
     // Get all tasks for this regression cycle and find TRIGGER_AUTOMATION_RUNS
@@ -1760,7 +1766,8 @@ export class TaskExecutor {
     // 3. Get test status
     const status = await this.testRunService.getTestStatus({
       runId: runId,
-      testManagementConfigId: testConfigId
+      testManagementConfigId: testConfigId,
+      platform: platform
     });
 
     // Category B: Return raw object

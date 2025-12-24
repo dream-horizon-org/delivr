@@ -117,42 +117,22 @@ export class ReleaseManagementController {
 
       const result = await this.creationService.createRelease(payload);
 
-      // ========================================================================
-      // AUTO-START CRON JOB
-      // ========================================================================
-      // Automatically start the cron job to begin release workflow
-      // This ensures releases start executing even if user forgets to call start endpoint
-      let cronJobStarted = false;
-      let updatedCronJob = result.cronJob;
-
-      try {
-        // Service handles both starting cron and updating DB status
-        updatedCronJob = await this.cronJobService.startCronJob(result.release.id);
-        cronJobStarted = true;
-        console.log(`[Create Release] Auto-started cron job for release ${result.release.id}`);
-      } catch (cronError: unknown) {
-        // Don't fail release creation if cron start fails - log and continue
-        const errorMessage = cronError instanceof Error ? cronError.message : String(cronError);
-        console.error(`[Create Release] Failed to auto-start cron job for release ${result.release.id}:`, errorMessage);
-        // Release is still created successfully, but cron job needs to be started manually
-      }
-
       return res.status(HTTP_STATUS.CREATED).json({
         success: true,
         release: {
           ...result.release,
           cronJob: {
-            id: updatedCronJob.id,
-            stage1Status: updatedCronJob.stage1Status,
-            stage2Status: updatedCronJob.stage2Status,
-            stage3Status: updatedCronJob.stage3Status,
-            cronStatus: updatedCronJob.cronStatus
+            id: result.cronJob.id,
+            stage1Status: result.cronJob.stage1Status,
+            stage2Status: result.cronJob.stage2Status,
+            stage3Status: result.cronJob.stage3Status,
+            cronStatus: result.cronJob.cronStatus
           },
           stage1Tasks: {
             count: result.stage1TaskIds.length,
             taskIds: result.stage1TaskIds
           },
-          cronJobStarted // Indicate if auto-start was successful
+          cronJobStarted: result.cronJobStarted // Indicate if auto-start was successful
         }
       });
     } catch (error: any) {

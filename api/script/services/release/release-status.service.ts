@@ -9,6 +9,7 @@ import { ReleaseRetrievalService } from './release-retrieval.service';
 import type { ReleaseConfigService } from '../release-configs/release-config.service';
 import type { ProjectManagementTicketService } from '../integrations/project-management';
 import type { TestManagementRunService } from '../integrations/test-management/test-run/test-run.service';
+import type { TestPlatform } from '~types/integrations/test-management';
 import type { SCMService } from '../integrations/scm/scm.service';
 import type { Platform as PMPlatform } from '~types/integrations/project-management';
 import type { ReleaseRepository } from '~models/release/release.repository';
@@ -333,7 +334,8 @@ export class ReleaseStatusService {
     try {
       const statusResult = await this.testManagementRunService.getTestStatus({
         runId: mapping.testManagementRunId,
-        testManagementConfigId
+        testManagementConfigId,
+        platform: mapping.platform as TestPlatform
       });
 
       return {

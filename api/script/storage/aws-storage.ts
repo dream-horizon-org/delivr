@@ -1451,6 +1451,10 @@ export class S3Storage implements storage.Storage {
           this.cronJobService.setReleaseStatusService(this.releaseStatusService);
           console.log("Release Status Service injected into Cron Job Service");
           
+          // Set CronJobService in ReleaseCreationService (for auto-start cron on release creation)
+          this.releaseCreationService.setCronJobService(this.cronJobService);
+          console.log("Cron Job Service injected into Release Creation Service");
+          
           // Initialize ReleaseUpdateService (depends on CronJobService)
           this.releaseUpdateService = new ReleaseUpdateService(
             this.releaseRepository,

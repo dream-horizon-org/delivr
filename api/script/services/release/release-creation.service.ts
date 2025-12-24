@@ -28,8 +28,11 @@ import { ReleaseVersionService } from './release-version.service';
 import { validateReleaseCreation } from './release-creation.validation';
 import { createStage1Tasks } from '../../utils/task-creation';
 import { checkIntegrationAvailability } from '../../utils/integration-availability.utils';
+import type { CronJobService } from './cron-job/cron-job.service';
 
 export class ReleaseCreationService {
+  private cronJobService: CronJobService | null = null;
+
   constructor(
     private readonly releaseRepo: ReleaseRepository,
     private readonly platformTargetMappingRepo: ReleasePlatformTargetMappingRepository,
@@ -40,6 +43,14 @@ export class ReleaseCreationService {
     private readonly releaseConfigService: ReleaseConfigService,
     private readonly releaseVersionService: ReleaseVersionService
   ) {}
+
+  /**
+   * Set CronJobService (for circular dependency resolution)
+   * CronJobService is initialized after ReleaseCreationService
+   */
+  setCronJobService(service: CronJobService): void {
+    this.cronJobService = service;
+  }
 
   /**
    * Complete release creation flow
@@ -162,10 +173,32 @@ export class ReleaseCreationService {
     // Step 9: Create state history
     await this.createStateHistory(id, payload.accountId, releaseId, payload.platformTargets);
 
+    // Step 10: Auto-start cron job
+    // Automatically start the cron job to begin release workflow
+    // This ensures releases start executing even if user forgets to call start endpoint
+    let cronJobStarted = false;
+    let updatedCronJob = cronJob;
+
+    if (this.cronJobService) {
+      try {
+        updatedCronJob = await this.cronJobService.startCronJob(id);
+        cronJobStarted = true;
+        console.log(`[ReleaseCreationService] Auto-started cron job for release ${id}`);
+      } catch (cronError: unknown) {
+        // Don't fail release creation if cron start fails - log and continue
+        const errorMessage = cronError instanceof Error ? cronError.message : String(cronError);
+        console.error(`[ReleaseCreationService] Failed to auto-start cron job for release ${id}:`, errorMessage);
+        // Release is still created successfully, but cron job needs to be started manually
+      }
+    } else {
+      console.warn(`[ReleaseCreationService] CronJobService not set - cannot auto-start cron job for release ${id}`);
+    }
+
     return {
       release,
-      cronJob,
-      stage1TaskIds
+      cronJob: updatedCronJob,
+      stage1TaskIds,
+      cronJobStarted
     };
   }
 
