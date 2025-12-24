@@ -10,7 +10,7 @@ import { json, type LoaderFunctionArgs } from '@remix-run/node';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { CheckmateIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 
-export const loader = authenticateLoaderRequest(async ({ params, request }) => {
+export const loader = authenticateLoaderRequest(async ({ params, request, user }) => {
   const { integrationId, metadataType } = params;
   const url = new URL(request.url);
   const projectId = url.searchParams.get('projectId');
@@ -50,7 +50,8 @@ export const loader = authenticateLoaderRequest(async ({ params, request }) => {
     const result = await CheckmateIntegrationService.fetchMetadata(
       integrationId,
       metadataType as 'labels' | 'projects' | 'sections' | 'squads',
-      projectId || undefined
+      projectId || undefined,
+      user?.user?.id
     );
 
     if (!result.success) {
