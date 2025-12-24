@@ -13,7 +13,11 @@ export const createIntegrationRoutes = (
   const controller = createProjectManagementIntegrationController(service);
 
   // List available providers (public info)
-  router.get('/integrations/project-management/providers', controller.getAvailableProviders);
+  router.get(
+    '/integrations/project-management/providers',
+    tenantPermissions.requireEditor({ storage }),
+    controller.getAvailableProviders
+  );
 
   // Verify credentials without saving (stateless)
   router.post(
@@ -31,13 +35,13 @@ export const createIntegrationRoutes = (
 
   router.get(
     '/tenants/:tenantId/integrations/project-management',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.listIntegrations
   );
 
   router.get(
     '/tenants/:tenantId/integrations/project-management/:integrationId',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.getIntegration
   );
 

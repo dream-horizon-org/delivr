@@ -79,19 +79,19 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     const testManagementRouter = Router();
     
     // Tenant-Level Integration Management (Credentials)
-    const tenantIntegrationRoutes = createTenantIntegrationRoutes(s3Storage.testManagementIntegrationService);
+    const tenantIntegrationRoutes = createTenantIntegrationRoutes(s3Storage.testManagementIntegrationService, storage);
     testManagementRouter.use(tenantIntegrationRoutes);
 
     // Test Management Config Management (Reusable test configurations)
-    const testManagementConfigRoutes = createTestManagementConfigRoutes(s3Storage.testManagementConfigService);
+    const testManagementConfigRoutes = createTestManagementConfigRoutes(s3Storage.testManagementConfigService, storage);
     testManagementRouter.use(testManagementConfigRoutes);
 
     // Test Run Operations (Stateless - Create, Status, Reset, Cancel)
-    const testRunRoutes = createTestRunOperationsRoutes(s3Storage.testManagementRunService);
+    const testRunRoutes = createTestRunOperationsRoutes(s3Storage.testManagementRunService, storage);
     testManagementRouter.use(testRunRoutes);
 
     // Checkmate Metadata Proxy Routes (Projects, Sections, Labels, Squads)
-    const checkmateMetadataRoutes = createCheckmateMetadataRoutes(s3Storage.checkmateMetadataService);
+    const checkmateMetadataRoutes = createCheckmateMetadataRoutes(s3Storage.checkmateMetadataService, storage);
     testManagementRouter.use(checkmateMetadataRoutes);
     
     // Mount all test management routes under /test-management
@@ -140,7 +140,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   // TARGET PLATFORM INTEGRATIONS (App Store, Play Store)
   // ============================================================================
-  const storeRoutes = createStoreIntegrationRoutes();
+  const storeRoutes = createStoreIntegrationRoutes(storage);
   router.use(storeRoutes);
 
   // ============================================================================
@@ -277,7 +277,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Check if release management is set up for tenant
   router.get(
     "/tenants/:tenantId/releases/setup-status",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     async (req: Request, res: Response): Promise<any> => {
       const tenantId: string = req.params.tenantId;
 

@@ -19,9 +19,11 @@ import {
   validateProviderType
 } from './tenant-integration.validation';
 
-interface AuthenticatedRequest extends Request {
-  accountId?: string;
-}
+type AuthenticatedRequest = Request & {
+  user?: {
+    id: string;
+  };
+};
 
 /**
  * Create new test management integration for a tenant
@@ -68,7 +70,7 @@ const createIntegrationHandler = (service: TestManagementIntegrationService) =>
         name,
         providerType,
         config,
-        createdByAccountId: req.accountId
+        createdByAccountId: req.user?.id
       };
 
       const integration = await service.createTenantIntegration(data);

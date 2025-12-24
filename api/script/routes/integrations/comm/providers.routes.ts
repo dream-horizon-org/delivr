@@ -8,6 +8,7 @@
 
 import { Router } from 'express';
 import { Storage } from '../../../storage/storage';
+import * as tenantPermissions from '../../../middleware/tenant-permissions';
 import { createCommIntegrationController } from '../../../controllers/integrations/comm/comm-integration';
 
 /**
@@ -20,6 +21,7 @@ export const createProvidersRoutes = (storage: Storage): Router => {
   // Get list of available communication providers
   router.get(
     '/integrations/comm/providers',
+    tenantPermissions.requireEditor({ storage }),
     controller.getAvailableProviders
   );
 

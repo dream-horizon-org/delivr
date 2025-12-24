@@ -76,6 +76,7 @@ export class CommIntegrationService {
       botUserId: string;
       workspaceId: string;
       workspaceName: string;
+      createdByAccountId?: string | null;
     }
   ): Promise<SafeSlackIntegration> {
     const createData: CreateSlackIntegrationDto = {
@@ -84,7 +85,8 @@ export class CommIntegrationService {
       slackBotToken: data.botToken,
       slackBotUserId: data.botUserId,
       slackWorkspaceId: data.workspaceId,
-      slackWorkspaceName: data.workspaceName
+      slackWorkspaceName: data.workspaceName,
+      createdByAccountId: data.createdByAccountId ?? null
     };
 
     const created = await this.repository.create(createData);

@@ -4,6 +4,7 @@ import { createCICDConfigRoutes } from "./config/config.routes";
 import { createCICDConnectionsRoutes } from "./connections/connections.routes";
 import { createCICDWorkflowsRoutes } from "./workflows/workflows.routes";
 import * as validateCICD from "../../../middleware/validate-cicd";
+import * as tenantPermissions from "../../../middleware/tenant-permissions";
 import {
   createWorkflow,
   listWorkflows,
@@ -16,9 +17,10 @@ import {
 export function createCICDIntegrationRoutes(storage: Storage): Router {
   const router = Router();
 
-  // Get available CI/CD providers (public endpoint)
+  // Get available CI/CD providers
   router.get(
     "/integrations/ci-cd/providers",
+    tenantPermissions.requireTenantMembership({ storage }),
     getAvailableCICDProviders
   );
 
@@ -31,7 +33,7 @@ export function createCICDIntegrationRoutes(storage: Storage): Router {
   router.post(
     "/tenants/:tenantId/integrations/ci-cd/workflows",
     validateCICD.validateTenantId,
-    // tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     validateCICD.validateCreateWorkflowBody,
     createWorkflow
   );
@@ -39,28 +41,28 @@ export function createCICDIntegrationRoutes(storage: Storage): Router {
   router.get(
     "/tenants/:tenantId/integrations/ci-cd/workflows",
     validateCICD.validateTenantId,
-    // tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     listWorkflows
   );
 
   router.get(
     "/tenants/:tenantId/integrations/ci-cd/workflows/:workflowId",
     validateCICD.validateTenantId,
-    // tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     getWorkflowById
   );
 
   router.patch(
     "/tenants/:tenantId/integrations/ci-cd/workflows/:workflowId",
     validateCICD.validateTenantId,
-    // tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     updateWorkflow
   );
 
   router.delete(
     "/tenants/:tenantId/integrations/ci-cd/workflows/:workflowId",
     validateCICD.validateTenantId,
-    // tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     deleteWorkflow
   );
 

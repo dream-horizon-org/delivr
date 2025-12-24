@@ -18,7 +18,9 @@ import {
 } from './test-management-config.validation';
 
 type AuthenticatedRequest = Request & {
-  accountId?: string;
+  user?: {
+    id: string;
+  };
 };
 
 /**
@@ -77,7 +79,7 @@ const createConfigHandler = (service: TestManagementConfigService) =>
         name,
         passThresholdPercent,
         platformConfigurations,
-        createdByAccountId: req.accountId
+        createdByAccountId: req.user?.id
       };
 
       const config = await service.createConfig(data);

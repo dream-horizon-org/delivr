@@ -68,7 +68,8 @@ export class CommIntegrationRepository {
       id: nanoid(),
       ...data,
       communicationType: data.communicationType ?? CommunicationType.SLACK,
-      verificationStatus: VerificationStatus.PENDING
+      verificationStatus: VerificationStatus.PENDING,
+      createdByAccountId: data.createdByAccountId ?? null
     });
 
     return this.toPlainObject(integration) as SafeSlackIntegration;

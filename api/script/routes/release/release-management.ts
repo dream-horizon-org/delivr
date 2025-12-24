@@ -111,13 +111,17 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   // HEALTH CHECK
   // ============================================================================
-  router.get("/health", (req: Request, res: Response): Response => {
-    return res.status(HTTP_STATUS.OK).json({
-      service: "Release Management",
-      status: "healthy",
-      timestamp: new Date().toISOString()
-    });
-  });
+  router.get(
+    "/health",
+    tenantPermissions.requireTenantMembership({ storage }),
+    (req: Request, res: Response): Response => {
+      return res.status(HTTP_STATUS.OK).json({
+        service: "Release Management",
+        status: "healthy",
+        timestamp: new Date().toISOString()
+      });
+    }
+  );
 
   // ============================================================================
   // RELEASE CRUD OPERATIONS
@@ -126,35 +130,35 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Create a new release
   router.post(
     "/tenants/:tenantId/releases",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.createRelease
   );
 
   // Get a specific release
   router.get(
     "/tenants/:tenantId/releases/:releaseId",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.getRelease
   );
 
   // Get all releases for a tenant
   router.get(
     "/tenants/:tenantId/releases",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.listReleases
   );
 
   // Update a release
   router.patch(
     "/tenants/:tenantId/releases/:releaseId",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.updateRelease
   );
 
   // Delete a release
   router.delete(
     "/tenants/:tenantId/releases/:releaseId",
-    tenantPermissions.requireOwner({ storage }),
+    releasePermissions.requireReleaseOwner({ storage }),
     async (req: Request, res: Response): Promise<Response> => {
       // TODO: Delegate to controller.deleteRelease
       return res.status(501).json({
@@ -171,14 +175,14 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Get tasks for a release
   router.get(
     "/tenants/:tenantId/releases/:releaseId/tasks",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.getTasks
   );
 
   // Get a specific task
   router.get(
     "/tenants/:tenantId/releases/:releaseId/tasks/:taskId",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.getTaskById
   );
 
@@ -229,7 +233,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
    */
   router.post(
     "/tenants/:tenantId/releases/:releaseId/trigger-regression-testing",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.triggerRegressionTesting
   );
 
@@ -240,14 +244,14 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Pause release (user-requested)
   router.post(
     "/tenants/:tenantId/releases/:releaseId/pause",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.pauseRelease
   );
 
   // Resume release (user-paused)
   router.post(
     "/tenants/:tenantId/releases/:releaseId/resume",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.resumeRelease
   );
 
@@ -279,7 +283,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Resets task status to PENDING, cron will re-execute on next tick
   router.post(
     "/tenants/:tenantId/releases/:releaseId/tasks/:taskId/retry",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.retryTask
   );
 
@@ -303,7 +307,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
    */
   router.put(
     "/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     upload.single('artifact'),
     controller.uploadManualBuild
   );
@@ -340,7 +344,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Archive (cancel) a release
   router.put(
     "/tenants/:tenantId/releases/:releaseId/archive",
-    tenantPermissions.requireOwner({ storage }),
+    releasePermissions.requireReleaseOwner({ storage }),
     controller.archiveRelease
   );
 
@@ -351,7 +355,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Trigger Pre-Release (Stage 3)
   router.post(
     "/tenants/:tenantId/releases/:releaseId/trigger-pre-release",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.triggerPreRelease
   );
 
@@ -362,7 +366,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Trigger Distribution (Stage 4)
   router.post(
     "/tenants/:tenantId/releases/:releaseId/trigger-distribution",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.triggerDistribution
   );
 
@@ -386,21 +390,21 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Check Cherry Pick Status
   router.get(
     "/tenants/:tenantId/releases/:releaseId/check-cherry-pick-status",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.checkCherryPickStatus
   );
 
   // Check project management run status
   router.get(
     "/tenants/:tenantId/releases/:releaseId/project-management-run-status",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.checkProjectManagementRunStatus
   );
 
   // Check test management run status
   router.get(
     "/tenants/:tenantId/releases/:releaseId/test-management-run-status",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.checkTestManagementRunStatus
   );
 
@@ -411,7 +415,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Get activity logs for a release
   router.get(
     "/tenants/:tenantId/releases/:releaseId/activity-logs",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.getActivityLogs
   );
 
@@ -447,7 +451,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Get build artifacts
   router.get(
     "/tenants/:tenantId/releases/:releaseId/builds/artifacts",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     createBuildListArtifactsHandler(storage)
   );
 

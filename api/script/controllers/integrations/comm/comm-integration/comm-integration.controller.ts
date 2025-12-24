@@ -176,12 +176,18 @@ const fetchChannelsByIntegrationIdHandler = (service: CommIntegrationService) =>
     }
   };
 
+type AuthenticatedRequest = Request & {
+  user?: {
+    id: string;
+  };
+};
+
 /**
  * Handler: Create or Update Slack Integration
  * POST /tenants/:tenantId/integrations/slack
  */
 const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
-  async (req: Request, res: Response): Promise<void> => {
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const { tenantId } = req.params;
       const { botToken, botUserId, workspaceId, workspaceName, _encrypted } = req.body;
@@ -259,7 +265,8 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
           botToken: backendEncryptedBotToken, // Backend-encrypted value
           botUserId,
           workspaceId,
-          workspaceName
+          workspaceName,
+          createdByAccountId: req.user?.id ?? null
         });
         isNew = true;
       }

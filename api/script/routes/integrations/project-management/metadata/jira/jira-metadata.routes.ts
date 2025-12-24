@@ -22,7 +22,7 @@ export const createJiraMetadataRoutes = (
    */
   router.get(
     '/tenants/:tenantId/integrations/project-management/:integrationId/jira/metadata/projects',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.getProjects
   );
 
