@@ -7,9 +7,9 @@
 
 import axios from 'axios';
 import {
-    AUTH_CONFIG,
-    AUTH_ERROR_MESSAGES,
-    GOOGLE_TOKEN_ENDPOINT
+  AUTH_CONFIG,
+  AUTH_ERROR_MESSAGES,
+  GOOGLE_TOKEN_ENDPOINT
 } from './auth.constants';
 import type { User } from './auth.interface';
 
@@ -49,6 +49,11 @@ export async function refreshGoogleToken(user: User): Promise<User> {
     
     const newIdToken = response.data.id_token;
     const expiresIn = response.data.expires_in || 3600;
+    
+    // Validate that we received a new token
+    if (!newIdToken) {
+      throw new Error('Google did not return a new ID token in refresh response');
+    }
     
     console.log('[Token Refresh] ✅ Token refreshed successfully');
     

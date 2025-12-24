@@ -16,19 +16,19 @@
 import { json } from '@remix-run/node';
 import { DistributionService } from '~/.server/services/Distribution';
 import {
-    ERROR_MESSAGES,
-    HTTP_STATUS,
-    LOG_CONTEXT,
+  ERROR_MESSAGES,
+  HTTP_STATUS,
+  LOG_CONTEXT,
 } from '~/constants/distribution/distribution-api.constants';
 import { Platform } from '~/types/distribution/distribution.types';
 import {
-    createValidationError,
-    handleAxiosError,
-    logApiError
+  createValidationError,
+  handleAxiosError,
+  logApiError
 } from '~/utils/api-route-helpers';
 import {
-    authenticateActionRequest,
-    AuthenticatedActionFunction,
+  authenticateActionRequest,
+  AuthenticatedActionFunction,
 } from '~/utils/authenticate';
 
 /**

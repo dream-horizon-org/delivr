@@ -4,6 +4,7 @@
  * Centralized exports for authentication-related functionality
  */
 
+
 // ============================================================================
 // Main Auth Service & Enums
 // ============================================================================
@@ -54,6 +55,7 @@ export {
   getAuthenticatorCallbackUrl, // Get OAuth callback URL
   getAuthErrorMessage, // Get user-friendly error message
   getBackendURL, // Get backend URL with fallback
-  isBackendConnectionError // Check if error is connection-related
+  isBackendConnectionError, // Check if error is connection-related
+  requireUserId // [DEPRECATED] Require authenticated user ID - Use authenticateActionRequest/authenticateLoaderRequest instead
 } from './auth.utils';
 

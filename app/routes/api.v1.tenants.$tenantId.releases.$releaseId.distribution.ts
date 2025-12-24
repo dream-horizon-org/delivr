@@ -16,13 +16,13 @@ import { json } from '@remix-run/node';
 import type { User } from '~/.server/services/Auth/auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import {
-    ERROR_MESSAGES,
-    LOG_CONTEXT,
+  ERROR_MESSAGES,
+  LOG_CONTEXT,
 } from '~/constants/distribution/distribution-api.constants';
 import {
-    createValidationError,
-    handleAxiosError,
-    logApiError
+  createValidationError,
+  handleAxiosError,
+  logApiError
 } from '~/utils/api-route-helpers';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 
