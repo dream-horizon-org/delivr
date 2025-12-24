@@ -57,7 +57,7 @@ export default function ReleaseDetailsPage() {
   const currentPhase: Phase = release 
     ? (release.releasePhase || determineReleasePhase(release))
     : Phase.NOT_STARTED;
-  const currentStage = getStageFromPhase(currentPhase, release?.currentActiveStage);
+  const currentStage = getStageFromPhase(currentPhase, release?.currentActiveStage, release?.cronJob);
 
   // State for selected stage (user can click stepper to view different stages)
   // Initialize to null, will be set to currentStage when release loads

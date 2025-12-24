@@ -111,12 +111,15 @@ export interface TestRailSettings {
 // Scheduling Configuration
 // ============================================================================
 
-export type ReleaseFrequency = 'WEEKLY' | 'BIWEEKLY' | 'TRIWEEKLY' | 'MONTHLY' | 'CUSTOM';
+export type ReleaseFrequency = 'WEEKLY' | 'BIWEEKLY' | 'TRIWEEKLY' | 'MONTHLY';
 
 export interface SchedulingConfig {
+  // Runtime fields (from backend - present when schedule exists)
+  id?: string; // Schedule ID (present when schedule exists)
+  isEnabled?: boolean; // Whether schedule is active (present when schedule exists)
+  
   // Release frequency
   releaseFrequency: ReleaseFrequency;
-  customFrequencyDays?: number; // For CUSTOM frequency
   
   // First release date (kickoff date)
   firstReleaseKickoffDate: string; // ISO date string

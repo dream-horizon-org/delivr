@@ -5,11 +5,12 @@
  */
 
 import {
+  Alert,
   Group,
   Stack,
   Text,
 } from '@mantine/core';
-import { IconCheck, IconX } from '@tabler/icons-react';
+import { IconArchive, IconCheck, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useRouteLoaderData } from '@remix-run/react';
 import {
@@ -167,6 +168,8 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
     return requirements.filter((r) => !r.passed).length;
   }, [requirements]);
 
+  const isArchived = release?.status === 'ARCHIVED';
+
   return (
     <StageErrorBoundary
       isLoading={isLoading}
@@ -175,6 +178,20 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
       stageName="regression stage"
     >
       <Stack gap="lg" className={className}>
+      {/* Archived Message Banner */}
+      {isArchived && (
+        <Alert
+          icon={<IconArchive size={16} />}
+          title="This release is archived"
+          color="gray"
+          variant="light"
+        >
+          <Text size="sm">
+            This release has been archived. You can view the tasks and history, but no actions can be performed.
+          </Text>
+        </Alert>
+      )}
+
       {/* Regression Cycles List */}
       <RegressionCyclesList
         cycles={cycles}

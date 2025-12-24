@@ -61,10 +61,12 @@ export function determineReleasePhase(release: BackendReleaseResponse): Phase {
  * Get current stage from phase
  * @param phase - The release phase
  * @param currentActiveStage - Optional active stage from backend (used for paused states)
+ * @param cronJob - Optional cron job data (used to determine stage for archived/completed releases)
  */
 export function getStageFromPhase(
   phase: Phase,
-  currentActiveStage?: 'PRE_KICKOFF' | 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE' | 'RELEASE_SUBMISSION' | 'RELEASE' | null
+  currentActiveStage?: 'PRE_KICKOFF' | 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE' | 'RELEASE_SUBMISSION' | 'RELEASE' | null,
+  cronJob?: { stage1Status?: string; stage2Status?: string; stage3Status?: string; stage4Status?: string; [key: string]: unknown } | null
 ): TaskStage | null {
   // Handle paused states - use currentActiveStage if available
   if (phase === Phase.PAUSED_BY_FAILURE || phase === Phase.PAUSED_BY_USER) {
@@ -89,6 +91,47 @@ export function getStageFromPhase(
     // If no currentActiveStage, fall through to default
   }
 
+  // Handle archived/completed states - determine stage from currentActiveStage or cronJob statuses
+  if (phase === Phase.ARCHIVED || phase === Phase.COMPLETED) {
+    // If currentActiveStage is available, use it
+    if (currentActiveStage) {
+      switch (currentActiveStage) {
+        case 'KICKOFF':
+          return TaskStageEnum.KICKOFF;
+        case 'REGRESSION':
+          return TaskStageEnum.REGRESSION;
+        case 'PRE_RELEASE':
+          return TaskStageEnum.PRE_RELEASE;
+        case 'RELEASE_SUBMISSION':
+        case 'RELEASE':
+          return TaskStageEnum.DISTRIBUTION;
+        default:
+          // Fall through to cronJob check
+          break;
+      }
+    }
+    
+    // If currentActiveStage is null, determine from cronJob stage statuses
+    if (cronJob) {
+      // Check stages in reverse order (most recent first)
+      if (cronJob.stage4Status === 'COMPLETED' || cronJob.stage4Status === 'IN_PROGRESS') {
+        return TaskStageEnum.DISTRIBUTION;
+      }
+      if (cronJob.stage3Status === 'COMPLETED' || cronJob.stage3Status === 'IN_PROGRESS') {
+        return TaskStageEnum.PRE_RELEASE;
+      }
+      if (cronJob.stage2Status === 'COMPLETED' || cronJob.stage2Status === 'IN_PROGRESS') {
+        return TaskStageEnum.REGRESSION;
+      }
+      if (cronJob.stage1Status === 'COMPLETED' || cronJob.stage1Status === 'IN_PROGRESS') {
+        return TaskStageEnum.KICKOFF;
+      }
+    }
+    
+    // Default fallback for archived/completed - show distribution
+    return TaskStageEnum.DISTRIBUTION;
+  }
+
   switch (phase) {
     case Phase.NOT_STARTED:
       return null; // Pre-kickoff (not a stage in stepper)
@@ -105,9 +148,6 @@ export function getStageFromPhase(
     case Phase.SUBMISSION:
     case Phase.SUBMITTED_PENDING_APPROVAL:
       return TaskStageEnum.DISTRIBUTION;
-    case Phase.COMPLETED:
-    case Phase.ARCHIVED:
-      return TaskStageEnum.DISTRIBUTION; // Show distribution even when completed
     default:
       return TaskStageEnum.KICKOFF; // Default fallback
   }
