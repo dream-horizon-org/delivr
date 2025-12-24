@@ -7,6 +7,7 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
 import { requireUserId } from '~/.server/services/Auth';
 import { ReleaseConfigService } from '~/.server/services/ReleaseConfig';
+import { prepareReleaseConfigPayload } from '~/.server/services/ReleaseConfig/release-config-payload';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import {
   transformFromPlatformTargetsArray,
@@ -40,17 +41,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
       targets: config.targets,
     });
 
-    // Transform UI format (targets array) to backend format (platformTargets array)
-    const platformTargets = transformToPlatformTargetsArray(config.targets);
-    
-    // Create backend payload with platformTargets
-    const { platforms: _platforms, targets: _targets, ...restConfig } = config as any;
-    const backendConfig = {
-      ...restConfig,
-      platformTargets,
-    };
+    // Use prepareReleaseConfigPayload to handle all transformations including:
+    // - platformTargets transformation
+    // - releaseSchedule.initialVersions (object to array format)
+    // - releaseFrequency (uppercase to lowercase)
+    // - All other field transformations
+    const backendConfig = prepareReleaseConfigPayload(config, tenantId, userId);
 
-    console.log('[BFF] Transformed platformTargets:', platformTargets);
+    console.log('[BFF] Transformed config:', {
+      platformTargets: backendConfig.platformTargets?.length,
+      hasReleaseSchedule: !!backendConfig.releaseSchedule,
+      initialVersionsFormat: Array.isArray(backendConfig.releaseSchedule?.initialVersions) ? 'array' : 'object',
+      releaseFrequency: backendConfig.releaseSchedule?.releaseFrequency,
+    });
 
     const result = await ReleaseConfigService.create(backendConfig as any, tenantId, userId);
 
