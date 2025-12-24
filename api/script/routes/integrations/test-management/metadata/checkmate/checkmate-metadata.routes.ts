@@ -6,8 +6,13 @@
 import { Router } from 'express';
 import { createCheckmateMetadataController } from '~controllers/integrations/test-management/metadata/checkmate';
 import type { CheckmateMetadataService } from '~services/integrations/test-management/metadata/checkmate';
+import type { Storage } from '~storage/storage';
+import * as tenantPermissions from '~middleware/tenant-permissions';
 
-export const createCheckmateMetadataRoutes = (metadataService: CheckmateMetadataService): Router => {
+export const createCheckmateMetadataRoutes = (
+  metadataService: CheckmateMetadataService,
+  storage: Storage
+): Router => {
   const router = Router();
   const controller = createCheckmateMetadataController(metadataService);
 
@@ -15,25 +20,41 @@ export const createCheckmateMetadataRoutes = (metadataService: CheckmateMetadata
    * GET /test-management/integrations/:integrationId/checkmate/metadata/projects
    * Fetch all Checkmate projects for organization
    */
-  router.get('/integrations/:integrationId/checkmate/metadata/projects', controller.getProjects);
+  router.get(
+    '/integrations/:integrationId/checkmate/metadata/projects',
+    tenantPermissions.requireTenantMembership({ storage }),
+    controller.getProjects
+  );
 
   /**
    * GET /test-management/integrations/:integrationId/checkmate/metadata/sections?projectId=100
    * Fetch all Checkmate sections for a project
    */
-  router.get('/integrations/:integrationId/checkmate/metadata/sections', controller.getSections);
+  router.get(
+    '/integrations/:integrationId/checkmate/metadata/sections',
+    tenantPermissions.requireTenantMembership({ storage }),
+    controller.getSections
+  );
 
   /**
    * GET /test-management/integrations/:integrationId/checkmate/metadata/labels?projectId=100
    * Fetch all Checkmate labels for a project
    */
-  router.get('/integrations/:integrationId/checkmate/metadata/labels', controller.getLabels);
+  router.get(
+    '/integrations/:integrationId/checkmate/metadata/labels',
+    tenantPermissions.requireTenantMembership({ storage }),
+    controller.getLabels
+  );
 
   /**
    * GET /test-management/integrations/:integrationId/checkmate/metadata/squads?projectId=100
    * Fetch all Checkmate squads for a project
    */
-  router.get('/integrations/:integrationId/checkmate/metadata/squads', controller.getSquads);
+  router.get(
+    '/integrations/:integrationId/checkmate/metadata/squads',
+    tenantPermissions.requireTenantMembership({ storage }),
+    controller.getSquads
+  );
 
   return router;
 };

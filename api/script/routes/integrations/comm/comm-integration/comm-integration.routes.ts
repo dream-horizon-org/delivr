@@ -37,14 +37,14 @@ export const createCommIntegrationRoutes = (storage: Storage): Router => {
   // Fetch Slack Channels (with token in body)
   router.post(
     '/tenants/:tenantId/integrations/slack/channels',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     (req, res) => getController().fetchChannels(req, res)
   );
 
   // Fetch Slack Channels by Integration ID (uses stored token)
   router.get(
     '/tenants/:tenantId/integrations/slack/:integrationId/channels',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     (req, res) => getController().fetchChannelsByIntegrationId(req, res)
   );
 
@@ -58,7 +58,7 @@ export const createCommIntegrationRoutes = (storage: Storage): Router => {
   // Get Slack Integration for Tenant
   router.get(
     '/tenants/:tenantId/integrations/slack',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     (req, res) => getController().getIntegration(req, res)
   );
 

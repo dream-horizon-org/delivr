@@ -23,42 +23,42 @@ export const createReleaseConfigRoutes = (
   // Create release config
   router.post(
     '/tenants/:tenantId/release-configs',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.createConfig
   );
 
   // List configs by tenant
   router.get(
     '/tenants/:tenantId/release-configs',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.listConfigsByTenant
   );
 
   // Get config by ID
   router.get(
     '/tenants/:tenantId/release-configs/:configId',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.getConfigById
   );
 
   // Update config
   router.put(
     '/tenants/:tenantId/release-configs/:configId',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.updateConfig
   );
 
   // Delete config
   router.delete(
     '/tenants/:tenantId/release-configs/:configId',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.deleteConfig
   );
 
   // Get activity logs for a release config
   router.get(
     '/tenants/:tenantId/release-configs/:configId/activity-logs',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.getActivityLogs
   );
 

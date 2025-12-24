@@ -13,37 +13,37 @@ export const createConfigurationRoutes = (
 
   router.post(
     '/tenants/:tenantId/project-management/configs',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.createConfig
   );
 
   router.get(
     '/tenants/:tenantId/project-management/configs',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.listConfigs
   );
 
   router.get(
     '/tenants/:tenantId/project-management/configs/:configId',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.getConfig
   );
 
   router.put(
     '/tenants/:tenantId/project-management/configs/:configId',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.updateConfig
   );
 
   router.delete(
     '/tenants/:tenantId/project-management/configs/:configId',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.deleteConfig
   );
 
   router.post(
     '/tenants/:tenantId/project-management/configs/:configId/verify',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.verifyConfig
   );
 

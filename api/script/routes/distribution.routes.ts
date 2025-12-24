@@ -8,6 +8,7 @@ import { Request, Response, Router } from "express";
 import * as multer from "multer";
 import * as storageTypes from "../storage/storage";
 import * as releasePermissions from "../middleware/release-permissions";
+import * as tenantPermissions from "../middleware/tenant-permissions";
 import { HTTP_STATUS } from "../constants/http";
 import { createSubmissionController } from "../controllers/distribution";
 import { createDistributionController } from "../controllers/distribution/distribution.controller";
@@ -48,7 +49,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   const distributionController = createDistributionController(distributionService, storage);
 
   // ============================================================================
-  // DISTRIBUTION - LIST, GET BY RELEASE ID OR DISTRIBUTION ID
+  // DISTRIBUTION - GET BY RELEASE ID OR DISTRIBUTION ID
   // ============================================================================
 
   /**
@@ -66,6 +67,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    */
   router.get(
     "/distributions",
+    tenantPermissions.requireTenantMembership({ storage }),
     distributionController.listDistributions
   );
 
@@ -78,7 +80,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    */
   router.get(
     "/tenants/:tenantId/releases/:releaseId/distribution",
-    releasePermissions.requireReleaseAccess({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     distributionController.getDistributionByReleaseId
   );
 
@@ -90,9 +92,9 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * Use Case: View distribution details when you have the distribution ID directly
    */
   router.get(
-    "/tenants/:tenantId/distributions/:distributionId",
-    releasePermissions.requireDistributionAccess({ storage }),
-    distributionController.getDistributionById
+      "/tenants/:tenantId/distributions/:distributionId",
+      tenantPermissions.requireTenantMembership({ storage }),
+      distributionController.getDistributionById
   );
 
   // ============================================================================
@@ -124,6 +126,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    */
   router.put(
     "/tenants/:tenantId/submissions/:submissionId/submit",
+    releasePermissions.requireReleaseOwner({ storage }),
     submissionController.submitExistingSubmission
   );
 
@@ -167,6 +170,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    */
   router.post(
     "/tenants/:tenantId/distributions/:distributionId/submissions",
+    releasePermissions.requireReleaseOwner({ storage }),
     upload.single('aabFile'),
     submissionController.createNewSubmission
   );
@@ -184,6 +188,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    */
   router.get(
     "/tenants/:tenantId/submissions/:submissionId",
+    tenantPermissions.requireTenantMembership({ storage }),
     submissionController.getSubmissionDetails
   );
 
@@ -203,6 +208,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    */
   router.get(
     "/tenants/:tenantId/submissions/:submissionId/artifact",
+    tenantPermissions.requireTenantMembership({ storage }),
     submissionController.getSubmissionArtifactDownload
   );
 
@@ -228,6 +234,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    */
   router.patch(
     "/tenants/:tenantId/submissions/:submissionId/rollout",
+    releasePermissions.requireReleaseOwner({ storage }),
     submissionController.updateRolloutPercentage
   );
 
@@ -254,6 +261,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    */
   router.patch(
     "/tenants/:tenantId/submissions/:submissionId/cancel",
+    releasePermissions.requireReleaseOwner({ storage }),
     submissionController.cancelSubmission
   );
 
@@ -275,6 +283,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    */
   router.patch(
     "/tenants/:tenantId/submissions/:submissionId/rollout/pause",
+    releasePermissions.requireReleaseOwner({ storage }),
     submissionController.pauseRollout
   );
 
@@ -295,6 +304,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    */
   router.patch(
     "/tenants/:tenantId/submissions/:submissionId/rollout/resume",
+    releasePermissions.requireReleaseOwner({ storage }),
     submissionController.resumeRollout
   );
 
@@ -312,6 +322,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    */
   router.patch(
     "/tenants/:tenantId/submissions/:submissionId/rollout/halt",
+    releasePermissions.requireReleaseOwner({ storage }),
     async (req: Request, res: Response): Promise<Response> => {
       // TODO: Implement submissionController.emergencyHalt
       return res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
@@ -352,6 +363,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    */
   router.post(
     "/tenants/:tenantId/submissions/:submissionId/status",
+    tenantPermissions.requireTenantMembership({ storage }),
     submissionController.submissionStatus
   );
 
