@@ -239,12 +239,12 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
     submissionController.updateRolloutPercentage
   );
 
-  // ============================================================================
+    // ============================================================================
   // SUBMISSION - CANCEL
   // ============================================================================
   
   /**
-   * PATCH /tenants/:tenantId/submissions/:submissionId/cancel?platform=IOS
+   * PATCH /submissions/:submissionId/cancel?platform=IOS
    * 
    * Cancel an iOS submission (iOS only).
    * Deletes the app store review submission in Apple App Store Connect.
