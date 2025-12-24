@@ -346,18 +346,17 @@ export class TaskExecutor {
 
   /**
    * Send PROJECT_MANAGEMENT_LINKS notification
+   * 
+   * IMPORTANT: Re-fetches platformTargetMappings from DB to get fresh data.
+   * The context.platformTargetMappings may be stale (fetched before task execution),
+   * but the task updates projectManagementRunId in the DB during execution.
    */
   private async notifyProjectManagementLinks(
     context: TaskExecutionContext,
     _externalData: Record<string, unknown> | null,
     _externalId: string | null
   ): Promise<void> {
-    const { tenantId, releaseId, release, platformTargetMappings } = context;
-
-    if (!platformTargetMappings || platformTargetMappings.length === 0) {
-      console.log('[TaskExecutor] No platform mappings, skipping PM notification');
-      return;
-    }
+    const { tenantId, releaseId, release } = context;
 
     // Get release config
     const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
@@ -368,9 +367,22 @@ export class TaskExecutor {
       return;
     }
 
+    // Re-fetch fresh platform mappings from DB (context may have stale data)
+    const PlatformTargetMappingModel = this.sequelize.models.PlatformTargetMapping;
+    const freshMappingsRaw = await PlatformTargetMappingModel.findAll({
+      where: { releaseId },
+      raw: true
+    });
+    const freshMappings = freshMappingsRaw as unknown as PlatformTargetMapping[];
+
+    if (!freshMappings || freshMappings.length === 0) {
+      console.log('[TaskExecutor] No platform mappings found in DB, skipping PM notification');
+      return;
+    }
+
     // Fetch ticket URLs for each platform
     const links: string[] = [];
-    for (const mapping of platformTargetMappings) {
+    for (const mapping of freshMappings) {
       if (mapping.projectManagementRunId) {
         try {
           const ticketUrl = await this.pmTicketService.getTicketUrl({
@@ -403,18 +415,17 @@ export class TaskExecutor {
 
   /**
    * Send TEST_MANAGEMENT_LINKS notification
+   * 
+   * IMPORTANT: Re-fetches platformTargetMappings from DB to get fresh data.
+   * The context.platformTargetMappings may be stale (fetched before task execution),
+   * but the task updates testManagementRunId in the DB during execution.
    */
   private async notifyTestManagementLinks(
     context: TaskExecutionContext,
     _externalData: Record<string, unknown> | null,
     _externalId: string | null
   ): Promise<void> {
-    const { tenantId, releaseId, release, platformTargetMappings } = context;
-
-    if (!platformTargetMappings || platformTargetMappings.length === 0) {
-      console.log('[TaskExecutor] No platform mappings, skipping test management notification');
-      return;
-    }
+    const { tenantId, releaseId, release } = context;
 
     // Get release config
     const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
@@ -425,9 +436,22 @@ export class TaskExecutor {
       return;
     }
 
+    // Re-fetch fresh platform mappings from DB (context may have stale data)
+    const PlatformTargetMappingModel = this.sequelize.models.PlatformTargetMapping;
+    const freshMappingsRaw = await PlatformTargetMappingModel.findAll({
+      where: { releaseId },
+      raw: true
+    });
+    const freshMappings = freshMappingsRaw as unknown as PlatformTargetMapping[];
+
+    if (!freshMappings || freshMappings.length === 0) {
+      console.log('[TaskExecutor] No platform mappings found in DB, skipping test management notification');
+      return;
+    }
+
     // Fetch run URLs for each platform
     const links: string[] = [];
-    for (const mapping of platformTargetMappings) {
+    for (const mapping of freshMappings) {
       if (mapping.testManagementRunId) {
         try {
           const runUrl = await this.testRunService.getRunUrl({
