@@ -49,9 +49,11 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   const distributionController = createDistributionController(distributionService, storage);
 
   // ============================================================================
-  // DISTRIBUTION - GET BY RELEASE ID OR DISTRIBUTION ID
+// DISTRIBUTION - LIST, GET BY RELEASE ID OR DISTRIBUTION ID
   // ============================================================================
 
+
+  
   /**
    * GET /distributions?tenantId=xxx&page=1&pageSize=10
    * 
@@ -96,11 +98,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
       tenantPermissions.requireTenantMembership({ storage }),
       distributionController.getDistributionById
   );
-  router.get(
-    "/distributions",
-    tenantPermissions.requireTenantMembership({ storage }),
-    distributionController.listDistributions
-  );
+ 
   // ============================================================================
   // SUBMISSION - SUBMIT EXISTING (FIRST-TIME)
   // ============================================================================
