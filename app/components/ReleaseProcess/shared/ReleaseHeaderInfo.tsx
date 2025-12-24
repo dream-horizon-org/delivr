@@ -181,7 +181,7 @@ interface ReleaseHeaderInfoProps {
 interface InfoItemConfig {
   key: string;
   icon?: ReactNode;
-  label: string;
+  label: string | ((props: ReleaseHeaderInfoProps & { releaseStatus: ReleaseStatus; isPaused: boolean }) => string);
   getValue: (props: ReleaseHeaderInfoProps & { releaseStatus: ReleaseStatus; isPaused: boolean }) => string | null;
   shouldShow: (props: ReleaseHeaderInfoProps & { releaseStatus: ReleaseStatus; isPaused: boolean }) => boolean;
   valueClassName?: string;
@@ -217,7 +217,12 @@ export function ReleaseHeaderInfo({
     {
       key: 'startedAt',
       icon: <IconClock size={18} className="text-slate-600" />,
-      label: HEADER_LABELS.RELEASE_STARTS_AT,
+      label: ({ release }) => {
+        if (!release.kickOffDate) return HEADER_LABELS.RELEASE_STARTED_AT;
+        const kickoffDate = new Date(release.kickOffDate);
+        const now = new Date();
+        return kickoffDate > now ? HEADER_LABELS.RELEASE_STARTS_AT : HEADER_LABELS.RELEASE_STARTED_AT;
+      },
       getValue: () => release.kickOffDate ? formatReleaseDateTime(release.kickOffDate) : null,
       shouldShow: () => !!release.kickOffDate,
     },
@@ -253,12 +258,14 @@ export function ReleaseHeaderInfo({
         const value = item.getValue(props);
         if (!value) return null;
 
+        const label = typeof item.label === 'function' ? item.label(props) : item.label;
+
         return (
           <Group key={item.key} gap="xs">
             {item.icon && item.icon}
             <div>
               <Text size="xs" c="dimmed">
-                {item.label}
+                {label}
               </Text>
               <Text 
                 fw={600} 

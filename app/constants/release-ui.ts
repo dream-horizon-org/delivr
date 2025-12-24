@@ -67,7 +67,8 @@ export const RELEASE_ACTIVE_STATUS = {
   UPCOMING: 'UPCOMING',   // kickOffDate is in the future
   RUNNING: 'RUNNING',     // kickOffDate has passed, status is IN_PROGRESS, cronJob not PAUSED
   PAUSED: 'PAUSED',       // cronJob.cronStatus is PAUSED
-  COMPLETED: 'COMPLETED', // status is COMPLETED or ARCHIVED
+  COMPLETED: 'COMPLETED', // status is COMPLETED
+  ARCHIVED: 'ARCHIVED',   // status is ARCHIVED
 } as const;
 
 export type ReleaseActiveStatusValue = typeof RELEASE_ACTIVE_STATUS[keyof typeof RELEASE_ACTIVE_STATUS];

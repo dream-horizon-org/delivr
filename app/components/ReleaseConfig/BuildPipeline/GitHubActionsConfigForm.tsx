@@ -156,7 +156,7 @@ export function GitHubActionsConfigForm({
         <Select
           label="GitHub Integration"
           placeholder="Select GitHub Actions integration"
-          data={availableIntegrations.map(i => ({ value: i.id, label: i.name }))}
+          data={availableIntegrations.map(i => ({ value: i.id, label: i.displayName || i.name }))}
           value={config.integrationId}
           onChange={(val) => onChange({ ...config, integrationId: val || '' })}
           required
@@ -167,7 +167,7 @@ export function GitHubActionsConfigForm({
       {/* Show integration name if only one exists */}
       {availableIntegrations.length === 1 && (
         <div className="text-sm text-gray-600">
-          <span className="font-medium">GitHub Integration:</span> {availableIntegrations[0].name}
+          <span className="font-medium">GitHub Integration:</span> {availableIntegrations[0].displayName || availableIntegrations[0].name}
         </div>
       )}
       

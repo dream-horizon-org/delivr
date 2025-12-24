@@ -21,6 +21,7 @@ export enum IntegrationStatus {
 export interface Integration {
   id: string;
   name: string;
+  displayName?: string; // User-friendly display name (from connected integration if available)
   description: string;
   category: IntegrationCategory;
   icon: string; // Emoji or icon identifier

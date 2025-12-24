@@ -19,6 +19,7 @@ export interface IntegrationProvider extends IntegrationProviderBackend {
   description: string;
   icon: string;
   comingSoon?: boolean;
+  displayName?: string; // User-friendly display name (merged from connected integration if available)
   // isAvailable inherited from IntegrationProviderBackend
 }
 
@@ -26,6 +27,7 @@ export interface ConnectedIntegration {
   id: string;
   providerId: string;
   name: string;
+  displayName?: string; // User-friendly display name (for integrations that store it)
   status: 'CONNECTED' | 'DISCONNECTED' | 'ERROR';
   config: Record<string, any>;
   verificationStatus: 'VALID' | 'INVALID' | 'PENDING';

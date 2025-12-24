@@ -18,7 +18,7 @@ import {
   IconCheck,
   IconInfoCircle,
 } from '@tabler/icons-react';
-import type { SchedulingConfig as SchedulingConfigType, Platform } from '~/types/release-config';
+import type { SchedulingConfig as SchedulingConfigType, Platform, CommunicationConfig } from '~/types/release-config';
 import type { SchedulingStepWrapperProps } from '~/types/release-config-props';
 import { SchedulingConfig } from './SchedulingConfig';
 import { DEFAULT_SCHEDULING_CONFIG } from '~/constants/release-config-ui';
@@ -31,7 +31,6 @@ const createDefaultSchedulingConfig = (platforms: Platform[]): SchedulingConfigT
 
   return {
     releaseFrequency: DEFAULT_SCHEDULING_CONFIG.RELEASE_FREQUENCY,
-    customFrequencyDays: undefined,
     firstReleaseKickoffDate: '',
     initialVersions,
     kickoffTime: DEFAULT_SCHEDULING_CONFIG.KICKOFF_TIME,
@@ -50,7 +49,8 @@ export function SchedulingStepWrapper({
   onChange,
   selectedPlatforms,
   showValidation = false,
-}: SchedulingStepWrapperProps) {
+  communicationConfig,
+}: SchedulingStepWrapperProps & { communicationConfig?: CommunicationConfig }) {
   const theme = useMantineTheme();
   const isEnabled = scheduling !== undefined && scheduling !== null;
 
@@ -159,6 +159,7 @@ export function SchedulingStepWrapper({
           onChange={onChange}
           selectedPlatforms={selectedPlatforms}
           showValidation={showValidation}
+          communicationConfig={communicationConfig}
         />
       )}
     </Stack>

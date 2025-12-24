@@ -1,9 +1,9 @@
 /**
  * Release Frequency Selector Component
- * Select release cadence (Weekly, Biweekly, Monthly, Custom)
+ * Select release cadence (Weekly, Biweekly, Triweekly, Monthly)
  */
 
-import { Stack, Select, NumberInput, Text, Group, Card } from '@mantine/core';
+import { Stack, Select, Text, Group, Card } from '@mantine/core';
 import { IconCalendar } from '@tabler/icons-react';
 import type { ReleaseFrequency } from '~/types/release-config';
 import type { ReleaseFrequencySelectorProps } from '~/types/release-config-props';
@@ -13,7 +13,6 @@ import { SCHEDULING_LABELS, ICON_SIZES } from '~/constants/release-config-ui';
 
 export function ReleaseFrequencySelector({
   frequency,
-  customDays,
   onChange,
 }: ReleaseFrequencySelectorProps) {
   const selectedOption = RELEASE_FREQUENCY_OPTIONS.find(opt => opt.value === frequency);
@@ -36,7 +35,7 @@ export function ReleaseFrequencySelector({
             label: opt.label,
           }))}
           value={frequency}
-          onChange={(val) => onChange(val as any)}
+          onChange={(val) => onChange(val as ReleaseFrequency)}
           required
           description={SCHEDULING_LABELS.FREQUENCY_DESCRIPTION}
         />
@@ -47,26 +46,11 @@ export function ReleaseFrequencySelector({
           </Text>
         )}
         
-        {frequency === RELEASE_FREQUENCIES.CUSTOM && (
-          <NumberInput
-            label={SCHEDULING_LABELS.CUSTOM_FREQUENCY_LABEL}
-            placeholder={SCHEDULING_LABELS.CUSTOM_FREQUENCY_PLACEHOLDER}
-            value={customDays}
-            onChange={(val) => onChange(RELEASE_FREQUENCIES.CUSTOM, Number(val) || undefined)}
-            required
-            min={1}
-            max={365}
-            description={SCHEDULING_LABELS.CUSTOM_FREQUENCY_DESCRIPTION}
-          />
-        )}
-        
-        {frequency !== RELEASE_FREQUENCIES.CUSTOM && (
-          <div className="bg-blue-50 p-3 rounded-lg">
-            <Text size="sm" fw={500} className="text-blue-900">
-              {SCHEDULING_LABELS.ESTIMATED_DAYS}: {selectedOption?.days || 0}
-            </Text>
-          </div>
-        )}
+        <div className="bg-blue-50 p-3 rounded-lg">
+          <Text size="sm" fw={500} className="text-blue-900">
+            {SCHEDULING_LABELS.ESTIMATED_DAYS}: {selectedOption?.days || 0}
+          </Text>
+        </div>
       </Stack>
     </Card>
   );

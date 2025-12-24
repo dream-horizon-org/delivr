@@ -174,10 +174,12 @@ export function useReleases(
   
   // Categorize releases by UI active status (calculated at runtime)
   // Active tab includes both RUNNING and PAUSED releases
-  const { upcoming, active, completed } = useMemo(() => {
+  // Archived releases are separated into their own tab
+  const { upcoming, active, completed, archived } = useMemo(() => {
     const upcoming: BackendReleaseResponse[] = [];
     const active: BackendReleaseResponse[] = [];
     const completed: BackendReleaseResponse[] = [];
+    const archived: BackendReleaseResponse[] = [];
     
     console.log('[useReleases] Categorizing releases by UI active status:', releases);
 
@@ -196,10 +198,13 @@ export function useReleases(
         case RELEASE_ACTIVE_STATUS.COMPLETED:
           completed.push(release);
           break;
+        case RELEASE_ACTIVE_STATUS.ARCHIVED:
+          archived.push(release);
+          break;
       }
     });
 
-    return { upcoming, active, completed };
+    return { upcoming, active, completed, archived };
   }, [releases]);
 
   return {
@@ -207,9 +212,11 @@ export function useReleases(
     releases,
     // Categorized by UI active status (calculated at runtime)
     // Active includes both RUNNING and PAUSED releases
+    // Archived releases are separated into their own tab
     upcoming,
     active,
     completed,
+    archived,
     
     // Loading & Error
     isLoading,

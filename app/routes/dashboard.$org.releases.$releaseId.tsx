@@ -57,7 +57,7 @@ export default function ReleaseDetailsPage() {
   const currentPhase: Phase = release 
     ? (release.releasePhase || determineReleasePhase(release))
     : Phase.NOT_STARTED;
-  const currentStage = getStageFromPhase(currentPhase);
+  const currentStage = getStageFromPhase(currentPhase, release?.currentActiveStage, release?.cronJob);
 
   // State for selected stage (user can click stepper to view different stages)
   // Initialize to null, will be set to currentStage when release loads
@@ -172,9 +172,9 @@ export default function ReleaseDetailsPage() {
 
   // Render stage component based on selected stage
   const renderStageComponent = () => {
-    // PreKickoffStage: Only show when release hasn't started yet (NOT_STARTED phase)
-    // Once started, this component should never be visible
-    if (currentPhase === Phase.NOT_STARTED) {
+    // PreKickoffStage: Show when release hasn't started yet (NOT_STARTED phase)
+    // OR when archived/completed with null stage (never started)
+    if (currentPhase === Phase.NOT_STARTED || (currentStage === null && (currentPhase === Phase.ARCHIVED || currentPhase === Phase.COMPLETED))) {
       return <PreKickoffStage />;
     }
 
@@ -223,6 +223,7 @@ export default function ReleaseDetailsPage() {
           releaseVersion={releaseVersion}
           currentStage={selectedStage}
           onUpdate={refetch}
+          onRefetch={refetch}
         />
 
         {/* Main Content with Stage Stepper Sidebar */}

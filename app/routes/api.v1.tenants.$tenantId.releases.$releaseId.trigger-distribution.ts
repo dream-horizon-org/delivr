@@ -1,10 +1,9 @@
 /**
- * Remix API Route: Trigger Distribution (Complete Post-Regression Stage)
+ * Remix API Route: Trigger Distribution (Approve Pre-Release Stage)
  * POST /api/v1/tenants/:tenantId/releases/:releaseId/trigger-distribution
  * 
- * BFF route that calls the ReleaseProcessService to complete post-regression stage and trigger distribution
+ * BFF route that calls the ReleaseProcessService to approve pre-release and trigger distribution
  * Backend contract: POST /api/v1/tenants/{tenantId}/releases/{releaseId}/trigger-distribution
- * Matches backend contract API #12
  */
 
 import { json } from '@remix-run/node';
@@ -20,7 +19,7 @@ import {
   logApiError,
   validateRequired,
 } from '~/utils/api-route-helpers';
-import type { CompletePreReleaseRequest, CompletePreReleaseResponse } from '~/types/release-process.types';
+import type { TriggerDistributionResponse } from '~/types/release-process.types';
 
 const triggerDistribution: AuthenticatedActionFunction = async ({ params, request, user }) => {
   const { tenantId, releaseId } = params;
@@ -34,23 +33,19 @@ const triggerDistribution: AuthenticatedActionFunction = async ({ params, reques
   }
 
   try {
-    let body: Partial<CompletePreReleaseRequest> = {};
-    try {
-      body = await request.json() as Partial<CompletePreReleaseRequest>;
-    } catch {
-      body = {};
-    }
+    // Parse request body (optional comments and forceApprove)
+    const body = await request.json().catch(() => ({})) as { comments?: string; forceApprove?: boolean };
     
-    const requestBody: CompletePreReleaseRequest = {
-      approvedBy: user.user.id,
-      notes: body.notes,
-    };
-
-    console.log('[BFF] Triggering distribution for release:', releaseId, requestBody);
-    const response = await ReleaseProcessService.completePostRegressionStage(tenantId, releaseId, requestBody, user.user.id);
+    console.log('[BFF] Triggering distribution for release:', releaseId, body);
+    const response = await ReleaseProcessService.triggerDistributionStage(
+      tenantId, 
+      releaseId, 
+      user.user.id,
+      body
+    );
     
     console.log('[BFF] Trigger distribution response:', response.data);
-    return json(response.data as CompletePreReleaseResponse);
+    return json(response.data as TriggerDistributionResponse);
   } catch (error) {
     logApiError('[Trigger Distribution API]', error);
     return handleAxiosError(error, 'Failed to trigger distribution');

@@ -163,25 +163,53 @@ export function ConfigProvider({
   // ============================================================================
   
   const getAvailableIntegrations = useCallback((category?: string): IntegrationProvider[] => {
-    console.log('[ConfigContext] Available integrations :' + "category" + category, systemMetadata);
     if (!systemMetadata) return [];
-    console.log('[ConfigContext] Available integrations:', systemMetadata);
+    
     const integrations = systemMetadata.releaseManagement.integrations;
     
+    // Get connected integrations to merge displayName
+    const connectedIntegrations = tenantConfig?.releaseManagement?.connectedIntegrations;
+    
+    // Helper to merge displayName from connected integration
+    const enrichWithDisplayName = (provider: IntegrationProvider): IntegrationProvider => {
+      if (!connectedIntegrations) return provider;
+      
+      // Find matching connected integration across all categories
+      const allConnected = [
+        ...(connectedIntegrations.SOURCE_CONTROL || []),
+        ...(connectedIntegrations.COMMUNICATION || []),
+        ...(connectedIntegrations.CI_CD || []),
+        ...(connectedIntegrations.TEST_MANAGEMENT || []),
+        ...(connectedIntegrations.PROJECT_MANAGEMENT || []),
+        ...(connectedIntegrations.APP_DISTRIBUTION || []),
+      ];
+      
+      const connected = allConnected.find(c => 
+        c.providerId.toLowerCase() === provider.id.toLowerCase()
+      );
+      
+      if (connected?.displayName) {
+        return { ...provider, displayName: connected.displayName };
+      }
+      
+      return provider;
+    };
+    
     if (category) {
-      return integrations[category as keyof typeof integrations] || [];
+      const categoryIntegrations = integrations[category as keyof typeof integrations] || [];
+      return categoryIntegrations.map(enrichWithDisplayName);
     }
     
-    // Return all integrations from all categories
+    // Return all integrations from all categories with displayName merged
     return [
-      ...integrations.SOURCE_CONTROL,
-      ...integrations.COMMUNICATION,
-      ...integrations.CI_CD,
-      ...integrations.TEST_MANAGEMENT,
-      ...integrations.PROJECT_MANAGEMENT,
-      ...integrations.APP_DISTRIBUTION,
+      ...integrations.SOURCE_CONTROL.map(enrichWithDisplayName),
+      ...integrations.COMMUNICATION.map(enrichWithDisplayName),
+      ...integrations.CI_CD.map(enrichWithDisplayName),
+      ...integrations.TEST_MANAGEMENT.map(enrichWithDisplayName),
+      ...integrations.PROJECT_MANAGEMENT.map(enrichWithDisplayName),
+      ...integrations.APP_DISTRIBUTION.map(enrichWithDisplayName),
     ];
-  }, [systemMetadata]);
+  }, [systemMetadata, tenantConfig]);
   
   const getConnectedIntegrations = useCallback((category?: string): ConnectedIntegration[] => {
     if (!tenantConfig?.releaseManagement?.connectedIntegrations) return [];

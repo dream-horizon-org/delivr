@@ -24,6 +24,7 @@ interface ReleaseHeaderActionsProps {
   onResumeClick: () => void;
   onActivityLogClick: () => void;
   onSlackMessageClick: () => void;
+  isRefetching?: boolean;
 }
 
 export function ReleaseHeaderActions({
@@ -35,6 +36,7 @@ export function ReleaseHeaderActions({
   onResumeClick,
   onActivityLogClick,
   onSlackMessageClick,
+  isRefetching = false,
 }: ReleaseHeaderActionsProps) {
   const releaseStatus: ReleaseStatus = release.status;
 
@@ -46,6 +48,8 @@ export function ReleaseHeaderActions({
           variant="outline" 
           leftSection={<IconEdit size={16} />}
           onClick={onEditClick}
+          loading={isRefetching}
+          disabled={isRefetching}
         >
           {BUTTON_LABELS.EDIT_RELEASE}
         </Button>

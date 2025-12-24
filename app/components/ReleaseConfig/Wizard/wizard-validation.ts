@@ -291,6 +291,11 @@ export const canProceedFromStep = (
       return jiraErrors.length === 0;
       
     case STEP_INDEX.SCHEDULING:
+      // CRITICAL: Cannot configure scheduling without platforms
+      if (!config.targets || config.targets.length === 0) {
+        return false; // Cannot proceed - no platforms selected
+      }
+      
       // If user opted out of scheduling, allow proceed
       if (!config.releaseSchedule) {
         return true;

@@ -543,8 +543,8 @@ export function useApproveRegression(tenantId?: string, releaseId?: string) {
 }
 
 /**
- * Complete pre-release stage
- * Backend contract: POST /api/v1/tenants/{tenantId}/releases/{releaseId}/stages/pre-release/complete (no request body)
+ * Complete pre-release stage / Trigger Distribution
+ * Backend contract: POST /api/v1/tenants/{tenantId}/releases/{releaseId}/trigger-distribution
  */
 export function useCompletePreReleaseStage(tenantId?: string, releaseId?: string) {
   const queryClient = useQueryClient();
@@ -570,6 +570,7 @@ export function useCompletePreReleaseStage(tenantId?: string, releaseId?: string
       onSuccess: () => {
         if (tenantId && releaseId) {
           queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.PRE_RELEASE));
+          queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.DISTRIBUTION));
           // Invalidate release query so phase gets recalculated and navigation happens
           queryClient.invalidateQueries(['release', tenantId, releaseId]);
           // Invalidate releases list to reflect stage completion

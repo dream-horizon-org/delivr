@@ -131,6 +131,7 @@ export default function ReleasesListPage() {
     upcoming,
     active,
     completed,
+    archived,
     isLoading,
     error: queryError,
     invalidateCache,
@@ -183,6 +184,7 @@ export default function ReleasesListPage() {
   const filteredUpcoming = useMemo(() => filterReleases(upcoming), [upcoming, filterReleases]);
   const filteredActive = useMemo(() => filterReleases(active), [active, filterReleases]);
   const filteredCompleted = useMemo(() => filterReleases(completed), [completed, filterReleases]);
+  const filteredArchived = useMemo(() => filterReleases(archived), [archived, filterReleases]);
 
   const handleTabChange = (value: string | null) => {
     if (value) {
@@ -273,6 +275,7 @@ export default function ReleasesListPage() {
           upcoming={filteredUpcoming}
           active={filteredActive}
           completed={filteredCompleted}
+          archived={filteredArchived}
           org={org}
           leftSection={
             <ReleasesFilter

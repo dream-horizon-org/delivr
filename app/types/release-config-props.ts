@@ -49,12 +49,12 @@ export interface ConfigurationWizardProps {
   onSubmit: (config: ReleaseConfiguration) => Promise<void>;
   onCancel: () => void;
   availableIntegrations: {
-    jenkins: Array<{ id: string; name: string }>;
-    github: Array<{ id: string; name: string }>; // GitHub SCM (for branch fetching)
-    githubActions: Array<{ id: string; name: string }>; // GitHub Actions (for CI/CD workflows)
-    slack: Array<{ id: string; name: string }>;
-    jira: Array<{ id: string; name: string }>;
-    checkmate: Array<{ id: string; name: string; workspaceId?: string }>;
+    jenkins: Array<{ id: string; name: string; displayName?: string }>;
+    github: Array<{ id: string; name: string; displayName?: string }>; // GitHub SCM (for branch fetching)
+    githubActions: Array<{ id: string; name: string; displayName?: string }>; // GitHub Actions (for CI/CD workflows)
+    slack: Array<{ id: string; name: string; displayName?: string }>;
+    jira: Array<{ id: string; name: string; displayName?: string }>;
+    checkmate: Array<{ id: string; name: string; workspaceId?: string; displayName?: string }>;
   };
   existingConfig?: ReleaseConfiguration | null;
   isEditMode?: boolean;
@@ -102,8 +102,8 @@ export interface FixedPipelineCategoriesProps {
   pipelines: Workflow[];
   onChange: (pipelines: Workflow[]) => void;
   availableIntegrations: {
-    jenkins: Array<{ id: string; name: string }>;
-    githubActions: Array<{ id: string; name: string }>;
+    jenkins: Array<{ id: string; name: string; displayName?: string }>;
+    githubActions: Array<{ id: string; name: string; displayName?: string }>;
   };
   selectedPlatforms: Platform[];
   tenantId: string;
@@ -125,8 +125,8 @@ export interface PipelineEditModalProps {
   onSave: (pipeline: Workflow) => void;
   pipeline?: Workflow;
   availableIntegrations: {
-    jenkins: Array<{ id: string; name: string }>;
-    githubActions: Array<{ id: string; name: string }>;
+    jenkins: Array<{ id: string; name: string; displayName?: string }>;
+    githubActions: Array<{ id: string; name: string; displayName?: string }>;
   };
   existingPipelines: Workflow[];
   fixedPlatform?: Platform;
@@ -140,8 +140,8 @@ export interface PipelineCardProps {
   onEdit: () => void;
   onDelete: () => void;
   availableIntegrations: {
-    jenkins: Array<{ id: string; name: string }>;
-    githubActions: Array<{ id: string; name: string }>;
+    jenkins: Array<{ id: string; name: string; displayName?: string }>;
+    githubActions: Array<{ id: string; name: string; displayName?: string }>;
   };
 }
 
@@ -160,7 +160,7 @@ export interface RequiredPipelinesCheckProps {
 export interface JenkinsConfigFormProps {
   config: Partial<JenkinsConfig>;
   onChange: (config: Partial<JenkinsConfig>) => void;
-  availableIntegrations: Array<{ id: string; name: string }>;
+  availableIntegrations: Array<{ id: string; name: string; displayName?: string }>;
   workflows: CICDWorkflow[];
   tenantId: string;
 }
@@ -168,7 +168,7 @@ export interface JenkinsConfigFormProps {
 export interface GitHubActionsConfigFormProps {
   config: Partial<GitHubActionsConfig>;
   onChange: (config: Partial<GitHubActionsConfig>) => void;
-  availableIntegrations: Array<{ id: string; name: string }>;
+  availableIntegrations: Array<{ id: string; name: string; displayName?: string }>;
   workflows: CICDWorkflow[];
   tenantId: string;
 }
@@ -200,7 +200,7 @@ export interface PlatformSelectorProps {
 export interface JiraProjectStepProps {
   config: JiraProjectConfig;
   onChange: (config: JiraProjectConfig) => void;
-  availableIntegrations: Array<{ id: string; name: string }>;
+  availableIntegrations: Array<{ id: string; name: string; displayName?: string }>;
   selectedPlatforms?: Platform[];
 }
 
@@ -247,7 +247,7 @@ export interface CommunicationConfigProps {
 export interface SlackChannelConfigEnhancedProps {
   config: CommunicationConfig;
   onChange: (config: CommunicationConfig) => void;
-  availableIntegrations: Array<{ id: string; name: string }>;
+  availableIntegrations: Array<{ id: string; name: string; displayName?: string }>;
   tenantId: string;
 }
 
@@ -263,7 +263,7 @@ export interface SlackChannelMapperProps {
   onToggle: (enabled: boolean) => void;
   onChange: (channels: any) => void;
   onIntegrationChange: (integrationId: string) => void;
-  availableIntegrations: Array<{ id: string; name: string }>;
+  availableIntegrations: Array<{ id: string; name: string; displayName?: string }>;
   availableChannels?: Array<{ id: string; name: string }>;
 }
 
@@ -287,8 +287,7 @@ export interface SchedulingConfigProps {
 
 export interface ReleaseFrequencySelectorProps {
   frequency: ReleaseFrequency;
-  customDays?: number;
-  onChange: (frequency: ReleaseFrequency, customDays?: number) => void;
+  onChange: (frequency: ReleaseFrequency) => void;
 }
 
 export interface WorkingDaysSelectorProps {
@@ -326,7 +325,7 @@ export interface RegressionSlotTimelineProps {
 export interface JiraProjectStepProps {
   config: JiraProjectConfig;
   onChange: (config: JiraProjectConfig) => void;
-  availableIntegrations: Array<{ id: string; name: string }>;
+  availableIntegrations: Array<{ id: string; name: string; displayName?: string }>;
   selectedPlatforms?: Platform[];
   tenantId: string;
 }

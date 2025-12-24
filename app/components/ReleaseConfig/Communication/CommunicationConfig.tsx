@@ -9,6 +9,7 @@ import { Link, useParams } from '@remix-run/react';
 import type { CommunicationConfig as CommunicationConfigType } from '~/types/release-config';
 import type { CommunicationConfigProps } from '~/types/release-config-props';
 import { SlackChannelConfigEnhanced } from './SlackChannelConfigEnhanced';
+import { IntegrationCategory } from '~/types/integrations';
 
 export function CommunicationConfig({
   config,
@@ -75,7 +76,7 @@ export function CommunicationConfig({
               </Text>
               <Anchor
                 component={Link}
-                to={`/dashboard/${orgId}/integrations`}
+                to={`/dashboard/${orgId}/integrations?tab=${IntegrationCategory.COMMUNICATION}`}
                 size="sm"
                 c={theme.colors.red[8]}
                 fw={600}

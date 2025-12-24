@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { useParams, useRouteLoaderData } from '@remix-run/react';
+import { useParams, useRouteLoaderData, useSearchParams } from '@remix-run/react';
 import { useQueryClient } from 'react-query';
 import { 
   Box, 
@@ -33,7 +33,7 @@ import { IntegrationConnectModal } from '~/components/Integrations/IntegrationCo
 import type { Integration, IntegrationDetails } from '~/types/integrations';
 import { IntegrationCategory, IntegrationStatus } from '~/types/integrations';
 import { useConfig } from '~/contexts/ConfigContext';
-import { invalidateTenantConfig } from '~/utils/cache-invalidation';
+import { refetchTenantConfigInBackground } from '~/utils/cache-invalidation';
 import { INTEGRATION_DISPLAY_NAMES, INTEGRATION_CATEGORY_LABELS } from '~/constants/integration-ui';
 import { INTEGRATION_MESSAGES } from '~/constants/toast-messages';
 import { showSuccessToast, showInfoToast } from '~/utils/toast';
@@ -63,6 +63,7 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
 export default function IntegrationsPage() {
   const theme = useMantineTheme();
   const params = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { 
     isLoadingMetadata,
@@ -104,6 +105,8 @@ export default function IntegrationsPage() {
           category,
           status: connected ? IntegrationStatus.CONNECTED : IntegrationStatus.NOT_CONNECTED,
           ...(connected && {
+            // Include displayName from connected integration if available
+            ...(connected.displayName && { displayName: connected.displayName }),
             config: {
               id: connected.id,
               ...connected.config,
@@ -128,6 +131,41 @@ export default function IntegrationsPage() {
       return acc;
     }, {} as Record<IntegrationCategory, Integration[]>);
   }, [allIntegrations]);
+
+  // Get active tab from URL, default to SOURCE_CONTROL
+  const activeTabFromUrl = searchParams.get('tab');
+  
+  // Validate that the tab exists in available categories and convert to enum
+  const validTab = useMemo(() => {
+    const availableCategories = Object.keys(integrationsByCategory) as IntegrationCategory[];
+    
+    // Check if URL param matches any enum value
+    if (activeTabFromUrl) {
+      const enumValue = Object.values(IntegrationCategory).find(
+        (cat) => cat === activeTabFromUrl
+      ) as IntegrationCategory | undefined;
+      
+      if (enumValue && availableCategories.includes(enumValue)) {
+        return enumValue;
+      }
+    }
+    
+    return IntegrationCategory.SOURCE_CONTROL;
+  }, [activeTabFromUrl, integrationsByCategory]);
+
+  // Handle tab change - update URL with enum value
+  const handleTabChange = useCallback((value: string | null) => {
+    if (value) {
+      // Validate that value is a valid IntegrationCategory enum
+      const enumValue = Object.values(IntegrationCategory).find(
+        (cat) => cat === value
+      ) as IntegrationCategory | undefined;
+      
+      if (enumValue) {
+        setSearchParams({ tab: enumValue });
+      }
+    }
+  }, [setSearchParams]);
 
   // Count connected integrations
   const connectedCount = useMemo(() => {
@@ -157,7 +195,8 @@ export default function IntegrationsPage() {
     const isKnownIntegration = integrationId in INTEGRATION_DISPLAY_NAMES;
     if (isKnownIntegration) {
       showSuccessToast(INTEGRATION_MESSAGES.CONNECT_SUCCESS(displayName, !!editingIntegration));
-      invalidateTenantConfig(queryClient, params.org);
+      // Refetch tenant config in background to reflect latest integration changes
+      refetchTenantConfigInBackground(queryClient, params.org);
     } else {
       showInfoToast(INTEGRATION_MESSAGES.DEMO_MODE(integrationId));
     }
@@ -175,7 +214,8 @@ export default function IntegrationsPage() {
 
   const handleDisconnectComplete = useCallback(() => {
     if (!params.org) return;
-    invalidateTenantConfig(queryClient, params.org);
+    // Refetch tenant config in background to reflect latest integration changes
+    refetchTenantConfigInBackground(queryClient, params.org);
   }, [params.org, queryClient]);
 
   const handleCloseDetailModal = useCallback(() => {
@@ -280,7 +320,8 @@ export default function IntegrationsPage() {
 
       {/* Tabs Navigation */}
       <Tabs 
-        defaultValue={IntegrationCategory.SOURCE_CONTROL}
+        value={validTab}
+        onChange={handleTabChange}
         variant="default"
         color="brand"
         classNames={{

@@ -14,7 +14,7 @@ import { TaskStatus } from '~/types/release-process-enums';
 export const TASK_STATUS_LABELS = {
   PENDING: 'Pending',
   IN_PROGRESS: 'In Progress',
-  AWAITING_CALLBACK: 'Awaiting Callback',
+  AWAITING_CALLBACK: 'In Progress',
   AWAITING_MANUAL_BUILD: 'Awaiting Manual Build',
   COMPLETED: 'Completed',
   FAILED: 'Failed',
@@ -24,7 +24,7 @@ export const TASK_STATUS_LABELS = {
 export const TASK_STATUS_COLORS = {
   PENDING: 'gray',
   IN_PROGRESS: 'brand',
-  AWAITING_CALLBACK: 'yellow',
+  AWAITING_CALLBACK: 'brand',
   AWAITING_MANUAL_BUILD: 'orange',
   COMPLETED: 'green',
   FAILED: 'red',
@@ -179,6 +179,7 @@ export const HEADER_LABELS = {
   CURRENT_STAGE: 'Current Stage',
   RELEASE_VERSION: 'Version',
   RELEASE_BRANCH: 'Branch',
+  RELEASE_STARTED_AT: 'Release started at',
   RELEASE_STARTS_AT: 'Release starts at',
   RELEASE_TYPE: 'Type',
   STATUS: 'Status',

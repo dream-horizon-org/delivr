@@ -41,6 +41,7 @@ interface ReleaseProcessHeaderProps {
   releaseVersion: string;
   currentStage: TaskStage | null;
   onUpdate?: () => void;
+  onRefetch?: () => Promise<any>;
   className?: string;
 }
 
@@ -56,6 +57,7 @@ export function ReleaseProcessHeader({
   releaseVersion,
   currentStage,
   onUpdate,
+  onRefetch,
   className,
 }: ReleaseProcessHeaderProps) {
   const [editModalOpened, setEditModalOpened] = useState(false);
@@ -63,6 +65,7 @@ export function ReleaseProcessHeader({
   const [slackMessageModalOpened, setSlackMessageModalOpened] = useState(false);
   const [selectedMessageType, setSelectedMessageType] = useState<MessageTypeEnum | null>(null);
   const [pauseConfirmModalOpened, setPauseConfirmModalOpened] = useState(false);
+  const [isRefetching, setIsRefetching] = useState(false);
   const queryClient = useQueryClient();
 
   // Get user data from parent route loader
@@ -142,6 +145,22 @@ export function ReleaseProcessHeader({
     handlePauseResume();
   };
 
+  // Handle edit button click - refetch before opening modal
+  const handleEditClick = async () => {
+    if (onRefetch) {
+      setIsRefetching(true);
+      try {
+        await onRefetch();
+      } catch (error) {
+        console.error('[ReleaseProcessHeader] Failed to refetch release:', error);
+        showErrorToast({ message: 'Failed to refresh release data. Opening with cached data.' });
+      } finally {
+        setIsRefetching(false);
+      }
+    }
+    setEditModalOpened(true);
+  };
+
 
   return (
     <>
@@ -166,11 +185,12 @@ export function ReleaseProcessHeader({
               release={release}
               isPaused={isPaused}
               canPerformReleaseAction={canPerform}
-              onEditClick={() => setEditModalOpened(true)}
+              onEditClick={handleEditClick}
               onPauseClick={handlePauseClick}
               onResumeClick={handleResumeClick}
               onActivityLogClick={() => setActivityDrawerOpened(true)}
               onSlackMessageClick={() => setSlackMessageModalOpened(true)}
+              isRefetching={isRefetching}
             />
           </Group>
         </Stack>

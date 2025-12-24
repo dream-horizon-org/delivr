@@ -15,6 +15,7 @@ interface ReleasesTabsProps {
   upcoming: BackendReleaseResponse[];
   active: BackendReleaseResponse[]; // Includes both RUNNING and PAUSED
   completed: BackendReleaseResponse[];
+  archived: BackendReleaseResponse[];
   org: string;
   leftSection?: ReactNode;
 }
@@ -25,6 +26,7 @@ export const ReleasesTabs = memo(function ReleasesTabs({
   upcoming,
   active,
   completed,
+  archived,
   org,
   leftSection,
 }: ReleasesTabsProps) {
@@ -33,8 +35,9 @@ export const ReleasesTabs = memo(function ReleasesTabs({
       [RELEASE_TAB_CONFIGS[0].value]: upcoming,
       [RELEASE_TAB_CONFIGS[1].value]: active,
       [RELEASE_TAB_CONFIGS[2].value]: completed,
+      [RELEASE_TAB_CONFIGS[3].value]: archived,
     }),
-    [upcoming, active, completed]
+    [upcoming, active, completed, archived]
   );
 
   return (

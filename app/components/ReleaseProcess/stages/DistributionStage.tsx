@@ -31,6 +31,7 @@ import {
 import { Link } from '@remix-run/react';
 import {
   IconAlertCircle,
+  IconArchive,
   IconBrandAndroid,
   IconBrandApple,
   IconExternalLink,
@@ -46,6 +47,7 @@ import {
   SUBMISSION_STATUS_COLORS
 } from '~/constants/distribution/distribution.constants';
 import { useDistributionStage } from '~/hooks/useDistributionStage';
+import { useRelease } from '~/hooks/useRelease';
 import {
   Platform,
   SubmissionStatus
@@ -133,6 +135,8 @@ export function DistributionStage({
   console.log('[DistributionStage] Rendering with:', { tenantId, releaseId });
   
   const { distribution, isLoading, error, refetch } = useDistributionStage(tenantId, releaseId);
+  const { release } = useRelease(tenantId, releaseId);
+  const isArchived = release?.status === 'ARCHIVED';
   
   console.log('[DistributionStage] Hook state:', { 
     hasDistribution: !!distribution, 
@@ -205,6 +209,20 @@ export function DistributionStage({
 
   return (
     <Stack gap="lg" className={className}>
+      {/* Archived Message Banner */}
+      {isArchived && (
+        <Alert
+          icon={<IconArchive size={16} />}
+          title="This release is archived"
+          color="gray"
+          variant="light"
+        >
+          <Text size="sm">
+            This release has been archived. You can view the distribution and history, but no actions can be performed.
+          </Text>
+        </Alert>
+      )}
+
       {/* Header - Same as Distribution Management */}
       <Paper shadow="sm" p="xl" radius="md" withBorder>
         <Stack gap="lg">

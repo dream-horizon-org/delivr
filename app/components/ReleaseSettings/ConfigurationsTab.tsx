@@ -169,13 +169,24 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
     }
     
     try {
+      // Build archive payload
+      const archivePayload: any = {
+        isActive: false,
+        status: CONFIG_STATUS.ARCHIVED,
+      };
+      
+      // If config has a release schedule with an ID, disable it
+      if (config?.releaseSchedule?.id) {
+        archivePayload.releaseSchedule = {
+          id: config.releaseSchedule.id,
+          isEnabled: false,
+        };
+      }
+      
       // Archive by updating isActive and status via PUT (not DELETE)
       const result = await apiPut<{ success: boolean; data?: any; error?: string }>(
         `/api/v1/tenants/${org}/release-config/${archiveModal.configId}`,
-        {
-          isActive: false,
-          status: CONFIG_STATUS.ARCHIVED,
-        }
+        archivePayload
       );
       
       if (result.success) {
@@ -211,13 +222,26 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
     setIsProcessing(true);
     
     try {
+      const config = configurations.find((c: any) => c.id === unarchiveModal.configId);
+      
+      // Build unarchive payload
+      const unarchivePayload: any = {
+        isActive: true,
+        status: CONFIG_STATUS.ACTIVE,
+      };
+      
+      // If config has a release schedule with an ID, re-enable it
+      if (config?.releaseSchedule?.id) {
+        unarchivePayload.releaseSchedule = {
+          id: config.releaseSchedule.id,
+          isEnabled: true,
+        };
+      }
+      
       // Unarchive by updating isActive and status via PUT
       const result = await apiPut<{ success: boolean; data?: any; error?: string }>(
         `/api/v1/tenants/${org}/release-config/${unarchiveModal.configId}`,
-        {
-          isActive: true,
-          status: CONFIG_STATUS.ACTIVE,
-        }
+        unarchivePayload
       );
       
       if (result.success) {

@@ -17,6 +17,7 @@ export interface BackendReleaseResponse {
   type: 'MAJOR' | 'MINOR' | 'HOTFIX';
   status: ReleaseStatus;
   releasePhase?: Phase;
+  currentActiveStage?: 'PRE_KICKOFF' | 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE' | 'RELEASE_SUBMISSION' | 'RELEASE' | null;
   branch: string | null;
   baseBranch: string | null;
   baseReleaseId: string | null;

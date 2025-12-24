@@ -155,7 +155,7 @@ export function JenkinsConfigForm({
         <Select
           label="Jenkins Instance"
           placeholder="Select Jenkins instance"
-          data={availableIntegrations.map(i => ({ value: i.id, label: i.name }))}
+          data={availableIntegrations.map(i => ({ value: i.id, label: i.displayName || i.name }))}
           value={config.integrationId}
           onChange={(val) => onChange({ ...config, integrationId: val || '' })}
           required
@@ -166,7 +166,7 @@ export function JenkinsConfigForm({
       {/* Show integration name if only one exists */}
       {availableIntegrations.length === 1 && (
         <div className="text-sm text-gray-600">
-          <span className="font-medium">Jenkins Instance:</span> {availableIntegrations[0].name}
+          <span className="font-medium">Jenkins Instance:</span> {availableIntegrations[0].displayName || availableIntegrations[0].name}
         </div>
       )}
       

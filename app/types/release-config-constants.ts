@@ -86,7 +86,6 @@ export const RELEASE_FREQUENCIES = {
   BIWEEKLY: 'BIWEEKLY',
   TRIWEEKLY: 'TRIWEEKLY',
   MONTHLY: 'MONTHLY',
-  CUSTOM: 'CUSTOM',
 } as const;
 
 export type ReleaseFrequencyValue = typeof RELEASE_FREQUENCIES[keyof typeof RELEASE_FREQUENCIES];

@@ -135,32 +135,63 @@ export function RegressionCyclesList({
   // We pass all required platforms - widget checks uploadedBuilds to see which have builds
 
   // Format upcoming slot date - filter future slots, sort by date, pick first
-  const upcomingSlotDate = useMemo(() => {
-    if (!upcomingSlot || upcomingSlot.length === 0) return null;
+  // If no future slots, show most recent past slot
+  const { upcomingSlotDate, isPastSlot } = useMemo(() => {
+    if (!upcomingSlot || upcomingSlot.length === 0) {
+      return { upcomingSlotDate: null, isPastSlot: false };
+    }
     
     const now = new Date();
     const nowTime = now.getTime();
     
-    // Filter future slots and sort by date (earliest first)
-    const futureSlots = upcomingSlot
+    // Map all valid slots with their times
+    const validSlots = upcomingSlot
       .map(slot => {
         if (!slot.date) return null;
         const slotTime = new Date(slot.date).getTime();
         if (isNaN(slotTime)) return null;
         return { slot, slotTime };
       })
-      .filter((item): item is { slot: typeof upcomingSlot[0]; slotTime: number } => {
-        if (!item) return false;
-        // Only keep future slots
-        return item.slotTime > nowTime;
-      })
+      .filter((item): item is { slot: typeof upcomingSlot[0]; slotTime: number } => item !== null);
+    
+    if (validSlots.length === 0) {
+      return { upcomingSlotDate: null, isPastSlot: false };
+    }
+    
+    // Filter future slots and sort by date (earliest first)
+    const futureSlots = validSlots
+      .filter(item => item.slotTime > nowTime)
       .sort((a, b) => a.slotTime - b.slotTime); // Sort: earliest first
     
-    // Get the next slot (first one after filtering and sorting)
-    const nextSlot = futureSlots.length > 0 ? futureSlots[0].slot : null;
+    // If we have future slots, use the first one
+    if (futureSlots.length > 0) {
+      const nextSlot = futureSlots[0].slot;
+      if (!nextSlot || !nextSlot.date) {
+        return { upcomingSlotDate: null, isPastSlot: false };
+      }
+      return {
+        upcomingSlotDate: formatReleaseDateTime(nextSlot.date),
+        isPastSlot: false
+      };
+    }
     
-    if (!nextSlot || !nextSlot.date) return null;
-    return formatReleaseDateTime(nextSlot.date);
+    // No future slots - find most recent past slot (latest first)
+    const pastSlots = validSlots
+      .filter(item => item.slotTime <= nowTime)
+      .sort((a, b) => b.slotTime - a.slotTime); // Sort: latest first (most recent)
+    
+    if (pastSlots.length > 0) {
+      const pastSlot = pastSlots[0].slot;
+      if (!pastSlot || !pastSlot.date) {
+        return { upcomingSlotDate: null, isPastSlot: false };
+      }
+      return {
+        upcomingSlotDate: formatReleaseDateTime(pastSlot.date),
+        isPastSlot: true
+      };
+    }
+    
+    return { upcomingSlotDate: null, isPastSlot: false };
   }, [upcomingSlot]);
 
   // Type guard for platform validation
@@ -224,7 +255,7 @@ export function RegressionCyclesList({
       )}
 
       {/* Upcoming Slot (when no active cycle) */}
-      {!actualCurrentCycle && upcomingSlot && upcomingSlot.length > 0 && (
+      {!actualCurrentCycle && upcomingSlot && upcomingSlot.length > 0 && upcomingSlotDate && (
         <Alert
           icon={<IconCalendar size={16} />}
           color="blue"
@@ -232,10 +263,21 @@ export function RegressionCyclesList({
           title="Next Regression Slot"
         >
           <Text size="sm">
-            Next regression cycle scheduled for:{' '}
-            <Text component="span" fw={500}>
-              {upcomingSlotDate || 'TBD'}
-            </Text>
+            {isPastSlot ? (
+              <>
+                Next Slot was scheduled at:{' '}
+                <Text component="span" fw={500}>
+                  {upcomingSlotDate}
+                </Text>
+              </>
+            ) : (
+              <>
+                Next regression cycle scheduled for:{' '}
+                <Text component="span" fw={500}>
+                  {upcomingSlotDate}
+                </Text>
+              </>
+            )}
           </Text>
           {!shouldShowUploadWidgets && isManualMode && (
             <Text size="xs" c="dimmed" mt="xs">

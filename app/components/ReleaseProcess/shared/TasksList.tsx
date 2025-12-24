@@ -4,6 +4,7 @@
  */
 
 import { Alert, Group, Select, Stack, Text } from '@mantine/core';
+import { IconArchive } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { getStatusFilterOptions } from '~/constants/release-process-ui';
 import { filterAndSortTasks } from '~/utils/task-filtering';
@@ -18,6 +19,7 @@ interface TasksListProps {
   emptyMessage?: string;
   showFilter?: boolean;
   uploadedBuilds?: BuildInfo[];  // Stage-level uploaded builds
+  isArchived?: boolean;  // New prop to indicate archived release
 }
 
 export function TasksList({
@@ -28,6 +30,7 @@ export function TasksList({
   emptyMessage = 'No tasks available',
   showFilter = true,
   uploadedBuilds = [],
+  isArchived = false,
 }: TasksListProps) {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const statusOptions = getStatusFilterOptions();
@@ -41,6 +44,20 @@ export function TasksList({
 
   return (
     <Stack gap="md">
+      {/* Archived Message Banner */}
+      {isArchived && (
+        <Alert
+          icon={<IconArchive size={16} />}
+          title="This release is archived"
+          color="gray"
+          variant="light"
+        >
+          <Text size="sm">
+            This release has been archived. You can view the tasks and history, but no actions can be performed.
+          </Text>
+        </Alert>
+      )}
+
       {/* Tasks Header with Filter */}
       {hasTasks && showFilter && (
         <Group justify="space-between" align="center">

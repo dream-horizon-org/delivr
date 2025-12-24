@@ -39,6 +39,8 @@ import {
 import { showInfoToast } from '~/utils/toast';
 import { validateAllSlots } from '~/utils/regression-slot-validation';
 import { combineDateAndTime } from '~/utils/release-creation-converter';
+import { useConfig } from '~/contexts/ConfigContext';
+import { canEnableKickoffReminder } from '~/utils/communication-helpers';
 
 interface ReleaseSchedulingPanelProps {
   state: Partial<ReleaseCreationState>;
@@ -60,7 +62,14 @@ export function ReleaseSchedulingPanel({
   existingRelease,
 }: ReleaseSchedulingPanelProps) {
   const theme = useMantineTheme();
+  const { getConnectedIntegrations } = useConfig();
   const [enableKickoffDateChange, setEnableKickoffDateChange] = useState(false);
+  
+  // Check if kickoff reminder should be shown
+  const shouldShowKickoffReminder = canEnableKickoffReminder(
+    config?.communicationConfig,
+    getConnectedIntegrations('COMMUNICATION')
+  );
   const {
     targetReleaseDate,
     targetReleaseTime,
@@ -340,8 +349,8 @@ export function ReleaseSchedulingPanel({
       </Box>
       )}
 
-      {/* Kickoff Reminder Configuration - Hidden after kickoff */}
-      {!showOnlyTargetDateAndSlots && kickOffDate && (
+      {/* Kickoff Reminder Configuration - Only show if communication is enabled */}
+      {!showOnlyTargetDateAndSlots && kickOffDate && shouldShowKickoffReminder && (
         <Box
           p="md"
           style={{
@@ -446,6 +455,22 @@ export function ReleaseSchedulingPanel({
             )}
           </Stack>
         </Box>
+      )}
+
+      {/* Show message if communication is not enabled */}
+      {!showOnlyTargetDateAndSlots && kickOffDate && !shouldShowKickoffReminder && (
+        <Alert
+          icon={<IconInfoCircle size={16} />}
+          color="blue"
+          variant="light"
+          title="Kickoff Reminder"
+        >
+          <Text size="sm">
+            {getConnectedIntegrations('COMMUNICATION').length === 0
+              ? 'Connect a communication integration (Slack, Email) in the Integrations page to enable kickoff reminders.'
+              : 'Enable communication notifications in your release config to use kickoff reminders.'}
+          </Text>
+        </Alert>
       )}
 
       {/* Target Release Date & Time - Always shown */}
@@ -566,9 +591,9 @@ export function ReleaseSchedulingPanel({
             onChange({
               ...state,
               regressionBuildSlots: slots,
-              // Automatically set hasManualBuildUpload based on slots
-              // If no slots = manual upload, if slots exist = automated builds
-              hasManualBuildUpload: slots.length === 0,
+              // Use hasManualBuildUpload from selected config (not derived from slots)
+              // If config is not available, keep existing state value
+              hasManualBuildUpload: config?.hasManualBuildUpload ?? state.hasManualBuildUpload,
             })
           }
           config={config}

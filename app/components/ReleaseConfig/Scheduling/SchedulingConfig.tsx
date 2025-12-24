@@ -34,8 +34,23 @@ import { PLATFORM_METADATA } from '~/constants/release-config';
 import { validateScheduling, formatValidationErrors } from './scheduling-validation';
 import { SCHEDULING_LABELS, ICON_SIZES } from '~/constants/release-config-ui';
 import { timeToMinutes } from '~/utils/time-utils';
-
-export function SchedulingConfig({ config, onChange, selectedPlatforms, showValidation = false }: SchedulingConfigProps) {
+import { useConfig } from '~/contexts/ConfigContext';
+import { canEnableKickoffReminder } from '~/utils/communication-helpers';
+import type { CommunicationConfig } from '~/types/release-config';
+import { IntegrationCategory } from '~/types/integrations';
+export function SchedulingConfig({ 
+  config, 
+  onChange, 
+  selectedPlatforms, 
+  showValidation = false,
+  communicationConfig,
+}: SchedulingConfigProps & { communicationConfig?: CommunicationConfig }) {
+  const { getConnectedIntegrations } = useConfig();
+  
+  const shouldShowKickoffReminder = canEnableKickoffReminder(
+    communicationConfig,
+    getConnectedIntegrations(IntegrationCategory.COMMUNICATION)
+  );
   const [editingSlotIndex, setEditingSlotIndex] = useState<number | null>(null);
 
   // Comprehensive validation matching backend
@@ -44,11 +59,10 @@ export function SchedulingConfig({ config, onChange, selectedPlatforms, showVali
     return formatValidationErrors(backendValidationErrors);
   }, [config]);
   
-  const handleFrequencyChange = (frequency: ReleaseFrequency, customDays?: number) => {
+  const handleFrequencyChange = (frequency: ReleaseFrequency) => {
     onChange({
       ...config,
       releaseFrequency: frequency,
-      customFrequencyDays: customDays,
     });
   };
   
@@ -115,7 +129,6 @@ export function SchedulingConfig({ config, onChange, selectedPlatforms, showVali
       {/* Release Frequency */}
       <ReleaseFrequencySelector
         frequency={config.releaseFrequency}
-        customDays={config.customFrequencyDays}
         onChange={handleFrequencyChange}
       />
 
@@ -241,37 +254,55 @@ export function SchedulingConfig({ config, onChange, selectedPlatforms, showVali
             description="Time when release kickoff happens"
             />
             
-          <Divider label="Kickoff Reminder" labelPosition="center" />
+          {/* Kickoff Reminder - Only show if communication is enabled */}
+          {shouldShowKickoffReminder ? (
+            <>
+              <Divider label="Kickoff Reminder" labelPosition="center" />
 
-          <Switch
-            label="Enable Kickoff Reminder"
-            description="Send a reminder before the kickoff"
-            checked={config.kickoffReminderEnabled}
-              onChange={(e) =>
-              onChange({
-                ...config,
-                kickoffReminderEnabled: e.currentTarget.checked,
-              })
-            }
-          />
-      
-          {config.kickoffReminderEnabled && (
-            <TextInput
-              label="Reminder Time"
-              type="time"
-              value={config.kickoffReminderTime}
-              onChange={(e) =>
-                onChange({ ...config, kickoffReminderTime: e.target.value })
-              }
-              required
-              description="Must be before or equal to kickoff time"
-              error={
-                config.kickoffReminderTime && config.kickoffTime && 
-                timeToMinutes(config.kickoffReminderTime) > timeToMinutes(config.kickoffTime)
-                  ? 'Must be before or equal to kickoff time'
-                  : undefined
-              }
-            />
+              <Switch
+                label="Enable Kickoff Reminder"
+                description="Send a reminder before the kickoff"
+                checked={config.kickoffReminderEnabled}
+                onChange={(e) =>
+                  onChange({
+                    ...config,
+                    kickoffReminderEnabled: e.currentTarget.checked,
+                  })
+                }
+              />
+        
+              {config.kickoffReminderEnabled && (
+                <TextInput
+                  label="Reminder Time"
+                  type="time"
+                  value={config.kickoffReminderTime}
+                  onChange={(e) =>
+                    onChange({ ...config, kickoffReminderTime: e.target.value })
+                  }
+                  required
+                  description="Must be before or equal to kickoff time"
+                  error={
+                    config.kickoffReminderTime && config.kickoffTime && 
+                    timeToMinutes(config.kickoffReminderTime) > timeToMinutes(config.kickoffTime)
+                      ? 'Must be before or equal to kickoff time'
+                      : undefined
+                  }
+                />
+              )}
+            </>
+          ) : (
+            <Alert
+              icon={<IconInfoCircle size={16} />}
+              color="blue"
+              variant="light"
+              title="Kickoff Reminder"
+            >
+              <Text size="sm">
+                {getConnectedIntegrations(IntegrationCategory.COMMUNICATION).length === 0
+                  ? 'Connect a communication integration (Slack, Email) to enable kickoff reminders.'
+                  : 'Enable communication notifications in the Communication step to use kickoff reminders.'}
+              </Text>
+            </Alert>
           )}
         </Stack>
       </Card>

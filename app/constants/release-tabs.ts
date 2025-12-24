@@ -4,12 +4,13 @@
  * Active tab includes both RUNNING and PAUSED releases
  */
 
-import { IconCalendar, IconRocket, IconCheck, TablerIcon } from '@tabler/icons-react';
+import { IconCalendar, IconRocket, IconCheck, IconArchive, TablerIcon } from '@tabler/icons-react';
 
 export const RELEASE_TABS = {
   UPCOMING: 'upcoming',
   ACTIVE: 'active',
   COMPLETED: 'completed',
+  ARCHIVED: 'archived',
 } as const;
 
 export type ReleaseTabValue = typeof RELEASE_TABS[keyof typeof RELEASE_TABS];
@@ -39,6 +40,12 @@ export const RELEASE_TAB_CONFIGS: ReleaseTabConfig[] = [
     label: 'Completed',
     icon: IconCheck,
     emptyMessage: 'No completed releases',
+  },
+  {
+    value: RELEASE_TABS.ARCHIVED,
+    label: 'Archived',
+    icon: IconArchive,
+    emptyMessage: 'No archived releases',
   },
 ] as const;
 
