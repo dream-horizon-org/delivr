@@ -114,6 +114,46 @@ export const isAwaitingManualBuild = (
   return isAwaitingManualBuildStatus && isBuildTask && hasManualBuildUpload;
 };
 
+/**
+ * Get required platforms for a specific task type
+ * 
+ * Different build tasks target different platforms:
+ * - TRIGGER_TEST_FLIGHT_BUILD: IOS only (TestFlight)
+ * - CREATE_AAB_BUILD: ANDROID only (Play Store AAB)
+ * - TRIGGER_PRE_REGRESSION_BUILDS, TRIGGER_REGRESSION_BUILDS: All platforms
+ * 
+ * @param taskType - The task type
+ * @param availablePlatforms - All platforms configured for the release
+ * @returns Array of platforms required for this specific task
+ */
+export const getRequiredPlatformsForTask = (
+  taskType: TaskType,
+  availablePlatforms: PlatformVersionMapping[]
+): PlatformName[] => {
+  // IOS-only tasks
+  if (taskType === TaskType.TRIGGER_TEST_FLIGHT_BUILD) {
+    const hasIOS = availablePlatforms.some(p => p.platform === PlatformName.IOS);
+    return hasIOS ? [PlatformName.IOS] : [];
+  }
+  
+  // ANDROID-only tasks
+  if (taskType === TaskType.CREATE_AAB_BUILD) {
+    const hasAndroid = availablePlatforms.some(p => p.platform === PlatformName.ANDROID);
+    return hasAndroid ? [PlatformName.ANDROID] : [];
+  }
+  
+  // Multi-platform tasks (need all configured platforms)
+  if (
+    taskType === TaskType.TRIGGER_PRE_REGRESSION_BUILDS ||
+    taskType === TaskType.TRIGGER_REGRESSION_BUILDS
+  ) {
+    return availablePlatforms.map(m => m.platform);
+  }
+  
+  // Default: all platforms (safest fallback)
+  return availablePlatforms.map(m => m.platform);
+};
+
 // ============================================================================
 // MAIN FUNCTION
 // ============================================================================
@@ -207,7 +247,28 @@ export const checkAndConsumeManualBuilds = async (
     
     for (const upload of uploadsToConsume) {
       const buildId = uuidv4();
-      const uploadFileName = upload.artifactPath.split('/').pop() ?? upload.artifactPath;
+      
+      // ✅ FIX: Handle null artifactPath for different upload types
+      let uploadFileName: string;
+      
+      if (upload.artifactPath) {
+        // Case 1: File upload with artifact path
+        uploadFileName = upload.artifactPath.split('/').pop() ?? upload.artifactPath;
+      } else if (upload.testflightNumber) {
+        // Case 2: IOS TestFlight build (only testflightNumber, no file)
+        uploadFileName = `testflight-${upload.testflightNumber}`;
+      } else if (upload.internalTrackLink) {
+        // Case 3: ANDROID internal track build (only link, no file)
+        const versionCode = upload.internalTrackLink.split('/').pop() || upload.internalTrackLink;
+        uploadFileName = `internal-track-${versionCode}`;
+      } else {
+        // Case 4: Fallback (should not happen, but handle gracefully)
+        uploadFileName = `manual-build-${upload.platform.toLowerCase()}`;
+        console.warn(
+          `[ManualBuildHandler] Upload ${upload.id} has no artifactPath, testflightNumber, or internalTrackLink. ` +
+          `Using fallback name: ${uploadFileName}`
+        );
+      }
       
       // Get version from platform mappings (each platform can have different version)
       // Note: platformMapping should always exist since uploadsToConsume is filtered to only include platforms from platformVersionMappings
@@ -296,9 +357,6 @@ export const processAwaitingManualBuildTasks = async (
 ): Promise<Map<string, ManualBuildCheckResult>> => {
   const results = new Map<string, ManualBuildCheckResult>();
 
-  // Extract platform names from mappings for filtering
-  const platforms = platformVersionMappings.map(m => m.platform);
-
   // Find tasks waiting for manual builds
   const waitingTasks = tasks.filter(task => 
     isAwaitingManualBuild(task, hasManualBuildUpload)
@@ -314,13 +372,27 @@ export const processAwaitingManualBuildTasks = async (
 
   // Check each waiting task
   for (const task of waitingTasks) {
+    // ✅ FIX: Get platforms specific to this task type
+    // Different tasks require different platforms:
+    // - TRIGGER_TEST_FLIGHT_BUILD needs only IOS
+    // - CREATE_AAB_BUILD needs only ANDROID
+    // - TRIGGER_PRE_REGRESSION_BUILDS/TRIGGER_REGRESSION_BUILDS need all platforms
+    const requiredPlatforms = getRequiredPlatformsForTask(
+      task.taskType,
+      platformVersionMappings
+    );
+    
+    console.log(
+      `[ManualBuildHandler] Task ${task.id} (${task.taskType}) requires platforms: [${requiredPlatforms.join(', ')}]`
+    );
+    
     const result = await checkAndConsumeManualBuilds(
       {
         releaseId,
         taskId: task.id,
         taskType: task.taskType,
         cycleId: task.cycleId ?? null,
-        platforms,
+        platforms: requiredPlatforms,
         platformVersionMappings,
       },
       releaseUploadsRepo,
@@ -338,6 +410,7 @@ export default {
   isBuildTaskType,
   getUploadStageForTaskType,
   isAwaitingManualBuild,
+  getRequiredPlatformsForTask,
   checkAndConsumeManualBuilds,
   processAwaitingManualBuildTasks,
   MANUAL_BUILD_TASK_TYPES,
