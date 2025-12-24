@@ -7,7 +7,7 @@ import {
   IconAlertCircle,
 } from "@tabler/icons-react";
 import { Form, useNavigate } from "@remix-run/react";
-import { User } from "~/.server/services/Auth/Auth.interface";
+import { User } from '~/.server/services/Auth/auth.interface';
 import { route } from "routes-gen";
 import { useState } from "react";
 import { DeleteModal, type DeleteModalData } from "~/components/Common/DeleteModal";

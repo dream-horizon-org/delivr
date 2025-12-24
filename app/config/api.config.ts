@@ -47,31 +47,34 @@ export const API_CONFIG = {
 /**
  * Distribution API patterns that should go to mock server in hybrid mode
  * Aligned with DISTRIBUTION_API_SPEC.md
+ * Updated to include tenant-scoped paths
  */
 export const DISTRIBUTION_API_PATTERNS = [
-  // Distribution Management
-  '/api/v1/distributions',
-  '/api/v1/distributions/*',
-  '/api/v1/distributions/*/submissions',
-  '/api/v1/releases/*/distribution',
+  // Distribution Management (tenant-scoped)
+  '/api/v1/tenants/*/distributions',
+  '/api/v1/tenants/*/distributions/*',
+  '/api/v1/tenants/*/distributions/*/submissions',
+  '/api/v1/tenants/*/distributions/*/history',
+  '/api/v1/tenants/*/releases/*/distribution',
   
-  // Pre-Release Stage
-  '/api/v1/releases/*/builds',
-  '/api/v1/releases/*/builds/*',
-  '/api/v1/releases/*/builds/upload-aab',
-  '/api/v1/releases/*/builds/verify-testflight',
-  '/api/v1/releases/*/extra-commits',
-  '/api/v1/releases/*/pm-status',
-  '/api/v1/releases/*/approve',
+  // Pre-Release Stage (tenant-scoped)
+  '/api/v1/tenants/*/releases/*/builds',
+  '/api/v1/tenants/*/releases/*/builds/*',
+  '/api/v1/tenants/*/releases/*/builds/upload-aab',
+  '/api/v1/tenants/*/releases/*/builds/verify-testflight',
+  '/api/v1/tenants/*/releases/*/extra-commits',
+  '/api/v1/tenants/*/releases/*/pm-status',
+  '/api/v1/tenants/*/releases/*/approve',
   
-  // Submission Management (per API spec)
-  '/api/v1/submissions/*',
-  '/api/v1/submissions/*/submit',
-  '/api/v1/submissions/*/cancel',
-  '/api/v1/submissions/*/rollout',
-  '/api/v1/submissions/*/rollout/pause',
-  '/api/v1/submissions/*/rollout/resume',
-  '/api/v1/submissions/*/rollout/halt',
+  // Submission Management (tenant-scoped per API spec)
+  '/api/v1/tenants/*/submissions/*',
+  '/api/v1/tenants/*/submissions/*/submit',
+  '/api/v1/tenants/*/submissions/*/cancel',
+  '/api/v1/tenants/*/submissions/*/rollout',
+  '/api/v1/tenants/*/submissions/*/rollout/pause',
+  '/api/v1/tenants/*/submissions/*/rollout/resume',
+  '/api/v1/tenants/*/submissions/*/rollout/halt',
+  '/api/v1/tenants/*/submissions/*/artifact',
 ] as const;
 
 /**
@@ -153,6 +156,7 @@ export function getBaseURLForRequest(url: string): string {
 /**
  * API Endpoints
  * Aligned with DISTRIBUTION_API_SPEC.md
+ * Updated to include tenant-scoped paths
  */
 export const API_ENDPOINTS = {
   // ============================================================================
@@ -171,54 +175,70 @@ export const API_ENDPOINTS = {
   MANUAL_APPROVE: (releaseId: string) => `/api/v1/releases/${releaseId}/approve`,
   
   // ============================================================================
-  // DISTRIBUTION APIs (DISTRIBUTION_API_SPEC.md)
+  // DISTRIBUTION APIs (DISTRIBUTION_API_SPEC.md) - Tenant-Scoped
   // ============================================================================
   
   // Get Distribution (API Spec Line 303)
-  GET_RELEASE_DISTRIBUTION: (releaseId: string) => `/api/v1/releases/${releaseId}/distribution`,
+  GET_RELEASE_DISTRIBUTION: (tenantId: string, releaseId: string) => 
+    `/api/v1/tenants/${tenantId}/releases/${releaseId}/distribution`,
   
   // List Distributions (API Spec Line 536)
-  LIST_DISTRIBUTIONS: () => `/api/v1/distributions`,
+  LIST_DISTRIBUTIONS: (tenantId: string) => 
+    `/api/v1/tenants/${tenantId}/distributions`,
   
   // Get Distribution Details (API Spec Line 844)
-  GET_DISTRIBUTION: (distributionId: string) => `/api/v1/distributions/${distributionId}`,
+  GET_DISTRIBUTION: (tenantId: string, distributionId: string) => 
+    `/api/v1/tenants/${tenantId}/distributions/${distributionId}`,
   
   // Get Submission Details (API Spec Line 971)
-  GET_SUBMISSION: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
-    `/api/v1/submissions/${submissionId}?platform=${platform}`,
+  GET_SUBMISSION: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/tenants/${tenantId}/submissions/${submissionId}?platform=${platform}`,
   
   // ============================================================================
-  // SUBMISSION MANAGEMENT (DISTRIBUTION_API_SPEC.md)
+  // SUBMISSION MANAGEMENT (DISTRIBUTION_API_SPEC.md) - Tenant-Scoped
   // ============================================================================
   
   // Submit Existing Submission (API Spec Line 711)
-  SUBMIT_SUBMISSION: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
-    `/api/v1/submissions/${submissionId}/submit?platform=${platform}`,
+  SUBMIT_SUBMISSION: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/submit?platform=${platform}`,
   
   // Create Resubmission (API Spec Line 1206)
-  CREATE_RESUBMISSION: (distributionId: string) => `/api/v1/distributions/${distributionId}/submissions`,
+  CREATE_RESUBMISSION: (tenantId: string, distributionId: string) => 
+    `/api/v1/tenants/${tenantId}/distributions/${distributionId}/submissions`,
   
   // Cancel Submission (API Spec Line 1345)
-  CANCEL_SUBMISSION: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
-    `/api/v1/submissions/${submissionId}/cancel?platform=${platform}`,
+  CANCEL_SUBMISSION: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/cancel?platform=${platform}`,
   
   // ============================================================================
-  // ROLLOUT CONTROL (DISTRIBUTION_API_SPEC.md)
+  // ROLLOUT CONTROL (DISTRIBUTION_API_SPEC.md) - Tenant-Scoped
   // ============================================================================
   
   // Update Rollout (API Spec Line 1106)
-  UPDATE_ROLLOUT: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
-    `/api/v1/submissions/${submissionId}/rollout?platform=${platform}`,
+  UPDATE_ROLLOUT: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout?platform=${platform}`,
   
   // Pause Rollout - Both Platforms (API Spec Line 1454)
   // Android: IN_PROGRESS → HALTED, iOS: LIVE → PAUSED
-  PAUSE_ROLLOUT: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
-    `/api/v1/submissions/${submissionId}/rollout/pause?platform=${platform}`,
+  PAUSE_ROLLOUT: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout/pause?platform=${platform}`,
   
   // Resume Rollout - Both Platforms (API Spec Line 1509)
   // Android: HALTED → IN_PROGRESS, iOS: PAUSED → LIVE
-  RESUME_ROLLOUT: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
-    `/api/v1/submissions/${submissionId}/rollout/resume?platform=${platform}`,
+  RESUME_ROLLOUT: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout/resume?platform=${platform}`,
+  
+  // Halt Rollout - Emergency Stop (API Spec)
+  HALT_ROLLOUT: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout/halt?platform=${platform}`,
+  
+  // Get Distribution History (API Spec)
+  GET_DISTRIBUTION_HISTORY: (tenantId: string, distributionId: string) => 
+    `/api/v1/tenants/${tenantId}/distributions/${distributionId}/history`,
+  
+  // Get Artifact Download URL (API Spec)
+  GET_ARTIFACT: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/artifact?platform=${platform}`,
 } as const;
 
 /**

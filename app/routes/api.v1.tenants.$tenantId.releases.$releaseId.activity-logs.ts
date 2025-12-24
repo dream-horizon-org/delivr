@@ -7,7 +7,7 @@
 
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
-import type { User } from '~/.server/services/Auth/Auth.interface';
+import type { User } from '~/.server/services/Auth/auth.interface';
 import { ReleaseProcessService } from '~/.server/services/ReleaseProcess';
 import { getApiErrorMessage } from '~/utils/api-client';
 import type { ActivityLogsResponse } from '~/types/release-process.types';

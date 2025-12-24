@@ -72,6 +72,7 @@ type IOSResubmissionFormData = {
 export type ResubmissionDialogProps = {
   opened: boolean;
   onClose: () => void;
+  tenantId: string;
   distributionId: string;
   previousSubmission: Submission;
   onResubmitComplete?: () => void;
@@ -84,6 +85,7 @@ export type ResubmissionDialogProps = {
 export function ResubmissionDialog({
   opened,
   onClose,
+  tenantId,
   distributionId,
   previousSubmission,
   onResubmitComplete,
@@ -177,10 +179,10 @@ export function ResubmissionDialog({
 
     fetcher.submit(formData, {
       method: 'POST',
-      action: API_ROUTES.createSubmission(distributionId),
+      action: API_ROUTES.createSubmission(tenantId, distributionId),
       encType: 'multipart/form-data',
     });
-  }, [distributionId, fetcher]);
+  }, [tenantId, distributionId, fetcher]);
 
   // Handle iOS submission
   const handleIOSSubmit = useCallback((values: IOSResubmissionFormData, _event?: React.FormEvent<HTMLFormElement>) => {
@@ -197,10 +199,10 @@ export function ResubmissionDialog({
 
     fetcher.submit(JSON.stringify(payload), {
       method: 'POST',
-      action: API_ROUTES.createSubmission(distributionId),
+      action: API_ROUTES.createSubmission(tenantId, distributionId),
       encType: 'application/json',
     });
-  }, [distributionId, fetcher]);
+  }, [tenantId, distributionId, fetcher]);
 
   // Handle success - trigger revalidation, parent will close dialog after data is fresh
   useEffect(() => {

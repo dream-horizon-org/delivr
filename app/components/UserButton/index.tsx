@@ -8,7 +8,7 @@ import {
 } from "@tabler/icons-react";
 import classes from "./index.module.css";
 import { Form, useNavigate } from "@remix-run/react"; // Use Remix's Form for logout action
-import { User } from "~/.server/services/Auth/Auth.interface";
+import { User } from '~/.server/services/Auth/auth.interface';
 import { route } from "routes-gen";
 import { useState } from "react";
 import { DeleteModal, type DeleteModalData } from "~/components/Common/DeleteModal";

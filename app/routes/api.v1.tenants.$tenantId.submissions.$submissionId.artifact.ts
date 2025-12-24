@@ -1,10 +1,16 @@
 /**
  * API Route: Download Submission Artifact
  * 
- * GET /api/v1/submissions/:submissionId/artifact?platform=<ANDROID|IOS>
+ * GET /api/v1/tenants/:tenantId/submissions/:submissionId/artifact?platform=<ANDROID|IOS>
  * 
  * Returns a presigned S3 URL to download the submission artifact (AAB or IPA).
  * The URL is time-limited for security.
+ * 
+ * Path Parameters:
+ * - tenantId: Tenant/Organization ID (required)
+ * - submissionId: Submission ID (required)
+ * 
+ * Reference: DISTRIBUTION_API_SPEC.md lines 1601-1666
  */
 
 import type { LoaderFunctionArgs } from '@remix-run/node';
@@ -16,25 +22,11 @@ import { Platform } from '~/types/distribution/distribution.types';
  * Loader - Get presigned artifact download URL
  */
 export async function loader({ params, request }: LoaderFunctionArgs) {
-  const { submissionId } = params;
+  const { tenantId, submissionId } = params;
   const url = new URL(request.url);
   const platform = url.searchParams.get('platform');
-  const tenantId = url.searchParams.get('tenantId');
 
   // Validate required parameters
-  if (!submissionId) {
-    return json(
-      {
-        success: false,
-        error: {
-          code: 'MISSING_SUBMISSION_ID',
-          message: 'Submission ID is required',
-        },
-      },
-      { status: 400 }
-    );
-  }
-
   if (!tenantId) {
     return json(
       {
@@ -42,6 +34,19 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
         error: {
           code: 'MISSING_TENANT_ID',
           message: 'Tenant ID is required for authorization',
+        },
+      },
+      { status: 400 }
+    );
+  }
+
+  if (!submissionId) {
+    return json(
+      {
+        success: false,
+        error: {
+          code: 'MISSING_SUBMISSION_ID',
+          message: 'Submission ID is required',
         },
       },
       { status: 400 }

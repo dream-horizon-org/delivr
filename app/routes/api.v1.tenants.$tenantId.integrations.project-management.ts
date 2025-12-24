@@ -7,7 +7,7 @@
 import { json } from '@remix-run/node';
 import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node';
 import { authenticateLoaderRequest, authenticateActionRequest } from '~/utils/authenticate';
-import type { User } from '~/.server/services/Auth/Auth.interface';
+import type { User } from '~/.server/services/Auth/auth.interface';
 import { ProjectManagementIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 import type { ProjectManagementProviderType } from '~/.server/services/ReleaseManagement/integrations';
 

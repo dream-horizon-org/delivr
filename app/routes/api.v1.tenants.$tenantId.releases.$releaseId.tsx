@@ -7,7 +7,7 @@
 
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from '@remix-run/node';
 import { authenticateLoaderRequest, authenticateActionRequest } from '~/utils/authenticate';
-import type { User } from '~/.server/services/Auth/Auth.interface';
+import type { User } from '~/.server/services/Auth/auth.interface';
 import { getReleaseById, updateRelease } from '~/.server/services/ReleaseManagement';
 
 /**

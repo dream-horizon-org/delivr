@@ -187,6 +187,7 @@ export type PlatformSubmissionCardProps = BaseProps & WithPlatform & {
 // ============================================================================
 
 export type SubmitToStoresFormProps = BaseProps & Closeable & {
+  tenantId: string; // Required - for tenant-scoped API calls
   releaseId?: string; // Optional - only needed in Release Process, not in Distribution Management
   distributionId: string; // Required - needed for API calls
   submissions: Submission[] | SubmissionInDistribution[]; // Required - to get submission IDs for per-platform submit

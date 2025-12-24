@@ -81,8 +81,14 @@ export function logApiError(context: string, error: unknown): void {
 
 /**
  * Handle axios errors and preserve status codes
+ * Special handling for 401: throws Response for auth middleware to catch
  */
 export function handleAxiosError(error: any, fallbackMessage: string) {
+  // If backend returns 401, throw Response for auth middleware to catch and auto-logout
+  if (error.response?.status === 401) {
+    throw new Response('Unauthorized', { status: 401 });
+  }
+
   if (error.response) {
     return json(error.response.data, { status: error.response.status });
   }

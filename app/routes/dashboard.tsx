@@ -3,7 +3,7 @@ import { Flex, Group, Text, Box, Skeleton, useMantineTheme } from "@mantine/core
 import { IconRocket } from "@tabler/icons-react";
 import { Outlet, useLoaderData, useNavigate, useParams, useLocation } from "@remix-run/react";
 import { route } from "routes-gen";
-import type { User } from "~/.server/services/Auth/Auth.interface";
+import type { User } from '~/.server/services/Auth/auth.interface';
 import { SimpleTermsGuard } from "~/components/TermsAndConditions/SimpleTermsGuard";
 import { authenticateLoaderRequest } from "~/utils/authenticate";
 import { HeaderUserButton } from "~/components/UserButton/HeaderUserButton";

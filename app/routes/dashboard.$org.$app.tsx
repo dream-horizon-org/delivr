@@ -3,7 +3,7 @@ import { IconRocket, IconKey, IconUsers, IconList, IconUserPlus, IconChevronRigh
 import { CollabaratorList } from "~/components/Pages/components/CollaboratorList";
 import { DeploymentList } from "~/components/Pages/DeploymentList";
 import { useLoaderData, useParams, useNavigate } from "@remix-run/react";
-import { User } from "~/.server/services/Auth/Auth.interface";
+import { User } from '~/.server/services/Auth/auth.interface';
 import { authenticateLoaderRequest } from "~/utils/authenticate";
 import { useState } from "react";
 import { CreateDeploymentForm } from "~/components/Pages/components/CreateDeploymentForm";

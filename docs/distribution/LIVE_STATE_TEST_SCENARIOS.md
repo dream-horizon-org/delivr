@@ -387,7 +387,7 @@ iOS: 100% manual (no buttons)
 
 ### ✅ Android Rollout Update API
 ```bash
-PATCH /api/v1/submissions/:submissionId/rollout?platform=ANDROID
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout?platform=ANDROID
 
 # Valid requests:
 {"rolloutPercentage": 5.0}      # ✅ Can set any %
@@ -399,7 +399,7 @@ PATCH /api/v1/submissions/:submissionId/rollout?platform=ANDROID
 
 ### ✅ iOS Phased Rollout Update API
 ```bash
-PATCH /api/v1/submissions/:submissionId/rollout?platform=IOS
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout?platform=IOS
 
 # Valid request (phased release enabled):
 {"rolloutPercentage": 100.0}    # ✅ Can ONLY set to 100%
@@ -413,7 +413,7 @@ PATCH /api/v1/submissions/:submissionId/rollout?platform=IOS
 
 ### ✅ Pause API (Both Platforms)
 ```bash
-PATCH /api/v1/submissions/:submissionId/rollout/pause?platform={ANDROID|IOS}
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout/pause?platform={ANDROID|IOS}
 
 # iOS:
 # Valid only if:
@@ -433,7 +433,7 @@ PATCH /api/v1/submissions/:submissionId/rollout/pause?platform={ANDROID|IOS}
 
 ### ✅ Resume API (Both Platforms)
 ```bash
-PATCH /api/v1/submissions/:submissionId/rollout/resume?platform={ANDROID|IOS}
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout/resume?platform={ANDROID|IOS}
 
 # iOS:
 # Valid only if:
@@ -526,17 +526,19 @@ PATCH /api/v1/submissions/:submissionId/rollout/resume?platform={ANDROID|IOS}
 ## 🚀 Quick Test Commands
 
 ```bash
-# List all LIVE distributions
-curl http://localhost:4000/api/v1/distributions | jq '.data.distributions[] | select(.status == "RELEASED") | {id, branch, status}'
+# Note: Replace tenant_1 with actual tenant ID
+
+# List all LIVE distributions (query param for tenantId)
+curl "http://localhost:4000/api/v1/distributions?tenantId=tenant_1" | jq '.data.distributions[] | select(.status == "RELEASED") | {id, branch, status}'
 
 # Get specific LIVE distribution detail
-curl http://localhost:4000/api/v1/distributions/dist_live_001 | jq '.data'
+curl http://localhost:4000/api/v1/tenants/tenant_1/distributions/dist_live_001 | jq '.data'
 
 # Check Android LIVE submission
-curl http://localhost:4000/api/v1/distributions/dist_live_001 | jq '.data.submissions[] | select(.platform == "ANDROID") | {version, status, rolloutPercentage}'
+curl http://localhost:4000/api/v1/tenants/tenant_1/distributions/dist_live_001 | jq '.data.submissions[] | select(.platform == "ANDROID") | {version, status, rolloutPercentage}'
 
 # Check iOS Phased submission
-curl http://localhost:4000/api/v1/distributions/dist_live_006 | jq '.data.submissions[] | select(.platform == "IOS") | {version, status, rolloutPercentage, phasedRelease}'
+curl http://localhost:4000/api/v1/tenants/tenant_1/distributions/dist_live_006 | jq '.data.submissions[] | select(.platform == "IOS") | {version, status, rolloutPercentage, phasedRelease}'
 ```
 
 ---

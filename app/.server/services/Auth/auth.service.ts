@@ -3,8 +3,6 @@ import { GoogleStrategy } from "remix-auth-google";
 
 import { SessionStorageService } from "../SessionStorage";
 
-import { getAuthenticatorCallbackUrl } from "./Auth.utils";
-import { AuthenticatorRoutes, User, UserReturnType } from "./Auth.interface";
 import {
   ActionFunctionArgs,
   LoaderFunctionArgs,
@@ -13,6 +11,13 @@ import {
 } from "@remix-run/node";
 import { CodepushService } from "../Codepush";
 import { redirectTo } from "../Cookie";
+import { AUTH_CONFIG, AUTH_ERROR_MESSAGES } from "./auth.constants";
+import { AuthenticatorRoutes, User, UserReturnType } from "./auth.interface";
+import {
+  getAuthenticatorCallbackUrl,
+  getBackendURL,
+  isBackendConnectionError
+} from "./auth.utils";
 
 export enum SocialsProvider {
   GOOGLE = "google",
@@ -37,28 +42,42 @@ export class Auth {
           clientID: process.env.GOOGLE_CLIENT_ID ?? "",
           clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
           callbackURL: getAuthenticatorCallbackUrl(SocialsProvider.GOOGLE),
-          prompt: "consent",
+          accessType: AUTH_CONFIG.OAUTH_ACCESS_TYPE,
+          prompt: AUTH_CONFIG.OAUTH_PROMPT,
         },
         async (args) => {
-          console.log("args in constructing Auth:", args);
           try {
-            return await CodepushService.getUser(args.extraParams.id_token);
-          } catch (error: any) {
-            console.error("Error fetching user from backend:", error);
+            const user = await CodepushService.getUser(args.extraParams.id_token);
             
-            // Provide better error messages
-            if (error?.code === "ECONNREFUSED") {
-              const backendUrl = process.env.DELIVR_BACKEND_URL || process.env.BACKEND_API_URL || 'http://localhost:3010';
-              throw new Error("Cannot connect to backend server. Please ensure the server is running on " + backendUrl);
-            } else if (error?.response?.status === 401) {
-              throw new Error("Invalid authentication token");
-            } else if (error?.response?.status === 404) {
-              throw new Error("User not found");
-            } else if (error?.message) {
-              throw new Error(error.message);
+            return {
+              ...user,
+              user: {
+                ...user.user,
+                idToken: args.extraParams.id_token,
+                refreshToken: args.extraParams.refresh_token ? String(args.extraParams.refresh_token) : null,
+                tokenExpiresAt: Date.now() + AUTH_CONFIG.TOKEN_EXPIRY_MS
+              }
+            };
+          } catch (error: any) {
+            console.error("[Auth] Failed to authenticate:", {
+              error: error?.message,
+              status: error?.response?.status,
+              backend: getBackendURL(),
+            });
+            
+            if (isBackendConnectionError(error)) {
+              throw new Error(`${AUTH_ERROR_MESSAGES.BACKEND_UNREACHABLE} on ${getBackendURL()}`);
             }
             
-            throw new Error("Failed to authenticate with backend server");
+            if (error?.response?.status === 401) {
+              throw new Error(AUTH_ERROR_MESSAGES.INVALID_TOKEN);
+            }
+            
+            if (error?.response?.status === 404) {
+              throw new Error(AUTH_ERROR_MESSAGES.USER_NOT_FOUND);
+            }
+            
+            throw new Error(error?.message || AUTH_ERROR_MESSAGES.AUTHENTICATION_FAILED);
           }
         }
       )

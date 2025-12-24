@@ -33,7 +33,7 @@ import {
   IconX
 } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
-import type { User } from '~/.server/services/Auth/Auth.interface';
+import type { User } from '~/.server/services/Auth/auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import { RolloutService } from '~/.server/services/Rollout';
 import { CancelSubmissionDialog } from '~/components/Distribution/CancelSubmissionDialog';
@@ -81,7 +81,7 @@ export const loader = authenticateLoaderRequest(
 
     try {
       // Fetch submission details
-      const submissionResponse = await DistributionService.getSubmission(submissionId, platform as Platform);
+      const submissionResponse = await DistributionService.getSubmission(org, submissionId, platform as Platform);
       const submission = submissionResponse.data;
 
       return json<LoaderData>({
@@ -417,6 +417,7 @@ export default function SubmissionDetailPage() {
       <ResubmissionDialog
         opened={retryDialogOpened}
         onClose={closeRetryDialog}
+        tenantId={org}
         distributionId={submission.distributionId}
         previousSubmission={submission}
       />
@@ -425,6 +426,7 @@ export default function SubmissionDetailPage() {
       <CancelSubmissionDialog
         opened={cancelDialogOpened}
         onClose={closeCancelDialog}
+        tenantId={org}
         submissionId={submission.id}
         platform={submission.platform === Platform.ANDROID ? 'Android' : 'iOS'}
         version={submission.version}

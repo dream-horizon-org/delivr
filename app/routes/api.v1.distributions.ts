@@ -1,6 +1,6 @@
 /**
  * Remix API Route: List Distributions
- * GET /api/v1/distributions
+ * GET /api/v1/distributions?tenantId=xxx
  * 
  * Returns paginated list of distributions with only latest submission per platform.
  * Includes aggregate stats calculated from ALL distributions (not just current page).
@@ -12,11 +12,11 @@
  * - status: Filter by distribution status (optional)
  * - platform: Filter by platform (optional)
  * 
- * Reference: DISTRIBUTION_API_SPEC.md lines 344-466
+ * Reference: DISTRIBUTION_API_SPEC.md lines 612-748
  */
 
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
-import type { User } from '~/.server/services/Auth/Auth.interface';
+import type { User } from '~/.server/services/Auth/auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import {
   ERROR_MESSAGES,
@@ -71,4 +71,3 @@ export const loader = authenticateLoaderRequest(
     }
   }
 );
-

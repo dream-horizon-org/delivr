@@ -94,7 +94,7 @@ PENDING → IN_REVIEW → APPROVED → LIVE
 **Key Points:**
 - ✅ Submissions are **already created** with PENDING status
 - ✅ User **fills in details** and **submits** existing submission
-- ✅ API: `PUT /api/v1/submissions/:submissionId/submit`
+- ✅ API: `PUT /api/v1/tenants/:tenantId/submissions/:submissionId/submit`
 - ❌ NOT creating new submissions for first-time submit
 
 ### 4. Release Page Distribution Tab (LIMITED)
@@ -367,7 +367,7 @@ PAGE: Still on Release Details Page (just different tab content)
 │
 ├─ STEP 3: Click "Submit"
 │   ├─ For each selected platform:
-│   │   ├─ API: PUT /api/v1/submissions/{submissionId}/submit
+│   │   ├─ API: PUT /api/v1/tenants/:tenantId/submissions/{submissionId}/submit
 │   │   └─ Updates existing PENDING submission
 │   └─ Three possible outcomes:
 │
@@ -514,7 +514,7 @@ START: User wants to manage submissions
 │   ├─ Opens: SubmitToStoresDialog (for this platform)
 │   ├─ User fills details
 │   ├─ Click: "Submit"
-│   ├─ API: PUT /api/v1/submissions/{submissionId}/submit
+│   ├─ API: PUT /api/v1/tenants/:tenantId/submissions/{submissionId}/submit
 │   └─ Success → Submission status changes to IN_REVIEW
 │
 ├─ USE CASE 2: Fix Rejected Submission (Resubmission)
@@ -530,7 +530,7 @@ START: User wants to manage submissions
 │   │       └─ Android: New AAB file picker (multipart upload)
 │   ├─ User edits metadata AND provides new artifact
 │   ├─ Click: "Re-Submit"
-│   ├─ API: POST /api/v1/distributions/{distributionId}/submissions
+│   ├─ API: POST /api/v1/tenants/:tenantId/distributions/{distributionId}/submissions
 │   │   └─ Creates NEW submission with NEW submissionId
 │   └─ Success → New submission with status IN_REVIEW
 │
@@ -546,7 +546,7 @@ START: User wants to manage submissions
 │   │   ├─ iOS Phased: User can only select 100% (complete early)
 │   │   ├─ iOS Manual: No rollout control (always 100%)
 │   │   ├─ Click: "Update Rollout"
-│   │   ├─ API: PATCH /api/v1/submissions/{submissionId}/rollout?platform={platform}
+│   │   ├─ API: PATCH /api/v1/tenants/:tenantId/submissions/{submissionId}/rollout?platform={platform}
 │   │   ├─ Optimistic update: Progress bar animates
 │   │   └─ Success → Confirmed at new %
 │   │
@@ -554,13 +554,13 @@ START: User wants to manage submissions
 │   │   ├─ Click: "Pause" button
 │   │   ├─ Opens: PauseRolloutDialog
 │   │   ├─ Required: Enter reason
-│   │   ├─ Confirm → API: PATCH /api/v1/submissions/{submissionId}/rollout/pause?platform=IOS
+│   │   ├─ Confirm → API: PATCH /api/v1/tenants/:tenantId/submissions/{submissionId}/rollout/pause?platform=IOS
 │   │   └─ Success → Status changes to PAUSED
 │   │
 │   ├─ ACTION C: Resume Rollout (if paused)
 │   │   ├─ Click: "Resume" button
 │   │   ├─ Opens: ResumeRolloutDialog (simple confirmation)
-│   │   ├─ Confirm → API: PATCH /api/v1/submissions/{submissionId}/rollout/resume?platform=IOS
+│   │   ├─ Confirm → API: PATCH /api/v1/tenants/:tenantId/submissions/{submissionId}/rollout/resume?platform=IOS
 │   │   └─ Success → Status returns to LIVE
 │   │
 │   └─ ACTION D: Emergency Halt (any platform, any state)
@@ -568,7 +568,7 @@ START: User wants to manage submissions
 │       ├─ Opens: HaltRolloutDialog
 │       │   ├─ Reason: (required field)
 │       │   └─ Warning: "This requires a hotfix release"
-│       ├─ Confirm → API: PATCH /api/v1/submissions/{submissionId}/rollout/halt?platform={platform}
+│       ├─ Confirm → API: PATCH /api/v1/tenants/:tenantId/submissions/{submissionId}/rollout/halt?platform={platform}
 │       └─ Success → Status changes to HALTED (terminal)
 │
 └─ USE CASE 4: View Submission History
@@ -662,7 +662,7 @@ onClick={() => {
 ```typescript
 // Get distribution by releaseId
 const distribution = await DistributionService.getDistributionByRelease(releaseId);
-// API: GET /api/v1/releases/:releaseId/distribution
+// API: GET /api/v1/tenants/:tenantId/releases/:releaseId/distribution
 
 // Response includes:
 // - distribution { id, releaseId, branch, status, platforms }
@@ -753,8 +753,9 @@ const distribution = await DistributionService.getDistributionByRelease(releaseI
 
 **API Call**:
 ```typescript
-const response = await DistributionService.listDistributions();
-// API: GET /api/v1/distributions
+const response = await DistributionService.listDistributions(tenantId, page, pageSize);
+// API: GET /api/v1/distributions?tenantId=xxx&page=1&pageSize=10
+// Note: This ONE API uses query parameter for tenantId
 
 // Response:
 {
@@ -859,7 +860,7 @@ onClick={() => {
 **API Calls on Load**:
 ```typescript
 const distribution = await DistributionService.getDistribution(distributionId);
-// API: GET /api/v1/distributions/:distributionId
+// API: GET /api/v1/tenants/:tenantId/distributions/:distributionId
 
 // Response includes:
 // - distribution { id, releaseId, branch, status, platforms }
@@ -1091,7 +1092,7 @@ async function handleSubmit(formData: SubmitFormData) {
         await DistributionService.submitSubmission(submission.id, {
           ...(platform === 'ANDROID' ? formData.android : formData.ios)
         });
-        // API: PUT /api/v1/submissions/:submissionId/submit
+        // API: PUT /api/v1/tenants/:tenantId/submissions/:submissionId/submit
       }
     }
     
@@ -1187,7 +1188,7 @@ const initialValues = {
 ```typescript
 async function handleReSubmit(formData: ReSubmissionFormData) {
   try {
-    // API: POST /api/v1/distributions/:distributionId/submissions
+    // API: POST /api/v1/tenants/:tenantId/distributions/:distributionId/submissions
     // Creates NEW submission with NEW ID
     const response = await DistributionService.createSubmission(
       distributionId,
@@ -1400,15 +1401,15 @@ async function handleReSubmit(formData: ReSubmissionFormData) {
 **API**:
 ```typescript
 // Update rollout to any %
-PATCH /api/v1/submissions/:submissionId/rollout?platform=ANDROID
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout?platform=ANDROID
 { rolloutPercentage: 27.3 }  // Supports decimals (min: 0.01)
 
 // Pause rollout
-PATCH /api/v1/submissions/:submissionId/rollout/pause?platform=ANDROID
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout/pause?platform=ANDROID
 { reason: "Monitoring crash reports" }
 
 // Resume rollout
-PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=ANDROID
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout/resume?platform=ANDROID
 ```
 
 ### 9.2 iOS - Phased Release
@@ -1422,15 +1423,15 @@ PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=ANDROID
 **API**:
 ```typescript
 // Complete early (skip to 100%)
-PATCH /api/v1/submissions/:submissionId/rollout?platform=IOS
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout?platform=IOS
 { rolloutPercentage: 100 }  // Only 100 allowed
 
 // Pause
-PATCH /api/v1/submissions/:submissionId/rollout/pause?platform=IOS
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout/pause?platform=IOS
 { reason: "Monitoring crash reports" }
 
 // Resume
-PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=IOS
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout/resume?platform=IOS
 ```
 
 ### 9.3 iOS - Manual Release
@@ -1498,50 +1499,51 @@ PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=IOS
 
 ### First-Time Submission (PENDING → IN_REVIEW)
 ```
-PUT /api/v1/submissions/:submissionId/submit
+PUT /api/v1/tenants/:tenantId/submissions/:submissionId/submit
 ```
 
 ### Resubmission (Creates NEW submission)
 ```
-POST /api/v1/distributions/:distributionId/submissions
+POST /api/v1/tenants/:tenantId/distributions/:distributionId/submissions
 ```
 
 ### Update Rollout
 ```
-PATCH /api/v1/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
 ```
 
 ### Pause Rollout (iOS phased only)
 ```
-PATCH /api/v1/submissions/:submissionId/rollout/pause?platform=IOS
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout/pause?platform=IOS
 ```
 
 ### Resume Rollout
 ```
-PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=IOS
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout/resume?platform=IOS
 ```
 
 ### Emergency Halt
 ```
-PATCH /api/v1/submissions/:submissionId/rollout/halt?platform=<ANDROID|IOS>
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout/halt?platform=<ANDROID|IOS>
 ```
 
 ### Cancel Submission (iOS Only)
 ```
-PATCH /api/v1/submissions/:submissionId/cancel?platform=IOS
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/cancel?platform=IOS
 ```
 **Note**: Android does not support cancellation
 
 ### Get Distribution
 ```
-GET /api/v1/distributions/:distributionId
-GET /api/v1/releases/:releaseId/distribution
+GET /api/v1/tenants/:tenantId/distributions/:distributionId
+GET /api/v1/tenants/:tenantId/releases/:releaseId/distribution
 ```
 
 ### List Distributions
 ```
-GET /api/v1/distributions
+GET /api/v1/distributions?tenantId=xxx
 ```
+**Note:** This ONE API uses query parameter for tenantId.
 
 ---
 
@@ -1551,8 +1553,8 @@ GET /api/v1/distributions
 
 1. **Distribution is auto-created** after pre-release completion
 2. **Submissions are auto-created** with PENDING status (one per platform)
-3. **First submission** uses `PUT /api/v1/submissions/:submissionId/submit`
-4. **Resubmission** creates NEW submission via `POST /api/v1/distributions/:distributionId/submissions`
+3. **First submission** uses `PUT /api/v1/tenants/:tenantId/submissions/:submissionId/submit`
+4. **Resubmission** creates NEW submission via `POST /api/v1/tenants/:tenantId/distributions/:distributionId/submissions`
 5. **Routes use distributionId** (not releaseId) for distribution management
 6. **Release page** = LIMITED (submit PENDING + monitor only)
 7. **Distribution management** = FULL (all actions)

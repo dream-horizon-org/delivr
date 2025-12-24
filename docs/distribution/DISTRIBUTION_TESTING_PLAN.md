@@ -66,14 +66,16 @@ pnpm run dev
 
 ### Verify API Connection
 ```bash
-# Test 1: Get distributions list
-curl http://localhost:4000/api/v1/distributions | jq '.'
+# Note: Replace tenant_1 with actual tenant ID
+
+# Test 1: Get distributions list (query param for tenantId)
+curl "http://localhost:4000/api/v1/distributions?tenantId=tenant_1" | jq '.'
 
 # Test 2: Get submission WITH platform (should succeed)
-curl "http://localhost:4000/api/v1/submissions/sub_android_001?platform=ANDROID" | jq '.'
+curl "http://localhost:4000/api/v1/tenants/tenant_1/submissions/sub_android_001?platform=ANDROID" | jq '.'
 
 # Test 3: Get submission WITHOUT platform (should fail with 400)
-curl "http://localhost:4000/api/v1/submissions/sub_android_001" | jq '.'
+curl "http://localhost:4000/api/v1/tenants/tenant_1/submissions/sub_android_001" | jq '.'
 # Expected: {"success":false,"error":{"code":"INVALID_PLATFORM",...}}
 
 # Test 4: Reset to initial state
@@ -132,8 +134,8 @@ Validate that the environment is set up correctly and core features work before 
 
 6. **Test API Error Handling**
    ```bash
-   # In terminal, test platform validation
-   curl "http://localhost:4000/api/v1/submissions/sub_android_001"
+   # In terminal, test platform validation (replace :tenantId)
+   curl "http://localhost:4000/api/v1/tenants/:tenantId/submissions/sub_android_001"
    # Should return: {"success":false,"error":{"code":"INVALID_PLATFORM",...}}
    ```
 
@@ -578,7 +580,7 @@ node mock-server/scenarios.js five
 | 5.4.2 | Update button enables on change | Change percentage | Button becomes enabled | [ ] |
 | 5.4.3 | Update button text | Check button | Says "Update Rollout" or "Apply Update" | [ ] |
 | 5.4.4 | Click Update button | Set 25% + click | Sends API request | [ ] |
-| 5.4.5 | API request correct | Check Network tab | `PATCH /api/v1/submissions/{id}/rollout?platform=ANDROID` | [ ] |
+| 5.4.5 | API request correct | Check Network tab | `PATCH /api/v1/tenants/:tenantId/submissions/{id}/rollout?platform=ANDROID` | [ ] |
 | 5.4.6 | Request body correct | Check payload | `{"rolloutPercentage": 25.0}` (float) | [ ] |
 | 5.4.7 | Loading state during update | During API call | Button shows spinner | [ ] |
 | 5.4.8 | Optimistic UI update | Immediately after click | Progress bar updates before API returns | [ ] |
@@ -639,7 +641,7 @@ node mock-server/scenarios.js five
 | 6.2.4 | Pause confirmation dialog | Check dialog | "Are you sure you want to pause?" | [ ] |
 | 6.2.5 | Pause dialog explains | Check dialog | Explains rollout will pause until resumed | [ ] |
 | 6.2.6 | Confirm pause | Click Confirm | Sends PATCH request to pause endpoint | [ ] |
-| 6.2.7 | API request correct | Check Network | `PATCH /api/v1/submissions/{id}/rollout/pause?platform=IOS` | [ ] |
+| 6.2.7 | API request correct | Check Network | `PATCH /api/v1/tenants/:tenantId/submissions/{id}/rollout/pause?platform=IOS` | [ ] |
 | 6.2.8 | Success toast pause | After success | Shows "Rollout paused" toast | [ ] |
 | 6.2.9 | Status badge updates | After pause | Shows "PAUSED" badge (orange) | [ ] |
 | 6.2.10 | Pause button becomes Resume | After pause | Button text changes to "Resume Rollout" | [ ] |
@@ -664,7 +666,7 @@ node mock-server/scenarios.js five
 | 6.3.9 | Cancel works | Click Cancel | Dialog closes, no action taken | [ ] |
 | 6.3.10 | Confirm button dangerous | Check dialog | Confirm button is warning/red style | [ ] |
 | 6.3.11 | Confirm Complete Early | Click Confirm | Sends PATCH request with rolloutPercentage=100 | [ ] |
-| 6.3.12 | API request correct | Check Network | `PATCH /api/v1/submissions/{id}/rollout?platform=IOS` with `{"rolloutPercentage": 100}` | [ ] |
+| 6.3.12 | API request correct | Check Network | `PATCH /api/v1/tenants/:tenantId/submissions/{id}/rollout?platform=IOS` with `{"rolloutPercentage": 100}` | [ ] |
 | 6.3.13 | Success toast displays | After success | Shows "Released to 100% of users" | [ ] |
 | 6.3.14 | Rollout shows 100% | After success | Current rollout displays 100% | [ ] |
 | 6.3.15 | Phased controls disappear | After complete | Pause/Complete buttons disappear (rollout done) | [ ] |
@@ -731,7 +733,7 @@ node mock-server/scenarios.js five
 | 7.2.14 | Cancel works | Click Cancel | Dialog closes, no action | [ ] |
 | 7.2.15 | Halt button in dialog | Check dialog | Shows "Halt Distribution" danger button | [ ] |
 | 7.2.16 | Confirm halt | Fill reason + click Halt | Sends PATCH request | [ ] |
-| 7.2.17 | API request correct | Check Network | `PATCH /api/v1/submissions/{id}/rollout/halt?platform=IOS` with reason | [ ] |
+| 7.2.17 | API request correct | Check Network | `PATCH /api/v1/tenants/:tenantId/submissions/{id}/rollout/halt?platform=IOS` with reason | [ ] |
 | 7.2.18 | Success updates UI | After success | Status changes to "HALTED", shows reason | [ ] |
 
 ---

@@ -21,7 +21,7 @@ import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-r
 import { Link, useFetcher, useLoaderData, useNavigate, useNavigation, useRevalidator } from '@remix-run/react';
 import { IconArrowLeft, IconBrandAndroid, IconBrandApple, IconExternalLink, IconRefresh } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { User } from '~/.server/services/Auth/Auth.interface';
+import type { User } from '~/.server/services/Auth/auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import { RolloutService } from '~/.server/services/Rollout';
 import { ActivityHistoryLog } from '~/components/Distribution/ActivityHistoryLog';
@@ -68,8 +68,8 @@ export const loader = authenticateLoaderRequest(
 
     try {
       // Fetch distribution details by distributionId
-      // This calls GET /api/v1/distributions/:distributionId
-      const response = await DistributionService.getDistribution(distributionId);
+      // This calls GET /api/v1/tenants/:tenantId/distributions/:distributionId
+      const response = await DistributionService.getDistribution(org, distributionId);
       const distribution = response.data.data;
 
       return json<LoaderData>({
@@ -99,7 +99,7 @@ export const loader = authenticateLoaderRequest(
 
 export const action = authenticateLoaderRequest(
   async ({ request, params }: ActionFunctionArgs & { user: User }) => {
-    const { distributionId } = params;
+    const { org, distributionId } = params;
     const formData = await request.formData();
     const intent = formData.get('intent') as string;
     const submissionId = formData.get('submissionId') as string;
@@ -145,7 +145,7 @@ export const action = authenticateLoaderRequest(
             };
           }
 
-          await DistributionService.submitSubmission(submissionId, submitRequest, platform);
+          await DistributionService.submitSubmission(org!, submissionId, submitRequest, platform);
           return json({ success: true });
         }
 
@@ -914,6 +914,7 @@ export default function DistributionDetailPage() {
           <CancelSubmissionDialog
             opened={isCancelDialogOpen}
             onClose={handleCloseDialogs}
+            tenantId={org}
             submissionId={selectedSubmission.id}
             platform={selectedSubmission.platform}
             version={selectedSubmission.version}
@@ -942,6 +943,7 @@ export default function DistributionDetailPage() {
             <ResubmissionDialog
               opened={isResubmitDialogOpen}
               onClose={handleCloseDialogs}
+              tenantId={org}
               distributionId={distribution.id}
               previousSubmission={selectedSubmission}
               onResubmitComplete={handleResubmitComplete}

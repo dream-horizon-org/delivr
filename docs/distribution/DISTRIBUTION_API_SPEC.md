@@ -371,13 +371,17 @@ enum Platform {
 
 ## API Endpoints
 
+**⚠️ CRITICAL: All endpoints now require `tenantId` in the path for proper tenant isolation and validation.**
+
+**Path Structure:** `/api/v1/tenants/:tenantId/...`
+
 ### 1. Get Distribution by Release
 
 Get the complete distribution entry with all submissions for a specific release.
 
 **Endpoint:**
 ```
-GET /api/v1/releases/:releaseId/distribution
+GET /api/v1/tenants/:tenantId/releases/:releaseId/distribution
 ```
 
 **Use Case:** 
@@ -533,6 +537,7 @@ GET /api/v1/releases/:releaseId/distribution
 
 **Error Cases:**
 - `404` - Distribution not found (pre-release not completed yet)
+- `403` - Unauthorized (tenant validation failed)
 
 **Response Fields:**
 
@@ -610,13 +615,13 @@ Get paginated list of all distributions with submission summaries.
 
 **Endpoint:**
 ```
-GET /api/v1/distributions?tenantId=<TENANT_ID>
+GET /api/v1/distributions?tenantId=xxx
 ```
 
 **Query Parameters:**
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `tenantId` | string | **Yes** | - | Tenant/Organization ID (required for multi-tenant support) |
+| `tenantId` | string | **Yes** | - | Tenant/Organization ID (required for multi-tenant support and validation) |
 | `page` | integer | No | 1 | Page number (1-indexed) |
 | `pageSize` | integer | No | 10 | Items per page (max: 100) |
 | `status` | string | No | - | Filter by distribution status: `PENDING`, `PARTIALLY_SUBMITTED`, `SUBMITTED`, `PARTIALLY_RELEASED`, `RELEASED` |
@@ -638,17 +643,6 @@ GET /api/v1/distributions?tenantId=tenant_1&platform=IOS
 
 # Combined filters
 GET /api/v1/distributions?tenantId=tenant_1&status=PENDING&platform=IOS&page=1&pageSize=20
-```
-
-**Error Response (Missing tenantId):**
-```json
-{
-  "success": false,
-  "error": {
-    "code": "MISSING_TENANT_ID",
-    "message": "tenantId query parameter is required"
-  }
-}
 ```
 
 **Response:**
@@ -785,8 +779,14 @@ Submit an existing PENDING submission to the store (first-time submission).
 
 **Endpoint:**
 ```
-PUT /api/v1/submissions/:submissionId/submit?platform=<ANDROID|IOS>
+PUT /api/v1/tenants/:tenantId/submissions/:submissionId/submit?platform=<ANDROID|IOS>
 ```
+
+**Path Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tenantId` | string | **Yes** | Tenant/Organization ID (required for tenant isolation and validation) |
+| `submissionId` | string | **Yes** | Submission ID to submit |
 
 **Query Parameters:**
 | Parameter | Type | Required | Description |
@@ -907,6 +907,7 @@ PUT /api/v1/submissions/:submissionId/submit?platform=<ANDROID|IOS>
 
 **Error Cases:**
 - `400` - Invalid request (invalid field values)
+- `403` - Unauthorized (tenant validation failed)
 - `404` - Submission not found
 - `409` - Conflict (submission not in PENDING state, version conflict, already submitted)
 
@@ -918,8 +919,14 @@ Get full details for a specific distribution with all submissions and artifacts.
 
 **Endpoint:**
 ```
-GET /api/v1/distributions/:distributionId
+GET /api/v1/tenants/:tenantId/distributions/:distributionId
 ```
+
+**Path Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tenantId` | string | **Yes** | Tenant/Organization ID (required for tenant isolation and validation) |
+| `distributionId` | string | **Yes** | Distribution ID to retrieve |
 
 **Use Case:**
 - Distribution management page
@@ -1045,8 +1052,14 @@ Get full details for a specific submission with artifact information.
 
 **Endpoint:**
 ```
-GET /api/v1/submissions/:submissionId?platform=<ANDROID|IOS>
+GET /api/v1/tenants/:tenantId/submissions/:submissionId?platform=<ANDROID|IOS>
 ```
+
+**Path Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tenantId` | string | **Yes** | Tenant/Organization ID (required for tenant isolation and validation) |
+| `submissionId` | string | **Yes** | Submission ID to retrieve |
 
 **Query Parameters:**
 | Parameter | Type | Required | Description |
@@ -1180,8 +1193,14 @@ Increase/decrease rollout percentage for a submission (platform-specific rules a
 
 **Endpoint:**
 ```
-PATCH /api/v1/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
 ```
+
+**Path Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tenantId` | string | **Yes** | Tenant/Organization ID (required for tenant isolation and validation) |
+| `submissionId` | string | **Yes** | Submission ID to update |
 
 **Query Parameters:**
 | Parameter | Type | Required | Description |
@@ -1242,6 +1261,7 @@ PATCH /api/v1/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
 
 **Error Cases:**
 - `400` - Invalid percentage
+- `403` - Unauthorized (tenant validation failed)
 - `409` - iOS manual release (already at 100%)
 - `409` - iOS phased with value != 100 (can only skip to 100%)
 
@@ -1280,8 +1300,14 @@ Create a completely new submission after rejection or cancellation. User provide
 
 **Endpoint:**
 ```
-POST /api/v1/distributions/:distributionId/submissions
+POST /api/v1/tenants/:tenantId/distributions/:distributionId/submissions
 ```
+
+**Path Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tenantId` | string | **Yes** | Tenant/Organization ID (required for tenant isolation and validation) |
+| `distributionId` | string | **Yes** | Distribution ID to create submission for |
 
 **Request (Android):**
 ```json
@@ -1419,8 +1445,14 @@ Cancel an in-review submission.
 
 **Endpoint:**
 ```
-PATCH /api/v1/submissions/:submissionId/cancel?platform=<ANDROID|IOS>
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/cancel?platform=<ANDROID|IOS>
 ```
+
+**Path Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tenantId` | string | **Yes** | Tenant/Organization ID (required for tenant isolation and validation) |
+| `submissionId` | string | **Yes** | Submission ID to cancel |
 
 **Query Parameters:**
 | Parameter | Type | Required | Description |
@@ -1457,8 +1489,14 @@ Pause an active rollout.
 
 **Endpoint:**
 ```
-PATCH /api/v1/submissions/:submissionId/rollout/pause?platform=<ANDROID|IOS>
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout/pause?platform=<ANDROID|IOS>
 ```
+
+**Path Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tenantId` | string | **Yes** | Tenant/Organization ID (required for tenant isolation and validation) |
+| `submissionId` | string | **Yes** | Submission ID to pause |
 
 **Query Parameters:**
 | Parameter | Type | Required | Description |
@@ -1512,8 +1550,14 @@ Resume a paused rollout.
 
 **Endpoint:**
 ```
-PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=<ANDROID|IOS>
+PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout/resume?platform=<ANDROID|IOS>
 ```
+
+**Path Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tenantId` | string | **Yes** | Tenant/Organization ID (required for tenant isolation and validation) |
+| `submissionId` | string | **Yes** | Submission ID to resume |
 
 **Query Parameters:**
 | Parameter | Type | Required | Description |
@@ -1556,8 +1600,14 @@ Get a presigned URL to download the submission artifact (AAB for Android, IPA fo
 
 **Endpoint:**
 ```
-GET /api/v1/submissions/:submissionId/artifact?platform=<ANDROID|IOS>
+GET /api/v1/tenants/:tenantId/submissions/:submissionId/artifact?platform=<ANDROID|IOS>
 ```
+
+**Path Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tenantId` | string | **Yes** | Tenant/Organization ID (required for tenant isolation and validation) |
+| `submissionId` | string | **Yes** | Submission ID to download artifact for |
 
 **Query Parameters:**
 | Parameter | Type | Required | Description |

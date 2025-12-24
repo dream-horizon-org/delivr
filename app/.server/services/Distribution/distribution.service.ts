@@ -9,6 +9,7 @@
 
 import axios, { type AxiosResponse } from 'axios';
 import { getBackendBaseURL } from '~/.server/utils/base-url.utils';
+import { getCurrentUser } from '~/.server/utils/request-context';
 import type {
   APISuccessResponse,
   ApprovalResponse,
@@ -39,24 +40,48 @@ class Distribution {
   });
 
   constructor() {
-    // Add request interceptor to dynamically set base URL based on HYBRID_MODE
+    // Add request interceptor to:
+    // 1. Dynamically set base URL based on HYBRID_MODE
+    // 2. Automatically inject authentication headers from request context
     this.__client.interceptors.request.use((config) => {
+      // Set base URL
       const url = config.url || '';
-      const baseURL = getBackendBaseURL(url); // Pass URL to check hybrid mode
+      const baseURL = getBackendBaseURL(url);
       config.baseURL = baseURL;
+
+      // Inject authentication headers from request context
+      const user = getCurrentUser();
+      
+      if (user) {
+        const authHeaders = this.buildAuthHeaders(user);
+        Object.assign(config.headers, authHeaders);
+      } else {
+        console.warn('[Distribution Service] No user in request context! Request may fail.');
+      }
+
       return config;
     });
   }
 
   /**
-   * Build headers with userId for authentication
-   * Backend accepts 'userid' header as fallback when Authorization token is not present
+   * Build authentication headers for backend API calls
+   * Uses ONLY Bearer token authentication (no fallback)
+   * 
+   * Token is automatically refreshed by authenticate.ts before API calls
+   * If refresh fails, user is logged out
    */
-  private buildHeaders(userId: string, additionalHeaders?: Record<string, string>) {
-    return {
-      'userid': userId,
-      ...(additionalHeaders || {}),
-    };
+  private buildAuthHeaders(user: { user: { id: string; idToken: string | null } }): Record<string, string> {
+    const headers: Record<string, string> = {};
+    
+    const idToken = user?.user?.idToken;
+
+    if (idToken !== null && idToken !== undefined) {
+      headers['Authorization'] = `Bearer ${idToken}`;
+    } else {
+      console.error('[Distribution Service] ❌ No idToken available - user needs to re-login');
+    }
+    
+    return headers;
   }
 
   // ======================
@@ -195,7 +220,7 @@ class Distribution {
     }
 
     return this.__client.get<DistributionsResponse>(
-      '/api/v1/distributions',
+      `/api/v1/distributions`,
       { params }
     );
   }
@@ -211,21 +236,25 @@ class Distribution {
 
   /**
    * Get single submission details
+   * @param tenantId - Tenant ID for authorization
+   * @param submissionId - Submission ID
    * @param platform - Required for backend to identify which table to query (android_submission_builds or ios_submission_builds)
    */
-  async getSubmission(submissionId: string, platform: Platform) {
+  async getSubmission(tenantId: string, submissionId: string, platform: Platform) {
     return this.__client.get<null, SubmissionResponse>(
-      `/api/v1/submissions/${submissionId}?platform=${platform}`
+      `/api/v1/tenants/${tenantId}/submissions/${submissionId}?platform=${platform}`
     );
   }
 
   /**
    * Get distribution details by distributionId
    * Returns full distribution object with all submissions and artifacts
+   * @param tenantId - Tenant ID for authorization
+   * @param distributionId - Distribution ID
    */
-  async getDistribution(distributionId: string) {
+  async getDistribution(tenantId: string, distributionId: string) {
     return this.__client.get<null, AxiosResponse<APISuccessResponse<DistributionWithSubmissions>>>(
-      `/api/v1/distributions/${distributionId}`
+      `/api/v1/tenants/${tenantId}/distributions/${distributionId}`
     );
   }
 
@@ -233,24 +262,26 @@ class Distribution {
    * Get distribution details by releaseId (for release process distribution step)
    * Returns full distribution object with all submissions and artifacts
    * Reference: DISTRIBUTION_API_SPEC.md - Line 303
+   * @param tenantId - Tenant ID for authorization
+   * @param releaseId - Release ID
    */
-  async getReleaseDistribution(releaseId: string, userId: string) {
+  async getReleaseDistribution(tenantId: string, releaseId: string) {
     return this.__client.get<null, AxiosResponse<APISuccessResponse<DistributionWithSubmissions>>>(
-      `/api/v1/releases/${releaseId}/distribution`,
-      {
-        headers: this.buildHeaders(userId)
-      }
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/distribution`
     );
   }
 
   /**
    * Submit an existing PENDING submission (first-time submission)
    * Updates submission details and changes status from PENDING to IN_REVIEW
+   * @param tenantId - Tenant ID for authorization
+   * @param submissionId - Submission ID
+   * @param request - Submission details
    * @param platform - Required for backend to identify which table to query (android_submission_builds or ios_submission_builds)
    */
-  async submitSubmission(submissionId: string, request: SubmitSubmissionRequest, platform: Platform) {
+  async submitSubmission(tenantId: string, submissionId: string, request: SubmitSubmissionRequest, platform: Platform) {
     return this.__client.put<SubmitSubmissionRequest, AxiosResponse<SubmissionResponse>>(
-      `/api/v1/submissions/${submissionId}/submit?platform=${platform}`,
+      `/api/v1/tenants/${tenantId}/submissions/${submissionId}/submit?platform=${platform}`,
       request
     );
   }
@@ -260,8 +291,12 @@ class Distribution {
    * Creates completely new submission with new artifact
    * For Android: Handles multipart/form-data with AAB upload
    * For iOS: Handles application/json with TestFlight build number
+   * @param tenantId - Tenant ID for authorization
+   * @param distributionId - Distribution ID
+   * @param request - Request data (FormData for Android, JSON for iOS)
    */
   async createResubmission(
+    tenantId: string,
     distributionId: string,
     request: CreateResubmissionRequest | FormData
   ) {
@@ -269,7 +304,7 @@ class Distribution {
       CreateResubmissionRequest | FormData,
       AxiosResponse<SubmissionResponse>
     >(
-      `/api/v1/distributions/${distributionId}/submissions`,
+      `/api/v1/tenants/${tenantId}/distributions/${distributionId}/submissions`,
       request,
       {
         headers:
@@ -286,25 +321,31 @@ class Distribution {
    */
   /**
    * Cancel a submission (IN_REVIEW, APPROVED, etc.)
+   * @param tenantId - Tenant ID for authorization
+   * @param submissionId - Submission ID
+   * @param request - Cancel request with reason
    * @param platform - Required for backend to identify which table to update (android_submission_builds or ios_submission_builds)
    */
-  async cancelSubmission(submissionId: string, request: { reason?: string }, platform: Platform) {
+  async cancelSubmission(tenantId: string, submissionId: string, request: { reason?: string }, platform: Platform) {
     return this.__client.delete<{ reason: string }, SubmissionResponse>(
-      `/api/v1/submissions/${submissionId}/cancel?platform=${platform}`,
+      `/api/v1/tenants/${tenantId}/submissions/${submissionId}/cancel?platform=${platform}`,
       { data: request }
     );
   }
 
   /**
    * Edit existing submission (stage-dependent fields only)
+   * @param tenantId - Tenant ID for authorization
+   * @param submissionId - Submission ID
+   * @param updates - Fields to update
    */
-  async editSubmission(submissionId: string, updates: Partial<{
+  async editSubmission(tenantId: string, submissionId: string, updates: Partial<{
     releaseNotes: string;
     rolloutPercentage: number;
     releaseType: string;
   }>) {
     return this.__client.patch<typeof updates, SubmissionResponse>(
-      `/api/v1/submissions/${submissionId}`,
+      `/api/v1/tenants/${tenantId}/submissions/${submissionId}`,
       updates
     );
   }
@@ -315,33 +356,41 @@ class Distribution {
 
   /**
    * Update rollout percentage
+   * @param tenantId - Tenant ID for authorization
+   * @param submissionId - Submission ID
+   * @param request - Rollout update request
    * @param platform - Required for backend to identify which table to update (android_submission_builds or ios_submission_builds)
    */
-  async updateRollout(submissionId: string, request: UpdateRolloutRequest, platform: Platform) {
+  async updateRollout(tenantId: string, submissionId: string, request: UpdateRolloutRequest, platform: Platform) {
     return this.__client.patch<UpdateRolloutRequest, RolloutUpdateResponse>(
-      `/api/v1/submissions/${submissionId}/rollout?platform=${platform}`,
+      `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout?platform=${platform}`,
       request
     );
   }
 
   /**
    * Pause rollout (iOS only)
+   * @param tenantId - Tenant ID for authorization
+   * @param submissionId - Submission ID
+   * @param request - Pause request with reason
    * @param platform - Must be "IOS" (Android does not support pause)
    */
-  async pauseRollout(submissionId: string, request: PauseRolloutRequest, platform: Platform) {
+  async pauseRollout(tenantId: string, submissionId: string, request: PauseRolloutRequest, platform: Platform) {
     return this.__client.post<PauseRolloutRequest, RolloutUpdateResponse>(
-      `/api/v1/submissions/${submissionId}/rollout/pause?platform=${platform}`,
+      `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout/pause?platform=${platform}`,
       request
     );
   }
 
   /**
    * Resume rollout (iOS only)
+   * @param tenantId - Tenant ID for authorization
+   * @param submissionId - Submission ID
    * @param platform - Must be "IOS" (Android does not support resume)
    */
-  async resumeRollout(submissionId: string, platform: Platform) {
+  async resumeRollout(tenantId: string, submissionId: string, platform: Platform) {
     return this.__client.post<null, RolloutUpdateResponse>(
-      `/api/v1/submissions/${submissionId}/rollout/resume?platform=${platform}`
+      `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout/resume?platform=${platform}`
     );
   }
 

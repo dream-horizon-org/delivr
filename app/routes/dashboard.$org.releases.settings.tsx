@@ -3,34 +3,35 @@
  * Manage release configurations
  */
 
-import { json, redirect } from '@remix-run/node';
-import { useLoaderData, Link } from '@remix-run/react';
-import type { LoaderFunctionArgs } from '@remix-run/node';
-import { authenticateLoaderRequest } from '~/utils/authenticate';
-import { useConfig } from '~/contexts/ConfigContext';
-import { PermissionService } from '~/utils/permissions.server';
 import {
-  Box,
-  Title,
-  Text,
-  Group,
+  Anchor,
   Badge,
+  Box,
+  Breadcrumbs,
+  Button,
+  Center,
+  Group,
   Skeleton,
   Stack,
+  Text,
   ThemeIcon,
-  Center,
-  Button,
-  Breadcrumbs,
-  Anchor,
+  Title,
   useMantineTheme,
 } from '@mantine/core';
+import type { LoaderFunctionArgs } from '@remix-run/node';
+import { json, redirect } from '@remix-run/node';
+import { Link, useLoaderData } from '@remix-run/react';
 import {
-  IconSettings,
-  IconArrowLeft,
   IconAlertCircle,
+  IconArrowLeft,
   IconRefresh,
+  IconSettings,
 } from '@tabler/icons-react';
+import { sanitizeUser } from '~/.server/services/Auth/sanitize-user';
 import { ConfigurationsTab } from '~/components/ReleaseSettings/ConfigurationsTab';
+import { useConfig } from '~/contexts/ConfigContext';
+import { authenticateLoaderRequest } from '~/utils/authenticate';
+import { PermissionService } from '~/utils/permissions.server';
 
 export const loader = authenticateLoaderRequest(async ({ params, user, request }: LoaderFunctionArgs & { user: any }) => {
   const { org } = params;
@@ -50,7 +51,8 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
     throw redirect(`/dashboard/${org}/releases`);
   }
   
-  return json({ org, user });
+  // SECURITY: Sanitize user before sending to client (removes tokens)
+  return json({ org, user: sanitizeUser(user) });
 });
 
 export default function ConfigurationsPage() {

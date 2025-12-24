@@ -3,7 +3,7 @@ import { type LoaderFunctionArgs } from "@remix-run/node";
 import {
   AuthenticatorService,
   SocialsProvider,
-} from "~/.server/services/Auth/Auth";
+} from "~/.server/services/Auth";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   return await AuthenticatorService.callback(

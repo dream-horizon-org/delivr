@@ -4,7 +4,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import {
   AuthenticatorService,
   SocialsProvider,
-} from "~/.server/services/Auth/Auth";
+} from "~/.server/services/Auth";
 
 export const loader = async (args: LoaderFunctionArgs) => {
   return json(await AuthenticatorService.getUser(args.request));

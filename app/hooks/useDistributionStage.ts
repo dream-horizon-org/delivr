@@ -65,9 +65,13 @@ export function useDistributionStage(tenantId: string, releaseId: string) {
       if (!releaseId) {
         throw new Error('Release ID is required');
       }
+      
+      if (!tenantId) {
+        throw new Error('Tenant ID is required');
+      }
 
       const response = await apiGet<APISuccessResponse<DistributionDetail>>(
-        `/api/v1/releases/${releaseId}/distribution`
+        `/api/v1/tenants/${tenantId}/releases/${releaseId}/distribution`
       );
 
       if (!response.success) {

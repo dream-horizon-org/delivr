@@ -10,43 +10,44 @@
  */
 
 import {
-    Alert,
-    Button,
-    Divider,
-    Group,
-    Stack,
-    Text,
-    Textarea,
+  Alert,
+  Button,
+  Divider,
+  Group,
+  Stack,
+  Text,
+  Textarea,
 } from '@mantine/core';
 import { IconAlertCircle, IconRocket } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
 import { API_ROUTES } from '~/constants/distribution/distribution-api.constants';
 import {
-    BUTTON_LABELS,
-    DISTRIBUTION_UI_LABELS,
-    ERROR_MESSAGES,
-    FORM_ICON_SIZES,
-    SUCCESS_MESSAGES,
-    WARNING_MESSAGES,
-} from '~/constants/distribution/distribution.constants';
-import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
 } from '~/constants/distribution/distribution-design.constants';
+import {
+  BUTTON_LABELS,
+  DISTRIBUTION_UI_LABELS,
+  ERROR_MESSAGES,
+  FORM_ICON_SIZES,
+  SUCCESS_MESSAGES,
+  WARNING_MESSAGES,
+} from '~/constants/distribution/distribution.constants';
+import { useFormState } from '~/hooks/distribution';
+import type { SubmitToStoresFormProps } from '~/types/distribution/distribution-component.types';
 import { Platform, SubmissionStatus } from '~/types/distribution/distribution.types';
 import { AndroidOptions } from './AndroidOptions';
 import { ArtifactDisplay } from './ArtifactDisplay';
-import type { SubmitToStoresFormProps } from '~/types/distribution/distribution-component.types';
 import { IOSOptions } from './IOSOptions';
 import { PlatformCheckbox } from './PlatformCheckbox';
-import { useFormState } from '~/hooks/distribution';
 
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
 
 export function SubmitToStoresForm({
+  tenantId,
   releaseId,
   distributionId,
   submissions,
@@ -149,7 +150,7 @@ export function SubmitToStoresForm({
           JSON.stringify(androidPayload),
           {
             method: 'PUT',
-            action: API_ROUTES.submitToStore(androidSubmission.id, Platform.ANDROID),
+            action: API_ROUTES.submitToStore(tenantId, androidSubmission.id, Platform.ANDROID),
             encType: 'application/json',
           }
         );
@@ -174,7 +175,7 @@ export function SubmitToStoresForm({
           JSON.stringify(iosPayload),
           {
             method: 'PUT',
-            action: API_ROUTES.submitToStore(iosSubmission.id, Platform.IOS),
+            action: API_ROUTES.submitToStore(tenantId, iosSubmission.id, Platform.IOS),
             encType: 'application/json',
           }
         );
