@@ -277,7 +277,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Check if release management is set up for tenant
   router.get(
     "/tenants/:tenantId/releases/setup-status",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     async (req: Request, res: Response): Promise<any> => {
       const tenantId: string = req.params.tenantId;
 
