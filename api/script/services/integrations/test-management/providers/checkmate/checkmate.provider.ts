@@ -3,9 +3,10 @@
  * Implements test management integration with Checkmate
  */
 
-import { AUTH_SCHEMES, CONTENT_TYPES, HTTP_HEADERS, HTTP_METHODS, HTTP_STATUS } from '~constants/http';
+import { AUTH_SCHEMES, CONTENT_TYPES, HTTP_HEADERS, HTTP_METHODS } from '~constants/http';
 import { TestManagementProviderType, TestRunStatus } from '~types/integrations/test-management';
 import type { TenantTestManagementIntegrationConfig } from '~types/integrations/test-management/tenant-integration';
+import { decryptConfigFields } from '~utils/encryption';
 import type {
   ITestManagementProvider,
   PlatformTestParameters,
@@ -32,7 +33,6 @@ import type {
   CheckmateSectionsResponse,
   CheckmateSquadsResponse
 } from './checkmate.interface';
-import { decryptConfigFields } from '~utils/encryption';
 
 /**
  * Checkmate Provider
@@ -296,7 +296,8 @@ export class CheckmateProvider implements ITestManagementProvider {
    */
   getTestStatus = async (
     config: TenantTestManagementIntegrationConfig,
-    runId: string
+    runId: string,
+    projectId: number
   ): Promise<TestStatusResult> => {
     const checkmateConfig = this.getCheckmateConfig(config);
     const queryParams = new URLSearchParams();
@@ -313,7 +314,7 @@ export class CheckmateProvider implements ITestManagementProvider {
 
     const data = response.data;
     const status = this.mapRunStatus(data);
-    const runUrl = this.buildSimpleRunUrl(checkmateConfig.baseUrl, runId);
+    const runUrl = this.buildRunUrl(checkmateConfig.baseUrl, projectId, runId);
 
     return {
       status,
