@@ -1059,15 +1059,7 @@ export async function createAppleServiceFromIntegration(
   if (mockEnabled) {
     console.log('[AppleServiceFactory] MOCK_APPLE_API=true - Using mock Apple service');
     
-    // Seed mock data with test phased releases
-    // Get the targetAppId from the integration to seed properly
-    const integrationController = getStoreIntegrationController();
-    const integration = await integrationController.findById(integrationId);
-    const targetAppId = integration?.targetAppId ?? '1234567890';
-    
-    console.log(`[AppleServiceFactory] Seeding mock data for app ${targetAppId}`);
-    MockAppleAppStoreConnectService.seedTestData(targetAppId);
-    
+    // Mock service auto-seeds data in constructor
     return new MockAppleAppStoreConnectService(
       'mock-issuer-id',
       'mock-key-id',
