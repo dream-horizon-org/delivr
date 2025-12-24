@@ -41,9 +41,16 @@ export const brand = {
   secondary: brandColors[0],
   hover: brandColors[6],
   light: brandColors[0],
+  primaryDark: brandColors[7],
+  tertiary: brandColors[3],
+  quaternary: brandColors[2],
+  gradient: `linear-gradient(135deg, ${brandColors[5]}, ${brandColors[0]})`,
 } as const;
 
 export const theme = {
+  brand: {
+    ...brand,
+  },
   backgrounds: {
     app: slateColors[0],      // Main page background
     paper: "#ffffff",         // Card/Modal background
@@ -56,11 +63,30 @@ export const theme = {
     secondary: slateColors[5],
     muted: slateColors[4],
     brand: brandColors[7],
+    primary: slateColors[7],
   },
   borders: {
     subtle: slateColors[2],
     strong: slateColors[3],
     brand: brandColors[3],
+  },
+  opacity: {
+    subtle: "0.08",
+    light: "0.12",
+    medium: "0.25",
+  },
+  sizes: {
+    icon: {
+      sm: 16,
+      md: 20,
+      lg: 24,
+      xl: 28,
+      "4xl": 48,
+    },
+    sidebar: {
+      width: "280px",
+      collapsed: "80px",
+    },
   },
 } as const;
 

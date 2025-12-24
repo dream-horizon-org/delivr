@@ -37,6 +37,10 @@ export const authenticateLoaderRequest = (cb?: AuthenticatedLoaderFunction) => {
     try {
       return (await cb?.({ ...args, user })) ?? user;
     } catch (e) {
+      // If it's a Response (like a redirect), re-throw it so Remix handles it properly
+      if (e instanceof Response) {
+        throw e;
+      }
       return json(
         {
           message: (e as AxiosError)?.response?.data ?? "Something Went Wrong",
@@ -80,6 +84,10 @@ export const authenticateActionRequest = (
     try {
       return await cb[method]({ ...args, user });
     } catch (e) {
+      // If it's a Response (like a redirect), re-throw it so Remix handles it properly
+      if (e instanceof Response) {
+        throw e;
+      }
       return json(
         {
           message: (e as AxiosError)?.response?.data ?? "Something Went Wrong",

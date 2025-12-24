@@ -18,11 +18,14 @@ export function SubItem({ subItem, org, isActive }: SubItemProps) {
   // Get user data and check permissions
   const orgLayoutData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
   const userId = orgLayoutData?.user?.user?.id || '';
-  const { isOwner } = usePermissions(org.id, userId);
+  const { isOwner, isEditor } = usePermissions(org.id, userId);
 
   // Hide owner-only items if not owner
   // Use permission hook for consistency, fallback to org.isAdmin if hook data not available
   if (subItem.isOwnerOnly && !isOwner && !org.isAdmin) {
+    return null;
+  }
+  if (subItem.isEditorOnly && !isEditor && !org.isAdmin) {
     return null;
   }
 

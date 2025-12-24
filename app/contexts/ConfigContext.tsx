@@ -4,7 +4,7 @@
  * Uses React Query for data fetching with caching
  */
 
-import { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
+import { createContext, useContext, ReactNode, useMemo, useCallback, useEffect } from 'react';
 
 // Centralized debug flag - set to true to enable console logs
 const DEBUG = false;
@@ -188,7 +188,7 @@ export function ConfigProvider({
     //console.log('[ConfigContext] Connected integrations :' + "category" + category, tenantConfig?.releaseManagement?.connectedIntegrations);
     const connected = tenantConfig.releaseManagement.connectedIntegrations;
     
-    ;
+   
     
     if (category) {
       return connected[category as keyof typeof connected] || [];

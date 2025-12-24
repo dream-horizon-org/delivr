@@ -107,9 +107,7 @@ export const JIRA_PLATFORM_CONFIG = {
 // Common JIRA issue types
 export const JIRA_ISSUE_TYPES = [
   { value: 'Epic', label: 'Epic' },
-  { value: 'Story', label: 'Story' },
   { value: 'Task', label: 'Task' },
-  { value: 'Bug', label: 'Bug' },
   { value: 'Subtask', label: 'Subtask' },
 ] as const;
 
