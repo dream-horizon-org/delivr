@@ -220,6 +220,7 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         }))}
         description={JIRA_LABELS.JIRA_TYPE_DESCRIPTION}
         size="sm"
+        disabled={isVerified}
       />
 
       <TextInput
@@ -232,6 +233,7 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         error={getFieldError('hostUrl', formData.hostUrl)}
         description={formData.jiraType === 'CLOUD' ? JIRA_LABELS.CLOUD_URL_DESCRIPTION : JIRA_LABELS.SERVER_URL_DESCRIPTION}
         size="sm"
+        disabled={isVerified}
       />
 
       <TextInput
@@ -245,6 +247,7 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         error={getFieldError('email', formData.email)}
         description={JIRA_LABELS.EMAIL_DESCRIPTION}
         size="sm"
+        disabled={isVerified}
       />
 
       <PasswordInput
@@ -257,6 +260,7 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         error={!isEditMode ? getFieldError('apiToken', formData.apiToken) : undefined}
         description={isEditMode ? 'Only provide a new token if you want to update it' : JIRA_LABELS.API_TOKEN_DESCRIPTION}
         size="sm"
+        disabled={isVerified}
       />
 
       {error && (

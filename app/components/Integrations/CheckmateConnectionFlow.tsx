@@ -216,6 +216,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
         onBlur={() => markTouched('name')}
         error={getFieldError('name', formData.name)}
         size="sm"
+        disabled={isVerified}
       />
 
       <TextInput
@@ -228,6 +229,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
         error={getFieldError('baseUrl', formData.baseUrl)}
         description={CHECKMATE_LABELS.BASE_URL_DESCRIPTION}
         size="sm"
+        disabled={isVerified}
       />
 
       <TextInput
@@ -241,6 +243,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
         error={getFieldError('orgId', formData.orgId)}
         description={CHECKMATE_LABELS.ORG_ID_DESCRIPTION}
         size="sm"
+        disabled={isVerified}
       />
 
       <PasswordInput
@@ -253,6 +256,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
         error={!isEditMode ? getFieldError('authToken', formData.authToken) : undefined}
         description={isEditMode ? "Only provide a new token if you want to update it" : CHECKMATE_LABELS.AUTH_TOKEN_DESCRIPTION}
         size="sm"
+        disabled={isVerified}
       />
 
       {error && (

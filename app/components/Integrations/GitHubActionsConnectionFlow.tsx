@@ -199,6 +199,7 @@ export function GitHubActionsConnectionFlow({
         onChange={(e) => setFormData({ ...formData, hostUrl: e.target.value })}
         description={GITHUB_ACTIONS_LABELS.API_URL_DESCRIPTION}
         size="sm"
+        disabled={isVerified}
       />
 
       <PasswordInput
@@ -208,6 +209,7 @@ export function GitHubActionsConnectionFlow({
         onChange={(e) => setFormData({ ...formData, apiToken: e.target.value })}
         description={isEditMode ? GITHUB_ACTIONS_LABELS.PAT_DESCRIPTION_EDIT : GITHUB_ACTIONS_LABELS.PAT_DESCRIPTION}
         size="sm"
+        disabled={isVerified}
       />
 
       {error && (
