@@ -121,7 +121,7 @@ export const isPlatformTemplate = (template: Template): template is PlatformTemp
  * Provides more flexible channel organization than stage-based approach
  */
 export enum ChannelBucket {
-  RELEASE = 'release',
+  RELEASE = 'releases',
   BUILD = 'build',
   REGRESSION = 'regression',
   CRITICAL = 'critical'

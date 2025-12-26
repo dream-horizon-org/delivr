@@ -406,6 +406,22 @@ export class CronJobService {
 
     log.info('Stage 4 triggered for release', { releaseId, approvedBy });
 
+    // Register activity log for pre-release stage approval
+    if (this.activityLogService) {
+      try {
+        await this.activityLogService.registerActivityLogs(
+          releaseId,
+          approvedBy,
+          new Date(),
+          'PRE_RELEASE_STAGE_APPROVAL',
+          { currentActiveStage: 'PRE_RELEASE' },
+          { currentActiveStage: 'DISTRIBUTION' }
+        );
+      } catch (error) {
+        console.error(`[CronJobService] Failed to log stage 4 approval activity:`, error);
+      }
+    }
+
     // Create distribution from release after cron is marked complete
     if (this.distributionService) {
       try {
