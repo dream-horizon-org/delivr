@@ -1,6 +1,6 @@
 import axios, { AxiosResponse } from "axios";
 import { getBackendBaseURL } from '~/.server/utils/base-url.utils';
-import { User } from "../Auth/Auth.interface";
+import { User } from '~/.server/services/Auth/auth.interface';
 import {
   AcceptTermsRequest,
   AcceptTermsResponse,

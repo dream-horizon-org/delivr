@@ -5,7 +5,7 @@ import { AppCard, AppCardProps } from "~/components/AppCard";
 import { route } from "routes-gen";
 import { Spotlight, SpotlightActionData } from "@mantine/spotlight";
 import { IconApps, IconSearch } from "@tabler/icons-react";
-import { User } from "~/.server/services/Auth/Auth.interface";
+import { User } from '~/.server/services/Auth/auth.interface';
 import { useState } from "react";
 import { DeleteModal, type DeleteModalData } from "~/components/Common/DeleteModal";
 

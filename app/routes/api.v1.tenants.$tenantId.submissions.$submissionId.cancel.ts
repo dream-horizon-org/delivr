@@ -1,37 +1,42 @@
 /**
  * Remix API Route: Cancel Submission
- * PATCH /api/v1/submissions/:submissionId/cancel?platform=<ANDROID|IOS>
+ * PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/cancel?platform=<ANDROID|IOS>
  * 
  * IMPORTANT: Backend requires `platform` query parameter to identify which table to update
  * (android_submission_builds or ios_submission_builds)
  * 
+ * Path Parameters:
+ * - tenantId: Tenant/Organization ID (required)
+ * - submissionId: Submission ID (required)
+ * 
  * Cancel an in-review submission. Reason is optional.
- * Reference: DISTRIBUTION_API_SPEC.md lines 1042-1073
+ * Reference: DISTRIBUTION_API_SPEC.md lines 1446-1487
  */
 
-import type { ActionFunctionArgs } from '@remix-run/node';
 import { json } from '@remix-run/node';
-import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import {
   ERROR_MESSAGES,
   HTTP_STATUS,
   LOG_CONTEXT,
 } from '~/constants/distribution/distribution-api.constants';
+import { Platform } from '~/types/distribution/distribution.types';
 import {
   createValidationError,
   handleAxiosError,
-  logApiError,
-  validateRequired,
+  logApiError
 } from '~/utils/api-route-helpers';
 import {
   authenticateActionRequest,
   AuthenticatedActionFunction,
 } from '~/utils/authenticate';
-import { Platform } from '~/types/distribution/distribution.types';
 
 /**
  * PATCH - Cancel a submission
+ * 
+ * Path Parameters:
+ * - tenantId: Tenant/Organization ID (required)
+ * - submissionId: Submission ID (required)
  * 
  * Query Parameters:
  * - platform: ANDROID | IOS (required - for backend table identification)
@@ -43,16 +48,21 @@ import { Platform } from '~/types/distribution/distribution.types';
  * - id, status (CANCELLED), statusUpdatedAt
  */
 const cancelSubmission: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { submissionId } = params;
+  const { tenantId, submissionId } = params;
+  const url = new URL(request.url);
+  const platform = url.searchParams.get('platform');
 
-  if (!validateRequired(submissionId, ERROR_MESSAGES.SUBMISSION_ID_REQUIRED)) {
+  // Validate tenantId
+  if (!tenantId) {
+    return createValidationError(ERROR_MESSAGES.TENANT_ID_REQUIRED);
+  }
+
+  // Validate submissionId
+  if (!submissionId) {
     return createValidationError(ERROR_MESSAGES.SUBMISSION_ID_REQUIRED);
   }
 
-  // Extract and validate platform query parameter
-  const url = new URL(request.url);
-  const platform = url.searchParams.get('platform');
-  
+  // Validate platform
   if (!platform || (platform !== Platform.ANDROID && platform !== Platform.IOS)) {
     return json(
       {
@@ -81,7 +91,7 @@ const cancelSubmission: AuthenticatedActionFunction = async ({ params, request, 
       }
     }
 
-    const response = await DistributionService.cancelSubmission(submissionId, {
+    const response = await DistributionService.cancelSubmission(tenantId, submissionId, {
       reason,
     }, platform as Platform);
 

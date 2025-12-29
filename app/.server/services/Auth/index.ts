@@ -1,31 +1,61 @@
 /**
- * Auth Service Exports
+ * Authentication Module - Public Exports
+ * 
+ * Centralized exports for authentication-related functionality
  */
 
-import { AuthenticatorService } from './Auth';
-import type { User } from './Auth.interface';
 
-/**
- * Require authenticated user ID from request
- * Throws if user is not authenticated
- */
-export async function requireUserId(request: Request): Promise<string> {
-  const authResult = await AuthenticatorService.isAuthenticated(request);
-  
-  // Check if it's a redirect response
-  if (authResult instanceof Response) {
-    throw authResult;
-  }
-  
-  const user = authResult as User;
-  
-  if (!user || !user.user || !user.user.id) {
-    throw new Response('Unauthorized', { status: 401 });
-  }
-  
-  return user.user.id;
-}
+// ============================================================================
+// Main Auth Service & Enums
+// ============================================================================
+export {
+  Auth, // Auth class
+  AuthenticatorService, // Auth instance (singleton)
+  SocialsProvider // OAuth provider enum
+} from './auth.service';
 
-export { AuthenticatorService };
-export type { User };
+// ============================================================================
+// Types & Interfaces
+// ============================================================================
+export type {
+  AuthenticatorRoutes, // Route constants
+  User, // User type
+  UserReturnType // Return type for auth functions
+} from './auth.interface';
+
+// ============================================================================
+// Token Management
+// ============================================================================
+export {
+  ensureFreshToken, // Ensure token is fresh (refresh if needed)
+  needsTokenRefresh, // Check if token needs refresh
+  refreshGoogleToken // Refresh Google OAuth token
+} from './token-refresh';
+
+// ============================================================================
+// Security & Sanitization
+// ============================================================================
+export {
+  sanitizeUser // Strip sensitive data before sending to client
+} from './sanitize-user';
+
+// ============================================================================
+// Constants
+// ============================================================================
+export {
+  AUTH_CONFIG, // Auth configuration (URLs, timeouts, etc.)
+  AUTH_ERROR_MESSAGES, // Error message constants
+  GOOGLE_TOKEN_ENDPOINT // Google OAuth token endpoint
+} from './auth.constants';
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+export {
+  getAuthenticatorCallbackUrl, // Get OAuth callback URL
+  getAuthErrorMessage, // Get user-friendly error message
+  getBackendURL, // Get backend URL with fallback
+  isBackendConnectionError, // Check if error is connection-related
+  requireUserId // [DEPRECATED] Require authenticated user ID - Use authenticateActionRequest/authenticateLoaderRequest instead
+} from './auth.utils';
 

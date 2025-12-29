@@ -11,7 +11,7 @@ import { json } from '@remix-run/node';
 import type { LoaderFunctionArgs } from '@remix-run/node';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { ReleaseProcessService } from '~/.server/services/ReleaseProcess';
-import type { User } from '~/.server/services/Auth/Auth.interface';
+import type { User } from '~/.server/services/Auth/auth.interface';
 import { handleAxiosError, logApiError, validateRequired } from '~/utils/api-route-helpers';
 
 /**

@@ -3,32 +3,33 @@
  * Manage CI/CD workflows (Jenkins and GitHub Actions)
  */
 
-import { json, redirect } from '@remix-run/node';
-import { useLoaderData, Link } from '@remix-run/react';
-import type { LoaderFunctionArgs } from '@remix-run/node';
-import { authenticateLoaderRequest } from '~/utils/authenticate';
-import { useConfig } from '~/contexts/ConfigContext';
 import {
+  Anchor,
   Box,
-  Title,
-  Text,
+  Breadcrumbs,
+  Button,
+  Center,
   Group,
   Skeleton,
   Stack,
+  Text,
   ThemeIcon,
-  Center,
-  Button,
-  Breadcrumbs,
-  Anchor,
+  Title,
   useMantineTheme,
 } from '@mantine/core';
+import type { LoaderFunctionArgs } from '@remix-run/node';
+import { json, redirect } from '@remix-run/node';
+import { Link, useLoaderData } from '@remix-run/react';
 import {
-  IconRocket,
-  IconArrowLeft,
   IconAlertCircle,
+  IconArrowLeft,
   IconRefresh,
+  IconRocket,
 } from '@tabler/icons-react';
+import { sanitizeUser } from '~/.server/services/Auth';
 import { CICDTab } from '~/components/ReleaseSettings/CICDTab';
+import { useConfig } from '~/contexts/ConfigContext';
+import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { PermissionService } from '~/utils/permissions.server';
 
 export const loader = authenticateLoaderRequest(async ({ params, user, request }: LoaderFunctionArgs & { user: any }) => {
@@ -49,7 +50,7 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
     throw redirect(`/dashboard/${org}/releases`);
   }
   
-  return json({ org, user });
+  return json({ org, user: sanitizeUser(user) });
 });
 
 export default function WorkflowsPage() {

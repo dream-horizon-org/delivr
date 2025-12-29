@@ -7,6 +7,9 @@ export type User = {
     id: string;
     createdAt: string;
     updatedAt: string;
+    idToken: string | null;          // Google ID token for backend authentication
+    refreshToken: string | null;     // Google refresh token (never expires)
+    tokenExpiresAt: number | null;   // Token expiration timestamp
   };
 };
 

@@ -16,7 +16,7 @@ import {
   useMantineTheme,
 } from '@mantine/core';
 import { IconCheck, IconAlertCircle } from '@tabler/icons-react';
-import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
+import { apiGet, apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { JIRA_TYPES } from '~/types/jira-integration';
 import type { JiraType } from '~/types/jira-integration';
 import { JIRA_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
@@ -46,6 +46,9 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
   const tenantId = params.org;
   const isInFlowRef = useRef(false);
 
+  // State to store fetched integration data
+  const [fetchedIntegrationData, setFetchedIntegrationData] = useState<any>(null);
+
   const { formData, setFormData, isDraftRestored, markSaveSuccessful } = useDraftStorage<JiraConnectionFormData>(
     {
       storageKey: generateStorageKey('jira-pm', tenantId || ''),
@@ -53,16 +56,20 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
       shouldSaveDraft: (data) => !isInFlowRef.current && !isEditMode && !!(data.hostUrl || data.email || data.displayName),
     },
     {
-      displayName: existingData?.displayName || existingData?.name || '',
-      hostUrl: existingData?.hostUrl || existingData?.config?.hostUrl || '',
-      email: existingData?.email || existingData?.config?.email || '',
+      displayName: existingData?.name || existingData?.displayName || '',
+      // Jira config uses baseUrl (not hostUrl) and email directly
+      hostUrl: existingData?.baseUrl || existingData?.hostUrl || '',
+      // Check multiple possible locations for email
+      email: existingData?.email || existingData?.username || existingData?.config?.email || '',
       apiToken: '',
       jiraType: (existingData?.jiraType || existingData?.config?.jiraType || 'CLOUD') as JiraType,
     },
     isEditMode ? {
-      displayName: existingData?.displayName || existingData?.name || '',
-      hostUrl: existingData?.hostUrl || existingData?.config?.hostUrl || '',
-      email: existingData?.email || existingData?.config?.email || '',
+      displayName: existingData?.name || existingData?.displayName || '',
+      // Jira config uses baseUrl (not hostUrl) and email directly
+      hostUrl: existingData?.baseUrl || existingData?.hostUrl || '',
+      // Check multiple possible locations for email
+      email: existingData?.email || existingData?.username || existingData?.config?.email || '',
       apiToken: '',
       jiraType: (existingData?.jiraType || existingData?.config?.jiraType || 'CLOUD') as JiraType,
     } : undefined
@@ -73,13 +80,61 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
   const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Fetch full integration details in edit mode to get email
+  useEffect(() => {
+    if (isEditMode && existingData?.id && !fetchedIntegrationData) {
+      const fetchIntegrationDetails = async () => {
+        try {
+          const result = await apiGet<{ success: boolean; integration?: any }>(
+            `/api/v1/tenants/${tenantId}/integrations/project-management?providerType=JIRA`
+          );
+          if (result.success && result.data?.integration) {
+            setFetchedIntegrationData(result.data.integration);
+          }
+        } catch (error) {
+          // Silently fail - will use existingData as fallback
+        }
+      };
+      fetchIntegrationDetails();
+    }
+  }, [isEditMode, existingData?.id, tenantId, fetchedIntegrationData]);
+
   // Check encryption configuration on mount
   useEffect(() => {
     if (!isEncryptionConfigured()) {
-      console.error('❌ VITE_ENCRYPTION_KEY is not configured!');
       setError('Encryption is not configured. Please contact your system administrator.');
     }
   }, []);
+
+  // Update form data when existingData or fetchedIntegrationData changes in edit mode
+  useEffect(() => {
+    if (isEditMode && (existingData || fetchedIntegrationData)) {
+      const source = fetchedIntegrationData?.config || existingData;
+      const emailValue = source?.email 
+        || source?.username 
+        || existingData?.email
+        || existingData?.username
+        || existingData?.config?.email
+        || (existingData?.config as any)?.username
+        || '';
+      
+      const displayNameValue = fetchedIntegrationData?.name 
+        || existingData?.name 
+        || source?.displayName 
+        || source?.name 
+        || existingData?.displayName 
+        || '';
+      
+      setFormData({
+        displayName: displayNameValue,
+        hostUrl: source?.baseUrl || source?.hostUrl || existingData?.baseUrl || existingData?.hostUrl || '',
+        email: emailValue,
+        apiToken: '',
+        jiraType: (source?.jiraType || source?.config?.jiraType || existingData?.jiraType || existingData?.config?.jiraType || 'CLOUD') as JiraType,
+      });
+    }
+  }, [isEditMode, existingData, fetchedIntegrationData, setFormData]);
+
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const markTouched = (field: string) => {
@@ -114,8 +169,6 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         `/api/v1/tenants/${tenantId}/integrations/project-management/verify?providerType=JIRA`,
         verifyPayload
       );
-
-      console.log('[JiraConnectionFlow] Verification result:', result);
 
       if (result.data?.verified || result.success) {
         setIsVerified(true);
@@ -220,6 +273,7 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         }))}
         description={JIRA_LABELS.JIRA_TYPE_DESCRIPTION}
         size="sm"
+        disabled={isVerified}
       />
 
       <TextInput
@@ -232,6 +286,7 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         error={getFieldError('hostUrl', formData.hostUrl)}
         description={formData.jiraType === 'CLOUD' ? JIRA_LABELS.CLOUD_URL_DESCRIPTION : JIRA_LABELS.SERVER_URL_DESCRIPTION}
         size="sm"
+        disabled={isVerified}
       />
 
       <TextInput
@@ -245,6 +300,7 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         error={getFieldError('email', formData.email)}
         description={JIRA_LABELS.EMAIL_DESCRIPTION}
         size="sm"
+        disabled={isVerified}
       />
 
       <PasswordInput
@@ -257,6 +313,7 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         error={!isEditMode ? getFieldError('apiToken', formData.apiToken) : undefined}
         description={isEditMode ? 'Only provide a new token if you want to update it' : JIRA_LABELS.API_TOKEN_DESCRIPTION}
         size="sm"
+        disabled={isVerified}
       />
 
       {error && (

@@ -1,6 +1,6 @@
 import { useSubmit, useSearchParams } from "@remix-run/react";
 import { LoaderFunctionArgs } from "@remix-run/node";
-import { AuthenticatorService } from "~/.server/services/Auth/Auth";
+import { AuthenticatorService } from "~/.server/services/Auth";
 import { LoginForm } from "~/components/Pages/Login";
 
 export const loader = ({ request }: LoaderFunctionArgs) => {

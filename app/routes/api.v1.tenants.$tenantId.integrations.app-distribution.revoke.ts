@@ -1,26 +1,24 @@
 /**
  * BFF API Route: Revoke App Distribution Integration (Play Store / App Store)
- * Proxies to backend: PATCH /integrations/store/tenant/:tenantId/revoke?storeType=X&platform=Y
- * 
- * DELETE /api/v1/tenants/:tenantId/integrations/app-distribution/revoke?storeType=X&platform=Y
- */
-
-/**
- * BFF API Route: Revoke App Distribution Integration (Play Store / App Store)
  * DELETE /api/v1/tenants/:tenantId/integrations/app-distribution/revoke?storeType=X&platform=Y
  */
 
 import { json, type ActionFunctionArgs } from '@remix-run/node';
-import { requireUserId } from '~/.server/services/Auth';
+import type { User } from '~/.server/services/Auth/auth.interface';
 import { AppDistributionService } from '~/.server/services/ReleaseManagement/integrations';
-import type { StoreType, Platform } from '~/types/distribution/app-distribution';
+import type { Platform, StoreType } from '~/types/distribution/app-distribution';
+import { authenticateActionRequest } from '~/utils/authenticate';
 
 /**
  * DELETE - Revoke app distribution integration
  */
-export async function action({ request, params }: ActionFunctionArgs) {
-  const userId = await requireUserId(request);
+const deleteIntegrationAction = async ({
+  request,
+  params,
+  user,
+}: ActionFunctionArgs & { user: User }) => {
   const { tenantId } = params;
+  const userId = user.user.id;
   
   const url = new URL(request.url);
   const storeType = url.searchParams.get('storeType');
@@ -36,11 +34,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   if (!platform) {
     return json({ success: false, error: 'Platform is required (e.g., ANDROID, IOS)' }, { status: 400 });
-  }
-
-  // Only allow DELETE method
-  if (request.method !== 'DELETE') {
-    return json({ success: false, error: 'Method not allowed' }, { status: 405 });
   }
 
   try {
@@ -65,5 +58,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
       { status: 500 }
     );
   }
-}
+};
+
+export const action = authenticateActionRequest({
+  DELETE: deleteIntegrationAction,
+});
 

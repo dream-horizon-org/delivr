@@ -25,7 +25,7 @@ import {
 } from "@tabler/icons-react";
 import { useNavigate, useParams } from "@remix-run/react";
 import { route } from "routes-gen";
-import { User } from "~/.server/services/Auth/Auth.interface";
+import { User } from '~/.server/services/Auth/auth.interface';
 import { useGetAppListForOrg } from "../AppList/hooks/useGetAppListForOrg";
 import { AppListRow } from "./components/AppListRow";
 import { useGetOrgList } from "../OrgListNavbar/hooks/useGetOrgList";

@@ -310,7 +310,7 @@ export function GitHubConnectionFlow({
           setError(null);
         }}
         required={!isEditMode}
-        disabled={!isEditMode && isVerified}
+        disabled={isVerified}
         description={
           isEditMode 
             ? 'Only provide a new token if you want to update it'

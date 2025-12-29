@@ -1,47 +1,62 @@
 /**
  * Remix API Route: Single Submission Management
- * GET  /api/v1/submissions/:submissionId?platform=<ANDROID|IOS>        - Get submission details
+ * GET  /api/v1/tenants/:tenantId/submissions/:submissionId?platform=<ANDROID|IOS>  - Get submission details
  * 
  * IMPORTANT: Backend requires `platform` query parameter to identify which table to query
  * (android_submission_builds or ios_submission_builds)
+ * 
+ * Path Parameters:
+ * - tenantId: Tenant/Organization ID (required)
+ * - submissionId: Submission ID (required)
+ * 
+ * Query Parameters:
+ * - platform: ANDROID | IOS (required)
  */
 
+import type { LoaderFunctionArgs } from '@remix-run/node';
 import { json } from '@remix-run/node';
-import type { LoaderFunctionArgs, ActionFunctionArgs } from '@remix-run/node';
-import { authenticateLoaderRequest } from '~/utils/authenticate';
+import type { User } from '~/.server/services/Auth/auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
-import type { User } from '~/.server/services/Auth/Auth.interface';
-import {
-  createValidationError,
-  handleAxiosError,
-  logApiError,
-  validateRequired,
-} from '~/utils/api-route-helpers';
 import {
   ERROR_MESSAGES,
   HTTP_STATUS,
   LOG_CONTEXT,
 } from '~/constants/distribution/distribution-api.constants';
 import { Platform } from '~/types/distribution/distribution.types';
+import {
+  createValidationError,
+  handleAxiosError,
+  logApiError
+} from '~/utils/api-route-helpers';
+import { authenticateLoaderRequest } from '~/utils/authenticate';
 
 /**
  * GET - Get submission details
+ * 
+ * Path Parameters:
+ * - tenantId: Tenant/Organization ID (required)
+ * - submissionId: Submission ID (required)
  * 
  * Query Parameters:
  * - platform: ANDROID | IOS (required - for backend table identification)
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, request, user }: LoaderFunctionArgs & { user: User }) => {
-    const { submissionId } = params;
+    const { tenantId, submissionId } = params;
+    const url = new URL(request.url);
+    const platform = url.searchParams.get('platform');
 
-    if (!validateRequired(submissionId, ERROR_MESSAGES.SUBMISSION_ID_REQUIRED)) {
+    // Validate tenantId
+    if (!tenantId) {
+      return createValidationError(ERROR_MESSAGES.TENANT_ID_REQUIRED);
+    }
+
+    // Validate submissionId
+    if (!submissionId) {
       return createValidationError(ERROR_MESSAGES.SUBMISSION_ID_REQUIRED);
     }
 
-    // Extract and validate platform query parameter
-    const url = new URL(request.url);
-    const platform = url.searchParams.get('platform');
-    
+    // Validate platform
     if (!platform || (platform !== Platform.ANDROID && platform !== Platform.IOS)) {
       return json(
         {
@@ -56,7 +71,7 @@ export const loader = authenticateLoaderRequest(
     }
 
     try {
-      const response = await DistributionService.getSubmission(submissionId, platform as Platform);
+      const response = await DistributionService.getSubmission(tenantId, submissionId, platform as Platform);
       return json(response.data);
     } catch (error) {
       logApiError(LOG_CONTEXT.SUBMISSION_DETAILS_API, error);
@@ -65,6 +80,6 @@ export const loader = authenticateLoaderRequest(
   }
 );
 
-// Note: Retry submission is now handled via POST /api/v1/distributions/:distributionId/submissions
+// Note: Retry submission is now handled via POST /api/v1/tenants/:tenantId/distributions/:distributionId/submissions
 // This route only handles GET requests for submission details
 

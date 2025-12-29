@@ -318,6 +318,15 @@ export function prepareReleaseConfigPayload(
   // initialVersions: Backend expects array [{ platform, target, version }], UI has object { PLATFORM: version }
   // ========================================================================
   if (config.releaseSchedule) {
+    // Safety check: This should never happen if validation is working correctly
+    // User should not be able to reach scheduling step without platforms
+    if (!platformTargets || platformTargets.length === 0) {
+      throw new Error(
+        'Cannot configure releaseSchedule: No platform targets selected. ' +
+        'This should be prevented by wizard validation. Please select platforms first.'
+      );
+    }
+    
     // Transform initialVersions from object to array format
     let initialVersionsArray: Array<{ platform: string; target: string; version: string }> = [];
     
@@ -334,6 +343,15 @@ export function prepareReleaseConfigPayload(
           });
         }
       });
+    }
+    
+    // If initialVersions array is empty, this means no valid platform-version mappings
+    // This should not happen if validation is working, but throw error to prevent invalid data
+    if (initialVersionsArray.length === 0) {
+      throw new Error(
+        'Cannot configure releaseSchedule: No valid initial versions found. ' +
+        'Please ensure all selected platforms have valid version numbers in scheduling configuration.'
+      );
     }
     
     payload.releaseSchedule = {

@@ -13,7 +13,7 @@ import {
   authenticateActionRequest,
 } from '~/utils/authenticate';
 import { SlackIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
-import type { User } from '~/.server/services/Auth/Auth.interface';
+import type { User } from '~/.server/services/Auth/auth.interface';
 
 /**
  * GET - Fetch Slack integration for tenant

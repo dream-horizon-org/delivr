@@ -7,7 +7,7 @@ import { json } from '@remix-run/node';
 import type { LoaderFunctionArgs } from '@remix-run/node';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { DistributionService } from '~/.server/services/Distribution';
-import type { User } from '~/.server/services/Auth/Auth.interface';
+import type { User } from '~/.server/services/Auth/auth.interface';
 import {
   createValidationError,
   extractPlatformFromQuery,

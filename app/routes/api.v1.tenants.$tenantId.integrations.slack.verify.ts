@@ -7,7 +7,7 @@ import { json } from '@remix-run/node';
 import type { ActionFunctionArgs } from '@remix-run/node';
 import { authenticateActionRequest } from '~/utils/authenticate';
 import { SlackIntegrationService} from '~/.server/services/ReleaseManagement/integrations';
-import type { User } from '~/.server/services/Auth/Auth.interface';
+import type { User } from '~/.server/services/Auth/auth.interface';
 
 export const action = authenticateActionRequest({
   POST: async ({ request, params, user }: ActionFunctionArgs & { user: User }) => {

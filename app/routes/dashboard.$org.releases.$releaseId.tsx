@@ -172,9 +172,9 @@ export default function ReleaseDetailsPage() {
 
   // Render stage component based on selected stage
   const renderStageComponent = () => {
-    // PreKickoffStage: Only show when release hasn't started yet (NOT_STARTED phase)
-    // Once started, this component should never be visible
-    if (currentPhase === Phase.NOT_STARTED) {
+    // PreKickoffStage: Show when release hasn't started yet (NOT_STARTED phase)
+    // OR when archived/completed with null stage (never started)
+    if (currentPhase === Phase.NOT_STARTED || (currentStage === null && (currentPhase === Phase.ARCHIVED || currentPhase === Phase.COMPLETED))) {
       return <PreKickoffStage />;
     }
 

@@ -1,6 +1,6 @@
 /**
  * Remix API Route: Submit Existing Submission (First-Time Submission)
- * PUT /api/v1/submissions/:submissionId/submit?platform=ANDROID|IOS
+ * PUT /api/v1/tenants/:tenantId/submissions/:submissionId/submit?platform=ANDROID|IOS
  * 
  * This endpoint submits an existing PENDING submission to the store.
  * The submission is already created when the distribution is created.
@@ -9,8 +9,12 @@
  * IMPORTANT: Backend requires `platform` query parameter to identify which table to query
  * (android_submission_builds or ios_submission_builds)
  * 
+ * Path Parameters:
+ * - tenantId: Tenant/Organization ID (required)
+ * - submissionId: Submission ID (required)
+ * 
  * Use Case: First-time submission where submission already exists with PENDING status
- * Reference: DISTRIBUTION_API_SPEC.md lines 476-594
+ * Reference: DISTRIBUTION_API_SPEC.md lines 786-917
  */
 
 import { json } from '@remix-run/node';
@@ -25,8 +29,7 @@ import { Platform } from '~/types/distribution/distribution.types';
 import {
     createValidationError,
     handleAxiosError,
-    logApiError,
-    validateRequired,
+    logApiError
 } from '~/utils/api-route-helpers';
 import {
     authenticateActionRequest,
@@ -56,6 +59,10 @@ function validateInAppPriority(priority: unknown): boolean {
 /**
  * PUT - Submit existing PENDING submission
  * 
+ * Path Parameters:
+ * - tenantId: Tenant/Organization ID (required)
+ * - submissionId: Submission ID (required)
+ * 
  * Query Parameters:
  * - platform: ANDROID | IOS (required - for backend table identification)
  * 
@@ -74,16 +81,21 @@ function validateInAppPriority(priority: unknown): boolean {
  * }
  */
 const submitSubmission: AuthenticatedActionFunction = async ({ params, request }) => {
-  const { submissionId } = params;
+  const { tenantId, submissionId } = params;
+  const url = new URL(request.url);
+  const platform = url.searchParams.get('platform');
 
-  if (!validateRequired(submissionId, ERROR_MESSAGES.SUBMISSION_ID_REQUIRED)) {
+  // Validate tenantId
+  if (!tenantId) {
+    return createValidationError(ERROR_MESSAGES.TENANT_ID_REQUIRED);
+  }
+
+  // Validate submissionId
+  if (!submissionId) {
     return createValidationError(ERROR_MESSAGES.SUBMISSION_ID_REQUIRED);
   }
 
-  // Extract and validate platform query parameter
-  const url = new URL(request.url);
-  const platform = url.searchParams.get('platform');
-  
+  // Validate platform
   if (!platform || (platform !== Platform.ANDROID && platform !== Platform.IOS)) {
     return json(
       {
@@ -158,6 +170,7 @@ const submitSubmission: AuthenticatedActionFunction = async ({ params, request }
     }
 
     const response = await DistributionService.submitSubmission(
+      tenantId,
       submissionId,
       body,
       platform as Platform

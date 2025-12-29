@@ -26,7 +26,7 @@ import { json, type LoaderFunctionArgs } from '@remix-run/node';
 import { useLoaderData, useNavigate, useNavigation, useRevalidator, useSearchParams } from '@remix-run/react';
 import { IconFilter, IconFilterOff } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
-import type { User } from '~/.server/services/Auth/Auth.interface';
+import type { User } from '~/.server/services/Auth/auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import { DistributionListRow } from '~/components/Distribution/DistributionListRow';
 import { DistributionStatsCard } from '~/components/Distribution/DistributionStatsCard';
@@ -88,7 +88,7 @@ export const loader = authenticateLoaderRequest(
         status,
         platform
       );
-
+      
       // Extract distributions, stats, and pagination from response
       const { distributions, stats, pagination } = response.data.data;
 
@@ -103,12 +103,43 @@ export const loader = authenticateLoaderRequest(
           platform: platform || null,
         },
       });
-    } catch (error) {
-      // Parse error into AppError format
+    } catch (error: any) {
+      // ✅ SPECIAL CASE: Treat 404 as empty state (no distributions yet)
+      // This happens when backend returns "No Distribution exists for this tenant"
+      // which is actually a valid empty state, not an error
+      const is404 = error?.response?.status === 404;
+      
+      if (is404) {
+        return json<LoaderData>({
+          org,
+          distributions: [],
+          stats: {
+            totalDistributions: 0,
+            totalSubmissions: 0,
+            inReviewSubmissions: 0,
+            releasedSubmissions: 0,
+          },
+          pagination: {
+            page: 1,
+            pageSize: 10,
+            totalPages: 0,
+            totalItems: 0,
+            hasMore: false,
+          },
+          loadedAt: new Date().toISOString(),
+          filters: {
+            status: status || null,
+            platform: platform || null,
+          },
+          // No error property - this is a valid empty state
+        });
+      }
+      
+      // For other errors, show error state
       const appError: AppError = {
         category: ErrorCategory.NETWORK,
         code: 'FETCH_FAILED',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        message: error?.response?.data?.message || error?.message || 'Request failed with status code 500',
         userMessage: 'Failed to load distributions',
         recoveryGuidance: 'Check your internet connection and try again. If the problem persists, the server may be experiencing issues.',
         retryable: true,
@@ -422,6 +453,8 @@ export default function DistributionsListPage() {
       >
         {selectedDistribution && submitModalProps && (
           <SubmitToStoresForm
+            releaseId={selectedDistribution.releaseId}
+            tenantId={org}
             distributionId={selectedDistribution.id}
             submissions={selectedDistribution.submissions}
             hasAndroidActiveRollout={false}

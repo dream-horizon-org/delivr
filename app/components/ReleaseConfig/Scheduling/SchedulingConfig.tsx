@@ -37,7 +37,7 @@ import { timeToMinutes } from '~/utils/time-utils';
 import { useConfig } from '~/contexts/ConfigContext';
 import { canEnableKickoffReminder } from '~/utils/communication-helpers';
 import type { CommunicationConfig } from '~/types/release-config';
-
+import { IntegrationCategory } from '~/types/integrations';
 export function SchedulingConfig({ 
   config, 
   onChange, 
@@ -49,7 +49,7 @@ export function SchedulingConfig({
   
   const shouldShowKickoffReminder = canEnableKickoffReminder(
     communicationConfig,
-    getConnectedIntegrations('COMMUNICATION')
+    getConnectedIntegrations(IntegrationCategory.COMMUNICATION)
   );
   const [editingSlotIndex, setEditingSlotIndex] = useState<number | null>(null);
 
@@ -298,7 +298,7 @@ export function SchedulingConfig({
               title="Kickoff Reminder"
             >
               <Text size="sm">
-                {getConnectedIntegrations('COMMUNICATION').length === 0
+                {getConnectedIntegrations(IntegrationCategory.COMMUNICATION).length === 0
                   ? 'Connect a communication integration (Slack, Email) to enable kickoff reminders.'
                   : 'Enable communication notifications in the Communication step to use kickoff reminders.'}
               </Text>

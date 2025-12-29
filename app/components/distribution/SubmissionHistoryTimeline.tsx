@@ -77,7 +77,7 @@ export function SubmissionHistoryTimeline({
     
     try {
       // Step 1: Call frontend API route (which proxies to backend) - uses centralized API route builder
-      const apiUrl = API_ROUTES.getArtifactDownloadUrl(submissionId, platform, tenantId);
+      const apiUrl = API_ROUTES.getArtifactDownloadUrl(tenantId, submissionId, platform);
       const response = await fetch(apiUrl);
       const data = await response.json();
       

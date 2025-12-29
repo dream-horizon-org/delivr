@@ -1,13 +1,17 @@
 /**
  * Remix API Route: Create Resubmission (After Rejection or Cancellation)
- * POST /api/v1/distributions/:distributionId/submissions
+ * POST /api/v1/tenants/:tenantId/distributions/:distributionId/submissions
  * 
  * This endpoint creates a COMPLETELY NEW submission after rejection or cancellation.
  * It requires a new artifact (AAB file for Android, TestFlight build for iOS).
  * The new submission gets a new submissionId and is immediately submitted to the store.
  * 
+ * Path Parameters:
+ * - tenantId: Tenant/Organization ID (required)
+ * - distributionId: Distribution ID (required)
+ * 
  * Use Case: Resubmission after rejection or user-initiated cancellation
- * Reference: DISTRIBUTION_API_SPEC.md lines 913-1040
+ * Reference: DISTRIBUTION_API_SPEC.md lines 1276-1443
  * 
  * Content-Type:
  * - Android: multipart/form-data (for AAB file upload)
@@ -17,24 +21,24 @@
 import { json, unstable_parseMultipartFormData } from '@remix-run/node';
 import { DistributionService } from '~/.server/services/Distribution';
 import {
-  ERROR_MESSAGES,
-  HTTP_STATUS,
-  LOG_CONTEXT,
+    ERROR_MESSAGES,
+    HTTP_STATUS,
+    LOG_CONTEXT,
 } from '~/constants/distribution/distribution-api.constants';
 import type {
-  AndroidResubmissionRequest,
-  IOSResubmissionRequest,
+    AndroidResubmissionRequest,
+    IOSResubmissionRequest,
 } from '~/types/distribution/distribution.types';
 import { Platform } from '~/types/distribution/distribution.types';
 import {
-  createValidationError,
-  handleAxiosError,
-  logApiError,
-  validateRequired,
+    createValidationError,
+    handleAxiosError,
+    logApiError,
+    validateRequired,
 } from '~/utils/api-route-helpers';
 import {
-  authenticateActionRequest,
-  type AuthenticatedActionFunction,
+    authenticateActionRequest,
+    type AuthenticatedActionFunction,
 } from '~/utils/authenticate';
 
 /**
@@ -97,6 +101,10 @@ const uploadHandler: import('@remix-run/node').UploadHandler = async ({ data, fi
 /**
  * POST - Create new submission (resubmission after rejection/cancellation)
  * 
+ * Path Parameters:
+ * - tenantId: Tenant/Organization ID (required)
+ * - distributionId: Distribution ID (required)
+ * 
  * Request Body (Android - multipart/form-data):
  * - platform: "ANDROID"
  * - version: "2.7.1"
@@ -115,9 +123,15 @@ const uploadHandler: import('@remix-run/node').UploadHandler = async ({ data, fi
  * - releaseNotes: "..."
  */
 const createResubmission: AuthenticatedActionFunction = async ({ params, request }) => {
-  const { distributionId } = params;
+  const { tenantId, distributionId } = params;
 
-  if (!validateRequired(distributionId, ERROR_MESSAGES.DISTRIBUTION_ID_REQUIRED)) {
+  // Validate tenantId
+  if (!tenantId) {
+    return createValidationError(ERROR_MESSAGES.TENANT_ID_REQUIRED);
+  }
+
+  // Validate distributionId
+  if (!distributionId) {
     return createValidationError(ERROR_MESSAGES.DISTRIBUTION_ID_REQUIRED);
   }
 
@@ -196,6 +210,7 @@ const createResubmission: AuthenticatedActionFunction = async ({ params, request
       serviceFormData.append('releaseNotes', androidRequest.releaseNotes);
 
       const response = await DistributionService.createResubmission(
+        tenantId,
         distributionId,
         serviceFormData
       );
@@ -262,6 +277,7 @@ const createResubmission: AuthenticatedActionFunction = async ({ params, request
       };
 
       const response = await DistributionService.createResubmission(
+        tenantId,
         distributionId,
         iosRequest
       );

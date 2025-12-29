@@ -126,10 +126,12 @@ export function getStageFromPhase(
       if (cronJob.stage1Status === 'COMPLETED' || cronJob.stage1Status === 'IN_PROGRESS') {
         return TaskStageEnum.KICKOFF;
       }
+      // All stages are PENDING - release never started, show PRE_KICKOFF
+      return null; // PRE_KICKOFF (not a stage in stepper)
     }
     
-    // Default fallback for archived/completed - show distribution
-    return TaskStageEnum.DISTRIBUTION;
+    // No cronJob exists - release archived before cronJob was created, show PRE_KICKOFF
+    return null; // PRE_KICKOFF (not a stage in stepper)
   }
 
   switch (phase) {

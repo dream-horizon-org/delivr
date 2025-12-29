@@ -135,7 +135,7 @@ export function LatestSubmissionCard({
   // Artifact download handler - uses centralized API route builder
   const handleDownloadArtifact = async () => {
     try {
-      const apiUrl = API_ROUTES.getArtifactDownloadUrl(submission.id, submission.platform, tenantId);
+      const apiUrl = API_ROUTES.getArtifactDownloadUrl(tenantId, submission.id, submission.platform);
       const response = await fetch(apiUrl);
       
       if (!response.ok) throw new Error('Failed to get download URL');

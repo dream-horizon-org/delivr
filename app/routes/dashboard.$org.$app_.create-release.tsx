@@ -40,7 +40,7 @@ import {
   IconInfoCircle,
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
-import { User } from "~/.server/services/Auth/Auth.interface";
+import { User } from '~/.server/services/Auth/auth.interface';
 import { authenticateLoaderRequest } from "~/utils/authenticate";
 import { useGetDeploymentsForApp } from "~/components/Pages/DeploymentList/hooks/getDeploymentsForApp";
 import { useCreateRelease } from "~/components/Pages/components/ReleaseForm/hooks/useCreateRelease";
