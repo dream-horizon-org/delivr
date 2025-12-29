@@ -1,505 +1,361 @@
 /**
- * Mock Apple App Store Connect Service
+ * Stateful Mock Apple App Store Connect Service
  * 
- * Used for testing and development when actual Apple credentials are not available.
- * Simulates Apple API responses without making real API calls.
+ * Architecture:
+ * ✅ Bound to credentials (like Apple's real SDK)
+ * ✅ appId is implicit context, not domain data
+ * ✅ Each service instance scoped to one app
+ * ✅ Deterministic, stable IDs (no random timestamps)
+ * ✅ Enforces real Apple state transition rules
+ * ✅ True state persistence across requests
  * 
- * Response formats match Apple's actual App Store Connect API v1 structure.
+ * Response formats match Apple's App Store Connect API v1.
  */
 
-type PhasedReleaseData = {
+/* ==================== TYPES ==================== */
+
+type AppStoreState =
+  | 'PREPARE_FOR_SUBMISSION'
+  | 'IN_REVIEW'
+  | 'REJECTED'
+  | 'METADATA_REJECTED'
+  | 'INVALID_BINARY'
+  | 'DEVELOPER_REJECTED'
+  | 'READY_FOR_SALE';
+
+type PhasedState = 'ACTIVE' | 'PAUSED' | 'COMPLETE';
+
+type AppVersion = {
   id: string;
-  state: 'ACTIVE' | 'PAUSED' | 'COMPLETE';
-  appId: string;
+  versionString: string;
+  state: AppStoreState;
+  buildId: string | null;
+};
+
+type PhasedRelease = {
+  id: string;
+  versionId: string;
+  state: PhasedState;
   startDate: string;
   totalPauseDuration: number;
   currentDayNumber: number;
-  appStoreVersionId: string;
 };
+
+/* ==================== IN-MEMORY DATABASE (SINGLETON) ==================== */
+
+class MockAppleDB {
+  versions = new Map<string, AppVersion>();
+  phasedReleases = new Map<string, PhasedRelease>();
+  reviewSubmissions = new Map<string, { versionId: string; submittedDate: string }>();
+
+  reset() {
+    this.versions.clear();
+    this.phasedReleases.clear();
+    this.reviewSubmissions.clear();
+  }
+}
+
+// ✅ Singleton instance - shared across all mock service instances
+// This ensures state persists between API calls
+const globalMockAppleDB = new MockAppleDB();
+
+/* ==================== SEED DATA ==================== */
+
+/**
+ * Seeds deterministic test data for one app
+ * Matches database seed patterns for testing
+ * Only seeds if DB is empty (prevents resetting state on every service instantiation)
+ */
+function seedMockAppleData(db: MockAppleDB) {
+  // ✅ Only seed if DB is empty (first initialization)
+  if (db.versions.size > 0) {
+    console.log('[MockApple] DB already seeded, preserving existing state');
+    return;
+  }
+  
+  db.reset();
+  
+  console.log('[MockApple] Seeding deterministic data...');
+  
+  // ========== VERSIONS (deterministic IDs based on version string) ==========
+  
+  // v1.2.1 → IN_REVIEW (for cancel testing)
+  db.versions.set('version-121', {
+    id: 'version-121',
+    versionString: '1.2.1',
+    state: 'IN_REVIEW',
+    buildId: 'build-121'
+  });
+
+  // v1.3.x → PREPARE_FOR_SUBMISSION (first-time submission)
+  db.versions.set('version-130', {
+    id: 'version-130',
+    versionString: '1.3.0',
+    state: 'PREPARE_FOR_SUBMISSION',
+    buildId: null
+  });
+
+  // v1.4.x → REJECTED (resubmission scenario)
+  db.versions.set('version-140', {
+    id: 'version-140',
+    versionString: '1.4.0',
+    state: 'REJECTED',
+    buildId: 'build-140'
+  });
+
+  // v1.5.x → METADATA_REJECTED
+  db.versions.set('version-150', {
+    id: 'version-150',
+    versionString: '1.5.0',
+    state: 'METADATA_REJECTED',
+    buildId: 'build-150'
+  });
+
+  // v1.6.x → INVALID_BINARY
+  db.versions.set('version-160', {
+    id: 'version-160',
+    versionString: '1.6.0',
+    state: 'INVALID_BINARY',
+    buildId: 'build-160'
+  });
+
+  // v1.7.x → DEVELOPER_REJECTED
+  db.versions.set('version-170', {
+    id: 'version-170',
+    versionString: '1.7.0',
+    state: 'DEVELOPER_REJECTED',
+    buildId: 'build-170'
+  });
+
+  // v1.8.2 → READY_FOR_SALE (with PAUSED phased release)
+  db.versions.set('version-182', {
+    id: 'version-182',
+    versionString: '1.8.2',
+    state: 'READY_FOR_SALE',
+    buildId: 'build-182'
+  });
+
+  // v1.8.3 → READY_FOR_SALE (with PAUSED phased release)
+  db.versions.set('version-183', {
+    id: 'version-183',
+    versionString: '1.8.3',
+    state: 'READY_FOR_SALE',
+    buildId: 'build-183'
+  });
+
+  // v1.8.4 → READY_FOR_SALE (with ACTIVE phased release - for pause testing)
+  db.versions.set('version-184', {
+    id: 'version-184',
+    versionString: '1.8.4',
+    state: 'READY_FOR_SALE',
+    buildId: 'build-184'
+  });
+
+  // v1.8.5 → READY_FOR_SALE (with PAUSED phased release - for resume testing)
+  db.versions.set('version-185', {
+    id: 'version-185',
+    versionString: '1.8.5',
+    state: 'READY_FOR_SALE',
+    buildId: 'build-185'
+  });
+
+  // v1.8.6 → READY_FOR_SALE (with ACTIVE phased release - for pause testing)
+  db.versions.set('version-186', {
+    id: 'version-186',
+    versionString: '1.8.6',
+    state: 'READY_FOR_SALE',
+    buildId: 'build-186'
+  });
+
+  // ========== PHASED RELEASES ==========
+  
+  // v1.8.2 → PAUSED at day 4 (can RESUME)
+  db.phasedReleases.set('phased-182', {
+    id: 'phased-182',
+    versionId: 'version-182',
+    state: 'PAUSED',
+    startDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    totalPauseDuration: 2,
+    currentDayNumber: 4
+  });
+
+  // v1.8.3 → PAUSED at day 3 (can RESUME)
+  db.phasedReleases.set('phased-183', {
+    id: 'phased-183',
+    versionId: 'version-183',
+    state: 'PAUSED',
+    startDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    totalPauseDuration: 1,
+    currentDayNumber: 3
+  });
+
+  // v1.8.4 → ACTIVE at day 2 (can PAUSE)
+  db.phasedReleases.set('phased-184', {
+    id: 'phased-184',
+    versionId: 'version-184',
+    state: 'ACTIVE',
+    startDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    totalPauseDuration: 0,
+    currentDayNumber: 2
+  });
+
+  // v1.8.5 → PAUSED at day 5 (can RESUME)
+  db.phasedReleases.set('phased-185', {
+    id: 'phased-185',
+    versionId: 'version-185',
+    state: 'PAUSED',
+    startDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    totalPauseDuration: 3,
+    currentDayNumber: 5
+  });
+
+  // v1.8.6 → ACTIVE at day 1 (can PAUSE)
+  db.phasedReleases.set('phased-186', {
+    id: 'phased-186',
+    versionId: 'version-186',
+    state: 'ACTIVE',
+    startDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    totalPauseDuration: 0,
+    currentDayNumber: 1
+  });
+
+  console.log('[MockApple] ✅ Seeded versions:');
+  console.log('  - version-121 (v1.2.1): IN_REVIEW (cancelable)');
+  console.log('  - version-130 (v1.3.0): PREPARE_FOR_SUBMISSION');
+  console.log('  - version-182 to version-186 (v1.8.2-1.8.6): READY_FOR_SALE');
+  console.log('[MockApple] ✅ Seeded phased releases (5 test cases):');
+  console.log('  - phased-182 (v1.8.2): PAUSED, day 4 → Can RESUME');
+  console.log('  - phased-183 (v1.8.3): PAUSED, day 3 → Can RESUME');
+  console.log('  - phased-184 (v1.8.4): ACTIVE, day 2 → Can PAUSE');
+  console.log('  - phased-185 (v1.8.5): PAUSED, day 5 → Can RESUME');
+  console.log('  - phased-186 (v1.8.6): ACTIVE, day 1 → Can PAUSE');
+}
+
+/**
+ * Force reset the mock database to initial seed state
+ * Useful for testing or when Docker restarts
+ */
+export function resetMockAppleDB() {
+  globalMockAppleDB.reset();
+  seedMockAppleData(globalMockAppleDB);
+  console.log('[MockApple] ✅ Database forcefully reset to seed state');
+}
+
+/* ==================== MOCK SERVICE ==================== */
 
 /**
  * Mock Apple App Store Connect Service
- * Simulates Apple API behavior for testing with realistic response formats
+ * 
+ * Architecture:
+ * - Each instance is scoped to ONE app (via credentials)
+ * - appId is implicit (stored once, not passed around)
+ * - All operations automatically scoped to this app
+ * - Matches how Apple's real SDK works
  */
 export class MockAppleAppStoreConnectService {
-  // In-memory storage for mock phased releases
-  private static mockPhasedReleases: Map<string, PhasedReleaseData> = new Map();
+  private db: MockAppleDB;
+  private appId: string;
 
   constructor(
     private readonly _issuer: string,
     private readonly _keyId: string,
     private readonly _privateKey: string
   ) {
-    console.log('[MockAppleService] Initialized mock Apple App Store Connect service');
+    // Extract appId from credentials (in real Apple SDK, this would be from JWT)
+    // For mock, we use a fixed appId
+    this.appId = '123456789';
+    
+    // ✅ Use singleton DB - shared across all service instances
+    // This ensures pause/resume state persists between API calls
+    this.db = globalMockAppleDB;
+    seedMockAppleData(this.db);
+    
+    console.log(`[MockApple] Initialized for app ${this.appId} (using shared state)`);
   }
 
+  /* ==================== VERSION READS ==================== */
+
   /**
-   * Mock: Get current phased release ID by state
+   * Get app store version by version string
+   * Returns deterministic version ID based on version string
    * 
-   * Apple behavior: Returns null if phased release doesn't exist.
-   * Caller must explicitly create phased release - no auto-creation.
-   */
-  async getCurrentPhasedReleaseId(
-    appId: string, 
-    state: 'ACTIVE' | 'PAUSED' | 'COMPLETE'
-  ): Promise<string | null> {
-    console.log(`[MockAppleService] Getting phased release for app ${appId} with state ${state}`);
-    
-    // Find phased release in mock storage
-    for (const [id, release] of MockAppleAppStoreConnectService.mockPhasedReleases.entries()) {
-      const appMatches = release.appId === appId;
-      const stateMatches = release.state === state;
-      
-      if (appMatches && stateMatches) {
-        console.log(`[MockAppleService] Found phased release: ${id} with state ${state}`);
-        return id;
-      }
-    }
-
-    // Apple never auto-creates phased releases
-    // If not found, return null (caller must handle)
-    console.log(`[MockAppleService] No phased release found with state ${state} - returning null`);
-    return null;
-  }
-
-  /**
-   * Mock: Pause phased release
-   * Returns Apple API formatted response
-   */
-  async pausePhasedRelease(phasedReleaseId: string): Promise<any> {
-    console.log(`[MockAppleService] Pausing phased release: ${phasedReleaseId}`);
-    
-    const release = MockAppleAppStoreConnectService.mockPhasedReleases.get(phasedReleaseId);
-    
-    if (!release) {
-      throw new Error(`Phased release not found: ${phasedReleaseId}`);
-    }
-
-    const isNotActive = release.state !== 'ACTIVE';
-    if (isNotActive) {
-      throw new Error(`Cannot pause phased release with state: ${release.state}. Must be ACTIVE.`);
-    }
-
-    // Update state to PAUSED and increment pause duration
-    release.state = 'PAUSED';
-    release.totalPauseDuration += 1;
-    MockAppleAppStoreConnectService.mockPhasedReleases.set(phasedReleaseId, release);
-    
-    console.log(`[MockAppleService] Successfully paused phased release: ${phasedReleaseId}`);
-    
-    // Return Apple API formatted response with links
-    return {
-      data: {
-        type: 'appStoreVersionPhasedReleases',
-        id: phasedReleaseId,
-        attributes: {
-          phasedReleaseState: 'PAUSED',
-          startDate: release.startDate,
-          totalPauseDuration: release.totalPauseDuration,
-          currentDayNumber: release.currentDayNumber
-        },
-        relationships: {
-          appStoreVersion: {
-            data: {
-              type: 'appStoreVersions',
-              id: release.appStoreVersionId
-            }
-          }
-        },
-        links: {
-          self: `https://api.appstoreconnect.apple.com/v1/appStoreVersionPhasedReleases/${phasedReleaseId}`
-        }
-      }
-    };
-  }
-
-  /**
-   * Mock: Resume phased release
-   * Returns Apple API formatted response
-   */
-  async resumePhasedRelease(phasedReleaseId: string): Promise<any> {
-    console.log(`[MockAppleService] Resuming phased release: ${phasedReleaseId}`);
-    
-    const release = MockAppleAppStoreConnectService.mockPhasedReleases.get(phasedReleaseId);
-    
-    if (!release) {
-      throw new Error(`Phased release not found: ${phasedReleaseId}`);
-    }
-
-    const isNotPaused = release.state !== 'PAUSED';
-    if (isNotPaused) {
-      throw new Error(`Cannot resume phased release with state: ${release.state}. Must be PAUSED.`);
-    }
-
-    // Update state to ACTIVE
-    release.state = 'ACTIVE';
-    MockAppleAppStoreConnectService.mockPhasedReleases.set(phasedReleaseId, release);
-    
-    console.log(`[MockAppleService] Successfully resumed phased release: ${phasedReleaseId}`);
-    
-    // Return Apple API formatted response with links
-    return {
-      data: {
-        type: 'appStoreVersionPhasedReleases',
-        id: phasedReleaseId,
-        attributes: {
-          phasedReleaseState: 'ACTIVE',
-          startDate: release.startDate,
-          totalPauseDuration: release.totalPauseDuration,
-          currentDayNumber: release.currentDayNumber
-        },
-        relationships: {
-          appStoreVersion: {
-            data: {
-              type: 'appStoreVersions',
-              id: release.appStoreVersionId
-            }
-          }
-        },
-        links: {
-          self: `https://api.appstoreconnect.apple.com/v1/appStoreVersionPhasedReleases/${phasedReleaseId}`
-        }
-      }
-    };
-  }
-
-  /**
-   * Mock: Complete phased release (set to 100%)
-   * Returns Apple API formatted response
-   */
-  async completePhasedRelease(phasedReleaseId: string): Promise<any> {
-    console.log(`[MockAppleService] Completing phased release: ${phasedReleaseId}`);
-    
-    const release = MockAppleAppStoreConnectService.mockPhasedReleases.get(phasedReleaseId);
-    
-    if (!release) {
-      throw new Error(`Phased release not found: ${phasedReleaseId}`);
-    }
-
-    // Must be ACTIVE to complete (if PAUSED, must resume first)
-    if (release.state !== 'ACTIVE') {
-      throw new Error(
-        `Cannot complete phased release with state: ${release.state}. Must be ACTIVE. If PAUSED, resume first.`
-      );
-    }
-
-    // Update state to COMPLETE and set to day 7 (100%)
-    release.state = 'COMPLETE';
-    release.currentDayNumber = 7;
-    MockAppleAppStoreConnectService.mockPhasedReleases.set(phasedReleaseId, release);
-    
-    console.log(`[MockAppleService] Successfully completed phased release: ${phasedReleaseId}`);
-    
-    // Return Apple API formatted response with links
-    return {
-      data: {
-        type: 'appStoreVersionPhasedReleases',
-        id: phasedReleaseId,
-        attributes: {
-          phasedReleaseState: 'COMPLETE',
-          startDate: release.startDate,
-          totalPauseDuration: release.totalPauseDuration,
-          currentDayNumber: release.currentDayNumber
-        },
-        relationships: {
-          appStoreVersion: {
-            data: {
-              type: 'appStoreVersions',
-              id: release.appStoreVersionId
-            }
-          }
-        },
-        links: {
-          self: `https://api.appstoreconnect.apple.com/v1/appStoreVersionPhasedReleases/${phasedReleaseId}`
-        }
-      }
-    };
-  }
-
-  /**
-   * Mock: Submit version for review
-   * Returns Apple API formatted response
-   */
-  async submitForReview(appStoreVersionId: string): Promise<any> {
-    console.log(`[MockAppleService] Submitting version ${appStoreVersionId} for review`);
-    
-    // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    const submissionId = `mock-submission-${Date.now()}`;
-    
-    console.log(`[MockAppleService] Successfully submitted version for review - Submission ID: ${submissionId}`);
-    
-    // Return Apple API formatted response
-    return {
-      data: {
-        type: 'appStoreReviewSubmissions',
-        id: submissionId,
-        attributes: {
-          submittedDate: new Date().toISOString()
-        },
-        relationships: {
-          appStoreVersion: {
-            data: {
-              type: 'appStoreVersions',
-              id: appStoreVersionId
-            }
-          }
-        }
-      }
-    };
-  }
-
-  /**
-   * Mock: Get app store version by version string
-   * Returns single version object (first element) or null, matching real Apple service behavior
-   * 
-   * State logic for testing:
-   * - Version 1.3.x: PREPARE_FOR_SUBMISSION (first-time submission)
-   * - Version 1.4.x: REJECTED (resubmission after rejection)
-   * - Version 1.5.x: METADATA_REJECTED (resubmission after metadata issues)
-   * - Version 1.6.x: INVALID_BINARY (resubmission after binary issues)
-   * - Version 1.7.x: DEVELOPER_REJECTED (resubmission after developer cancellation)
-   * - Other versions: Return null (version doesn't exist, will create new)
+   * ✅ Deterministic: "1.8.2" → "version-182" (always)
    */
   async getAppStoreVersionByVersionString(
-    appId: string,
+    _appId: string, // Ignored (already have it)
     versionString: string,
-    includeBuild: boolean = false
+    _includeBuild: boolean = false
   ): Promise<any | null> {
-    console.log(`[MockAppleService] Getting app store version for ${appId} v${versionString} (includeBuild: ${includeBuild})`);
+    console.log(`[MockApple] Getting version ${versionString}`);
     
-    // Determine state based on version string for testing different scenarios
-    let appStoreState: string;
+    // Generate deterministic ID
+    const versionId = `version-${versionString.replace(/\./g, '')}`;
+    const version = this.db.versions.get(versionId);
     
-    if (versionString.startsWith('1.3')) {
-      appStoreState = 'PREPARE_FOR_SUBMISSION';  // First-time submission
-    } else if (versionString.startsWith('1.4')) {
-      appStoreState = 'REJECTED';  // Resubmission after rejection
-    } else if (versionString.startsWith('1.5')) {
-      appStoreState = 'METADATA_REJECTED';  // Resubmission after metadata issues
-    } else if (versionString.startsWith('1.6')) {
-      appStoreState = 'INVALID_BINARY';  // Resubmission after binary issues
-    } else if (versionString.startsWith('1.7')) {
-      appStoreState = 'DEVELOPER_REJECTED';  // Resubmission after developer cancellation
-    } else {
-      // Version doesn't exist in Apple - will trigger creation
-      console.log(`[MockAppleService] Version ${versionString} not found (return null)`);
+    if (!version) {
+      console.log(`[MockApple] Version ${versionString} not found`);
       return null;
     }
     
-    const versionId = `mock-version-${Date.now()}`;
+    console.log(`[MockApple] Found version ${versionString} with state: ${version.state}`);
     
-    console.log(`[MockAppleService] Returning version ${versionString} with state: ${appStoreState}`);
-    
-    // Return single version object (not array), matching real service behavior
     return {
-        type: 'appStoreVersions',
-        id: versionId,
-        attributes: {
-          platform: 'IOS',
-          versionString: versionString,
-        appStoreState: appStoreState,
-          copyright: '2025 Mock Company',
-          releaseType: 'AFTER_APPROVAL',
-          earliestReleaseDate: null,
-          usesIdfa: false,
-          downloadable: true,
-          createdDate: new Date().toISOString()
-        },
-        relationships: {
-          app: {
-            data: {
-              type: 'apps',
-              id: appId
-            }
-          }
-        },
-        links: {
-          self: `https://api.appstoreconnect.apple.com/v1/appStoreVersions/${versionId}`
-        }
-    };
-  }
-
-  /**
-   * Mock: Get the build currently associated with an app store version
-   */
-  async getAssociatedBuild(appStoreVersionId: string): Promise<any | null> {
-    console.log(`[MockAppleService] Getting associated build for version ${appStoreVersionId}`);
-    
-    // Mock: Return null (no build associated) for testing
-    // In real scenarios, this could return a build if one exists
-    return null;
-  }
-
-  /**
-   * Mock: Create app store version
-   * Returns Apple API formatted response
-   */
-  async createAppStoreVersion(
-    appId: string,
-    versionString: string,
-    platform: string = 'IOS'
-  ): Promise<any> {
-    console.log(`[MockAppleService] Creating app store version ${versionString} for app ${appId}`);
-    
-    const versionId = `mock-version-${Date.now()}`;
-    
-    // Return Apple API formatted response
-    return {
-      data: {
-        type: 'appStoreVersions',
-        id: versionId,
-        attributes: {
-          platform: platform.toUpperCase(),
-          versionString: versionString,
-          appStoreState: 'PREPARE_FOR_SUBMISSION',
-          copyright: '2025 Mock Company',
-          releaseType: 'MANUAL',
-          earliestReleaseDate: null,
-          usesIdfa: false,
-          downloadable: false,
-          createdDate: new Date().toISOString()
-        },
-        relationships: {
-          app: {
-            data: {
-              type: 'apps',
-              id: appId
-            }
-          },
-          build: {
-            data: null
-          },
-          appStoreVersionLocalizations: {
-            data: []
+      type: 'appStoreVersions',
+      id: version.id,
+      attributes: {
+        platform: 'IOS',
+        versionString: version.versionString,
+        appStoreState: version.state,
+        copyright: '2025 Mock Company',
+        releaseType: 'AFTER_APPROVAL',
+        earliestReleaseDate: null,
+        usesIdfa: false,
+        downloadable: true,
+        createdDate: new Date().toISOString()
+      },
+      relationships: {
+        app: {
+          data: {
+            type: 'apps',
+            id: this.appId
           }
         }
+      },
+      links: {
+        self: `https://api.appstoreconnect.apple.com/v1/appStoreVersions/${version.id}`
       }
     };
   }
 
-  /**
-   * Mock: Update app store version release type
-   * Returns Apple API formatted response
-   */
-  async updateAppStoreVersionReleaseType(versionId: string): Promise<any> {
-    console.log(`[MockAppleService] Updating version ${versionId} release type to AFTER_APPROVAL`);
-    
-    // Return Apple API formatted response
-    return {
-      data: {
-        type: 'appStoreVersions',
-        id: versionId,
-        attributes: {
-          releaseType: 'AFTER_APPROVAL'
-        }
-      }
-    };
-  }
+  /* ==================== PHASED RELEASE READS ==================== */
 
   /**
-   * Mock: Update release notes
-   * Returns Apple API formatted response
+   * Get phased release for a specific version
+   * Returns the active/paused phased release (not completed ones)
    */
-  async updateReleaseNotes(
-    versionId: string,
-    releaseNotes: string
-  ): Promise<any> {
-    console.log(`[MockAppleService] Updating release notes for version ${versionId}`);
-    console.log(`[MockAppleService] Release notes length: ${releaseNotes.length} characters`);
+  async getPhasedReleaseForVersion(versionId: string): Promise<any | null> {
+    console.log(`[MockApple] Getting phased release for version ${versionId}`);
     
-    // Return Apple API formatted response
-    return {
-      data: {
-        type: 'appStoreVersionLocalizations',
-        id: `mock-localization-${Date.now()}`,
-        attributes: {
-          locale: 'en-US',
-          whatsNew: releaseNotes
-        },
-        relationships: {
-          appStoreVersion: {
-            data: {
-              type: 'appStoreVersions',
-              id: versionId
-            }
-          }
-        }
-      }
-    };
-  }
-
-  /**
-   * Mock: Get build ID by build number
-   * Returns Apple API formatted response
-   */
-  async getBuildIdByBuildNumber(
-    appId: string,
-    buildNumber: string
-  ): Promise<string | null> {
-    console.log(`[MockAppleService] Getting build ID for build ${buildNumber} (app ${appId})`);
-    
-    const buildId = `mock-build-${buildNumber}-${Date.now()}`;
-    
-    console.log(`[MockAppleService] Found build ID: ${buildId}`);
-    return buildId;
-  }
-
-  /**
-   * Mock: Associate build with version
-   * Returns Apple API formatted response
-   */
-  async associateBuildWithVersion(
-    versionId: string,
-    buildId: string
-  ): Promise<any> {
-    console.log(`[MockAppleService] Associating build ${buildId} with version ${versionId}`);
-    
-    // Return Apple API formatted response
-    return {
-      data: {
-        type: 'appStoreVersions',
-        id: versionId,
-        relationships: {
-          build: {
-            data: {
-              type: 'builds',
-              id: buildId
-            }
-          }
-        }
-      }
-    };
-  }
-
-  /**
-   * Mock: Get phased release for an app store version
-   * Returns null if no phased release exists
-   */
-  async getPhasedReleaseForVersion(appStoreVersionId: string): Promise<any | null> {
-    console.log(`[MockAppleService] Getting phased release for version ${appStoreVersionId}`);
-    
-    // Check if a phased release exists for this version
-    for (const [phasedReleaseId, phasedReleaseData] of MockAppleAppStoreConnectService.mockPhasedReleases.entries()) {
-      if (phasedReleaseData.appStoreVersionId === appStoreVersionId) {
-        console.log(`[MockAppleService] Found phased release: ${phasedReleaseId}`);
+    // Find active or paused phased release for this version
+    for (const [phasedId, phased] of this.db.phasedReleases.entries()) {
+      if (phased.versionId === versionId && phased.state !== 'COMPLETE') {
+        console.log(`[MockApple] Found phased release: ${phasedId} (${phased.state})`);
         
         return {
           data: {
             type: 'appStoreVersionPhasedReleases',
-            id: phasedReleaseId,
+            id: phasedId,
             attributes: {
-              phasedReleaseState: phasedReleaseData.state,
-              startDate: phasedReleaseData.startDate,
-              totalPauseDuration: phasedReleaseData.totalPauseDuration,
-              currentDayNumber: phasedReleaseData.currentDayNumber
+              phasedReleaseState: phased.state,
+              startDate: phased.startDate,
+              totalPauseDuration: phased.totalPauseDuration,
+              currentDayNumber: phased.currentDayNumber
             },
             relationships: {
               appStoreVersion: {
                 data: {
                   type: 'appStoreVersions',
-                  id: appStoreVersionId
+                  id: versionId
                 }
               }
             }
@@ -508,38 +364,201 @@ export class MockAppleAppStoreConnectService {
       }
     }
     
-    console.log(`[MockAppleService] No phased release found for version ${appStoreVersionId}`);
+    console.log(`[MockApple] No phased release found for version ${versionId}`);
     return null;
   }
 
   /**
-   * Mock: Create phased release
-   * Returns Apple API formatted response
+   * Get current phased release by state
+   * Used to find ACTIVE/PAUSED releases for pause/resume operations
    */
-  async createPhasedRelease(versionId: string): Promise<any> {
-    console.log(`[MockAppleService] Creating phased release for version ${versionId}`);
+  async getCurrentPhasedReleaseId(
+    _appId: string, // Ignored
+    state: PhasedState
+  ): Promise<string | null> {
+    console.log(`[MockApple] Getting phased release with state ${state}`);
     
-    const phasedReleaseId = `mock-phased-release-${Date.now()}`;
-    const today = new Date().toISOString().split('T')[0];
+    for (const [phasedId, phased] of this.db.phasedReleases.entries()) {
+      if (phased.state === state) {
+        console.log(`[MockApple] Found phased release: ${phasedId}`);
+        return phasedId;
+      }
+    }
     
-    // Store the phased release
-    MockAppleAppStoreConnectService.mockPhasedReleases.set(phasedReleaseId, {
-      id: phasedReleaseId,
-      state: 'ACTIVE',
-      appId: 'mock-app-id',
-      startDate: today,
-      totalPauseDuration: 0,
-      currentDayNumber: 1,
-      appStoreVersionId: versionId
-    });
+    console.log(`[MockApple] No phased release found with state ${state}`);
+    return null;
+  }
+
+  /* ==================== PHASED RELEASE MUTATIONS ==================== */
+
+  /**
+   * Pause phased release
+   * ❌ Rule: Must be ACTIVE
+   */
+  async pausePhasedRelease(phasedId: string): Promise<any> {
+    console.log(`[MockApple] Pausing phased release: ${phasedId}`);
     
-    console.log(`[MockAppleService] Created phased release: ${phasedReleaseId}`);
+    const phased = this.db.phasedReleases.get(phasedId);
+    if (!phased) {
+      throw new Error(`Phased release not found: ${phasedId}`);
+    }
+
+    if (phased.state !== 'ACTIVE') {
+      throw new Error(`Cannot pause phased release with state: ${phased.state}. Must be ACTIVE.`);
+    }
+
+    // ✅ Mutate state
+    phased.state = 'PAUSED';
+    phased.totalPauseDuration += 1;
     
-    // Return Apple API formatted response with links
+    console.log(`[MockApple] Successfully paused: ${phasedId}`);
+    
     return {
       data: {
         type: 'appStoreVersionPhasedReleases',
-        id: phasedReleaseId,
+        id: phasedId,
+        attributes: {
+          phasedReleaseState: 'PAUSED',
+          startDate: phased.startDate,
+          totalPauseDuration: phased.totalPauseDuration,
+          currentDayNumber: phased.currentDayNumber
+        },
+        relationships: {
+          appStoreVersion: {
+            data: {
+              type: 'appStoreVersions',
+              id: phased.versionId
+            }
+          }
+        },
+        links: {
+          self: `https://api.appstoreconnect.apple.com/v1/appStoreVersionPhasedReleases/${phasedId}`
+        }
+      }
+    };
+  }
+
+  /**
+   * Resume phased release
+   * ❌ Rule: Must be PAUSED
+   */
+  async resumePhasedRelease(phasedId: string): Promise<any> {
+    console.log(`[MockApple] Resuming phased release: ${phasedId}`);
+    
+    const phased = this.db.phasedReleases.get(phasedId);
+    if (!phased) {
+      throw new Error(`Phased release not found: ${phasedId}`);
+    }
+
+    if (phased.state !== 'PAUSED') {
+      throw new Error(`Cannot resume phased release with state: ${phased.state}. Must be PAUSED.`);
+    }
+
+    // ✅ Mutate state
+    phased.state = 'ACTIVE';
+    
+    console.log(`[MockApple] Successfully resumed: ${phasedId}`);
+    
+    return {
+      data: {
+        type: 'appStoreVersionPhasedReleases',
+        id: phasedId,
+        attributes: {
+          phasedReleaseState: 'ACTIVE',
+          startDate: phased.startDate,
+          totalPauseDuration: phased.totalPauseDuration,
+          currentDayNumber: phased.currentDayNumber
+        },
+        relationships: {
+          appStoreVersion: {
+            data: {
+              type: 'appStoreVersions',
+              id: phased.versionId
+            }
+          }
+        },
+        links: {
+          self: `https://api.appstoreconnect.apple.com/v1/appStoreVersionPhasedReleases/${phasedId}`
+        }
+      }
+    };
+  }
+
+  /**
+   * Complete phased release (set to 100%)
+   * ❌ Rule: Must be ACTIVE
+   */
+  async completePhasedRelease(phasedId: string): Promise<any> {
+    console.log(`[MockApple] Completing phased release: ${phasedId}`);
+    
+    const phased = this.db.phasedReleases.get(phasedId);
+    if (!phased) {
+      throw new Error(`Phased release not found: ${phasedId}`);
+    }
+
+    if (phased.state !== 'ACTIVE') {
+      throw new Error(
+        `Cannot complete phased release with state: ${phased.state}. Must be ACTIVE. If PAUSED, resume first.`
+      );
+    }
+
+    // ✅ Mutate state
+    phased.state = 'COMPLETE';
+    phased.currentDayNumber = 7;
+    
+    console.log(`[MockApple] Successfully completed: ${phasedId}`);
+    
+    return {
+      data: {
+        type: 'appStoreVersionPhasedReleases',
+        id: phasedId,
+        attributes: {
+          phasedReleaseState: 'COMPLETE',
+          startDate: phased.startDate,
+          totalPauseDuration: phased.totalPauseDuration,
+          currentDayNumber: phased.currentDayNumber
+        },
+        relationships: {
+          appStoreVersion: {
+            data: {
+              type: 'appStoreVersions',
+              id: phased.versionId
+            }
+          }
+        },
+        links: {
+          self: `https://api.appstoreconnect.apple.com/v1/appStoreVersionPhasedReleases/${phasedId}`
+        }
+      }
+    };
+  }
+
+  /**
+   * Create phased release for a version
+   */
+  async createPhasedRelease(versionId: string): Promise<any> {
+    console.log(`[MockApple] Creating phased release for version ${versionId}`);
+    
+    const phasedId = `phased-${versionId}`;
+    const today = new Date().toISOString().split('T')[0];
+    
+    const newPhased: PhasedRelease = {
+      id: phasedId,
+      versionId: versionId,
+      state: 'ACTIVE',
+      startDate: today,
+      totalPauseDuration: 0,
+      currentDayNumber: 1
+    };
+    
+    this.db.phasedReleases.set(phasedId, newPhased);
+    
+    console.log(`[MockApple] Created phased release: ${phasedId}`);
+    
+    return {
+      data: {
+        type: 'appStoreVersionPhasedReleases',
+        id: phasedId,
         attributes: {
           phasedReleaseState: 'ACTIVE',
           startDate: today,
@@ -555,125 +574,194 @@ export class MockAppleAppStoreConnectService {
           }
         },
         links: {
-          self: `https://api.appstoreconnect.apple.com/v1/appStoreVersionPhasedReleases/${phasedReleaseId}`
+          self: `https://api.appstoreconnect.apple.com/v1/appStoreVersionPhasedReleases/${phasedId}`
+        }
+      }
+    };
+  }
+
+  /* ==================== REVIEW SUBMISSION ==================== */
+
+  /**
+   * Submit version for review
+   */
+  async submitForReview(versionId: string): Promise<any> {
+    console.log(`[MockApple] Submitting version ${versionId} for review`);
+    
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const submissionId = `submission-${versionId}`;
+    
+    this.db.reviewSubmissions.set(submissionId, {
+      versionId: versionId,
+      submittedDate: new Date().toISOString()
+    });
+    
+    console.log(`[MockApple] Submitted: ${submissionId}`);
+    
+    return {
+      data: {
+        type: 'appStoreReviewSubmissions',
+        id: submissionId,
+        attributes: {
+          submittedDate: new Date().toISOString()
+        },
+        relationships: {
+          appStoreVersion: {
+            data: {
+              type: 'appStoreVersions',
+              id: versionId
+            }
+          }
         }
       }
     };
   }
 
   /**
-   * Mock: Update reset ratings
-   * Returns Apple API formatted response
-   * 
-   * Apple API: Reset ratings is controlled via resetRatings boolean attribute
+   * Delete (cancel) a review submission
    */
-  async updateResetRatings(
+  async deleteVersionSubmissionRelationship(
     versionId: string,
-    resetRating: boolean
-  ): Promise<any> {
-    console.log(`[MockAppleService] Updating reset ratings to ${resetRating} for version ${versionId}`);
+    _appId?: string // Ignored
+  ): Promise<void> {
+    console.log(`[MockApple] Looking for review submissions for version ${versionId}...`);
     
-    // Return Apple API formatted response
+    // Find submission for this version
+    for (const [submissionId, submission] of this.db.reviewSubmissions.entries()) {
+      if (submission.versionId === versionId) {
+        console.log(`[MockApple] Found matching review submission: ${submissionId}`);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        this.db.reviewSubmissions.delete(submissionId);
+        console.log(`[MockApple] Successfully deleted review submission ${submissionId}`);
+        return;
+      }
+    }
+    
+    console.log(`[MockApple] No review submission found for version ${versionId}`);
+  }
+
+  /* ==================== HELPERS ==================== */
+
+  /**
+   * Get build by build number
+   */
+  async getBuildIdByBuildNumber(
+    _appId: string, // Ignored
+    buildNumber: string
+  ): Promise<string | null> {
+    console.log(`[MockApple] Getting build ID for build ${buildNumber}`);
+    const buildId = `build-${buildNumber}`;
+    console.log(`[MockApple] Found build ID: ${buildId}`);
+    return buildId;
+  }
+
+  /**
+   * Get associated build for version
+   */
+  async getAssociatedBuild(_versionId: string): Promise<any | null> {
+    return null;
+  }
+
+  /**
+   * Associate build with version
+   */
+  async associateBuildWithVersion(_versionId: string, _buildId: string): Promise<any> {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return { data: { type: 'builds', id: _buildId } };
+  }
+
+  /**
+   * Update release notes
+   */
+  async updateReleaseNotes(_versionId: string, releaseNotes: string): Promise<any> {
+    console.log(`[MockApple] Updating release notes (${releaseNotes.length} chars)`);
+    return {
+      data: {
+        type: 'appStoreVersionLocalizations',
+        id: 'mock-localization',
+        attributes: {
+          locale: 'en-US',
+          whatsNew: releaseNotes
+        }
+      }
+    };
+  }
+
+  /**
+   * Update app store version release type
+   */
+  async updateAppStoreVersionReleaseType(versionId: string): Promise<void> {
+    console.log(`[MockApple] Setting release type to AFTER_APPROVAL for version ${versionId}`);
+    const version = this.db.versions.get(versionId);
+    if (!version) {
+      throw new Error(`Version ${versionId} not found`);
+    }
+    // In real Apple API, this sets the release type to AFTER_APPROVAL
+    // For mock purposes, we just log it - no state change needed
+  }
+
+  /**
+   * Update reset ratings flag
+   */
+  async updateResetRatings(versionId: string, resetRatings: boolean): Promise<void> {
+    console.log(`[MockApple] Setting resetRatings=${resetRatings} for version ${versionId}`);
+    const version = this.db.versions.get(versionId);
+    if (!version) {
+      throw new Error(`Version ${versionId} not found`);
+    }
+    // In real Apple API, this determines if ratings are reset when version goes live
+    // For mock purposes, we just log it - no state change needed
+  }
+
+  /**
+   * Create app store version
+   */
+  async createAppStoreVersion(
+    _appId: string, // Ignored
+    versionString: string,
+    _platform: string = 'IOS'
+  ): Promise<any> {
+    console.log(`[MockApple] Creating version ${versionString}`);
+    
+    const versionId = `version-${versionString.replace(/\./g, '')}`;
+    
+    const newVersion: AppVersion = {
+      id: versionId,
+      versionString: versionString,
+      state: 'PREPARE_FOR_SUBMISSION',
+      buildId: null
+    };
+    
+    this.db.versions.set(versionId, newVersion);
+    
     return {
       data: {
         type: 'appStoreVersions',
         id: versionId,
         attributes: {
-          resetRatings: resetRating
+          platform: 'IOS',
+          versionString: versionString,
+          appStoreState: 'PREPARE_FOR_SUBMISSION'
         }
       }
     };
   }
 
-  /**
-   * Clear all mock data (useful for testing)
-   */
-  static clearMockData(): void {
-    MockAppleAppStoreConnectService.mockPhasedReleases.clear();
-    console.log('[MockAppleService] Cleared all mock phased release data');
-  }
+  /* ==================== DEBUG ==================== */
 
   /**
-   * Mock: Get app store review submission ID for a specific version
-   * Returns mock review submission ID
+   * Dump current state (for debugging)
    */
-  async getReviewSubmissionIdForVersion(appStoreVersionId: string): Promise<string | null> {
-    console.log(`[MockAppleService] Getting review submission for version ${appStoreVersionId}`);
-    
-    // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
-    // Generate mock review submission ID
-    const reviewSubmissionId = `mock-review-submission-${Date.now()}`;
-    
-    console.log(`[MockAppleService] Found review submission: ${reviewSubmissionId}`);
-    
-    return reviewSubmissionId;
-  }
-
-  /**
-   * Mock: Delete (cancel) an app store review submission
-   * Simulates canceling a submission in Apple App Store Connect
-   */
-  async deleteReviewSubmission(reviewSubmissionId: string): Promise<void> {
-    console.log(`[MockAppleService] Deleting review submission ${reviewSubmissionId}`);
-    
-    // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    console.log(`[MockAppleService] Successfully deleted review submission ${reviewSubmissionId}`);
-  }
-
-  /**
-   * Seed mock data for testing (creates ACTIVE and PAUSED phased releases)
-   * Call this when mock service is created to populate test data
-   * 
-   * @param appId - The App Store Connect app ID (e.g., "1234567890")
-   */
-  static seedTestData(appId: string = '1234567890'): void {
-    console.log(`[MockAppleService] Seeding test data for app ${appId}...`);
-    
-    // Create ACTIVE phased release for PAUSE testing (started 2 days ago)
-    const activePhasedRelease1 = {
-      id: 'mock-phased-active-1',
-      state: 'ACTIVE' as const,
-      appId: appId,
-      startDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      totalPauseDuration: 0,
-      currentDayNumber: 2,
-      appStoreVersionId: 'mock-version-1'
+  dumpState() {
+    return {
+      appId: this.appId,
+      versions: [...this.db.versions.values()],
+      phasedReleases: [...this.db.phasedReleases.values()],
+      reviewSubmissions: [...this.db.reviewSubmissions.entries()].map(([id, data]) => ({
+        id,
+        ...data
+      }))
     };
-    
-    // Create PAUSED phased release for RESUME testing (started 4 days ago, paused 2 days)
-    const pausedPhasedRelease = {
-      id: 'mock-phased-paused-1',
-      state: 'PAUSED' as const,
-      appId: appId,
-      startDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      totalPauseDuration: 2,
-      currentDayNumber: 4,
-      appStoreVersionId: 'mock-version-2'
-    };
-    
-    // Create ACTIVE phased release for COMPLETE testing (started 5 days ago)
-    const activePhasedRelease2 = {
-      id: 'mock-phased-active-2',
-      state: 'ACTIVE' as const,
-      appId: appId,
-      startDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      totalPauseDuration: 1,
-      currentDayNumber: 5,
-      appStoreVersionId: 'mock-version-3'
-    };
-    
-    MockAppleAppStoreConnectService.mockPhasedReleases.set(activePhasedRelease1.id, activePhasedRelease1);
-    MockAppleAppStoreConnectService.mockPhasedReleases.set(pausedPhasedRelease.id, pausedPhasedRelease);
-    MockAppleAppStoreConnectService.mockPhasedReleases.set(activePhasedRelease2.id, activePhasedRelease2);
-    
-    console.log('[MockAppleService] ✅ Seeded 3 phased releases:');
-    console.log(`  - ${activePhasedRelease1.id}: ACTIVE (for pause testing)`);
-    console.log(`  - ${pausedPhasedRelease.id}: PAUSED (for resume testing)`);
-    console.log(`  - ${activePhasedRelease2.id}: ACTIVE (for complete testing)`);
   }
 }
-

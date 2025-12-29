@@ -21,6 +21,8 @@ import { CronJobRepository } from '../../script/models/release/cron-job.reposito
 import { ReleaseTaskRepository } from '../../script/models/release/release-task.repository';
 import { RegressionCycleRepository } from '../../script/models/release/regression-cycle.repository';
 import { ReleasePlatformTargetMappingRepository } from '../../script/models/release/release-platform-target-mapping.repository';
+import { ReleaseUploadsRepository } from '../../script/models/release/release-uploads.repository';
+import { BuildRepository } from '../../script/models/release/build.repository';
 
 // Models
 import { createReleaseModel, ReleaseModelType } from '../../script/models/release/release.sequelize.model';
@@ -30,6 +32,7 @@ import { createRegressionCycleModel, RegressionCycleModelType } from '../../scri
 import { createPlatformTargetMappingModel } from '../../script/models/release/platform-target-mapping.sequelize.model';
 import { createStateHistoryModel } from '../../script/models/release/state-history.sequelize.model';
 import { createBuildModel } from '../../script/models/release/build.sequelize.model';
+import { createReleaseUploadModel } from '../../script/models/release/release-uploads.sequelize.model';
 
 // Enums & Types
 import {
@@ -113,18 +116,24 @@ interface TestRepositories {
   releaseTaskRepo: ReleaseTaskRepository;
   regressionCycleRepo: RegressionCycleRepository;
   platformMappingRepo: ReleasePlatformTargetMappingRepository;
+  releaseUploadsRepo: ReleaseUploadsRepository;
+  buildRepo: BuildRepository;
 }
 
 function createRepositories(sequelize: Sequelize): TestRepositories {
   const models = getOrCreateModels(sequelize);
   const PlatformTargetMappingModel = sequelize.models.PlatformTargetMapping || createPlatformTargetMappingModel(sequelize);
+  const ReleaseUploadModel = sequelize.models.ReleaseUpload || createReleaseUploadModel(sequelize);
+  const BuildModel = sequelize.models.Build || createBuildModel(sequelize);
   
   return {
     releaseRepo: new ReleaseRepository(models.releaseModel),
     cronJobRepo: new CronJobRepository(models.cronJobModel),
     releaseTaskRepo: new ReleaseTaskRepository(models.releaseTaskModel),
     regressionCycleRepo: new RegressionCycleRepository(models.regressionCycleModel),
-    platformMappingRepo: new ReleasePlatformTargetMappingRepository(PlatformTargetMappingModel as any)
+    platformMappingRepo: new ReleasePlatformTargetMappingRepository(PlatformTargetMappingModel as any),
+    releaseUploadsRepo: new ReleaseUploadsRepository(sequelize, ReleaseUploadModel as any),
+    buildRepo: new BuildRepository(BuildModel)
   };
 }
 
@@ -242,17 +251,23 @@ async function executeStateMachine(releaseId: string, storage: any): Promise<voi
   
   const sequelize = storage.sequelize;
   const models = getOrCreateModels(sequelize);
+  const PlatformTargetMappingModel = sequelize.models.PlatformTargetMapping || createPlatformTargetMappingModel(sequelize);
+  const ReleaseUploadModel = sequelize.models.ReleaseUpload || createReleaseUploadModel(sequelize);
+  const BuildModel = sequelize.models.Build || createBuildModel(sequelize);
   
   const releaseRepo = new ReleaseRepository(models.releaseModel);
   const cronJobRepo = new CronJobRepository(models.cronJobModel);
   const releaseTaskRepo = new ReleaseTaskRepository(models.releaseTaskModel);
   const regressionCycleRepo = new RegressionCycleRepository(models.regressionCycleModel);
+  const platformMappingRepo = new ReleasePlatformTargetMappingRepository(PlatformTargetMappingModel as any);
+  const releaseUploadsRepo = new ReleaseUploadsRepository(sequelize, ReleaseUploadModel as any);
+  const buildRepo = new BuildRepository(BuildModel);
   
   // Use test factory (auto-injects MockSCMService)
   const taskExecutor = createTaskExecutorForTests(sequelize);
   
   // Create and execute state machine
-  // Constructor signature: (releaseId, cronJobRepo, releaseRepo, releaseTaskRepo, regressionCycleRepo, taskExecutor, storage)
+  // Constructor signature: (releaseId, cronJobRepo, releaseRepo, releaseTaskRepo, regressionCycleRepo, taskExecutor, storage, platformMappingRepo, releaseUploadsRepo, buildRepo)
   const stateMachine = new CronJobStateMachine(
     releaseId,
     cronJobRepo,
@@ -260,7 +275,10 @@ async function executeStateMachine(releaseId: string, storage: any): Promise<voi
     releaseTaskRepo,
     regressionCycleRepo,
     taskExecutor as any,
-    storage
+    storage,
+    platformMappingRepo,  // ✅ Required - actively initialized in aws-storage.ts
+    releaseUploadsRepo,  // ✅ Required - actively initialized in aws-storage.ts
+    buildRepo  // ✅ Required - actively initialized in aws-storage.ts
   );
   
   await stateMachine.initialize();
@@ -346,7 +364,7 @@ async function runRealReleaseSimulation() {
   // -------------------------------------------------------------------------
   // SETUP: Get Repositories
   // -------------------------------------------------------------------------
-  const { releaseRepo, cronJobRepo, releaseTaskRepo, regressionCycleRepo, platformMappingRepo } = createRepositories(sequelize);
+  const { releaseRepo, cronJobRepo, releaseTaskRepo, regressionCycleRepo, platformMappingRepo, releaseUploadsRepo, buildRepo } = createRepositories(sequelize);
 
   // -------------------------------------------------------------------------
   // STEP 1: Create Release

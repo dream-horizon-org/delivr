@@ -10,15 +10,15 @@
  */
 
 import type { BuildRepository, Build } from '~models/release/build.repository';
-import type { CiRunType } from '~types/release-management/builds';
+import { BUILD_UPLOAD_STATUS, WORKFLOW_STATUS, type CiRunType } from '~types/release-management/builds';
 import { JenkinsWorkflowService } from '~services/integrations/ci-cd/workflows/jenkins-workflow.service';
 import { GitHubActionsWorkflowService } from '~services/integrations/ci-cd/workflows/github-actions-workflow.service';
 import { BuildCallbackService } from '../build-callback.service';
-import type {
-  PollPendingResult,
-  PollRunningResult,
-  BuildPollResult,
-  WorkflowStatusCheckResult
+import {
+  type PollPendingResult,
+  type PollRunningResult,
+  type BuildPollResult,
+  type WorkflowStatusCheckResult
 } from './workflow-polling.interface';
 import { WORKFLOW_POLLING_ERROR_MESSAGES } from './workflow-polling.constants';
 import { createScopedLogger } from '~utils/logger.utils';
@@ -85,6 +85,10 @@ export class WorkflowPollingService {
     tenantId: string,
     queueLocation: string
   ): Promise<WorkflowStatusCheckResult> => {
+    if(!queueLocation || queueLocation.trim().length === 0) {
+      log.error('Jenkins queueLocation is missing or empty', { tenantId });
+      throw new Error('Jenkins queueLocation is required for status check');
+    }
     const result = await this.jenkinsService.getQueueStatus(tenantId, queueLocation);
     return {
       status: result.status,
@@ -100,7 +104,7 @@ export class WorkflowPollingService {
     ciRunId: string
   ): Promise<WorkflowStatusCheckResult> => {
     const result = await this.jenkinsService.getBuildStatus(tenantId, ciRunId);
-    return { status: result.status };
+    return { status: result.status, ciRunId };
   };
 
   /**
@@ -110,10 +114,16 @@ export class WorkflowPollingService {
     tenantId: string,
     queueLocation: string
   ): Promise<WorkflowStatusCheckResult> => {
+    const queueLocationMissing = !queueLocation || queueLocation.trim().length === 0;
+    if (queueLocationMissing) {
+      log.error('GitHub Actions queueLocation is missing or empty', { tenantId });
+      throw new Error('GitHub Actions queueLocation is required for status check');
+    }
+    
     const status = await this.ghaService.getRunStatus(tenantId, { runUrl: queueLocation });
     return {
       status,
-      ciRunId: queueLocation // For GHA, ciRunId = queueLocation
+      ciRunId: queueLocation
     };
   };
 
@@ -128,7 +138,7 @@ export class WorkflowPollingService {
     ciRunId: string
   ): Promise<WorkflowStatusCheckResult> => {
     const status = await this.ghaService.getRunStatus(tenantId, { runUrl: ciRunId });
-    return { status };
+    return { status, ciRunId };
   };
 
   /**
@@ -189,7 +199,7 @@ export class WorkflowPollingService {
   ): Promise<PollPendingResult> => {
     const pendingBuilds = await this.buildRepo.findCiCdBuildsByReleaseAndWorkflowStatus(
       releaseId,
-      'PENDING'
+      WORKFLOW_STATUS.PENDING
     );
 
     const results: BuildPollResult[] = [];
@@ -212,8 +222,19 @@ export class WorkflowPollingService {
     // Trigger ONE callback per task that had ANY status change
     let callbacks = 0;
     for (const taskId of taskIdsWithChanges) {
-      await this.callbackService.processCallback(taskId);
-      callbacks++;
+      try {
+        log.info('Triggering callback for task after build updates', { taskId, releaseId });
+        await this.callbackService.processCallback(taskId);
+        callbacks++;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        log.error('Failed to process callback', {
+          taskId,
+          releaseId,
+          error: errorMessage
+        });
+        // Continue with other callbacks - don't fail entire poll
+      }
     }
 
     log.info('Pending poll completed', {
@@ -243,7 +264,7 @@ export class WorkflowPollingService {
   ): Promise<PollRunningResult> => {
     const runningBuilds = await this.buildRepo.findCiCdBuildsByReleaseAndWorkflowStatus(
       releaseId,
-      'RUNNING'
+      WORKFLOW_STATUS.RUNNING
     );
 
     const results: BuildPollResult[] = [];
@@ -266,8 +287,19 @@ export class WorkflowPollingService {
     // Trigger ONE callback per task that had ANY status change
     let callbacks = 0;
     for (const taskId of taskIdsWithChanges) {
-      await this.callbackService.processCallback(taskId);
-      callbacks++;
+      try {
+        log.info('Triggering callback for task after build updates', { taskId, releaseId });
+        await this.callbackService.processCallback(taskId);
+        callbacks++;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        log.error('Failed to process callback', {
+          taskId,
+          releaseId,
+          error: errorMessage
+        });
+        // Continue with other callbacks - don't fail entire poll
+      }
     }
 
     log.info('Running poll completed', {
@@ -295,7 +327,7 @@ export class WorkflowPollingService {
     tenantId: string
   ): Promise<BuildPollResult> => {
     const buildId = build.id;
-    const previousStatus = build.workflowStatus ?? 'PENDING';
+    const previousStatus = build.workflowStatus;
 
     // Check for missing queueLocation
     const queueLocation = build.queueLocation;
@@ -337,41 +369,54 @@ export class WorkflowPollingService {
         return {
           buildId,
           previousStatus,
-          newStatus: 'PENDING',
+          newStatus: WORKFLOW_STATUS.PENDING,
           updated: false
         };
       }
 
       const isRunning = statusResult.status === 'running';
-      const isCompleted = statusResult.status === 'completed';
-      const jobStarted = isRunning || isCompleted;
-
-      if (jobStarted) {
+      if (isRunning) {
         // Job has started - update with ciRunId
         await this.buildRepo.update(buildId, {
           ciRunId: statusResult.ciRunId,
-          workflowStatus: 'RUNNING'
+          workflowStatus: WORKFLOW_STATUS.RUNNING
         });
         return {
           buildId,
           previousStatus,
-          newStatus: 'RUNNING',
+          newStatus: WORKFLOW_STATUS.RUNNING,
           updated: true,
           ciRunId: statusResult.ciRunId
         };
       }
 
-      const isCancelled = statusResult.status === 'cancelled';
-      if (isCancelled) {
+      const isFailed = statusResult.status === 'cancelled' || statusResult.status === 'failed';
+
+      if (isFailed) {
         // Job was cancelled from queue
         await this.buildRepo.update(buildId, {
-          workflowStatus: 'FAILED',
-          buildUploadStatus: 'FAILED'
+          workflowStatus: WORKFLOW_STATUS.FAILED,
+          buildUploadStatus: BUILD_UPLOAD_STATUS.FAILED,
+          ciRunId: statusResult.ciRunId
         });
         return {
           buildId,
           previousStatus,
-          newStatus: 'FAILED',
+          newStatus: WORKFLOW_STATUS.FAILED,
+          updated: true
+        };
+      }
+
+      const isCompleted = statusResult.status === 'completed';
+      if (isCompleted) {
+        await this.buildRepo.update(buildId, {
+          workflowStatus: WORKFLOW_STATUS.COMPLETED,
+          ciRunId: statusResult.ciRunId
+        });
+        return {
+          buildId,
+          previousStatus,
+          newStatus: WORKFLOW_STATUS.COMPLETED,
           updated: true
         };
       }
@@ -405,7 +450,7 @@ export class WorkflowPollingService {
     tenantId: string
   ): Promise<BuildPollResult> => {
     const buildId = build.id;
-    const previousStatus = build.workflowStatus ?? 'RUNNING';
+    const previousStatus = build.workflowStatus;
 
     // Check for missing ciRunId
     const ciRunId = build.ciRunId;
@@ -447,7 +492,7 @@ export class WorkflowPollingService {
         return {
           buildId,
           previousStatus,
-          newStatus: 'RUNNING',
+          newStatus: WORKFLOW_STATUS.RUNNING,
           updated: false
         };
       }
@@ -455,27 +500,27 @@ export class WorkflowPollingService {
       const isCompleted = statusResult.status === 'completed';
       if (isCompleted) {
         await this.buildRepo.update(buildId, {
-          workflowStatus: 'COMPLETED'
+          workflowStatus: WORKFLOW_STATUS.COMPLETED,
           // Note: buildUploadStatus is set by artifact upload API, not here
         });
         return {
           buildId,
           previousStatus,
-          newStatus: 'COMPLETED',
+          newStatus: WORKFLOW_STATUS.COMPLETED,
           updated: true
         };
       }
 
-      const isFailed = statusResult.status === 'failed';
+      const isFailed = statusResult.status === 'failed' || statusResult.status === 'cancelled';
       if (isFailed) {
         await this.buildRepo.update(buildId, {
-          workflowStatus: 'FAILED',
-          buildUploadStatus: 'FAILED'
+          workflowStatus: WORKFLOW_STATUS.FAILED,
+          buildUploadStatus: BUILD_UPLOAD_STATUS.FAILED
         });
         return {
           buildId,
           previousStatus,
-          newStatus: 'FAILED',
+          newStatus: WORKFLOW_STATUS.FAILED,
           updated: true
         };
       }

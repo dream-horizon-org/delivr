@@ -21,6 +21,7 @@ import { ReleaseTaskRepository } from '../../script/models/release/release-task.
 import { RegressionCycleRepository } from '../../script/models/release/regression-cycle.repository';
 import { ReleasePlatformTargetMappingRepository } from '../../script/models/release/release-platform-target-mapping.repository';
 import { ReleaseUploadsRepository } from '../../script/models/release/release-uploads.repository';
+import { BuildRepository } from '../../script/models/release/build.repository';
 
 // Models
 import { createReleaseModel, ReleaseModelType } from '../../script/models/release/release.sequelize.model';
@@ -115,12 +116,14 @@ interface TestRepositories {
   regressionCycleRepo: RegressionCycleRepository;
   platformMappingRepo: ReleasePlatformTargetMappingRepository;
   releaseUploadsRepo: ReleaseUploadsRepository;
+  buildRepo: BuildRepository;
 }
 
 function createRepositories(sequelize: Sequelize): TestRepositories {
   const models = getOrCreateModels(sequelize);
   const PlatformTargetMappingModel = sequelize.models.PlatformTargetMapping || createPlatformTargetMappingModel(sequelize);
   const ReleaseUploadModel = sequelize.models.ReleaseUpload || createReleaseUploadModel(sequelize);
+  const BuildModel = sequelize.models.Build || createBuildModel(sequelize);
   
   return {
     releaseRepo: new ReleaseRepository(models.releaseModel),
@@ -128,7 +131,8 @@ function createRepositories(sequelize: Sequelize): TestRepositories {
     releaseTaskRepo: new ReleaseTaskRepository(models.releaseTaskModel),
     regressionCycleRepo: new RegressionCycleRepository(models.regressionCycleModel),
     platformMappingRepo: new ReleasePlatformTargetMappingRepository(PlatformTargetMappingModel as any),
-    releaseUploadsRepo: new ReleaseUploadsRepository(sequelize, ReleaseUploadModel as any)
+    releaseUploadsRepo: new ReleaseUploadsRepository(sequelize, ReleaseUploadModel as any),
+    buildRepo: new BuildRepository(BuildModel)
   };
 }
 
@@ -416,7 +420,7 @@ async function runPhase18ManualUploadSimulation() {
   // -------------------------------------------------------------------------
   // SETUP: Get Repositories
   // -------------------------------------------------------------------------
-  const { releaseRepo, cronJobRepo, releaseTaskRepo, regressionCycleRepo, platformMappingRepo, releaseUploadsRepo } = createRepositories(sequelize);
+  const { releaseRepo, cronJobRepo, releaseTaskRepo, regressionCycleRepo, platformMappingRepo, releaseUploadsRepo, buildRepo } = createRepositories(sequelize);
 
   // -------------------------------------------------------------------------
   // STEP 1: Create Release with hasManualBuildUpload = true
@@ -665,7 +669,8 @@ async function runPhase18ManualUploadSimulation() {
         taskExecutor as any,
         storage as any,
         platformMappingRepo,   // ✅ Required for platform list
-        releaseUploadsRepo     // ✅ Phase 18: Required for manual upload processing!
+        releaseUploadsRepo,     // ✅ Phase 18: Required for manual upload processing!
+        buildRepo  // ✅ Required - actively initialized in aws-storage.ts
       );
       
       await stateMachine.initialize();

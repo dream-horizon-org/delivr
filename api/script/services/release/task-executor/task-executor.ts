@@ -13,8 +13,8 @@ import { ReleaseRepository } from '../../../models/release/release.repository';
 import type { Release, ReleaseTask } from '../../../models/release/release.interface';
 import { TaskType, TaskStatus, ReleaseStatus, TaskStage, PauseType } from '../../../models/release/release.interface';
 import { CronJobRepository } from '../../../models/release/cron-job.repository';
-import { getStorage } from '../../../storage/storage-instance';
-import { hasSequelize } from '../../../types/release/api-types';
+import { RegressionCycleRepository } from '../../../models/release/regression-cycle.repository';
+// Note: Removed getStorage() and hasSequelize imports - Sequelize is now passed directly to constructor (avoids circular dependency)
 
 // Phase 6: Real integration services (DI)
 import { SCMService } from '../../integrations/scm/scm.service';
@@ -45,6 +45,8 @@ import {
   WORKFLOW_STATUS
 } from '~types/release-management/builds';
 import { generatePlatformVersionString } from '../release.utils';
+import { getTaskNameWithStage, TASK_TYPE_TO_NAME } from './task-executor.constants';
+import { buildDelivrUrl } from './task-executor.utils';
 
 /**
  * Task execution result
@@ -118,9 +120,10 @@ export class TaskExecutor {
   private releaseTaskRepo: ReleaseTaskRepository;
   private releaseRepo: ReleaseRepository;
   private sequelize: Sequelize;
-  private releaseUploadsRepo: ReleaseUploadsRepository | null;
+  private releaseUploadsRepo: ReleaseUploadsRepository;
   private cicdConfigService: CICDConfigService;
-  private cronJobRepo: CronJobRepository | null;
+  private cronJobRepo: CronJobRepository;
+  private regressionCycleRepo: RegressionCycleRepository;
 
   constructor(
     private scmService: SCMService,
@@ -133,22 +136,22 @@ export class TaskExecutor {
     private releaseConfigRepository: ReleaseConfigRepository,
     releaseTaskRepo: ReleaseTaskRepository,
     releaseRepo: ReleaseRepository,
-    releaseUploadsRepo?: ReleaseUploadsRepository | null,
-    cronJobRepo?: CronJobRepository | null,
-    private releaseNotificationService?: ReleaseNotificationService
+    releaseUploadsRepo: ReleaseUploadsRepository,  // ✅ Required - actively initialized in aws-storage.ts
+    cronJobRepo: CronJobRepository,  // ✅ Required - actively initialized in aws-storage.ts
+    private releaseNotificationService: ReleaseNotificationService | undefined,
+    sequelize: Sequelize,  // ✅ Pass Sequelize directly instead of calling getStorage() (avoids circular dependency)
+    regressionCycleRepo: RegressionCycleRepository  // ✅ Required - actively initialized in aws-storage.ts
   ) {
     this.releaseTaskRepo = releaseTaskRepo;
     this.releaseRepo = releaseRepo;
-    this.releaseUploadsRepo = releaseUploadsRepo ?? null;
+    this.releaseUploadsRepo = releaseUploadsRepo;  // ✅ Active initialization - no lazy initialization
     this.cicdConfigService = cicdConfigService;
-    this.cronJobRepo = cronJobRepo ?? null;
+    this.cronJobRepo = cronJobRepo;  // ✅ Active initialization - no lazy initialization
+    this.regressionCycleRepo = regressionCycleRepo;  // ✅ Active initialization - no lazy initialization
     
-    // Initialize Sequelize instance (validate once at construction)
-    const storage = getStorage();
-    if (!hasSequelize(storage)) {
-      throw new Error(RELEASE_ERROR_MESSAGES.STORAGE_NO_SEQUELIZE);
-    }
-    this.sequelize = storage.sequelize;
+    // ✅ Use passed Sequelize instance instead of calling getStorage() (avoids circular dependency)
+    // This allows TaskExecutor to be created during storage setup without requiring storage to be initialized first
+    this.sequelize = sequelize;
   }
 
   /**
@@ -296,6 +299,14 @@ export class TaskExecutor {
           await this.notifyTestManagementLinks(context, externalData, externalId);
           break;
 
+        case TaskType.CREATE_RELEASE_NOTES:
+          await this.notifyReleaseNotes(context, externalData, externalId);
+          break;
+
+        case TaskType.CREATE_FINAL_RELEASE_NOTES:
+          await this.notifyFinalReleaseNotes(context, externalData, externalId);
+          break;
+
         default:
           // No notification for other task types yet
           console.log(`[TaskExecutor] No notification configured for task type: ${taskType}`);
@@ -335,18 +346,17 @@ export class TaskExecutor {
 
   /**
    * Send PROJECT_MANAGEMENT_LINKS notification
+   * 
+   * IMPORTANT: Re-fetches platformTargetMappings from DB to get fresh data.
+   * The context.platformTargetMappings may be stale (fetched before task execution),
+   * but the task updates projectManagementRunId in the DB during execution.
    */
   private async notifyProjectManagementLinks(
     context: TaskExecutionContext,
     _externalData: Record<string, unknown> | null,
     _externalId: string | null
   ): Promise<void> {
-    const { tenantId, releaseId, release, platformTargetMappings } = context;
-
-    if (!platformTargetMappings || platformTargetMappings.length === 0) {
-      console.log('[TaskExecutor] No platform mappings, skipping PM notification');
-      return;
-    }
+    const { tenantId, releaseId, release } = context;
 
     // Get release config
     const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
@@ -357,9 +367,22 @@ export class TaskExecutor {
       return;
     }
 
+    // Re-fetch fresh platform mappings from DB (context may have stale data)
+    const PlatformTargetMappingModel = this.sequelize.models.PlatformTargetMapping;
+    const freshMappingsRaw = await PlatformTargetMappingModel.findAll({
+      where: { releaseId },
+      raw: true
+    });
+    const freshMappings = freshMappingsRaw as unknown as PlatformTargetMapping[];
+
+    if (!freshMappings || freshMappings.length === 0) {
+      console.log('[TaskExecutor] No platform mappings found in DB, skipping PM notification');
+      return;
+    }
+
     // Fetch ticket URLs for each platform
     const links: string[] = [];
-    for (const mapping of platformTargetMappings) {
+    for (const mapping of freshMappings) {
       if (mapping.projectManagementRunId) {
         try {
           const ticketUrl = await this.pmTicketService.getTicketUrl({
@@ -392,18 +415,17 @@ export class TaskExecutor {
 
   /**
    * Send TEST_MANAGEMENT_LINKS notification
+   * 
+   * IMPORTANT: Re-fetches platformTargetMappings from DB to get fresh data.
+   * The context.platformTargetMappings may be stale (fetched before task execution),
+   * but the task updates testManagementRunId in the DB during execution.
    */
   private async notifyTestManagementLinks(
     context: TaskExecutionContext,
     _externalData: Record<string, unknown> | null,
     _externalId: string | null
   ): Promise<void> {
-    const { tenantId, releaseId, release, platformTargetMappings } = context;
-
-    if (!platformTargetMappings || platformTargetMappings.length === 0) {
-      console.log('[TaskExecutor] No platform mappings, skipping test management notification');
-      return;
-    }
+    const { tenantId, releaseId, release } = context;
 
     // Get release config
     const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
@@ -414,9 +436,22 @@ export class TaskExecutor {
       return;
     }
 
+    // Re-fetch fresh platform mappings from DB (context may have stale data)
+    const PlatformTargetMappingModel = this.sequelize.models.PlatformTargetMapping;
+    const freshMappingsRaw = await PlatformTargetMappingModel.findAll({
+      where: { releaseId },
+      raw: true
+    });
+    const freshMappings = freshMappingsRaw as unknown as PlatformTargetMapping[];
+
+    if (!freshMappings || freshMappings.length === 0) {
+      console.log('[TaskExecutor] No platform mappings found in DB, skipping test management notification');
+      return;
+    }
+
     // Fetch run URLs for each platform
     const links: string[] = [];
-    for (const mapping of platformTargetMappings) {
+    for (const mapping of freshMappings) {
       if (mapping.testManagementRunId) {
         try {
           const runUrl = await this.testRunService.getRunUrl({
@@ -445,6 +480,103 @@ export class TaskExecutor {
     });
 
     console.log(`[TaskExecutor] Sent TEST_MANAGEMENT_LINKS notification for release ${releaseId}`);
+  }
+
+  /**
+   * Send RELEASE_NOTES notification (for regression cycles)
+   */
+  private async notifyReleaseNotes(
+    context: TaskExecutionContext,
+    externalData: Record<string, unknown> | null,
+    _externalId: string | null
+  ): Promise<void> {
+    if (!externalData || !externalData.notes || !externalData.currentTag) {
+      console.log('[TaskExecutor] Missing release notes data, skipping notification');
+      return;
+    }
+
+    const { tenantId, releaseId } = context;
+    const notes = String(externalData.notes);
+    const currentTag = String(externalData.currentTag);
+    const previousTag = externalData.previousTag ? String(externalData.previousTag) : currentTag;
+
+    await this.releaseNotificationService!.notify({
+      type: NotificationType.RELEASE_NOTES,
+      tenantId,
+      releaseId,
+      startTag: previousTag,
+      endTag: currentTag,
+      tagChangeLog: notes,
+      isSystemGenerated: true
+    });
+
+    console.log(`[TaskExecutor] Sent RELEASE_NOTES notification for release ${releaseId}`);
+  }
+
+  /**
+   * Send FINAL_RELEASE_NOTES notification (for final release)
+   */
+  private async notifyFinalReleaseNotes(
+    context: TaskExecutionContext,
+    externalData: Record<string, unknown> | null,
+    _externalId: string | null
+  ): Promise<void> {
+    if (!externalData || !externalData.releaseUrl || !externalData.currentTag) {
+      console.log('[TaskExecutor] Missing final release notes data, skipping notification');
+      return;
+    }
+
+    const { tenantId, releaseId } = context;
+    const releaseUrl = String(externalData.releaseUrl);
+    const releaseTag = String(externalData.currentTag);
+
+    await this.releaseNotificationService!.notify({
+      type: NotificationType.FINAL_RELEASE_NOTES,
+      tenantId,
+      releaseId,
+      releaseTag,
+      releaseUrl,
+      isSystemGenerated: true
+    });
+
+    console.log(`[TaskExecutor] Sent FINAL_RELEASE_NOTES notification for release ${releaseId}`);
+  }
+
+  /**
+   * Send TASK_FAILED notification
+   */
+  private async notifyTaskFailure(
+    context: TaskExecutionContext,
+    task: ReleaseTask,
+    errorMessage: string
+  ): Promise<void> {
+    if (!this.releaseNotificationService) {
+      return; // Service not available, skip notification
+    }
+
+    try {
+      // Get task name with stage prefix (e.g., "Kickoff: Branch Forkout")
+      const taskName = getTaskNameWithStage(task.taskType);
+      
+      // Build Delivr URL
+      const delivrUrl = buildDelivrUrl(context.tenantId, context.releaseId);
+
+      // Send notification
+      await this.releaseNotificationService.notify({
+        type: NotificationType.TASK_FAILED,
+        tenantId: context.tenantId,
+        releaseId: context.releaseId,
+        taskName: taskName,
+        delivrUrl: delivrUrl,
+        isSystemGenerated: true
+      });
+
+      console.log(`[TaskExecutor] Sent TASK_FAILED notification for task ${task.id}`);
+    } catch (error) {
+      // Log but don't throw - notification failure shouldn't break the failure handler
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[TaskExecutor] Failed to send TASK_FAILED notification:`, errorMessage);
+    }
   }
 
   /**
@@ -573,14 +705,16 @@ export class TaskExecutor {
       );
       
       // Set pauseType on cronJob so scheduler knows why it's paused
-      if (this.cronJobRepo) {
-        const cronJob = await this.cronJobRepo.findByReleaseId(context.releaseId);
-        if (cronJob) {
-          await this.cronJobRepo.update(cronJob.id, { pauseType: PauseType.TASK_FAILURE });
-        }
+      // ✅ cronJobRepo is required - actively initialized in aws-storage.ts, no null check needed
+      const cronJob = await this.cronJobRepo.findByReleaseId(context.releaseId);
+      if (cronJob) {
+        await this.cronJobRepo.update(cronJob.id, { pauseType: PauseType.TASK_FAILURE });
       }
       
       console.log(`[TaskExecutor] Release ${context.releaseId} PAUSED due to task failure. Can be resumed after fix.`);
+
+      // Send TASK_FAILED notification
+      await this.notifyTaskFailure(context, task, errorMessage);
 
       return {
         success: false,
@@ -753,6 +887,13 @@ export class TaskExecutor {
     for (const mapping of platformMappings) {
       const platformName = mapping.platform;
       
+      // ✅ Idempotency check: Skip if ticket already created for this platform
+      if (mapping.projectManagementRunId) {
+        console.log(`[TaskExecutor] [CREATE_PROJECT_MANAGEMENT_TICKET] Skipping ${platformName} - ticket already exists: ${mapping.projectManagementRunId}`);
+        ticketIds.push(mapping.projectManagementRunId);
+        continue;
+      }
+      
       // Call PM service for this platform
       const results = await this.pmTicketService.createTickets({
         pmConfigId: pmConfigId,
@@ -843,6 +984,13 @@ export class TaskExecutor {
     for (const mapping of platformMappings) {
       const platformName = mapping.platform;
       
+      // ✅ Idempotency check: Skip if test run already created for this platform
+      if (mapping.testManagementRunId) {
+        console.log(`[TaskExecutor] [CREATE_TEST_SUITE] Skipping ${platformName} - test run already exists: ${mapping.testManagementRunId}`);
+        runIds.push(mapping.testManagementRunId);
+        continue;
+      }
+      
       // Call service with specific platform filter to avoid creating duplicate runs
       const results = await this.testRunService.createTestRuns({
         testManagementConfigId: testConfigId,
@@ -915,9 +1063,7 @@ export class TaskExecutor {
     if (release.hasManualBuildUpload) {
       console.log(`[TaskExecutor] Manual mode for KICKOFF: checking uploads for platforms [${platforms.join(', ')}]`);
       
-      if (!this.releaseUploadsRepo) {
-        throw new Error(RELEASE_ERROR_MESSAGES.RELEASE_UPLOADS_REPO_NOT_AVAILABLE);
-      }
+      // ✅ releaseUploadsRepo is required - actively initialized in aws-storage.ts, no null check needed
 
       // Check if all platforms have uploads ready
       const readiness = await this.releaseUploadsRepo.checkAllPlatformsReady(
@@ -929,6 +1075,31 @@ export class TaskExecutor {
       console.log(`[TaskExecutor] Manual mode check for KICKOFF: allReady=${readiness.allReady}, uploaded=[${readiness.uploadedPlatforms.join(',')}], missing=[${readiness.missingPlatforms.join(',')}]`);
 
       if (!readiness.allReady) {
+        // Guard: Only send notification if task is NOT already AWAITING_MANUAL_BUILD
+        const isNotAlreadyAwaiting = task.taskStatus !== TaskStatus.AWAITING_MANUAL_BUILD;
+        
+        if (isNotAlreadyAwaiting && this.releaseNotificationService) {
+          try {
+            const buildType = TASK_TYPE_TO_NAME[task.taskType];
+            const delivrUrl = buildDelivrUrl(context.tenantId, context.releaseId);
+            
+            await this.releaseNotificationService.notify({
+              type: NotificationType.MANUAL_BUILD_UPLOAD_REMINDER,
+              tenantId: context.tenantId,
+              releaseId: context.releaseId,
+              buildType: buildType,
+              delivrUrl: delivrUrl,
+              isSystemGenerated: true
+            });
+            
+            console.log(`[TaskExecutor] Sent MANUAL_BUILD_UPLOAD_REMINDER notification for task ${task.id} (${buildType})`);
+          } catch (error) {
+            // Log but don't throw - notification failure shouldn't block status update
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(`[TaskExecutor] Failed to send manual build upload reminder notification:`, errorMessage);
+          }
+        }
+        
         // Set task to AWAITING_MANUAL_BUILD - waiting for user to upload builds
         await this.releaseTaskRepo.update(task.id, {
           taskStatus: TaskStatus.AWAITING_MANUAL_BUILD
@@ -1009,6 +1180,21 @@ export class TaskExecutor {
       const platformName = mapping.platform;
       const targetName = mapping.target;
 
+      // ✅ Idempotency check: Skip if build already uploaded for this platform
+      const existingBuild = await BuildModel.findOne({
+        where: {
+          taskId: task.id,
+          platform: platformName,
+          buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED
+        }
+      });
+
+      if (existingBuild) {
+        console.log(`[TaskExecutor] [TRIGGER_PRE_REGRESSION_BUILDS] Skipping ${platformName} - build already uploaded: ${existingBuild.get('id')}`);
+        buildIds.push(existingBuild.get('id') as string);
+        continue;
+      }
+
       try {
         const result = await this.triggerWorkflowByConfigId(
           ciConfigId,
@@ -1016,10 +1202,8 @@ export class TaskExecutor {
           platformName,
           WorkflowType.PRE_REGRESSION_BUILD,
           {
-            platform: platformName,
             version: mapping.version,
             branch: release.branch,
-            buildType: CICD_JOB_BUILD_TYPE.PRE_REGRESSION
           }
         );
 
@@ -1231,12 +1415,9 @@ export class TaskExecutor {
     }
 
     // Get previous tag (from previous cycle or base release)
+    // ✅ Use regressionCycleRepository from storage (passed via constructor) - actively initialized, always available
     let previousTag: string | undefined;
-    const { createRegressionCycleModel } = await import('../../../models/release/regression-cycle.sequelize.model');
-    const { RegressionCycleRepository } = await import('../../../models/release/regression-cycle.repository');
-    const regressionCycleModel = createRegressionCycleModel(this.sequelize);
-    const regressionCycleRepo = new RegressionCycleRepository(regressionCycleModel);
-    const previousCycle = await regressionCycleRepo.findPrevious(context.releaseId);
+    const previousCycle = await this.regressionCycleRepo.findPrevious(context.releaseId);
     if (previousCycle && previousCycle.length > 0) {
       previousTag = previousCycle[0].cycleTag || undefined;
     }
@@ -1299,9 +1480,7 @@ export class TaskExecutor {
     if (release.hasManualBuildUpload) {
       console.log(`[TaskExecutor] Manual mode for REGRESSION (cycle ${task.regressionId}): checking uploads for platforms [${platforms.join(', ')}]`);
       
-      if (!this.releaseUploadsRepo) {
-        throw new Error(RELEASE_ERROR_MESSAGES.RELEASE_UPLOADS_REPO_NOT_AVAILABLE);
-      }
+      // ✅ releaseUploadsRepo is required - actively initialized in aws-storage.ts, no null check needed
 
       // Check if all platforms have uploads ready
       const readiness = await this.releaseUploadsRepo.checkAllPlatformsReady(
@@ -1313,6 +1492,31 @@ export class TaskExecutor {
       console.log(`[TaskExecutor] Manual mode check for REGRESSION: allReady=${readiness.allReady}, uploaded=[${readiness.uploadedPlatforms.join(',')}], missing=[${readiness.missingPlatforms.join(',')}]`);
 
       if (!readiness.allReady) {
+        // Guard: Only send notification if task is NOT already AWAITING_MANUAL_BUILD
+        const isNotAlreadyAwaiting = task.taskStatus !== TaskStatus.AWAITING_MANUAL_BUILD;
+        
+        if (isNotAlreadyAwaiting && this.releaseNotificationService) {
+          try {
+            const buildType = TASK_TYPE_TO_NAME[task.taskType];
+            const delivrUrl = buildDelivrUrl(context.tenantId, context.releaseId);
+            
+            await this.releaseNotificationService.notify({
+              type: NotificationType.MANUAL_BUILD_UPLOAD_REMINDER,
+              tenantId: context.tenantId,
+              releaseId: context.releaseId,
+              buildType: buildType,
+              delivrUrl: delivrUrl,
+              isSystemGenerated: true
+            });
+            
+            console.log(`[TaskExecutor] Sent MANUAL_BUILD_UPLOAD_REMINDER notification for task ${task.id} (${buildType})`);
+          } catch (error) {
+            // Log but don't throw - notification failure shouldn't block status update
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(`[TaskExecutor] Failed to send manual build upload reminder notification:`, errorMessage);
+          }
+        }
+        
         // Set task to AWAITING_MANUAL_BUILD - waiting for user to upload regression builds
         await this.releaseTaskRepo.update(task.id, {
           taskStatus: TaskStatus.AWAITING_MANUAL_BUILD
@@ -1393,6 +1597,21 @@ export class TaskExecutor {
       const platformName = mapping.platform;
       const targetName = mapping.target;
 
+      // ✅ Idempotency check: Skip if build already uploaded for this platform
+      const existingBuild = await BuildModel.findOne({
+        where: {
+          taskId: task.id,
+          platform: platformName,
+          buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED
+        }
+      });
+
+      if (existingBuild) {
+        console.log(`[TaskExecutor] [TRIGGER_REGRESSION_BUILDS] Skipping ${platformName} - build already uploaded: ${existingBuild.get('id')}`);
+        buildIds.push(existingBuild.get('id') as string);
+        continue;
+      }
+
       try {
         const result = await this.triggerWorkflowByConfigId(
           ciConfigId,
@@ -1400,11 +1619,8 @@ export class TaskExecutor {
           platformName,
           WorkflowType.REGRESSION_BUILD,
           {
-            platform: platformName,
             version: mapping.version,
             branch: release.branch,
-            buildType: CICD_JOB_BUILD_TYPE.REGRESSION,
-            regressionId: task.regressionId
           }
         );
 
@@ -1536,11 +1752,17 @@ export class TaskExecutor {
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
-    const { release, tenantId: _tenantId, task } = context;
+    const { release, tenantId: _tenantId, task, platformTargetMappings } = context;
 
     if (!this.testRunService) {
       throw new Error(RELEASE_ERROR_MESSAGES.TEST_PLATFORM_NOT_AVAILABLE);
     }
+
+    // Get first platform from platformTargetMappings
+    if (!platformTargetMappings || platformTargetMappings.length === 0) {
+      throw new Error('No platform targets configured for release');
+    }
+    const platform = platformTargetMappings[0].platform as TestPlatform;
 
     // Get automation run ID from TRIGGER_AUTOMATION_RUNS task
     // Get all tasks for this regression cycle and find TRIGGER_AUTOMATION_RUNS
@@ -1568,7 +1790,8 @@ export class TaskExecutor {
     // 3. Get test status
     const status = await this.testRunService.getTestStatus({
       runId: runId,
-      testManagementConfigId: testConfigId
+      testManagementConfigId: testConfigId,
+      platform: platform
     });
 
     // Category B: Return raw object
@@ -1742,9 +1965,7 @@ export class TaskExecutor {
     if (release.hasManualBuildUpload) {
       console.log(`[TaskExecutor] Manual mode for PRE_RELEASE (TestFlight): checking uploads for IOS`);
       
-      if (!this.releaseUploadsRepo) {
-        throw new Error(RELEASE_ERROR_MESSAGES.RELEASE_UPLOADS_REPO_NOT_AVAILABLE);
-      }
+      // ✅ releaseUploadsRepo is required - actively initialized in aws-storage.ts, no null check needed
 
       // Check if IOS has upload ready
       const readiness = await this.releaseUploadsRepo.checkAllPlatformsReady(
@@ -1756,11 +1977,36 @@ export class TaskExecutor {
       console.log(`[TaskExecutor] Manual mode check for PRE_RELEASE (TestFlight): allReady=${readiness.allReady}`);
 
       if (!readiness.allReady) {
-        // Set task to AWAITING_CALLBACK and return special marker
+        // Guard: Only send notification if task is NOT already AWAITING_MANUAL_BUILD
+        const isNotAlreadyAwaiting = task.taskStatus !== TaskStatus.AWAITING_MANUAL_BUILD;
+        
+        if (isNotAlreadyAwaiting && this.releaseNotificationService) {
+          try {
+            const buildType = TASK_TYPE_TO_NAME[task.taskType];
+            const delivrUrl = buildDelivrUrl(context.tenantId, context.releaseId);
+            
+            await this.releaseNotificationService.notify({
+              type: NotificationType.MANUAL_BUILD_UPLOAD_REMINDER,
+              tenantId: context.tenantId,
+              releaseId: context.releaseId,
+              buildType: buildType,
+              delivrUrl: delivrUrl,
+              isSystemGenerated: true
+            });
+            
+            console.log(`[TaskExecutor] Sent MANUAL_BUILD_UPLOAD_REMINDER notification for task ${task.id} (${buildType})`);
+          } catch (error) {
+            // Log but don't throw - notification failure shouldn't block status update
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(`[TaskExecutor] Failed to send manual build upload reminder notification:`, errorMessage);
+          }
+        }
+        
+        // Set task to AWAITING_MANUAL_BUILD - waiting for manual TestFlight build
         await this.releaseTaskRepo.update(task.id, {
-          taskStatus: TaskStatus.AWAITING_CALLBACK
+          taskStatus: TaskStatus.AWAITING_MANUAL_BUILD
         });
-        console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_CALLBACK - waiting for manual TestFlight build`);
+        console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_MANUAL_BUILD - waiting for manual TestFlight build`);
         return 'AWAITING_MANUAL_BUILD';
       }
 
@@ -1836,10 +2082,8 @@ export class TaskExecutor {
         BUILD_PLATFORM.IOS,
         WorkflowType.TEST_FLIGHT_BUILD,
         {
-          platform: BUILD_PLATFORM.IOS,
           version: iosMapping?.version,
           branch: release.branch,
-          buildType: CICD_JOB_BUILD_TYPE.TESTFLIGHT
         }
       );
 
@@ -1916,9 +2160,7 @@ export class TaskExecutor {
     if (release.hasManualBuildUpload) {
       console.log(`[TaskExecutor] Manual mode for PRE_RELEASE (AAB): checking uploads for ANDROID`);
       
-      if (!this.releaseUploadsRepo) {
-        throw new Error(RELEASE_ERROR_MESSAGES.RELEASE_UPLOADS_REPO_NOT_AVAILABLE);
-      }
+      // ✅ releaseUploadsRepo is required - actively initialized in aws-storage.ts, no null check needed
 
       // Check if ANDROID has upload ready
       const readiness = await this.releaseUploadsRepo.checkAllPlatformsReady(
@@ -1930,11 +2172,36 @@ export class TaskExecutor {
       console.log(`[TaskExecutor] Manual mode check for PRE_RELEASE (AAB): allReady=${readiness.allReady}`);
 
       if (!readiness.allReady) {
-        // Set task to AWAITING_CALLBACK and return special marker
+        // Guard: Only send notification if task is NOT already AWAITING_MANUAL_BUILD
+        const isNotAlreadyAwaiting = task.taskStatus !== TaskStatus.AWAITING_MANUAL_BUILD;
+        
+        if (isNotAlreadyAwaiting && this.releaseNotificationService) {
+          try {
+            const buildType = TASK_TYPE_TO_NAME[task.taskType];
+            const delivrUrl = buildDelivrUrl(context.tenantId, context.releaseId);
+            
+            await this.releaseNotificationService.notify({
+              type: NotificationType.MANUAL_BUILD_UPLOAD_REMINDER,
+              tenantId: context.tenantId,
+              releaseId: context.releaseId,
+              buildType: buildType,
+              delivrUrl: delivrUrl,
+              isSystemGenerated: true
+            });
+            
+            console.log(`[TaskExecutor] Sent MANUAL_BUILD_UPLOAD_REMINDER notification for task ${task.id} (${buildType})`);
+          } catch (error) {
+            // Log but don't throw - notification failure shouldn't block status update
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(`[TaskExecutor] Failed to send manual build upload reminder notification:`, errorMessage);
+          }
+        }
+        
+        // Set task to AWAITING_MANUAL_BUILD - waiting for manual AAB build
         await this.releaseTaskRepo.update(task.id, {
-          taskStatus: TaskStatus.AWAITING_CALLBACK
+          taskStatus: TaskStatus.AWAITING_MANUAL_BUILD
         });
-        console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_CALLBACK - waiting for manual AAB build`);
+        console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_MANUAL_BUILD - waiting for manual AAB build`);
         return 'AWAITING_MANUAL_BUILD';
       }
 
@@ -2012,10 +2279,8 @@ export class TaskExecutor {
         BUILD_PLATFORM.ANDROID,
         WorkflowType.AAB_BUILD,
         {
-          platform: BUILD_PLATFORM.ANDROID,
           version: androidMapping?.version,
           branch: release.branch,
-          buildType: CICD_JOB_BUILD_TYPE.AAB
         }
       );
 

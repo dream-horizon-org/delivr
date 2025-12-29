@@ -19,9 +19,7 @@ jest.mock('../../../script/models/release/cron-job.repository');
 jest.mock('../../../script/models/release/release.repository');
 jest.mock('../../../script/models/release/release-task.repository');
 jest.mock('../../../script/models/release/regression-cycle.repository');
-jest.mock('../../../script/services/release/task-executor/task-executor-factory', () => ({
-  getTaskExecutor: jest.fn(),
-}));
+// ✅ Mock storage.taskExecutor instead of factory (migrated from factory pattern)
 jest.mock('../../../script/storage/storage-instance', () => ({
   getStorage: jest.fn(),
 }));
@@ -70,7 +68,6 @@ import {
   PauseType,
   ReleaseStatus 
 } from '../../../script/models/release/release.interface';
-import { getTaskExecutor } from '../../../script/services/release/task-executor/task-executor-factory';
 import { getStorage } from '../../../script/storage/storage-instance';
 
 import {
@@ -123,7 +120,11 @@ describe('User-Induced Pause (Feature 5)', () => {
         mockDeps.mockReleaseTasksDTO as any,
         {} as any, // regressionCycleRepo
         mockDeps.mockPlatformMappingRepo as any,
-        mockDeps.mockStorage as any
+        mockDeps.mockStorage as any,
+        {} as any, // releaseUploadsRepo - ✅ Required - actively initialized in aws-storage.ts
+        null, // cronicleService - can be null if Cronicle not configured
+        {} as any, // activityLogService - ✅ Required - actively initialized in aws-storage.ts
+        {} as any  // distributionService - ✅ Required - actively initialized in aws-storage.ts
       );
 
       // Act
@@ -163,7 +164,11 @@ describe('User-Induced Pause (Feature 5)', () => {
         mockDeps.mockReleaseTasksDTO as any,
         {} as any,
         mockDeps.mockPlatformMappingRepo as any,
-        mockDeps.mockStorage as any
+        mockDeps.mockStorage as any,
+        {} as any, // releaseUploadsRepo - ✅ Required - actively initialized in aws-storage.ts
+        null, // cronicleService - can be null if Cronicle not configured
+        {} as any, // activityLogService - ✅ Required - actively initialized in aws-storage.ts
+        {} as any  // distributionService - ✅ Required - actively initialized in aws-storage.ts
       );
 
       // Act
@@ -193,7 +198,11 @@ describe('User-Induced Pause (Feature 5)', () => {
         mockDeps.mockReleaseTasksDTO as any,
         {} as any,
         mockDeps.mockPlatformMappingRepo as any,
-        mockDeps.mockStorage as any
+        mockDeps.mockStorage as any,
+        {} as any, // releaseUploadsRepo - ✅ Required - actively initialized in aws-storage.ts
+        null, // cronicleService - can be null if Cronicle not configured
+        {} as any, // activityLogService - ✅ Required - actively initialized in aws-storage.ts
+        {} as any  // distributionService - ✅ Required - actively initialized in aws-storage.ts
       );
 
       // Act
@@ -222,7 +231,11 @@ describe('User-Induced Pause (Feature 5)', () => {
         mockDeps.mockReleaseTasksDTO as any,
         {} as any,
         mockDeps.mockPlatformMappingRepo as any,
-        mockDeps.mockStorage as any
+        mockDeps.mockStorage as any,
+        {} as any, // releaseUploadsRepo - ✅ Required - actively initialized in aws-storage.ts
+        null, // cronicleService - can be null if Cronicle not configured
+        {} as any, // activityLogService - ✅ Required - actively initialized in aws-storage.ts
+        {} as any  // distributionService - ✅ Required - actively initialized in aws-storage.ts
       );
 
       // Act
@@ -251,7 +264,11 @@ describe('User-Induced Pause (Feature 5)', () => {
         mockDeps.mockReleaseTasksDTO as any,
         {} as any,
         mockDeps.mockPlatformMappingRepo as any,
-        mockDeps.mockStorage as any
+        mockDeps.mockStorage as any,
+        {} as any, // releaseUploadsRepo - ✅ Required - actively initialized in aws-storage.ts
+        null, // cronicleService - can be null if Cronicle not configured
+        {} as any, // activityLogService - ✅ Required - actively initialized in aws-storage.ts
+        {} as any  // distributionService - ✅ Required - actively initialized in aws-storage.ts
       );
 
       // Act
@@ -300,7 +317,11 @@ describe('User-Induced Pause (Feature 5)', () => {
         mockDeps.mockReleaseTasksDTO as any,
         {} as any,
         mockDeps.mockPlatformMappingRepo as any,
-        mockDeps.mockStorage as any
+        mockDeps.mockStorage as any,
+        {} as any, // releaseUploadsRepo - ✅ Required - actively initialized in aws-storage.ts
+        null, // cronicleService - can be null if Cronicle not configured
+        {} as any, // activityLogService - ✅ Required - actively initialized in aws-storage.ts
+        {} as any  // distributionService - ✅ Required - actively initialized in aws-storage.ts
       );
 
       // Act
@@ -338,7 +359,11 @@ describe('User-Induced Pause (Feature 5)', () => {
         mockDeps.mockReleaseTasksDTO as any,
         {} as any,
         mockDeps.mockPlatformMappingRepo as any,
-        mockDeps.mockStorage as any
+        mockDeps.mockStorage as any,
+        {} as any, // releaseUploadsRepo - ✅ Required - actively initialized in aws-storage.ts
+        null, // cronicleService - can be null if Cronicle not configured
+        {} as any, // activityLogService - ✅ Required - actively initialized in aws-storage.ts
+        {} as any  // distributionService - ✅ Required - actively initialized in aws-storage.ts
       );
 
       // Act
@@ -371,7 +396,11 @@ describe('User-Induced Pause (Feature 5)', () => {
         mockDeps.mockReleaseTasksDTO as any,
         {} as any,
         mockDeps.mockPlatformMappingRepo as any,
-        mockDeps.mockStorage as any
+        mockDeps.mockStorage as any,
+        {} as any, // releaseUploadsRepo - ✅ Required - actively initialized in aws-storage.ts
+        null, // cronicleService - can be null if Cronicle not configured
+        {} as any, // activityLogService - ✅ Required - actively initialized in aws-storage.ts
+        {} as any  // distributionService - ✅ Required - actively initialized in aws-storage.ts
       );
 
       // Act
@@ -405,7 +434,11 @@ describe('User-Induced Pause (Feature 5)', () => {
         mockDeps.mockReleaseTasksDTO as any,
         {} as any,
         mockDeps.mockPlatformMappingRepo as any,
-        mockDeps.mockStorage as any
+        mockDeps.mockStorage as any,
+        {} as any, // releaseUploadsRepo - ✅ Required - actively initialized in aws-storage.ts
+        null, // cronicleService - can be null if Cronicle not configured
+        {} as any, // activityLogService - ✅ Required - actively initialized in aws-storage.ts
+        {} as any  // distributionService - ✅ Required - actively initialized in aws-storage.ts
       );
 
       // Act
@@ -428,8 +461,12 @@ describe('User-Induced Pause (Feature 5)', () => {
     beforeEach(() => {
       jest.clearAllMocks();
       mockDeps = createMockStateMachineDependencies();
-      (getTaskExecutor as jest.Mock).mockReturnValue(mockDeps.mockTaskExecutor);
-      (getStorage as jest.Mock).mockReturnValue(mockDeps.mockStorage);
+      // ✅ Mock storage.taskExecutor instead of factory (migrated from factory pattern)
+      const mockStorageWithTaskExecutor = {
+        ...mockDeps.mockStorage,
+        taskExecutor: mockDeps.mockTaskExecutor
+      };
+      (getStorage as jest.Mock).mockReturnValue(mockStorageWithTaskExecutor);
     });
 
     /**
@@ -454,7 +491,9 @@ describe('User-Induced Pause (Feature 5)', () => {
         {} as any,
         mockDeps.mockTaskExecutor as any,
         mockDeps.mockStorage as any,
-        mockDeps.mockPlatformMappingRepo as any
+        mockDeps.mockPlatformMappingRepo as any,
+        mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+        mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
       );
       await stateMachine.initialize();
 
@@ -487,7 +526,9 @@ describe('User-Induced Pause (Feature 5)', () => {
         {} as any,
         mockDeps.mockTaskExecutor as any,
         mockDeps.mockStorage as any,
-        mockDeps.mockPlatformMappingRepo as any
+        mockDeps.mockPlatformMappingRepo as any,
+        mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+        mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
       );
       await stateMachine.initialize();
 
@@ -520,7 +561,9 @@ describe('User-Induced Pause (Feature 5)', () => {
         {} as any,
         mockDeps.mockTaskExecutor as any,
         mockDeps.mockStorage as any,
-        mockDeps.mockPlatformMappingRepo as any
+        mockDeps.mockPlatformMappingRepo as any,
+        mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+        mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
       );
       await stateMachine.initialize();
 
@@ -557,7 +600,9 @@ describe('User-Induced Pause (Feature 5)', () => {
         {} as any,
         mockDeps.mockTaskExecutor as any,
         mockDeps.mockStorage as any,
-        mockDeps.mockPlatformMappingRepo as any
+        mockDeps.mockPlatformMappingRepo as any,
+        mockDeps.mockReleaseUploadsRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
+        mockDeps.mockBuildRepo as any  // ✅ Required - actively initialized in aws-storage.ts
       );
       await stateMachine.initialize();
 

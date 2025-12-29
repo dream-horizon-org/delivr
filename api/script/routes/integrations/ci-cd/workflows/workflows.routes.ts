@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { Storage } from "../../../../storage/storage";
 import * as validateCICD from "../../../../middleware/validate-cicd";
+import * as tenantPermissions from "../../../../middleware/tenant-permissions";
 import { getJobParameters, triggerWorkflow, getQueueStatus, getRunStatus } from "~controllers/integrations/ci-cd";
 
-export const createCICDWorkflowsRoutes = (_storage: Storage): Router => {
+export const createCICDWorkflowsRoutes = (storage: Storage): Router => {
   const router = Router();
 
   router.post(
@@ -11,6 +12,7 @@ export const createCICDWorkflowsRoutes = (_storage: Storage): Router => {
     validateCICD.validateTenantId,
     validateCICD.validateIntegrationIdParam,
     validateCICD.validateWorkflowParamFetchBody,
+    tenantPermissions.requireTenantMembership({ storage }),
     getJobParameters
   );
 
@@ -19,6 +21,7 @@ export const createCICDWorkflowsRoutes = (_storage: Storage): Router => {
     validateCICD.validateTenantId,
     validateCICD.validateIntegrationIdParam,
     validateCICD.validateWorkflowTriggerBody,
+    tenantPermissions.requireEditor({ storage }),
     triggerWorkflow
   );
 
@@ -27,6 +30,7 @@ export const createCICDWorkflowsRoutes = (_storage: Storage): Router => {
     validateCICD.validateTenantId,
     validateCICD.validateIntegrationIdParam,
     validateCICD.validateJenkinsQueueQuery,
+    tenantPermissions.requireTenantMembership({ storage }),
     getQueueStatus
   );
 
@@ -35,6 +39,7 @@ export const createCICDWorkflowsRoutes = (_storage: Storage): Router => {
     validateCICD.validateTenantId,
     validateCICD.validateIntegrationIdParam,
     validateCICD.validateWorkflowRunStatusQuery,
+    tenantPermissions.requireTenantMembership({ storage }),
     getRunStatus
   );
 

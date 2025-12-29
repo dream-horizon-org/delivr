@@ -9,8 +9,11 @@
 
 /**
  * Release frequency options (uppercase for consistency)
+ * Using 'as const' pattern for single source of truth - array exists at runtime, type derived from it
  */
-export type ReleaseFrequency = 'WEEKLY' | 'BIWEEKLY' | 'TRIWEEKLY' | 'MONTHLY';
+export const RELEASE_FREQUENCIES = ['WEEKLY', 'BIWEEKLY', 'TRIWEEKLY', 'MONTHLY'] as const;
+
+export type ReleaseFrequency = typeof RELEASE_FREQUENCIES[number];
 
 /**
  * Day of week - aligns with JavaScript Date.getDay()

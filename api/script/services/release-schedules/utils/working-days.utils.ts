@@ -304,6 +304,32 @@ export const toDateString = (date: Date): string => {
 };
 
 /**
+ * Get current date string "YYYY-MM-DD" in a specific timezone
+ * 
+ * @param timezone - IANA timezone string (e.g., "Asia/Kolkata", "America/New_York")
+ * @returns Current date string in the specified timezone
+ * 
+ * @example
+ * // If UTC is 2025-12-23 19:09, and timezone is Asia/Kolkata (UTC+5:30)
+ * // Returns "2025-12-24" (because it's already Dec 24 in India)
+ * getCurrentDateInTimezone('Asia/Kolkata')
+ */
+export const getCurrentDateInTimezone = (timezone: string): string => {
+  const now = new Date();
+  
+  // Create formatter for the target timezone
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  
+  // en-CA locale formats as YYYY-MM-DD
+  return formatter.format(now);
+};
+
+/**
  * Parse an ISO date string to a Date object
  * Handles both "YYYY-MM-DD" and full ISO strings
  */

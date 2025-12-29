@@ -1,6 +1,21 @@
 /**
  * Release Config specific error and success messages
  */
+
+import type { PlatformTargetMappingAttributes } from '~models/release';
+
+/**
+ * Valid platform values for release configurations
+ * Derived from PlatformTargetMappingAttributes.platform type
+ */
+export const VALID_PLATFORMS: readonly PlatformTargetMappingAttributes['platform'][] = ['IOS', 'ANDROID', 'WEB'] as const;
+
+/**
+ * Valid target values for release configurations
+ * Derived from PlatformTargetMappingAttributes.target type
+ */
+export const VALID_TARGETS: readonly PlatformTargetMappingAttributes['target'][] = ['WEB', 'PLAY_STORE', 'APP_STORE'] as const;
+
 export const RELEASE_CONFIG_ERROR_MESSAGES = {
   CREATE_CONFIG_FAILED: 'Failed to create release configuration',
   GET_CONFIG_FAILED: 'Failed to get release configuration',

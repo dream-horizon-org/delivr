@@ -8,10 +8,8 @@
  * with external packages like octokit.
  */
 
-// Mock the heavy dependencies BEFORE importing the module
-jest.mock('~services/release/task-executor/task-executor-factory', () => ({
-  getTaskExecutor: jest.fn()
-}));
+// ✅ Mock storage.taskExecutor instead of factory (migrated from factory pattern)
+// Note: TaskExecutor is now accessed from storage instance
 
 jest.mock('~services/release/cron-job/cron-job-state-machine', () => ({
   CronJobStateMachine: jest.fn()

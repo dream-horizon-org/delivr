@@ -122,9 +122,12 @@ export class IosSubmissionBuildRepository {
       ...(data.releaseType && { releaseType: data.releaseType }),
       ...(data.resetRating !== undefined && { resetRating: data.resetRating }),
       ...(data.rolloutPercentage !== undefined && { rolloutPercentage: data.rolloutPercentage }),
+      ...(data.appStoreVersionId !== undefined && { appStoreVersionId: data.appStoreVersionId }),
+      ...(data.cronicleJobId !== undefined && { cronicleJobId: data.cronicleJobId }),
       ...(data.isActive !== undefined && { isActive: data.isActive }),
       ...(data.submittedBy !== undefined && { submittedBy: data.submittedBy }),
-      ...(data.submittedAt !== undefined && { submittedAt: data.submittedAt })
+      ...(data.submittedAt !== undefined && { submittedAt: data.submittedAt }),
+      ...(data.statusUpdatedAt !== undefined && { statusUpdatedAt: data.statusUpdatedAt })
     });
 
     return this.toPlainObject(submission);

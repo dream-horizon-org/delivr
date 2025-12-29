@@ -19,9 +19,11 @@ import {
   validatePlatformConfigurations
 } from './configuration.validation';
 
-interface AuthenticatedRequest extends Request {
-  accountId?: string;
-}
+type AuthenticatedRequest = Request & {
+  user?: {
+    id: string;
+  };
+};
 
 /**
  * Create new project management configuration
@@ -63,7 +65,7 @@ const createConfigHandler = (service: ProjectManagementConfigService) =>
         name,
         description,
         platformConfigurations,
-        createdByAccountId: req.accountId ?? 'test_account_123'
+        createdByAccountId: req.user?.id
       };
 
       const config = await service.createConfig(data);

@@ -15,14 +15,14 @@ export const createTicketRoutes = (
   // Create tickets (stateless - no DB storage)
   router.post(
     '/project-management/tickets/create',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.createTickets
   );
 
   // Check ticket status (optional helper)
   router.get(
     '/project-management/tickets/check-status',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.checkTicketStatus
   );
 

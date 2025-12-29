@@ -192,6 +192,12 @@ export const validateReleaseCreation = async (
 
   // === Non-config validations ===
   
+  // Validate regression slots
+  const slotsValidation = validateRegressionSlots(payload);
+  if (!slotsValidation.isValid) {
+    return slotsValidation;
+  }
+  
   // Validate base release for hotfixes
   const baseReleaseValidation = await validateBaseRelease(payload, releaseRepo);
   if (!baseReleaseValidation.isValid) {
@@ -202,6 +208,25 @@ export const validateReleaseCreation = async (
   const versionsValidation = await validateVersions(payload, releaseVersionService);
   if (!versionsValidation.isValid) {
     return versionsValidation;
+  }
+
+  return { isValid: true };
+};
+
+/**
+ * Validates that at least one regression slot is provided
+ */
+export const validateRegressionSlots = (
+  payload: CreateReleasePayload
+): ServiceValidationResult => {
+  const slots = payload.regressionBuildSlots;
+  
+  // Check if slots array is missing or empty
+  if (!slots || slots.length === 0) {
+    return {
+      isValid: false,
+      error: 'At least one regression slot is required. Please add regression build slots to proceed.'
+    };
   }
 
   return { isValid: true };

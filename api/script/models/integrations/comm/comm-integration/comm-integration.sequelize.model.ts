@@ -19,6 +19,7 @@ export const createCommIntegrationModel = (sequelize: Sequelize) => {
     declare slackWorkspaceId: string | null;
     declare slackWorkspaceName: string | null;
     declare verificationStatus: VerificationStatus;
+    declare createdByAccountId: string | null;
     declare createdAt: Date;
     declare updatedAt: Date;
   }
@@ -77,6 +78,11 @@ export const createCommIntegrationModel = (sequelize: Sequelize) => {
           isIn: [['PENDING', 'VALID', 'INVALID', 'EXPIRED']]
         },
         comment: 'Connection verification status'
+      },
+      createdByAccountId: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        comment: 'Account ID of creator'
       },
       createdAt: {
         type: DataTypes.DATE,

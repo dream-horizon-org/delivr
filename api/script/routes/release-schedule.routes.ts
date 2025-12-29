@@ -1,11 +1,11 @@
 /**
  * Release Schedule Routes
  * 
- * Contains both internal webhook endpoints (Cronicle) and user-facing endpoints.
+ * User-facing endpoints for release schedule management.
+ * Internal Cronicle webhook routes are in cronicle.routes.ts
  */
 
 import { Router } from 'express';
-import { cronicleAuthMiddleware } from '../middleware/cronicle-auth.middleware';
 import * as tenantPermissions from '../middleware/tenant-permissions';
 import { createReleaseScheduleController } from '~controllers/release-schedules';
 import type { ReleaseScheduleService } from '~services/release-schedules';
@@ -16,7 +16,10 @@ import type { Storage } from '../storage/storage';
 // ============================================================================
 
 /**
- * Create release schedule routes
+ * Create release schedule routes (user-facing only)
+ * 
+ * Internal Cronicle webhook routes are mounted separately in default-server.ts
+ * at root level without /api/v1 prefix.
  * 
  * @param service - ReleaseScheduleService instance
  * @param storage - Storage instance (for tenant auth middleware)
@@ -30,22 +33,12 @@ export const createReleaseScheduleRoutes = (
   const controller = createReleaseScheduleController(service);
 
   // ─────────────────────────────────────────────────────────────
-  // Internal Webhook (Cronicle calls this)
-  // ─────────────────────────────────────────────────────────────
-  
-  router.post(
-    '/internal/release-schedules/create-release',
-    cronicleAuthMiddleware,
-    controller.createScheduledRelease
-  );
-
-  // ─────────────────────────────────────────────────────────────
   // User-Facing Endpoints (Frontend calls these)
   // ─────────────────────────────────────────────────────────────
   
   router.get(
     '/tenants/:tenantId/release-schedules',
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.listSchedulesByTenant
   );
 

@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
 import type { TestManagementRunService } from '~services/integrations/test-management/test-run';
+import { TestPlatform } from '~types/integrations/test-management';
 import {
   errorResponse,
   getErrorStatusCode,
@@ -100,7 +101,7 @@ const createTestRunsHandler = (service: TestManagementRunService) =>
 const getTestStatusHandler = (service: TestManagementRunService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { runId } = req.params;
+      const { runId, platform } = req.params;
       const { testManagementConfigId } = req.query;
 
       if (!runId) {
@@ -117,7 +118,7 @@ const getTestStatusHandler = (service: TestManagementRunService) =>
         return;
       }
 
-      const result = await service.getTestStatus({ runId, testManagementConfigId });
+      const result = await service.getTestStatus({ runId, testManagementConfigId, platform: platform as TestPlatform });
 
       res.status(HTTP_STATUS.OK).json(successResponse(result));
     } catch (error) {

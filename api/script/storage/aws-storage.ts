@@ -81,6 +81,14 @@ import { SCMService } from "../services/integrations/scm/scm.service";
 import { ReleaseActivityLogService } from "../services/release/release-activity-log.service";
 import { CronJobService } from "../services/release/cron-job/cron-job.service";
 import { BuildArtifactService } from "../services/release/build/build-artifact.service";
+import { TaskExecutor } from "../services/release/task-executor/task-executor";
+import { GlobalSchedulerService, type StateMachineFactory } from "../services/release/cron-job/global-scheduler.service";
+import { CronJobStateMachine } from "../services/release/cron-job/cron-job-state-machine";
+import type { CronJob } from "../models/release/release.interface";
+import { UploadValidationService } from "../services/release/upload-validation.service";
+import { ManualUploadService } from "../services/release/manual-upload.service";
+import { BuildCallbackService } from "../services/release/build-callback.service";
+import { TestFlightBuildVerificationService } from "../services/release/testflight-build-verification.service";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { 
@@ -463,6 +471,9 @@ export function createModelss(sequelize: Sequelize) {
   // Release Configuration (must be created before Release due to FK constraints)
   const ReleaseConfig = createReleaseConfigModel(sequelize);
   
+  // Release Schedule (must be created after ReleaseConfig due to FK constraints)
+  const ReleaseSchedule = createReleaseScheduleModel(sequelize);
+  
   // NEW: Release Management Models (standardized schema)
   const Platform = createPlatformModel(sequelize);  // Reference table for platforms
   const Target = createTargetModel(sequelize);  // Reference table for targets
@@ -685,6 +696,33 @@ export function createModelss(sequelize: Sequelize) {
     as: 'creator'
   });
   
+  // Release Schedule associations
+  // Tenant has many Release Schedules
+  Tenant.hasMany(ReleaseSchedule, { 
+    foreignKey: 'tenantId',
+    as: 'releaseSchedules' 
+  });
+  ReleaseSchedule.belongsTo(Tenant, { 
+    foreignKey: 'tenantId',
+    as: 'tenant'
+  });
+  
+  // Release Schedule belongs to Release Config (one-to-one)
+  ReleaseConfig.hasOne(ReleaseSchedule, { 
+    foreignKey: 'releaseConfigId',
+    as: 'releaseSchedule' 
+  });
+  ReleaseSchedule.belongsTo(ReleaseConfig, { 
+    foreignKey: 'releaseConfigId',
+    as: 'releaseConfig'
+  });
+  
+  // Release Schedule belongs to Account (creator)
+  ReleaseSchedule.belongsTo(Account, { 
+    foreignKey: 'createdByAccountId',
+    as: 'creator'
+  });
+  
   // Distribution associations
   // Tenant has many Distributions
   Tenant.hasMany(Distribution, { 
@@ -774,6 +812,7 @@ export function createModelss(sequelize: Sequelize) {
     ProjectManagementIntegration,  // Project management integrations (JIRA, Linear, etc.)
     ProjectManagementConfig,  // Project management configurations
     ReleaseConfig,  // Release configuration profiles
+    ReleaseSchedule,  // Release schedules for recurring releases
     Distribution,  // Distribution tracking
     IosSubmissionBuild,  // iOS submission builds
     AndroidSubmissionBuild,  // Android submission builds
@@ -862,6 +901,8 @@ export class S3Storage implements storage.Storage {
     public releaseActivityLogService!: ReleaseActivityLogService;  // Release activity log service
     public cronJobService!: CronJobService;  // Cron job service
     public buildArtifactService!: BuildArtifactService;  // Build artifact service
+    public taskExecutor!: TaskExecutor;  // Task executor service (centralized initialization)
+    public globalSchedulerService!: GlobalSchedulerService;  // ✅ Required - actively initialized in aws-storage.ts (works in both setInterval and Cronicle webhook modes)
     public activityLogRepository!: ActivityLogRepository;  // Activity log repository
     public commIntegrationRepository!: CommIntegrationRepository;  // Comm integration repository
     public commConfigRepository!: CommConfigRepository;  // Comm config repository
@@ -879,6 +920,13 @@ export class S3Storage implements storage.Storage {
     public submissionActionHistoryRepository!: SubmissionActionHistoryRepository;  // Submission action history repository
     public submissionService!: SubmissionService;  // Submission service
     public distributionService!: DistributionService;  // Distribution service
+    
+    // Release Upload & Validation Services (centralized initialization - replaces factory)
+    public uploadValidationService!: UploadValidationService;  // Upload validation service
+    public manualUploadService!: ManualUploadService;  // Manual upload service
+    public buildCallbackService!: BuildCallbackService;  // Build callback service
+    public testFlightBuildVerificationService!: TestFlightBuildVerificationService;  // TestFlight build verification service
+    
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -1088,8 +1136,7 @@ export class S3Storage implements storage.Storage {
           console.log("Comm Config Service initialized");
           
           // Initialize Release Config (AFTER all integration services are ready)
-          const releaseConfigModel = createReleaseConfigModel(this.sequelize);
-          this.releaseConfigRepository = new ReleaseConfigRepository(releaseConfigModel);
+          this.releaseConfigRepository = new ReleaseConfigRepository(models.ReleaseConfig);
           
           this.releaseConfigActivityLogRepository = new ReleaseConfigActivityLogRepository(models.ReleaseConfigActivityLog);
           this.releaseConfigActivityLogService = new ReleaseConfigActivityLogService(
@@ -1099,8 +1146,7 @@ export class S3Storage implements storage.Storage {
           
           
           // Initialize Release Schedule Repository
-          const releaseScheduleModel = createReleaseScheduleModel(this.sequelize);
-          const releaseScheduleRepository = new ReleaseScheduleRepository(releaseScheduleModel);
+          const releaseScheduleRepository = new ReleaseScheduleRepository(models.ReleaseSchedule);
           console.log("Release Schedule Repository initialized");
           
           // Initialize Release Notification Repository
@@ -1134,7 +1180,8 @@ export class S3Storage implements storage.Storage {
             this.commConfigService,
             this.projectManagementConfigService,
             this.releaseConfigActivityLogService,
-            this.releaseConfigActivityLogRepository
+            this.releaseConfigActivityLogRepository,
+            this.storeIntegrationController
           );
           console.log("Release Config Service initialized");
           
@@ -1246,40 +1293,108 @@ export class S3Storage implements storage.Storage {
           this.releaseRetrievalService.setReleaseStatusService(this.releaseStatusService);
           console.log("Release Status Service injected into Release Retrieval Service");
           
-          // Initialize CronJobService (needed by ReleaseUpdateService)
-          this.cronJobService = new CronJobService(
-            this.cronJobRepository,
-            this.releaseRepository,
-            this.releaseTaskRepository,
-            this.regressionCycleRepository,
-            this.releasePlatformTargetMappingRepository,
-            this,  // storage
-            this.releaseUploadsRepository,
-            this.cronicleService,
-            this.releaseActivityLogService
-          );
-          console.log("Cron Job Service initialized");
-          
-          // Set ReleaseStatusService in CronJobService (circular dependency resolution)
-          this.cronJobService.setReleaseStatusService(this.releaseStatusService);
-          console.log("Release Status Service injected into Cron Job Service");
-          
-          this.releaseUpdateService = new ReleaseUpdateService(
-            this.releaseRepository,
-            this.cronJobRepository, // Use class property for consistency
-            this.releasePlatformTargetMappingRepository,
-            this.releaseActivityLogService,
-            this.cronJobService,  // ✅ Proper instance!
-            this.releaseTaskRepository,
-            this.buildRepository,
-            this.regressionCycleRepository,
-            this.releaseNotificationService
-          );
-          console.log("Release Update Service initialized");
+          // Note: CronJobService and ReleaseUpdateService initialization moved to after distributionService
+          // (see line ~1407) because CronJobService requires distributionService which is initialized in promise chain
           
           // Initialize Build Artifact Service (needs S3Storage)
           this.buildArtifactService = new BuildArtifactService(this);
           console.log("Build Artifact Service initialized");
+          
+          // Initialize Upload Validation Service (centralized initialization - replaces factory)
+          this.uploadValidationService = new UploadValidationService(
+            this.releaseRepository,
+            this.cronJobRepository,
+            this.releaseTaskRepository,
+            this.regressionCycleRepository,
+            this.releasePlatformTargetMappingRepository
+          );
+          console.log("Upload Validation Service initialized");
+          
+          // Initialize Manual Upload Service (centralized initialization - replaces factory)
+          this.manualUploadService = new ManualUploadService(
+            this.releaseUploadsRepository,
+            this.releaseRepository,
+            this.releasePlatformTargetMappingRepository,
+            this.uploadValidationService,
+            this.buildArtifactService
+          );
+          console.log("Manual Upload Service initialized");
+          
+          // Initialize Build Callback Service (centralized initialization - replaces factory)
+          this.buildCallbackService = new BuildCallbackService(
+            this.buildRepository,
+            this.releaseTaskRepository,
+            this.releaseRepository,
+            this.cronJobRepository,
+            this.releaseRetrievalService,
+            this.releaseNotificationService,
+            this.buildArtifactService
+          );
+          console.log("Build Callback Service initialized");
+          
+          // Initialize TestFlight Build Verification Service (centralized initialization - replaces factory)
+          this.testFlightBuildVerificationService = new TestFlightBuildVerificationService(
+            this.storeIntegrationController,
+            this.storeCredentialController,
+            this.releasePlatformTargetMappingRepository,
+            this.releaseRepository
+          );
+          console.log("TestFlight Build Verification Service initialized");
+          
+          // Initialize TaskExecutor (centralized initialization - replaces factory)
+          // All dependencies are already initialized above
+          // ✅ Pass Sequelize directly to avoid circular dependency (TaskExecutor no longer calls getStorage())
+          // ✅ Pass regressionCycleRepository from storage to avoid creating new instance
+          this.taskExecutor = new TaskExecutor(
+            this.scmService,
+            this.cicdIntegrationRepository,
+            this.cicdWorkflowRepository,
+            this.cicdConfigService,
+            this.projectManagementTicketService,
+            this.testManagementRunService,
+            this.messagingService,
+            this.releaseConfigRepository,
+            this.releaseTaskRepository,
+            this.releaseRepository,
+            this.releaseUploadsRepository,
+            this.cronJobRepository,
+            this.releaseNotificationService,
+            this.sequelize,  // ✅ Pass Sequelize directly instead of TaskExecutor calling getStorage()
+            this.regressionCycleRepository  // ✅ Pass RegressionCycleRepository from storage instead of creating new instance
+          );
+          console.log("Task Executor initialized");
+          
+          // Initialize GlobalSchedulerService (centralized initialization - replaces factory)
+          // Create state machine factory function
+          const stateMachineFactory: StateMachineFactory = async (
+            cronJob: CronJob
+          ): Promise<CronJobStateMachine> => {
+            const stateMachine = new CronJobStateMachine(
+              cronJob.releaseId,
+              this.cronJobRepository,
+              this.releaseRepository,
+              this.releaseTaskRepository,
+              this.regressionCycleRepository,
+              this.taskExecutor,  // Use centralized taskExecutor
+              this,  // storage
+              this.releasePlatformTargetMappingRepository,
+              this.releaseUploadsRepository,
+              this.buildRepository  // ✅ Required - actively initialized in aws-storage.ts
+            );
+
+            // ✅ REMOVED: initialize() call - this is business logic, not factory responsibility
+            // The caller (GlobalSchedulerService) will call initialize() after creating the state machine
+            // Hybrid architecture: initialize() is called on each webhook tick in business logic layer
+            return stateMachine;
+          };
+          
+          // Initialize GlobalSchedulerService (centralized initialization - replaces factory)
+          // ✅ Required - actively initialized (works in both setInterval and Cronicle webhook modes)
+          this.globalSchedulerService = new GlobalSchedulerService(
+            this.cronJobRepository,
+            stateMachineFactory
+          );
+          console.log("Global Scheduler Service initialized");
           
           // Initialize Distribution Repositories
           this.distributionRepository = new DistributionRepository(models.Distribution);
@@ -1300,7 +1415,8 @@ export class S3Storage implements storage.Storage {
             this.iosSubmissionRepository,
             this.submissionActionHistoryRepository,
             this.distributionRepository,
-            this.buildArtifactService  // Already initialized above
+            this.buildArtifactService,  // Already initialized above
+            this.cronicleService  // For submission status sync
           );
           console.log("Submission Service initialized");
           
@@ -1314,6 +1430,44 @@ export class S3Storage implements storage.Storage {
             this.releasePlatformTargetMappingRepository
           );
           console.log("Distribution Service initialized");
+          
+          // Initialize CronJobService (needed by ReleaseUpdateService)
+          // Now that distributionService is initialized, we can create CronJobService
+          this.cronJobService = new CronJobService(
+            this.cronJobRepository,
+            this.releaseRepository,
+            this.releaseTaskRepository,
+            this.regressionCycleRepository,
+            this.releasePlatformTargetMappingRepository,
+            this,  // storage
+            this.releaseUploadsRepository,
+            this.cronicleService,
+            this.releaseActivityLogService,
+            this.distributionService  // ✅ Required - now available after initialization
+          );
+          console.log("Cron Job Service initialized");
+          
+          // Set ReleaseStatusService in CronJobService (circular dependency resolution)
+          this.cronJobService.setReleaseStatusService(this.releaseStatusService);
+          console.log("Release Status Service injected into Cron Job Service");
+          
+          // Set CronJobService in ReleaseCreationService (for auto-start cron on release creation)
+          this.releaseCreationService.setCronJobService(this.cronJobService);
+          console.log("Cron Job Service injected into Release Creation Service");
+          
+          // Initialize ReleaseUpdateService (depends on CronJobService)
+          this.releaseUpdateService = new ReleaseUpdateService(
+            this.releaseRepository,
+            this.cronJobRepository,
+            this.releasePlatformTargetMappingRepository,
+            this.releaseActivityLogService,
+            this.cronJobService,  // ✅ Proper instance!
+            this.releaseTaskRepository,
+            this.buildRepository,
+            this.regressionCycleRepository,
+            this.releaseNotificationService
+          );
+          console.log("Release Update Service initialized");
           
           // return this.sequelize.sync();
         })

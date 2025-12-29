@@ -288,9 +288,13 @@ export class ReleaseNotificationService {
         return [
           payload.startTag,     // {0}
           payload.endTag,       // {1}
-          payload.features,     // {2}
-          payload.fixes,        // {3}
-          payload.improvements  // {4}
+          payload.tagChangeLog  // {2} - Already formatted by SCM service
+        ];
+
+      case NotificationType.FINAL_RELEASE_NOTES:
+        return [
+          payload.releaseTag,   // {0}
+          payload.releaseUrl    // {1}
         ];
 
       case NotificationType.NEW_SLOT_ADDED:
@@ -338,10 +342,8 @@ export class ReleaseNotificationService {
 
       case NotificationType.WHATS_NEW:
         return [
-          payload.releaseType,  // {0}
-          payload.features,     // {1}
-          payload.fixes,        // {2}
-          payload.improvements  // {3}
+          payload.releaseType,   // {0}
+          payload.tagChangeLog    // {1} - Already formatted by SCM service
         ];
 
       case NotificationType.REGRESSION_STAGE_APPROVAL_REQUEST:
@@ -349,7 +351,7 @@ export class ReleaseNotificationService {
           payload.delivrUrl     // {0}
         ];
 
-      case NotificationType.PRE_DISTRIBUTION_STAGE_APPROVAL_REQUEST:
+      case NotificationType.PRE_RELEASE_STAGE_APPROVAL_REQUEST:
         return [
           payload.delivrUrl     // {0}
         ];
@@ -366,22 +368,30 @@ export class ReleaseNotificationService {
 
       case NotificationType.IOS_APPSTORE_BUILD_SUBMITTED:
         return [
-          payload.version        // {0}
+          payload.version,
+          payload.testflightBuild,
+          payload.submittedBy       
+                 // {0}, {1}, {2}
         ];
 
-      case NotificationType.ANDROID_PLAYSTORE_BUILD_SUBMITTED:
+      case NotificationType.ANDROID_PLAYSTORE_BUILD_SUBMITTED:  
         return [
-          payload.version        // {0}
+          payload.version,
+          payload.versionCode,
+          payload.submittedBy       
+                 // {0}, {1}, {2}
         ];
 
       case NotificationType.IOS_APPSTORE_LIVE:
         return [
-          payload.version        // {0}
+          payload.version,           // {0}
+          payload.testflightBuild    // {1}
         ];
 
       case NotificationType.ANDROID_PLAYSTORE_LIVE:
         return [
-          payload.version        // {0}
+          payload.version,      // {0}
+          payload.versionCode   // {1}
         ];
 
       case NotificationType.ANDROID_WEB_LIVE:
@@ -389,6 +399,54 @@ export class ReleaseNotificationService {
           payload.version        // {0}
         ];
 
+      case NotificationType.IOS_APPSTORE_BUILD_RESUBMITTED:
+        return [
+          payload.version,
+          payload.testflightBuild,
+          payload.submittedBy       
+                 // {0}, {1}, {2}
+        ];
+
+      case NotificationType.ANDROID_PLAYSTORE_BUILD_RESUBMITTED:
+        return [
+          payload.version,
+          payload.versionCode,
+          payload.submittedBy       
+                 // {0}, {1}, {2}
+        ];
+
+      case NotificationType.IOS_APPSTORE_BUILD_REJECTED:
+        return [
+          payload.version,
+          payload.testflightBuild,
+          payload.reason       
+                 // {0}, {1}, {2}
+        ];
+
+      case NotificationType.IOS_APPSTORE_BUILD_CANCELLED:
+        return [
+          payload.version,
+          payload.testflightBuild,
+          payload.cancelledBy,
+          payload.reason       
+                 // {0}, {1}, {2}, {3}
+        ];
+
+      case NotificationType.ANDROID_PLAYSTORE_USER_ACTION_PENDING:
+        return [
+          payload.version,
+          payload.versionCode,
+          payload.submittedBy       
+                 // {0}, {1}, {2}
+        ];
+
+      case NotificationType.ANDROID_PLAYSTORE_SUSPENDED:
+        return [
+          payload.version,
+          payload.versionCode,
+          payload.submittedBy       
+                 // {0}, {1}, {2}
+        ];
       // ============================================================================
       // ERRORS & REMINDERS
       // ============================================================================

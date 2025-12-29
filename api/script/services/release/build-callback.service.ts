@@ -24,6 +24,8 @@ import { ReleaseRetrievalService } from './release-retrieval.service';
 import { ReleaseNotificationService } from '../release-notification/release-notification.service';
 import { BuildArtifactService } from './build/build-artifact.service';
 import { NotificationType } from '~types/release-notification';
+import { getTaskNameWithStage } from './task-executor/task-executor.constants';
+import { buildDelivrUrl } from './task-executor/task-executor.utils';
 
 // ============================================================================
 // TYPES
@@ -77,7 +79,7 @@ export class BuildCallbackService {
     
     // Step 4: Handle FAILED status - pause release
     if (buildStatus === 'FAILED') {
-      return await this.handleBuildFailure(taskId, task.releaseId, previousStatus);
+      return await this.handleBuildFailure(task, previousStatus);
     }
     
     // Step 5: Handle COMPLETED status - all builds uploaded
@@ -100,34 +102,76 @@ export class BuildCallbackService {
    * Handle build failure - mark task as failed and pause release
    */
   private async handleBuildFailure(
-    taskId: string, 
-    releaseId: string, 
+    task: ReleaseTask,
     previousStatus: string
   ): Promise<BuildCallbackResult> {
     // Mark task as FAILED
-    await this.taskRepo.update(taskId, { taskStatus: TaskStatus.FAILED });
+    await this.taskRepo.update(task.id, { taskStatus: TaskStatus.FAILED });
     
     // Pause the release
-    await this.releaseRepo.update(releaseId, { status: ReleaseStatus.PAUSED });
+    await this.releaseRepo.update(task.releaseId, { status: ReleaseStatus.PAUSED });
     
     // Set pauseType on cronJob
-    const cronJob = await this.cronJobRepo.findByReleaseId(releaseId);
+    const cronJob = await this.cronJobRepo.findByReleaseId(task.releaseId);
     if (cronJob) {
       await this.cronJobRepo.update(cronJob.id, { pauseType: PauseType.TASK_FAILURE });
     }
     
     console.log(
-      `[BuildCallbackService] Task ${taskId} FAILED. ` +
-      `Release ${releaseId} paused. Previous status: ${previousStatus}`
+      `[BuildCallbackService] Task ${task.id} FAILED. ` +
+      `Release ${task.releaseId} paused. Previous status: ${previousStatus}`
     );
+
+    // Send TASK_FAILED notification
+    await this.notifyTaskFailure(task);
     
     return { 
       success: true, 
       message: 'Build failed, release paused',
-      taskId,
+      taskId: task.id,
       previousStatus,
       newStatus: TaskStatus.FAILED
     };
+  }
+
+  /**
+   * Send TASK_FAILED notification
+   */
+  private async notifyTaskFailure(task: ReleaseTask): Promise<void> {
+    if (!this.releaseNotificationService) {
+      return; // Service not available, skip notification
+    }
+
+    try {
+      // Fetch release to get tenantId
+      const release = await this.releaseRepo.findById(task.releaseId);
+      if (!release) {
+        console.log(`[BuildCallbackService] Release ${task.releaseId} not found, skipping notification`);
+        return;
+      }
+
+      // Get task name with stage prefix (e.g., "Kickoff: Branch Forkout")
+      const taskName = getTaskNameWithStage(task.taskType);
+      
+      // Build Delivr URL
+      const delivrUrl = buildDelivrUrl(release.tenantId, task.releaseId);
+
+      // Send notification
+      await this.releaseNotificationService.notify({
+        type: NotificationType.TASK_FAILED,
+        tenantId: release.tenantId,
+        releaseId: task.releaseId,
+        taskName: taskName,
+        delivrUrl: delivrUrl,
+        isSystemGenerated: true
+      });
+
+      console.log(`[BuildCallbackService] Sent TASK_FAILED notification for task ${task.id}`);
+    } catch (error) {
+      // Log but don't throw - notification failure shouldn't break the flow
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[BuildCallbackService] Failed to send TASK_FAILED notification:`, errorMessage);
+    }
   }
 
   /**

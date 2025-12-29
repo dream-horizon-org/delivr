@@ -151,13 +151,13 @@ export class Authentication {
                 };
                 return next();
             } else {
-              return next();    
+              return res.status(401).send("User not found");
             }
         } else {
-          return next();
+          return res.status(401).send("Missing Google ID token");
         }
         
-    }
+      }
 
     if (idToken.startsWith("cli-")) {
       // Handle CLI access with access key

@@ -34,7 +34,7 @@ export const createGitHubConnectionRoutes = (storage: Storage): Router => {
   router.get(
     "/tenants/:tenantId/integrations/scm/github",
     validateSCM.validateTenantId,
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     githubConn.getGitHubConnection
   );
 
@@ -58,7 +58,7 @@ export const createGitHubConnectionRoutes = (storage: Storage): Router => {
   router.get(
     "/tenants/:tenantId/integrations/scm/github/branches",
     validateSCM.validateTenantId,
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     githubConn.fetchGitHubBranches
   );
 

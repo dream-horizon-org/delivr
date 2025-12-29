@@ -17,7 +17,7 @@ import {
 
 /**
  * Get submission details by ID
- * GET /submissions/:submissionId
+ * GET /tenants/:tenantId/submissions/:submissionId
  * 
  * Fetches submission details from either Android or iOS table
  * Returns complete submission info with artifact and action history
@@ -25,7 +25,17 @@ import {
 const getSubmissionDetailsHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { submissionId } = req.params;
+      const { tenantId, submissionId } = req.params;
+
+      if (!tenantId || typeof tenantId !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          errorResponse(
+            new Error('tenantId is required'),
+            'Invalid tenant ID'
+          )
+        );
+        return;
+      }
 
       if (!submissionId || typeof submissionId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -59,7 +69,7 @@ const getSubmissionDetailsHandler = (service: SubmissionService) =>
 
 /**
  * Submit existing submission to store
- * PUT /submissions/:submissionId/submit?platform=<ANDROID|IOS>
+ * PUT /tenants/:tenantId/submissions/:submissionId/submit?platform=<ANDROID|IOS>
  * 
  * Submits an existing PENDING submission to the store for review
  * Query params: platform (ANDROID or IOS)
@@ -77,9 +87,30 @@ const getSubmissionDetailsHandler = (service: SubmissionService) =>
 const submitExistingSubmissionHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { submissionId } = req.params;
+      const { tenantId, submissionId } = req.params;
       const { platform } = req.query;
-      const submittedBy = req.user?.email ?? 'unknown';
+      
+      // Get user ID from authentication - required
+      const submittedBy = req.user?.id;
+      if (!submittedBy) {
+        res.status(HTTP_STATUS.UNAUTHORIZED).json(
+          errorResponse(
+            new Error('User ID not found'),
+            'Authentication required'
+          )
+        );
+        return;
+      }
+
+      if (!tenantId || typeof tenantId !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          errorResponse(
+            new Error('tenantId is required'),
+            'Invalid tenant ID'
+          )
+        );
+        return;
+      }
 
       if (!submissionId || typeof submissionId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -115,77 +146,69 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
         // iOS submission
         const { phasedRelease, resetRating, releaseNotes } = req.body;
 
-        // Validate iOS fields
-        if (typeof phasedRelease !== 'boolean') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('phasedRelease', 'phasedRelease must be a boolean')
+        // Comprehensive validation - all fields and resources
+        const validationResult = await service.validateIosSubmission(
+          submissionId,
+          { phasedRelease, resetRating, releaseNotes },
+          tenantId
+        );
+        
+        if (!validationResult.valid) {
+          // If validation has a field, use validationErrorResponse, otherwise use errorResponse
+          if (validationResult.field) {
+            res.status(validationResult.statusCode).json(
+              validationErrorResponse(validationResult.field, validationResult.error ?? 'Validation failed')
           );
-          return;
-        }
-
-        if (typeof resetRating !== 'boolean') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('resetRating', 'resetRating must be a boolean')
+          } else {
+            res.status(validationResult.statusCode).json(
+              errorResponse(
+                new Error(validationResult.error ?? 'Validation failed'),
+                validationResult.error ?? 'Validation failed'
+              )
           );
-          return;
-        }
-
-        if (!releaseNotes || typeof releaseNotes !== 'string') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('releaseNotes', 'releaseNotes is required')
-          );
+          }
           return;
         }
 
         result = await service.submitExistingIosSubmission(
           submissionId,
           { phasedRelease, resetRating, releaseNotes },
-          submittedBy
+          submittedBy,
+          tenantId
         );
       } else {
         // Android submission
         const { rolloutPercent, inAppPriority, releaseNotes } = req.body;
 
-        // Validate Android fields
-        if (typeof rolloutPercent !== 'number') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('rolloutPercent', 'rolloutPercent must be a number')
+        // Comprehensive validation - all fields and resources
+        const validationResult = await service.validateAndroidSubmission(
+          submissionId,
+          { rolloutPercent, inAppPriority, releaseNotes },
+          tenantId
+        );
+        
+        if (!validationResult.valid) {
+          // If validation has a field, use validationErrorResponse, otherwise use errorResponse
+          if (validationResult.field) {
+            res.status(validationResult.statusCode).json(
+              validationErrorResponse(validationResult.field, validationResult.error ?? 'Validation failed')
           );
-          return;
-        }
-
-        if (rolloutPercent < 0 || rolloutPercent > 100) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('rolloutPercent', 'rolloutPercent must be between 0 and 100')
+          } else {
+            res.status(validationResult.statusCode).json(
+              errorResponse(
+                new Error(validationResult.error ?? 'Validation failed'),
+                validationResult.error ?? 'Validation failed'
+              )
           );
-          return;
-        }
-
-        if (typeof inAppPriority !== 'number') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('inAppPriority', 'inAppPriority must be a number')
-          );
-          return;
-        }
-
-        if (inAppPriority < 0 || inAppPriority > 5) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('inAppPriority', 'inAppPriority must be between 0 and 5')
-          );
-          return;
-        }
-
-        if (!releaseNotes || typeof releaseNotes !== 'string') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('releaseNotes', 'releaseNotes is required')
-          );
+          }
           return;
         }
 
         result = await service.submitExistingAndroidSubmission(
           submissionId,
           { rolloutPercent, inAppPriority, releaseNotes },
-          submittedBy
+          submittedBy,
+          tenantId
         );
       }
 
@@ -221,7 +244,7 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
 
 /**
  * Create new submission (resubmission)
- * POST /distributions/:distributionId/submissions
+ * POST /tenants/:tenantId/distributions/:distributionId/submissions
  * 
  * Creates a completely new submission after rejection/cancellation
  * User provides new artifact and can update any fields
@@ -246,9 +269,30 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
 const createNewSubmissionHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { distributionId } = req.params;
+      const { tenantId, distributionId } = req.params;
       const { platform } = req.body;
-      const submittedBy = req.user?.email ?? 'unknown';
+      
+      // Get user ID from authentication - required
+      const submittedBy = req.user?.id;
+      if (!submittedBy) {
+        res.status(HTTP_STATUS.UNAUTHORIZED).json(
+          errorResponse(
+            new Error('User ID not found'),
+            'Authentication required'
+          )
+        );
+        return;
+      }
+
+      if (!tenantId || typeof tenantId !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          errorResponse(
+            new Error('tenantId is required'),
+            'Invalid tenant ID'
+          )
+        );
+        return;
+      }
 
       if (!distributionId || typeof distributionId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -282,39 +326,33 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
         // iOS resubmission
         const { version, testflightNumber, phasedRelease, resetRating, releaseNotes } = req.body;
 
-        // Validate iOS fields
-        if (!version || typeof version !== 'string') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('version', 'version is required')
+        // Comprehensive validation - all fields and resources
+        const validationResult = await service.validateCreateIosSubmission(
+          distributionId,
+          {
+            version,
+            testflightNumber: String(testflightNumber),
+            phasedRelease,
+            resetRating,
+            releaseNotes
+          },
+          tenantId
+        );
+        
+        if (!validationResult.valid) {
+          // If validation has a field, use validationErrorResponse, otherwise use errorResponse
+          if (validationResult.field) {
+            res.status(validationResult.statusCode).json(
+              validationErrorResponse(validationResult.field, validationResult.error ?? 'Validation failed')
           );
-          return;
-        }
-
-        if (!testflightNumber || (typeof testflightNumber !== 'string' && typeof testflightNumber !== 'number')) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('testflightNumber', 'testflightNumber is required')
+          } else {
+            res.status(validationResult.statusCode).json(
+              errorResponse(
+                new Error(validationResult.error ?? 'Validation failed'),
+                validationResult.error ?? 'Validation failed'
+              )
           );
-          return;
-        }
-
-        if (typeof phasedRelease !== 'boolean') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('phasedRelease', 'phasedRelease must be a boolean')
-          );
-          return;
-        }
-
-        if (typeof resetRating !== 'boolean') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('resetRating', 'resetRating must be a boolean')
-          );
-          return;
-        }
-
-        if (!releaseNotes || typeof releaseNotes !== 'string') {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('releaseNotes', 'releaseNotes is required')
-          );
+          }
           return;
         }
 
@@ -327,15 +365,94 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
             resetRating,
             releaseNotes
           },
-          submittedBy
+          submittedBy,
+          tenantId
         );
       } else {
-        // Android resubmission - not yet implemented
-        res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
-          error: "Not implemented yet",
-          message: "Android resubmission will be implemented later"
-        });
-        return;
+        // Android resubmission
+        const { version, versionCode, rolloutPercent, inAppPriority, releaseNotes } = req.body;
+        const aabFile = (req as any).file;
+
+        // Validate Android fields
+        if (!version || typeof version !== 'string') {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            validationErrorResponse('version', 'version is required')
+          );
+          return;
+        }
+
+        if (!aabFile || !aabFile.buffer) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            validationErrorResponse('aabFile', 'aabFile is required')
+          );
+          return;
+        }
+
+        if (typeof rolloutPercent !== 'number' || rolloutPercent < 0 || rolloutPercent > 100) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            validationErrorResponse('rolloutPercent', 'rolloutPercent must be a number between 0 and 100')
+          );
+          return;
+        }
+
+        if (typeof inAppPriority !== 'number' || inAppPriority < 0 || inAppPriority > 5) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            validationErrorResponse('inAppPriority', 'inAppPriority must be a number between 0 and 5')
+          );
+          return;
+        }
+
+        if (!releaseNotes || typeof releaseNotes !== 'string') {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            validationErrorResponse('releaseNotes', 'releaseNotes is required')
+          );
+          return;
+        }
+
+        // Comprehensive validation - all fields and resources
+        const validationResult = await service.validateCreateAndroidSubmission(
+          distributionId,
+          {
+            version,
+            versionCode: versionCode ? Number(versionCode) : undefined,
+            aabFile: aabFile.buffer,
+            rolloutPercent,
+            inAppPriority,
+            releaseNotes
+          },
+          tenantId
+        );
+        
+        if (!validationResult.valid) {
+          // If validation has a field, use validationErrorResponse, otherwise use errorResponse
+          if (validationResult.field) {
+            res.status(validationResult.statusCode).json(
+              validationErrorResponse(validationResult.field, validationResult.error ?? 'Validation failed')
+          );
+          } else {
+            res.status(validationResult.statusCode).json(
+              errorResponse(
+                new Error(validationResult.error ?? 'Validation failed'),
+                validationResult.error ?? 'Validation failed'
+              )
+          );
+          }
+          return;
+        }
+
+        result = await service.createNewAndroidSubmission(
+          distributionId,
+          {
+            version,
+            versionCode: versionCode ? Number(versionCode) : undefined,
+            aabFile: aabFile.buffer,
+            rolloutPercent,
+            inAppPriority,
+            releaseNotes
+          },
+          submittedBy,
+          tenantId
+        );
       }
 
       res.status(HTTP_STATUS.OK).json(
@@ -351,7 +468,7 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
 
 /**
  * Pause iOS rollout / Halt Android rollout
- * PATCH /submissions/:submissionId/rollout/pause?platform=<IOS|ANDROID>
+ * PATCH /tenants/:tenantId/submissions/:submissionId/rollout/pause?platform=<IOS|ANDROID>
  * 
  * - iOS: Pauses an active iOS phased release rollout
  * - Android: Halts an active Android release rollout
@@ -362,10 +479,31 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
 const pauseRolloutHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { submissionId } = req.params;
+      const { tenantId, submissionId } = req.params;
       const { platform } = req.query;
       const { reason } = req.body;
-      const createdBy = req.user?.email ?? 'unknown';
+      
+      // Get user ID from authentication - required
+      const createdBy = req.user?.id;
+      if (!createdBy) {
+        res.status(HTTP_STATUS.UNAUTHORIZED).json(
+          errorResponse(
+            new Error('User ID not found'),
+            'Authentication required'
+          )
+        );
+        return;
+      }
+
+      if (!tenantId || typeof tenantId !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          errorResponse(
+            new Error('tenantId is required'),
+            'Invalid tenant ID'
+          )
+        );
+        return;
+      }
 
       if (!submissionId || typeof submissionId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -404,10 +542,10 @@ const pauseRolloutHandler = (service: SubmissionService) =>
 
       if (platformUpper === 'IOS') {
         // iOS: Pause rollout
-        result = await service.pauseRollout(submissionId, reason, createdBy);
+        result = await service.pauseRollout(submissionId, reason, createdBy, tenantId);
       } else {
         // Android: Halt rollout
-        result = await service.haltAndroidRollout(submissionId, reason, createdBy);
+        result = await service.haltAndroidRollout(submissionId, reason, createdBy, tenantId);
       }
 
       if (!result) {
@@ -432,7 +570,7 @@ const pauseRolloutHandler = (service: SubmissionService) =>
 
 /**
  * Resume rollout (iOS or Android)
- * PATCH /submissions/:submissionId/rollout/resume?platform=<IOS|ANDROID>
+ * PATCH /tenants/:tenantId/submissions/:submissionId/rollout/resume?platform=<IOS|ANDROID>
  * 
  * - iOS: Resumes a paused iOS phased release rollout
  * - Android: Resumes a halted Android release rollout
@@ -442,9 +580,30 @@ const pauseRolloutHandler = (service: SubmissionService) =>
 const resumeRolloutHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { submissionId } = req.params;
+      const { tenantId, submissionId } = req.params;
       const { platform } = req.query;
-      const createdBy = req.user?.email ?? 'unknown';
+      
+      // Get user ID from authentication - required
+      const createdBy = req.user?.id;
+      if (!createdBy) {
+        res.status(HTTP_STATUS.UNAUTHORIZED).json(
+          errorResponse(
+            new Error('User ID not found'),
+            'Authentication required'
+          )
+        );
+        return;
+      }
+
+      if (!tenantId || typeof tenantId !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          errorResponse(
+            new Error('tenantId is required'),
+            'Invalid tenant ID'
+          )
+        );
+        return;
+      }
 
       if (!submissionId || typeof submissionId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -472,7 +631,7 @@ const resumeRolloutHandler = (service: SubmissionService) =>
         return;
       }
 
-      const result = await service.resumeRollout(submissionId, createdBy, platformUpper);
+      const result = await service.resumeRollout(submissionId, createdBy, platformUpper, tenantId);
 
       if (!result) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
@@ -494,7 +653,7 @@ const resumeRolloutHandler = (service: SubmissionService) =>
 
 /**
  * Update rollout percentage
- * PATCH /submissions/:submissionId/rollout?platform=<ANDROID|IOS>
+ * PATCH /tenants/:tenantId/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
  * 
  * Updates rollout percentage for a submission (platform-specific rules)
  * Query params: platform (ANDROID or IOS)
@@ -503,9 +662,19 @@ const resumeRolloutHandler = (service: SubmissionService) =>
 const updateRolloutPercentageHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { submissionId } = req.params;
+      const { tenantId, submissionId } = req.params;
       const { platform } = req.query;
       const { rolloutPercent } = req.body;
+
+      if (!tenantId || typeof tenantId !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          errorResponse(
+            new Error('tenantId is required'),
+            'Invalid tenant ID'
+          )
+        );
+        return;
+      }
 
       if (!submissionId || typeof submissionId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -551,10 +720,10 @@ const updateRolloutPercentageHandler = (service: SubmissionService) =>
       let result;
 
       if (platformUpper === 'IOS') {
-        result = await service.updateIosRolloutPercentage(submissionId, rolloutPercent);
+        result = await service.updateIosRolloutPercentage(submissionId, rolloutPercent, tenantId);
       } else {
         // Android
-        result = await service.updateAndroidRolloutPercentage(submissionId, rolloutPercent);
+        result = await service.updateAndroidRolloutPercentage(submissionId, rolloutPercent, tenantId);
       }
 
       if (!result) {
@@ -588,17 +757,38 @@ const updateRolloutPercentageHandler = (service: SubmissionService) =>
 
 /**
  * Cancel iOS submission (iOS only)
- * PATCH /submissions/:submissionId/cancel
+ * PATCH /tenants/:tenantId/submissions/:submissionId/cancel
  * Query params: platform (IOS only)
  * Request body: { reason: string }
  */
 const cancelSubmissionHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { submissionId } = req.params;
+      const { tenantId, submissionId } = req.params;
       const { platform } = req.query;
       const { reason } = req.body;
-      const createdBy = req.user?.email ?? 'unknown';
+      
+      // Get user ID from authentication - required
+      const createdBy = req.user?.id;
+      if (!createdBy) {
+        res.status(HTTP_STATUS.UNAUTHORIZED).json(
+          errorResponse(
+            new Error('User ID not found'),
+            'Authentication required'
+          )
+        );
+        return;
+      }
+
+      if (!tenantId || typeof tenantId !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          errorResponse(
+            new Error('tenantId is required'),
+            'Invalid tenant ID'
+          )
+        );
+        return;
+      }
 
       if (!submissionId || typeof submissionId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -643,7 +833,7 @@ const cancelSubmissionHandler = (service: SubmissionService) =>
         return;
       }
 
-      const result = await service.cancelSubmission(submissionId, reason, createdBy);
+      const result = await service.cancelSubmission(submissionId, reason, createdBy, tenantId);
 
       if (!result) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
@@ -659,6 +849,97 @@ const cancelSubmissionHandler = (service: SubmissionService) =>
       const statusCode = getErrorStatusCode(error);
       res.status(statusCode).json(
         errorResponse(error, 'Failed to cancel submission')
+      );
+    }
+  };
+
+  /**
+ * Submission status handler (Cronicle webhook handler)
+ * POST /tenants/:tenantId/submissions/:submissionId/status?platform=<IOS|ANDROID>
+ * 
+ * Routes to platform-specific service method:
+ * - iOS: service.IosSubmissionStatus()
+ * - Android: service.AndroidSubmissionStatus() (not yet implemented)
+ * 
+ * Called by Cronicle every 2 hours to check submission status
+ * Updates database if status changed, adds history if rejected
+ */
+const SubmissionStatusHandler = (service: SubmissionService) =>
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { tenantId, submissionId } = req.params;
+      const { platform, storeType } = req.query;
+
+      if (!tenantId || typeof tenantId !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          errorResponse(
+            new Error('tenantId is required'),
+            'Invalid tenant ID'
+          )
+        );
+        return;
+      }
+
+      if (!submissionId || typeof submissionId !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          errorResponse(
+            new Error('submissionId is required'),
+            'Invalid submission ID'
+          )
+        );
+        return;
+      }
+
+      // Validate platform parameter
+      if (!platform || typeof platform !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('platform', 'platform query parameter is required')
+        );
+        return;
+      }
+
+      const platformUpper = platform.toUpperCase();
+
+      // Validate storeType parameter
+      if (!storeType || typeof storeType !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('storeType', 'storeType query parameter is required')
+        );
+        return;
+      }
+
+      const storeTypeUpper = storeType.toUpperCase();
+
+      if (storeTypeUpper !== 'APP_STORE') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('storeType', 'storeType must be APP_STORE')
+        );
+        return;
+      }
+
+      if (platformUpper !== 'IOS' ) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('platform', 'platform must be IOS ')
+        );
+        return;
+      }
+
+      console.log(`[SubmissionStatus] Webhook received for ${platformUpper} submission ${submissionId} (storeType: ${storeTypeUpper})`);
+
+      let result;
+
+      
+      // Call iOS-specific service method
+      result = await service.IosSubmissionStatus(submissionId);
+     
+
+      res.status(HTTP_STATUS.OK).json(
+        successResponse(result)
+      );
+    } catch (error) {
+      const statusCode = getErrorStatusCode(error);
+      res.status(statusCode).json(
+        errorResponse(error, 'Failed to update submission status')
       );
     }
   };
@@ -759,6 +1040,7 @@ export const createSubmissionController = (service: SubmissionService) => ({
   resumeRollout: resumeRolloutHandler(service),
   updateRolloutPercentage: updateRolloutPercentageHandler(service),
   cancelSubmission: cancelSubmissionHandler(service),
+  submissionStatus: SubmissionStatusHandler(service),
   getSubmissionArtifactDownload: getSubmissionArtifactDownloadHandler(service)
 });
 

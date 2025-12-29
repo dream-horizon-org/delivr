@@ -75,12 +75,17 @@ export class SlackProvider implements ICommService {
         throw new Error(`${SLACK_ERROR_MESSAGES.BUILD_MESSAGE_FAILED} "${task}"${platformInfo}`);
       }
 
-      // Get channel controller from storage
+      // Get comm config service from storage
       const storage = getStorage();
-      const channelController = (storage as any).channelController;
+      const commConfigService = (storage as any).commConfigService;
+      
+      if (!commConfigService) {
+        console.error(`[ConfigId ${configId}] CommConfigService not available on storage`);
+        throw new Error('CommConfigService not available');
+      }
       
       // Fetch channel configuration by configId
-      const channelConfig = await channelController.findById(configId);
+      const channelConfig = await commConfigService.getConfigById(configId);
       
       if (!channelConfig) {
         console.error(`[ConfigId ${configId}] ${SLACK_ERROR_MESSAGES.CHANNEL_CONFIG_NOT_FOUND}`);
@@ -102,7 +107,8 @@ export class SlackProvider implements ICommService {
 
       // Collect all unique channel IDs from relevant buckets
       const channelIds = new Set<string>();
-      const channels = channelConfig.channelData?.channels ?? {};
+      const channels = channelConfig.channelData ?? {};
+      console.log('[SlackProvider] Channels:', JSON.stringify(channels, null, 2));
       
       for (const bucket of relevantBuckets) {
         // Use bucket name directly (singular form: 'release', 'build', 'regression', 'critical')

@@ -22,6 +22,14 @@ import type { BuildRepository } from '../../models/release/build.repository';
 import type { RegressionCycleRepository } from '../../models/release/regression-cycle.repository';
 import type { StoreIntegrationController, StoreCredentialController } from '../../storage/integrations/store/store-controller';
 import type { CronicleService } from '../../services/cronicle';
+import type { TaskExecutor } from '../../services/release/task-executor/task-executor';
+import type { GlobalSchedulerService } from '../../services/release/cron-job/global-scheduler.service';
+import type { CronJobService } from '../../services/release/cron-job/cron-job.service';
+import type { UploadValidationService } from '../../services/release/upload-validation.service';
+import type { ManualUploadService } from '../../services/release/manual-upload.service';
+import type { BuildCallbackService } from '../../services/release/build-callback.service';
+import type { TestFlightBuildVerificationService } from '../../services/release/testflight-build-verification.service';
+import type { ReleaseScheduleService } from '../../services/release-schedules/release-schedule.service';
 
 /**
  * Storage with release management services attached
@@ -37,6 +45,14 @@ export type StorageWithReleaseServices = storageTypes.Storage & {
   releaseActivityLogService: ReleaseActivityLogService;
   releaseNotificationService: ReleaseNotificationService;
   buildArtifactService: BuildArtifactService;
+  cronJobService: CronJobService;
+  taskExecutor: TaskExecutor;
+  globalSchedulerService: GlobalSchedulerService;  // ✅ Required - actively initialized in aws-storage.ts
+  uploadValidationService: UploadValidationService;
+  manualUploadService: ManualUploadService;
+  buildCallbackService: BuildCallbackService;
+  testFlightBuildVerificationService: TestFlightBuildVerificationService;
+  releaseScheduleService: ReleaseScheduleService;
 
   // Repositories
   releaseRepository: ReleaseRepository;
@@ -106,4 +122,84 @@ export const hasTestFlightVerificationDependencies = (
   const hasReleaseRepo = storageWithServices.releaseRepository !== undefined;
   const hasUploadsRepo = storageWithServices.releaseUploadsRepository !== undefined;
   return hasStoreController && hasCredController && hasPlatformRepo && hasReleaseRepo && hasUploadsRepo;
+};
+
+/**
+ * Type guard to check if storage has taskExecutor
+ */
+export const hasTaskExecutor = (
+  storage: storageTypes.Storage
+): storage is StorageWithReleaseServices => {
+  const storageWithServices = storage as StorageWithReleaseServices;
+  return storageWithServices.taskExecutor !== undefined;
+};
+
+/**
+ * Type guard to check if storage has globalSchedulerService
+ */
+export const hasGlobalSchedulerService = (
+  storage: storageTypes.Storage
+): storage is StorageWithReleaseServices => {
+  const storageWithServices = storage as StorageWithReleaseServices;
+  return storageWithServices.globalSchedulerService !== undefined;
+};
+
+/**
+ * Type guard to check if storage has cronJobService
+ */
+export const hasCronJobService = (
+  storage: storageTypes.Storage
+): storage is StorageWithReleaseServices => {
+  const storageWithServices = storage as StorageWithReleaseServices;
+  return storageWithServices.cronJobService !== undefined;
+};
+
+/**
+ * Type guard to check if storage has uploadValidationService
+ */
+export const hasUploadValidationService = (
+  storage: storageTypes.Storage
+): storage is StorageWithReleaseServices => {
+  const storageWithServices = storage as StorageWithReleaseServices;
+  return storageWithServices.uploadValidationService !== undefined;
+};
+
+/**
+ * Type guard to check if storage has manualUploadService
+ */
+export const hasManualUploadService = (
+  storage: storageTypes.Storage
+): storage is StorageWithReleaseServices => {
+  const storageWithServices = storage as StorageWithReleaseServices;
+  return storageWithServices.manualUploadService !== undefined;
+};
+
+/**
+ * Type guard to check if storage has buildCallbackService
+ */
+export const hasBuildCallbackService = (
+  storage: storageTypes.Storage
+): storage is StorageWithReleaseServices => {
+  const storageWithServices = storage as StorageWithReleaseServices;
+  return storageWithServices.buildCallbackService !== undefined;
+};
+
+/**
+ * Type guard to check if storage has releaseScheduleService
+ */
+export const hasReleaseScheduleService = (
+  storage: storageTypes.Storage
+): storage is StorageWithReleaseServices => {
+  const storageWithServices = storage as StorageWithReleaseServices;
+  return storageWithServices.releaseScheduleService !== undefined;
+};
+
+/**
+ * Type guard to check if storage has testFlightBuildVerificationService
+ */
+export const hasTestFlightBuildVerificationService = (
+  storage: storageTypes.Storage
+): storage is StorageWithReleaseServices => {
+  const storageWithServices = storage as StorageWithReleaseServices;
+  return storageWithServices.testFlightBuildVerificationService !== undefined;
 };

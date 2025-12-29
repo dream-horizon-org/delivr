@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { Storage } from "../../../../storage/storage";
 import * as validateCICD from "../../../../middleware/validate-cicd";
+import * as tenantPermissions from "../../../../middleware/tenant-permissions";
 import {
   createConfig,
   listConfigsByTenant,
@@ -10,18 +11,20 @@ import {
   triggerWorkflowByConfig
 } from "~controllers/integrations/ci-cd";
 
-export const createCICDConfigRoutes = (_storage: Storage): Router => {
+export const createCICDConfigRoutes = (storage: Storage): Router => {
   const router = Router();
 
   router.post(
     "/tenants/:tenantId/integrations/ci-cd/configs",
     validateCICD.validateTenantId,
+    tenantPermissions.requireOwner({ storage }),
     createConfig
   );
 
   router.get(
     "/tenants/:tenantId/integrations/ci-cd/configs",
     validateCICD.validateTenantId,
+    tenantPermissions.requireTenantMembership({ storage }),
     listConfigsByTenant
   );
 
@@ -29,6 +32,7 @@ export const createCICDConfigRoutes = (_storage: Storage): Router => {
     "/tenants/:tenantId/integrations/ci-cd/configs/:configId",
     validateCICD.validateTenantId,
     validateCICD.validateConfigIdParam,
+    tenantPermissions.requireTenantMembership({ storage }),
     getConfigById
   );
 
@@ -36,6 +40,7 @@ export const createCICDConfigRoutes = (_storage: Storage): Router => {
     "/tenants/:tenantId/integrations/ci-cd/configs/:configId",
     validateCICD.validateTenantId,
     validateCICD.validateConfigIdParam,
+    tenantPermissions.requireEditor({ storage }),
     updateConfigById
   );
 
@@ -43,6 +48,7 @@ export const createCICDConfigRoutes = (_storage: Storage): Router => {
     "/tenants/:tenantId/integrations/ci-cd/configs/:configId",
     validateCICD.validateTenantId,
     validateCICD.validateConfigIdParam,
+    tenantPermissions.requireEditor({ storage }),
     deleteConfigById
   );
 
@@ -50,6 +56,7 @@ export const createCICDConfigRoutes = (_storage: Storage): Router => {
     "/integrations/ci-cd/configs/:configId/trigger",
     validateCICD.validateConfigIdParam,
     validateCICD.validateConfigWorkflowTriggerBody,
+    tenantPermissions.requireEditor({ storage }),
     triggerWorkflowByConfig
   );
 

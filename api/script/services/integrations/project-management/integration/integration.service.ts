@@ -39,8 +39,8 @@ export class ProjectManagementIntegrationService {
       );
     }
     
-    // Credentials are valid - save the integration
-    return await this.repository.create(data);
+    // Create integration with VALID status since we validated before creating
+    return await this.repository.create(data, VerificationStatus.VALID);
   }
 
   /**

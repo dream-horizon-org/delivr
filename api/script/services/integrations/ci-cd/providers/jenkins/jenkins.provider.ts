@@ -177,11 +177,6 @@ export class JenkinsProvider implements JenkinsProviderContract {
    * Poll queue item and return status with executable URL when available.
    * The executableUrl is the actual build URL (ciRunId) that should be stored
    * in the build table for subsequent status checks.
-   * 
-   * Jenkins Queue API behavior:
-   * - Queue item exists while job is waiting or just started
-   * - Queue item is deleted after job starts (Jenkins cleans up old items)
-   * - 404 on queue item usually means job started and queue was cleaned up
    */
   getQueueStatus = async (req): Promise<JenkinsQueueStatusResult> => {
     const { queueUrl, authHeader, timeoutMs } = req;
@@ -223,14 +218,19 @@ export class JenkinsProvider implements JenkinsProviderContract {
       const buildFetchFailed = !bResp.ok;
       if (buildFetchFailed) {
         // Can't fetch build info, but job has started - return running with URL
-        return { status: 'running', executableUrl };
+        return { status: 'failed', executableUrl };
       }
       const bJson: any = await bResp.json();
       const isBuilding = !!bJson.building;
-      // Note: We don't check SUCCESS/FAILURE here - that's getBuildStatus's job
-      // getQueueStatus just reports: pending → running → completed
-      const status = isBuilding ? 'running' : 'completed';
-      return { status, executableUrl };
+      const result = bJson.result as string | null;
+      const isSuccess = result === JENKINS_BUILD_RESULTS.SUCCESS;
+      if(isSuccess) {
+        return { status: 'completed', executableUrl };
+      }
+      if(isBuilding ) {
+        return { status: 'running', executableUrl };
+      }
+      return { status: 'failed', executableUrl };
     }
     return { status: 'pending' };
   };
@@ -249,19 +249,18 @@ export class JenkinsProvider implements JenkinsProviderContract {
     const bResp = await fetchWithTimeout(buildApi, { headers }, timeoutMs);
     const fetchFailed = !bResp.ok;
     if (fetchFailed) {
-      // Can't fetch build info - assume still running
-      return { status: 'running' };
+      return { status: 'failed', buildUrl };
     }
     const bJson: any = await bResp.json();
     const isBuilding = !!bJson.building;
     if (isBuilding) {
-      return { status: 'running' };
+      return { status: 'running', buildUrl };
     }
     // Build is complete - SUCCESS = completed, anything else = failed
     const result = bJson.result as string | null;
     const isSuccess = result === JENKINS_BUILD_RESULTS.SUCCESS;
     const status = isSuccess ? 'completed' : 'failed';
-    return { status };
+    return { status, buildUrl };
   };
 }
 

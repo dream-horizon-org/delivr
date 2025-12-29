@@ -17,11 +17,17 @@ import type { Storage } from '~storage/storage';
 export const createDistributionController = (service: DistributionService, storage?: Storage) => {
   /**
    * Get distribution by release ID with all submissions and action history
-   * GET /api/v1/releases/:releaseId/distribution
+   * GET /api/v1/tenants/:tenantId/releases/:releaseId/distribution
    */
   const getDistributionByReleaseId = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const { releaseId } = req.params;
+      const { tenantId, releaseId } = req.params;
+
+      if (!tenantId) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json(
+          errorResponse(new Error('Tenant ID is required'), 'Get Distribution')
+        );
+      }
 
       if (!releaseId) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -51,11 +57,17 @@ export const createDistributionController = (service: DistributionService, stora
 
   /**
    * Get distribution by ID with all submissions and action history
-   * GET /api/v1/distributions/:distributionId
+   * GET /api/v1/tenants/:tenantId/distributions/:distributionId
    */
   const getDistributionById = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const { distributionId } = req.params;
+      const { tenantId, distributionId } = req.params;
+
+      if (!tenantId) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json(
+          errorResponse(new Error('Tenant ID is required'), 'Get Distribution')
+        );
+      }
 
       if (!distributionId) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json(

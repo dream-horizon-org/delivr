@@ -14,11 +14,10 @@ import { ReleaseManagementController } from "../../controllers/release/release-m
 import { verifyTestFlightBuild } from "../../controllers/release/testflight-verification.controller";
 import { BuildCallbackController } from "../../controllers/release/build-callback.controller";
 
-import { getCronJobService } from "../../services/release/cron-job/cron-job-service.factory";
-import { BuildCallbackService } from "../../services/release/build-callback.service";
-import { ManualUploadService } from "../../services/release/manual-upload.service";
-import { UploadValidationService } from "../../services/release/upload-validation.service";
-import { BuildArtifactService } from "../../services/release/build/build-artifact.service";
+// Note: CronJobService is now accessed from storage instance (migrated from factory)
+// Note: Services (BuildCallbackService, ManualUploadService, UploadValidationService, BuildArtifactService) 
+// are now accessed from storage instance (migrated from factory)
+import type { ManualUploadService } from "../../services/release/manual-upload.service";
 import { createBuildListArtifactsHandler } from "~controllers/release-management/builds/list-artifacts.controller";
 import { createBuildDownloadArtifactHandler } from "~controllers/release-management/builds/download-artifact.controller";
 import { createCiTestflightVerifyHandler } from "~controllers/release-management/builds/testflight-ci-verify.controller";
@@ -28,6 +27,10 @@ import {
   hasReleaseCreationService,
   hasManualUploadDependencies,
   hasBuildCallbackDependencies,
+  hasCronJobService,
+  hasUploadValidationService,
+  hasManualUploadService,
+  hasBuildCallbackService,
   StorageWithReleaseServices
 } from "../../types/release/storage-with-services.interface";
 
@@ -64,13 +67,16 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // TypeScript now knows storage has release services
   const storageWithServices: StorageWithReleaseServices = storage;
 
-  // Get CronJobService from factory
-  const cronJobService = getCronJobService(storage);
-  const cronJobServiceUnavailable = !cronJobService;
-  if (cronJobServiceUnavailable) {
+  // ✅ Get CronJobService from storage instance (migrated from factory)
+  // Use proper type guard instead of 'as any'
+  if (!hasCronJobService(storage)) {
     console.warn('[Release Orchestration Routes] CronJobService not available');
     return router;
   }
+  
+  // TypeScript now knows storage is StorageWithReleaseServices
+  const storageWithAllServices: StorageWithReleaseServices = storage;
+  const cronJobService = storageWithAllServices.cronJobService;
 
   // Inject ReleaseStatusService into CronJobService (for approval checks)
   if (storageWithServices.releaseStatusService) {
@@ -78,30 +84,11 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     console.log('[Release Management] ReleaseStatusService injected into CronJobService');
   }
 
-  // Create ManualUploadService (optional - may not be available in all environments)
-  let manualUploadService: ManualUploadService | undefined;
-  const canCreateManualUploadService = hasManualUploadDependencies(storage);
-  
-  if (canCreateManualUploadService) {
-    const validationService = new UploadValidationService(
-      storageWithServices.releaseRepository,
-      storageWithServices.cronJobRepository,
-      storageWithServices.releaseTaskRepository,
-      storageWithServices.regressionCycleRepository,
-      storageWithServices.platformMappingRepository
-    );
-    
-    // Create BuildArtifactService for S3 uploads
-    const buildArtifactService = new BuildArtifactService(storage);
-    
-    manualUploadService = new ManualUploadService(
-      storageWithServices.releaseUploadsRepository,
-      storageWithServices.releaseRepository,
-      storageWithServices.platformMappingRepository,
-      validationService,
-      buildArtifactService
-    );
+  // ✅ Get ManualUploadService from storage (centralized initialization - actively initialized in aws-storage.ts)
+  if (!hasManualUploadService(storage)) {
+    throw new Error('ManualUploadService not available on storage - initialization failed');
   }
+  const manualUploadService = storageWithServices.manualUploadService;
 
   // Create ReleaseManagementController with services
   const controller = new ReleaseManagementController(
@@ -111,36 +98,30 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     storageWithServices.releaseUpdateService,
     storageWithServices.releaseActivityLogService,
     cronJobService,
-    manualUploadService
+    manualUploadService  // ✅ Always provided - actively initialized
   );
 
-  // Create BuildCallbackController with service
-  let buildCallbackController: BuildCallbackController | undefined;
-  const canCreateBuildCallback = hasBuildCallbackDependencies(storage);
-  
-  if (canCreateBuildCallback) {
-    const buildCallbackService = new BuildCallbackService(
-      storageWithServices.buildRepository,
-      storageWithServices.releaseTaskRepository,
-      storageWithServices.releaseRepository,
-      storageWithServices.cronJobRepository,
-      storageWithServices.releaseRetrievalService,
-      storageWithServices.releaseNotificationService,
-      storageWithServices.buildArtifactService
-    );
-    buildCallbackController = new BuildCallbackController(buildCallbackService);
+  // ✅ Get BuildCallbackService from storage (centralized initialization - actively initialized in aws-storage.ts)
+  if (!hasBuildCallbackService(storage)) {
+    throw new Error('BuildCallbackService not available on storage - initialization failed');
   }
+  const buildCallbackService = storageWithServices.buildCallbackService;
+  const buildCallbackController = new BuildCallbackController(buildCallbackService);  // ✅ Always available - actively initialized
 
   // ============================================================================
   // HEALTH CHECK
   // ============================================================================
-  router.get("/health", (req: Request, res: Response): Response => {
-    return res.status(HTTP_STATUS.OK).json({
-      service: "Release Management",
-      status: "healthy",
-      timestamp: new Date().toISOString()
-    });
-  });
+  router.get(
+    "/health",
+    tenantPermissions.requireTenantMembership({ storage }),
+    (req: Request, res: Response): Response => {
+      return res.status(HTTP_STATUS.OK).json({
+        service: "Release Management",
+        status: "healthy",
+        timestamp: new Date().toISOString()
+      });
+    }
+  );
 
   // ============================================================================
   // RELEASE CRUD OPERATIONS
@@ -149,35 +130,35 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Create a new release
   router.post(
     "/tenants/:tenantId/releases",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.createRelease
   );
 
   // Get a specific release
   router.get(
     "/tenants/:tenantId/releases/:releaseId",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.getRelease
   );
 
   // Get all releases for a tenant
   router.get(
     "/tenants/:tenantId/releases",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.listReleases
   );
 
   // Update a release
   router.patch(
     "/tenants/:tenantId/releases/:releaseId",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.updateRelease
   );
 
   // Delete a release
   router.delete(
     "/tenants/:tenantId/releases/:releaseId",
-    tenantPermissions.requireOwner({ storage }),
+    releasePermissions.requireReleaseOwner({ storage }),
     async (req: Request, res: Response): Promise<Response> => {
       // TODO: Delegate to controller.deleteRelease
       return res.status(501).json({
@@ -194,14 +175,14 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Get tasks for a release
   router.get(
     "/tenants/:tenantId/releases/:releaseId/tasks",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.getTasks
   );
 
   // Get a specific task
   router.get(
     "/tenants/:tenantId/releases/:releaseId/tasks/:taskId",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.getTaskById
   );
 
@@ -252,7 +233,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
    */
   router.post(
     "/tenants/:tenantId/releases/:releaseId/trigger-regression-testing",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.triggerRegressionTesting
   );
 
@@ -263,14 +244,14 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Pause release (user-requested)
   router.post(
     "/tenants/:tenantId/releases/:releaseId/pause",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.pauseRelease
   );
 
   // Resume release (user-paused)
   router.post(
     "/tenants/:tenantId/releases/:releaseId/resume",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.resumeRelease
   );
 
@@ -302,7 +283,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Resets task status to PENDING, cron will re-execute on next tick
   router.post(
     "/tenants/:tenantId/releases/:releaseId/tasks/:taskId/retry",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.retryTask
   );
 
@@ -326,7 +307,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
    */
   router.put(
     "/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     upload.single('artifact'),
     controller.uploadManualBuild
   );
@@ -350,24 +331,11 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
    * The build system updates buildUploadStatus in the builds table.
    * This handler READS that status and updates task/release accordingly.
    */
-  const buildCallbackControllerAvailable = buildCallbackController !== undefined;
-  if (buildCallbackControllerAvailable) {
-    router.post(
-      "/webhooks/build-callback",
-      buildCallbackController.handleBuildCallback
-    );
-  } else {
-    // Fallback if controller not available - return error
-    router.post(
-      "/webhooks/build-callback",
-      (_req: Request, res: Response): Response => {
-        return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-          success: false,
-          error: 'Build callback service not configured'
-        });
-      }
-    );
-  }
+  // ✅ Controller is always available - actively initialized in aws-storage.ts (no conditional check needed)
+  router.post(
+    "/webhooks/build-callback",
+    buildCallbackController.handleBuildCallback
+  );
 
   // ============================================================================
   // ARCHIVE RELEASE
@@ -376,7 +344,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Archive (cancel) a release
   router.put(
     "/tenants/:tenantId/releases/:releaseId/archive",
-    tenantPermissions.requireOwner({ storage }),
+    releasePermissions.requireReleaseOwner({ storage }),
     controller.archiveRelease
   );
 
@@ -387,7 +355,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Trigger Pre-Release (Stage 3)
   router.post(
     "/tenants/:tenantId/releases/:releaseId/trigger-pre-release",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.triggerPreRelease
   );
 
@@ -398,7 +366,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Trigger Distribution (Stage 4)
   router.post(
     "/tenants/:tenantId/releases/:releaseId/trigger-distribution",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     controller.triggerDistribution
   );
 
@@ -422,21 +390,21 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Check Cherry Pick Status
   router.get(
     "/tenants/:tenantId/releases/:releaseId/check-cherry-pick-status",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.checkCherryPickStatus
   );
 
   // Check project management run status
   router.get(
     "/tenants/:tenantId/releases/:releaseId/project-management-run-status",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.checkProjectManagementRunStatus
   );
 
   // Check test management run status
   router.get(
     "/tenants/:tenantId/releases/:releaseId/test-management-run-status",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.checkTestManagementRunStatus
   );
 
@@ -447,7 +415,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Get activity logs for a release
   router.get(
     "/tenants/:tenantId/releases/:releaseId/activity-logs",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     controller.getActivityLogs
   );
 
@@ -483,7 +451,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Get build artifacts
   router.get(
     "/tenants/:tenantId/releases/:releaseId/builds/artifacts",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireTenantMembership({ storage }),
     createBuildListArtifactsHandler(storage)
   );
 

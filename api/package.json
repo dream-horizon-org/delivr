@@ -7,7 +7,7 @@
     "start": "node ./bin/script/server.js",
     "start:env": "node -r dotenv/config ./bin/script/server.js dotenv_config_path=.env dotenv_config_silent=true",
     "clean": "rimraf bin",
-    "build": "tsc && shx cp -r ./script/views ./bin/script",
+    "build": "tsc && shx cp -r ./script/views ./bin/script && shx cp -r ./script/services/integrations/comm/messaging/templates ./bin/script/services/integrations/comm/messaging/",
     "restart": "npm run build && npm run start:env",
     "prettier": "prettier --write \"./**/*.ts\"",
     "lint": "npx eslint ./script/**/*.ts",

@@ -24,10 +24,11 @@ import { ReleaseTaskRepository } from '~models/release/release-task.repository';
 import { RegressionCycleRepository } from '~models/release/regression-cycle.repository';
 import { ReleasePlatformTargetMappingRepository } from '~models/release/release-platform-target-mapping.repository';
 import { ReleaseUploadsRepository } from '~models/release/release-uploads.repository';
-import { getTaskExecutor } from '~services/release/task-executor/task-executor-factory';
 // Note: Per-release cron-scheduler is deprecated. Using global-scheduler instead.
 // The cron-scheduler.ts file has been removed.
+// Note: TaskExecutor is now accessed from storage instance (migrated from factory)
 import { StageStatus, CronStatus, CronJob, PauseType } from '~models/release/release.interface';
+import { hasTaskExecutor, type StorageWithReleaseServices } from '~types/release/storage-with-services.interface';
 import {
   createWorkflowPollingJobs,
   deleteWorkflowPollingJobs
@@ -39,7 +40,7 @@ import type { ReleaseActivityLogService } from '../release-activity-log.service'
 import type { DistributionService } from '../../distribution/distribution.service';
 
 export class CronJobService {
-  private releaseStatusService?: ReleaseStatusService;
+  private releaseStatusService: ReleaseStatusService;  // ✅ Required - set via setReleaseStatusService() for circular dependency resolution
 
   constructor(
     private readonly cronJobRepo: CronJobRepository,
@@ -48,10 +49,10 @@ export class CronJobService {
     private readonly regressionCycleRepo: RegressionCycleRepository,
     private readonly platformMappingRepo: ReleasePlatformTargetMappingRepository,
     private readonly storage: Storage,
-    private readonly releaseUploadsRepo?: ReleaseUploadsRepository,
-    private readonly cronicleService?: CronicleService | null,
-    private readonly activityLogService?: ReleaseActivityLogService,
-    private readonly distributionService?: DistributionService
+    private readonly releaseUploadsRepo: ReleaseUploadsRepository,  // ✅ Required - actively initialized in aws-storage.ts
+    private readonly cronicleService: CronicleService | null,  // ✅ Can be null if Cronicle not configured, but actively initialized
+    private readonly activityLogService: ReleaseActivityLogService,  // ✅ Required - actively initialized in aws-storage.ts
+    private readonly distributionService: DistributionService  // ✅ Required - actively initialized in aws-storage.ts
   ) {}
 
   /**
@@ -126,7 +127,15 @@ export class CronJobService {
    * Create and initialize State Machine for a release
    */
   private async createStateMachine(releaseId: string): Promise<CronJobStateMachine> {
-    const taskExecutor = getTaskExecutor();
+    // ✅ Use proper type guard instead of 'as any'
+    if (!hasTaskExecutor(this.storage)) {
+      throw new Error('TaskExecutor not available on storage instance');
+    }
+    
+    // TypeScript now knows this.storage is StorageWithReleaseServices
+    const storageWithServices: StorageWithReleaseServices = this.storage;
+    const taskExecutor = storageWithServices.taskExecutor;
+    const buildRepo = storageWithServices.buildRepository;  // ✅ Required - actively initialized in aws-storage.ts
 
     const stateMachine = new CronJobStateMachine(
       releaseId,
@@ -137,7 +146,8 @@ export class CronJobService {
       taskExecutor,
       this.storage,
       this.platformMappingRepo,
-      this.releaseUploadsRepo
+      this.releaseUploadsRepo,
+      buildRepo  // ✅ Required - actively initialized in aws-storage.ts
     );
 
     // Initialize state machine (determines starting state from DB)
@@ -395,6 +405,22 @@ export class CronJobService {
     });
 
     log.info('Stage 4 triggered for release', { releaseId, approvedBy });
+
+    // Register activity log for pre-release stage approval
+    if (this.activityLogService) {
+      try {
+        await this.activityLogService.registerActivityLogs(
+          releaseId,
+          approvedBy,
+          new Date(),
+          'PRE_RELEASE_STAGE_APPROVAL',
+          { currentActiveStage: 'PRE_RELEASE' },
+          { currentActiveStage: 'DISTRIBUTION' }
+        );
+      } catch (error) {
+        console.error(`[CronJobService] Failed to log stage 4 approval activity:`, error);
+      }
+    }
 
     // Create distribution from release after cron is marked complete
     if (this.distributionService) {

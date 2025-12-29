@@ -418,19 +418,15 @@ export const validateUpdateDates = (body: UpdateReleaseRequestBody): ValidationR
 };
 
 /**
- * Validates release type for updates (reuses create validation logic)
+ * Validates release type for updates
+ * Release type cannot be changed after creation because versions are validated
+ * against the type at creation time (MAJOR=X.0.0, MINOR=X.Y.0, HOTFIX=X.Y.Z)
  */
 export const validateUpdateType = (body: UpdateReleaseRequestBody): ValidationResult => {
-  if (body.type === undefined) {
-    return { isValid: true };
-  }
-
-  const validTypes = ['MAJOR', 'MINOR', 'HOTFIX'];
-  
-  if (!validTypes.includes(body.type)) {
+  if (body.type !== undefined) {
     return {
       isValid: false,
-      error: `Invalid type. Must be one of: ${validTypes.join(', ')}`
+      error: 'Release type cannot be changed after creation. Versions were validated based on the original type.'
     };
   }
 

@@ -76,24 +76,19 @@ export class ReleaseUpdateService {
     private readonly platformMappingRepository: ReleasePlatformTargetMappingRepository,
     private readonly activityLogService: ReleaseActivityLogService,
     private readonly cronJobService: CronJobService,
-    private readonly taskRepository?: ReleaseTaskRepository,
-    private readonly buildRepository?: BuildRepository,
-    private readonly regressionCycleRepository?: RegressionCycleRepository,
-    private readonly releaseNotificationService?: ReleaseNotificationService
+    private readonly taskRepository: ReleaseTaskRepository,  // ✅ Required - actively initialized in aws-storage.ts
+    private readonly buildRepository: BuildRepository,  // ✅ Required - actively initialized in aws-storage.ts
+    private readonly regressionCycleRepository: RegressionCycleRepository,  // ✅ Required - actively initialized in aws-storage.ts
+    private readonly releaseNotificationService?: ReleaseNotificationService  // Can be undefined if notifications not configured
   ) {}
 
   // Repository getters for manual upload flow
+  // ✅ Repositories are required - actively initialized in aws-storage.ts, no null checks needed
   getBuildRepository(): BuildRepository {
-    if (!this.buildRepository) {
-      throw new Error('BuildRepository not initialized');
-    }
     return this.buildRepository;
   }
 
   getTaskRepository(): ReleaseTaskRepository {
-    if (!this.taskRepository) {
-      throw new Error('ReleaseTaskRepository not initialized');
-    }
     return this.taskRepository;
   }
 
@@ -326,6 +321,15 @@ export class ReleaseUpdateService {
     const oldMappingMap = new Map(oldMappings.map(m => [m.id, m]));
     const newMappingIds = new Set(mappings.map(m => m.id));
     
+    // Helper to extract only comparable fields for activity logging
+    const extractComparableFields = (mapping: any) => ({
+      platform: mapping.platform,
+      target: mapping.target,
+      version: mapping.version,
+      projectManagementRunId: mapping.projectManagementRunId ?? null,
+      testManagementRunId: mapping.testManagementRunId ?? null
+    });
+    
     // 1️⃣ Handle ADDED and UPDATED mappings
     for (const newMapping of mappings) {
       const oldMapping = oldMappingMap.get(newMapping.id);
@@ -337,15 +341,26 @@ export class ReleaseUpdateService {
         version: newMapping.version
       });
       
-      // Log changes (ADDED if oldMapping is null, UPDATED if exists)
-      await this.activityLogService.registerActivityLogs(
-        releaseId,
-        accountId,
-        now,
-        'PLATFORM_TARGET',
-        oldMapping ?? null,  // null = ADDED
-        newMapping
-      );
+      // Extract only comparable fields
+      const oldComparable = oldMapping ? extractComparableFields(oldMapping) : null;
+      const newComparable = extractComparableFields(newMapping);
+      
+      // Check if values actually changed (compare by value, not reference)
+      const oldJson = oldComparable ? JSON.stringify(oldComparable) : null;
+      const newJson = JSON.stringify(newComparable);
+      const hasChanged = oldJson !== newJson;
+      
+      // Log changes only if actually changed (ADDED if oldMapping is null, UPDATED if exists)
+      if (hasChanged) {
+        await this.activityLogService.registerActivityLogs(
+          releaseId,
+          accountId,
+          now,
+          'PLATFORM_TARGET',
+          oldComparable,
+          newComparable
+        );
+      }
     }
     
     // 2️⃣ Handle DELETED mappings (in OLD but not in NEW)
@@ -356,13 +371,13 @@ export class ReleaseUpdateService {
         // Delete from database
         await this.platformMappingRepository.delete(oldMapping.id);
         
-        // Log deletion
+        // Log deletion with only comparable fields
         await this.activityLogService.registerActivityLogs(
           releaseId,
           accountId,
           now,
           'PLATFORM_TARGET',
-          oldMapping,  // OLD value
+          extractComparableFields(oldMapping),
           null         // null = DELETED
         );
       }
@@ -388,17 +403,30 @@ export class ReleaseUpdateService {
     // 1️⃣ Handle cronConfig update (only before kickoff)
     if (cronJobUpdates.cronConfig !== undefined && validation.canEditCronConfig) {
       const oldCronConfig = cronJob.cronConfig;
-      updates.cronConfig = cronJobUpdates.cronConfig;
       
-      // Log cronConfig changes
-      await this.activityLogService.registerActivityLogs(
-        releaseId,
-        accountId,
-        now,
-        'CRONCONFIG',
-        oldCronConfig ?? null,
-        cronJobUpdates.cronConfig ?? null
-      );
+      // Deep merge: preserve existing fields, update only provided fields
+      const mergedCronConfig = {
+        ...oldCronConfig,              // Existing values
+        ...cronJobUpdates.cronConfig   // Overwrite with new values
+      };
+      updates.cronConfig = mergedCronConfig;
+      
+      // Compare merged result with original to detect actual changes
+      const oldJson = oldCronConfig ? JSON.stringify(oldCronConfig) : null;
+      const newJson = JSON.stringify(mergedCronConfig);
+      const hasChanged = oldJson !== newJson;
+      
+      // Only log if values actually changed
+      if (hasChanged) {
+        await this.activityLogService.registerActivityLogs(
+          releaseId,
+          accountId,
+          now,
+          'CRONCONFIG',
+          oldCronConfig ?? null,
+          mergedCronConfig
+        );
+      }
     }
 
     // 2️⃣ Handle upcomingRegressions update (always allowed for IN_PROGRESS releases)
@@ -406,10 +434,22 @@ export class ReleaseUpdateService {
       const oldRegressions = cronJob.upcomingRegressions ?? [];
       
       // Convert string dates to Date objects for DB storage
-      const newRegressions = cronJobUpdates.upcomingRegressions.map(regression => ({
-        date: new Date(regression.date),
-        config: regression.config
-      }));
+      // Deep merge: preserve existing config fields, update only provided fields
+      const newRegressions = cronJobUpdates.upcomingRegressions.map((regression, index) => {
+        const existingRegression = index < oldRegressions.length ? oldRegressions[index] : null;
+        const existingConfig = existingRegression?.config ?? {};
+        
+        // Merge config: preserve existing fields, update only provided fields
+        const mergedConfig = {
+          ...existingConfig,      // Existing config values
+          ...regression.config    // Overwrite with new config values
+        };
+        
+        return {
+          date: new Date(regression.date),
+          config: mergedConfig
+        };
+      });
       
       // 3️⃣ Compare arrays index by index
       const maxLength = Math.max(oldRegressions.length, newRegressions.length);
@@ -417,21 +457,29 @@ export class ReleaseUpdateService {
       for (let i = 0; i < maxLength; i++) {
         const oldRegression = i < oldRegressions.length ? oldRegressions[i] : null;
         const newRegression = i < newRegressions.length ? newRegressions[i] : null;
-        
-        // Log: UPDATED (both exist), ADDED (only new), DELETED (only old)
-        await this.activityLogService.registerActivityLogs(
-          releaseId,
-          accountId,
-          now,
-          'REGRESSION',
-          oldRegression,
-          newRegression
-        );
+
+        // Deep comparison using JSON serialization (handles Date objects and nested configs)
+        const oldJson = oldRegression ? JSON.stringify(oldRegression) : null;
+        const newJson = newRegression ? JSON.stringify(newRegression) : null;
+        const hasChanged = oldJson !== newJson;
+
+        if (hasChanged) {
+          // Log: UPDATED (both exist), ADDED (only new), DELETED (only old)
+          console.log(`[ReleaseUpdateService] Regression updated: ${oldJson} → ${newJson}`);
+          await this.activityLogService.registerActivityLogs(
+            releaseId,
+            accountId,
+            now,
+            'REGRESSION',
+            oldRegression,
+            newRegression
+          );
+        }
       }
       const slotUpdateResult = await this.handleRegressionSlotUpdate(
         releaseId,
         cronJob,
-        cronJobUpdates.upcomingRegressions
+        newRegressions  // Pass merged regressions, not raw client data
       );
       
       if (slotUpdateResult.updatedSlots) {
@@ -570,25 +618,19 @@ export class ReleaseUpdateService {
 
     const slots = this.parseRegressionSlots(cronJob.upcomingRegressions);
     
-    // If we have regression cycle repository, enrich with actual cycle status
-    if (this.regressionCycleRepository) {
-      const cycles = await this.regressionCycleRepository.findByReleaseId(releaseId);
-      
-      return slots.map((slot, index) => {
-        // Match slot to cycle by index (cycles are created in order)
-        const cycle = cycles[index];
-        return {
-          id: `slot-${index}`,
-          date: new Date(slot.date).toISOString(),
-          status: cycle?.status as RegressionCycleStatus | undefined
-        };
-      });
-    }
-
-    return slots.map((slot, index) => ({
-      id: `slot-${index}`,
-      date: new Date(slot.date).toISOString()
-    }));
+    // ✅ regressionCycleRepository is required - actively initialized in aws-storage.ts, no null check needed
+    const cycles = await this.regressionCycleRepository.findByReleaseId(releaseId);
+    
+    // Enrich slots with actual cycle status
+    return slots.map((slot, index) => {
+      // Match slot to cycle by index (cycles are created in order)
+      const cycle = cycles[index];
+      return {
+        id: `slot-${index}`,
+        date: new Date(slot.date).toISOString(),
+        status: cycle?.status as RegressionCycleStatus | undefined
+      };
+    });
   }
 
   // ===========================================================================
@@ -609,11 +651,8 @@ export class ReleaseUpdateService {
    * @returns RetryTaskResult with success status
    */
   async retryTask(taskId: string, accountId: string): Promise<RetryTaskResult> {
-    // Validate repositories are available
-    if (!this.taskRepository) {
-      return { success: false, error: 'Task repository not configured' };
-    }
-
+    // ✅ taskRepository is required - actively initialized in aws-storage.ts, no null check needed
+    
     // Step 1: Find the task
     const task = await this.taskRepository.findById(taskId);
     if (!task) {
@@ -656,7 +695,7 @@ export class ReleaseUpdateService {
 
     // Step 5: For build tasks, reset failed build entries
     if (this.isBuildTask(task.taskType) && this.buildRepository) {
-      const resetCount = await this.buildRepository.resetFailedBuildsForTask(taskId);
+      const resetCount = await this.buildRepository.deleteFailedBuildsForTask(taskId);
       console.log(`[ReleaseUpdateService] Reset ${resetCount} failed build entries for task ${taskId}`);
     }
 

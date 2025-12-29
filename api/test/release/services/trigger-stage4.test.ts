@@ -17,9 +17,7 @@ jest.mock('../../../script/models/release/release.repository');
 jest.mock('../../../script/models/release/release-task.repository');
 jest.mock('../../../script/models/release/regression-cycle.repository');
 jest.mock('../../../script/models/release/release-platform-target-mapping.repository');
-jest.mock('../../../script/services/release/task-executor/task-executor-factory', () => ({
-  getTaskExecutor: jest.fn(),
-}));
+// ✅ Mock storage.taskExecutor instead of factory (migrated from factory pattern)
 jest.mock('../../../script/storage/storage-instance', () => ({
   getStorage: jest.fn(),
 }));
@@ -175,7 +173,11 @@ describe('CronJobService - triggerStage4', () => {
       mockReleaseTaskRepo,
       mockRegressionCycleRepo,
       mockPlatformMappingRepo,
-      mockStorage
+      mockStorage,
+      {} as any, // releaseUploadsRepo - ✅ Required - actively initialized in aws-storage.ts
+      null, // cronicleService - can be null if Cronicle not configured
+      {} as any, // activityLogService - ✅ Required - actively initialized in aws-storage.ts
+      {} as any  // distributionService - ✅ Required - actively initialized in aws-storage.ts
     );
 
     // Inject ReleaseStatusService
@@ -426,7 +428,11 @@ describe('CronJobService - triggerStage4', () => {
         mockReleaseTaskRepo,
         mockRegressionCycleRepo,
         mockPlatformMappingRepo,
-        mockStorage
+        mockStorage,
+        {} as any, // releaseUploadsRepo - ✅ Required - actively initialized in aws-storage.ts
+        null, // cronicleService - can be null if Cronicle not configured
+        {} as any, // activityLogService - ✅ Required - actively initialized in aws-storage.ts
+        {} as any  // distributionService - ✅ Required - actively initialized in aws-storage.ts
       );
       // Note: NOT calling setReleaseStatusService
 

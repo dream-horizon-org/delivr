@@ -109,6 +109,7 @@ export interface CreateReleaseResult {
   release: any;
   cronJob: any;
   stage1TaskIds: string[];
+  cronJobStarted: boolean;
 }
 
 /**

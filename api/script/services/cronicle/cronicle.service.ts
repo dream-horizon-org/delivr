@@ -405,13 +405,32 @@ export class CronicleServiceImpl implements CronicleService {
     }
 
     // Array format
-    return {
+    // Note: In Cronicle, 'days' means days of the month (1-31), not days of the week
+    // To run daily, omit 'days' (defaults to all days) or set to all days 1-31
+    // 'weekdays' is separate and means days of the week (0=Sunday, 1=Monday, ..., 6=Saturday)
+    const payload: Record<string, unknown> = {
       hours: timing.hours,
-      minutes: timing.minutes,
-      days: timing.days ?? [1, 2, 3, 4, 5, 6, 7],
-      months: timing.months ?? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-      years: timing.years ?? []
+      minutes: timing.minutes
     };
+
+    // Only include days if explicitly provided (don't default to [1-7] as that limits to first week)
+    if (timing.days !== undefined) {
+      payload.days = timing.days;
+    }
+    // Omit days entirely to run on all days of the month (daily)
+
+    // Only include months if explicitly provided (omit for all months = runs every month)
+    if (timing.months !== undefined) {
+      payload.months = timing.months;
+    }
+    // Omit months entirely to run in all months (1-12)
+
+    // Include years if provided (omit for all years)
+    if (timing.years !== undefined && timing.years.length > 0) {
+      payload.years = timing.years;
+    }
+
+    return payload;
   };
 
   private formatWebhookParams = (params: CreateCronicleJobRequest['params']): Record<string, unknown> => {

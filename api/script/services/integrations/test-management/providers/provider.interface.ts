@@ -84,7 +84,8 @@ export interface ITestManagementProvider {
    */
   getTestStatus(
     config: TenantTestManagementIntegrationConfig,
-    runId: string
+    runId: string,
+    projectId: number
   ): Promise<TestStatusResult>;
   
   /**

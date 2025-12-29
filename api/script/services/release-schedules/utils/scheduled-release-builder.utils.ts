@@ -160,7 +160,7 @@ export const buildScheduledReleasePayload = (
   const platformTargets = determinePlatformTargets(schedule, config, latestVersions);
   
   // 2. Calculate all release dates
-  const kickoffDateStr = schedule.nextReleaseKickoffDate;
+  const kickoffDateStr = getKickoffDateForRelease(schedule);
   
   const releaseDates = calculateReleaseDates(kickoffDateStr, {
     kickoffTime: schedule.kickoffTime,
