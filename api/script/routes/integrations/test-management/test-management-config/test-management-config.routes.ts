@@ -11,7 +11,7 @@ import * as tenantPermissions from '~middleware/tenant-permissions';
 
 /**
  * Create test management config routes
- * Clean REST pattern: tenantId only for CREATE and LIST
+ * Clean REST pattern: tenantId in ALL routes for consistency
  */
 export const createTestManagementConfigRoutes = (
   service: TestManagementConfigService,
@@ -20,37 +20,37 @@ export const createTestManagementConfigRoutes = (
   const router = Router();
   const controller = createTestManagementConfigController(service);
 
-  // Create config for a tenant (need tenantId)
+  // Create config for a tenant
   router.post(
-    '/tenants/:tenantId/configs',
+    '/tenants/:tenantId/test-management/configs',
     tenantPermissions.requireEditor({ storage }),
     controller.createConfig
   );
 
-  // List all configs for a tenant (need tenantId)
+  // List all configs for a tenant
   router.get(
-    '/tenants/:tenantId/configs',
+    '/tenants/:tenantId/test-management/configs',
     tenantPermissions.requireTenantMembership({ storage }),
     controller.listConfigsByTenant
   );
 
-  // Get specific config (configId is enough)
+  // Get specific config
   router.get(
-    '/configs/:id',
+    '/tenants/:tenantId/test-management/configs/:id',
     tenantPermissions.requireTenantMembership({ storage }),
     controller.getConfigById
   );
 
-  // Update specific config (configId is enough)
+  // Update specific config
   router.put(
-    '/configs/:id',
+    '/tenants/:tenantId/test-management/configs/:id',
     tenantPermissions.requireEditor({ storage }),
     controller.updateConfig
   );
 
-  // Delete specific config (configId is enough)
+  // Delete specific config
   router.delete(
-    '/configs/:id',
+    '/tenants/:tenantId/test-management/configs/:id',
     tenantPermissions.requireEditor({ storage }),
     controller.deleteConfig
   );

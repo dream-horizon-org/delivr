@@ -17,41 +17,41 @@ export const createCheckmateMetadataRoutes = (
   const controller = createCheckmateMetadataController(metadataService);
 
   /**
-   * GET /test-management/integrations/:integrationId/checkmate/metadata/projects
+   * GET /tenants/:tenantId/integrations/test-management/:integrationId/checkmate/metadata/projects
    * Fetch all Checkmate projects for organization
    */
   router.get(
-    '/integrations/:integrationId/checkmate/metadata/projects',
+    '/tenants/:tenantId/integrations/test-management/:integrationId/checkmate/metadata/projects',
     tenantPermissions.requireTenantMembership({ storage }),
     controller.getProjects
   );
 
   /**
-   * GET /test-management/integrations/:integrationId/checkmate/metadata/sections?projectId=100
+   * GET /tenants/:tenantId/integrations/test-management/:integrationId/checkmate/metadata/sections?projectId=100
    * Fetch all Checkmate sections for a project
    */
   router.get(
-    '/integrations/:integrationId/checkmate/metadata/sections',
+    '/tenants/:tenantId/integrations/test-management/:integrationId/checkmate/metadata/sections',
     tenantPermissions.requireTenantMembership({ storage }),
     controller.getSections
   );
 
   /**
-   * GET /test-management/integrations/:integrationId/checkmate/metadata/labels?projectId=100
+   * GET /tenants/:tenantId/integrations/test-management/:integrationId/checkmate/metadata/labels?projectId=100
    * Fetch all Checkmate labels for a project
    */
   router.get(
-    '/integrations/:integrationId/checkmate/metadata/labels',
+    '/tenants/:tenantId/integrations/test-management/:integrationId/checkmate/metadata/labels',
     tenantPermissions.requireTenantMembership({ storage }),
     controller.getLabels
   );
 
   /**
-   * GET /test-management/integrations/:integrationId/checkmate/metadata/squads?projectId=100
+   * GET /tenants/:tenantId/integrations/test-management/:integrationId/checkmate/metadata/squads?projectId=100
    * Fetch all Checkmate squads for a project
    */
   router.get(
-    '/integrations/:integrationId/checkmate/metadata/squads',
+    '/tenants/:tenantId/integrations/test-management/:integrationId/checkmate/metadata/squads',
     tenantPermissions.requireTenantMembership({ storage }),
     controller.getSquads
   );

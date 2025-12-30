@@ -6,7 +6,7 @@ import * as tenantPermissions from '~middleware/tenant-permissions';
 
 /**
  * Test Run Operations Routes
- * RESTful design - runId in URL path
+ * RESTful design - tenantId and runId in URL path
  */
 export const createTestRunOperationsRoutes = (
   service: TestManagementRunService,
@@ -17,35 +17,35 @@ export const createTestRunOperationsRoutes = (
 
   // Create test runs (returns runId)
   router.post(
-    '/test-runs',
+    '/tenants/:tenantId/test-management/test-runs',
     tenantPermissions.requireEditor({ storage }),
     controller.createTestRuns
   );
 
   // Get test run status
   router.get(
-    '/test-runs/:runId',
+    '/tenants/:tenantId/test-management/test-runs/:runId',
     tenantPermissions.requireTenantMembership({ storage }),
     controller.getTestStatus
   );
 
   // Reset specific test run
   router.post(
-    '/test-runs/:runId/reset',
+    '/tenants/:tenantId/test-management/test-runs/:runId/reset',
     tenantPermissions.requireEditor({ storage }),
     controller.resetTestRun
   );
 
   // Cancel specific test run
   router.post(
-    '/test-runs/:runId/cancel',
+    '/tenants/:tenantId/test-management/test-runs/:runId/cancel',
     tenantPermissions.requireEditor({ storage }),
     controller.cancelTestRun
   );
 
   // Get test run report
   router.get(
-    '/test-runs/:runId/report',
+    '/tenants/:tenantId/test-management/test-runs/:runId/report',
     tenantPermissions.requireTenantMembership({ storage }),
     controller.getTestReport
   );

@@ -75,29 +75,23 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   if (isS3Storage) {
     const s3Storage = storage;
     
-    // All test management routes under /test-management/ prefix
-    const testManagementRouter = Router();
-    
     // Tenant-Level Integration Management (Credentials)
     const tenantIntegrationRoutes = createTenantIntegrationRoutes(s3Storage.testManagementIntegrationService, storage);
-    testManagementRouter.use(tenantIntegrationRoutes);
+    router.use(tenantIntegrationRoutes);
 
     // Test Management Config Management (Reusable test configurations)
     const testManagementConfigRoutes = createTestManagementConfigRoutes(s3Storage.testManagementConfigService, storage);
-    testManagementRouter.use(testManagementConfigRoutes);
+    router.use(testManagementConfigRoutes);
 
     // Test Run Operations (Stateless - Create, Status, Reset, Cancel)
     const testRunRoutes = createTestRunOperationsRoutes(s3Storage.testManagementRunService, storage);
-    testManagementRouter.use(testRunRoutes);
+    router.use(testRunRoutes);
 
     // Checkmate Metadata Proxy Routes (Projects, Sections, Labels, Squads)
     const checkmateMetadataRoutes = createCheckmateMetadataRoutes(s3Storage.checkmateMetadataService, storage);
-    testManagementRouter.use(checkmateMetadataRoutes);
+    router.use(checkmateMetadataRoutes);
     
-    // Mount all test management routes under /test-management
-    router.use('/test-management', testManagementRouter);
-    
-    console.log('[Release Management] Test Management routes mounted successfully under /test-management');
+    console.log('[Release Management] Test Management routes mounted successfully');
   } else {
     console.warn('[Release Management] Test Management services not available (S3Storage required), routes not mounted');
   }
