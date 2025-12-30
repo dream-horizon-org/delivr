@@ -4,13 +4,10 @@
 import { Request, Response, Router } from "express";
 import rateLimit from "express-rate-limit";
 import * as fs from "fs";
+import * as path from "path";
 import * as semver from "semver";
 import * as stream from "stream";
 import * as streamifier from "streamifier";
-import { CICD_PROVIDERS } from "../controllers/integrations/ci-cd/providers.constants";
-import { COMM_PROVIDERS } from "../controllers/integrations/comm/comm-integration/comm-integration.constants";
-import { SCM_PROVIDERS } from "../controllers/integrations/scm/providers.constants";
-import { TEST_MANAGEMENT_PROVIDERS } from "../controllers/integrations/test-management/tenant-integration/tenant-integration.constants";
 import * as error from "../error";
 import { createTempFileFromBuffer, getFileWithField } from "../file-upload-manager";
 import * as appPermissions from "../middleware/app-permissions";
@@ -28,6 +25,16 @@ import { getIpAddress } from "../utils/rest-headers";
 import { isUnfinishedRollout } from "../utils/rollout-selector";
 import * as security from "../utils/security";
 import * as validationUtils from "../utils/validation";
+import { buildSystemMetadata } from "../utils/system-metadata.utils";
+import {
+  sanitizeScmIntegration,
+  sanitizeCicdIntegration,
+  sanitizeTestManagementIntegration,
+  sanitizeProjectManagementIntegration,
+  sanitizeAppDistributionIntegration,
+  sanitizeSlackIntegration,
+  buildTenantConfig,
+} from "../utils/tenant-metadata.utils";
 import PackageDiffer = packageDiffing.PackageDiffer;
 import NameResolver = storageTypes.NameResolver;
 import PackageManifest = hashUtils.PackageManifest;
@@ -68,120 +75,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
   // ============================================================================
   router.get("/system/metadata", async (req: Request, res: Response): Promise<any> => {
     try {
-      // Build integrations from provider constants
-      // Return all providers with isAvailable flag
-      const SOURCE_CONTROL = SCM_PROVIDERS
-        .map(p => ({ 
-          ...p,
-          id: p.id, 
-          name: p.name, 
-          requiresOAuth: p.requiresOAuth,
-          isAvailable: p.enabled 
-        }));
-      
-      const CI_CD = CICD_PROVIDERS
-        .map(p => ({ 
-          ...p,
-          id: p.id, 
-          name: p.name, 
-          requiresOAuth: p.requiresOAuth,
-          isAvailable: p.enabled 
-        }));
-      
-      const TEST_MANAGEMENT = TEST_MANAGEMENT_PROVIDERS
-        .map(p => ({ 
-          ...p,
-          id: p.type, 
-          name: p.name, 
-          requiresOAuth: false,
-          isAvailable: p.enabled 
-        }));
-      
-      const COMMUNICATION = COMM_PROVIDERS
-        .map(p => ({ 
-          id: p.id, 
-          name: p.name, 
-          requiresOAuth: false,
-          isAvailable: p.enabled 
-        }));
-      
-      const PROJECT_MANAGEMENT = [
-        { id: "jira", name: "Jira", requiresOAuth: false, isAvailable: true },
-        { id: "linear", name: "Linear", requiresOAuth: false, isAvailable: false },
-        // { id: "asana", name: "Asana", requiresOAuth: false, isAvailable: false },
-      ];
-      
-      const APP_DISTRIBUTION = [
-        { id: "APP_STORE", name: "App Store", requiresOAuth: false, isAvailable: true },
-        { id: "PLAY_STORE", name: "Play Store", requiresOAuth: false, isAvailable: true },
-        // { id: "TESTFLIGHT", name: "TestFlight", requiresOAuth: false, isAvailable: false },
-        // { id: "FIREBASE", name: "Firebase App Distribution", requiresOAuth: true, isAvailable: false },
-        // { id: "MICROSOFT_STORE", name: "Microsoft Store", requiresOAuth: false, isAvailable: false },
-      ];
-
-      const metadata = {
-        releaseManagement: {
-          integrations: {
-            SOURCE_CONTROL,
-            COMMUNICATION,
-            CI_CD,
-            TEST_MANAGEMENT,
-            PROJECT_MANAGEMENT,
-            APP_DISTRIBUTION,
-          },
-          platforms: [
-            { id: "ANDROID", name: "Android", applicableTargets: ["PLAY_STORE"], isAvailable: true },
-            { id: "IOS", name: "iOS", applicableTargets: ["APP_STORE"], isAvailable: false, status: "COMING_SOON" },
-          ],
-          targets: [
-            { id: "PLAY_STORE", name: "Play Store", isAvailable: true },
-            { id: "APP_STORE", name: "App Store", isAvailable: false, status: "COMING_SOON" },
-          ],
-          releaseTypes: [
-            { id: "MINOR", name: "Minor" },
-            { id: "HOTFIX", name: "Hotfix" },
-            { id: "EMERGENCY", name: "Emergency" },
-          ],
-          releaseStages: [
-            { id: "PRE_KICKOFF", name: "Pre-Kickoff", order: 1 },
-            { id: "KICKOFF", name: "Kickoff", order: 2 },
-            { id: "REGRESSION", name: "Regression", order: 3 },
-            { id: "READY_FOR_RELEASE", name: "Ready for Release", order: 4 },
-            { id: "RELEASED", name: "Released", order: 5 },
-          ],
-          releaseStatuses: [
-            { id: "MINOR", name: "Minor", stage: "PRE_KICKOFF" },
-            { id: "IN_PROGRESS", name: "In Progress", stage: "KICKOFF" },
-            { id: "TESTING", name: "Testing", stage: "REGRESSION" },
-            { id: "READY", name: "Ready", stage: "READY_FOR_RELEASE" },
-            { id: "RELEASED", name: "Released", stage: "RELEASED" },
-            { id: "BLOCKED", name: "Blocked", stage: null },
-            { id: "CANCELLED", name: "Cancelled", stage: null },
-          ],
-          buildEnvironments: [
-            { id: "STAGING", name: "Staging", order: 1, applicablePlatforms: ["ANDROID", "IOS"] },
-            { id: "PRODUCTION", name: "Production", order: 2, applicablePlatforms: ["ANDROID", "IOS"] },
-            { id: "AUTOMATION", name: "Automation", order: 3, applicablePlatforms: ["ANDROID", "IOS"] },
-            { id: "CUSTOM", name: "Custom", order: 4, applicablePlatforms: ["ANDROID", "IOS"] },
-          ],
-          // Distribution tracks for App Store and Play Store
-          distributionTracks: [
-            { id: "PRODUCTION", name: "Production", order: 1 },
-            { id: "BETA", name: "Beta", order: 2 },
-            { id: "ALPHA", name: "Alpha", order: 3 },
-            { id: "INTERNAL", name: "Internal", order: 4 },
-            { id: "TESTFLIGHT", name: "TestFlight", order: 5 },
-          ],
-        },
-        system: {
-          version: "1.0.0",
-          features: {
-            releaseManagement: true,
-            integrations: true,
-          },
-        },
-      };
-
+      const metadata = buildSystemMetadata();
       return res.status(200).json(metadata);
     } catch (error: any) {
       console.error("Error fetching system metadata:", error);
@@ -513,266 +407,31 @@ export function getManagementRouter(config: ManagementConfig): Router {
         }
       }
       
-      // TODO: Get other integrations when implemented
-      // const targetPlatforms = await storage.getTenantTargetPlatforms(tenantId);
-      // const pipelines = await storage.getTenantPipelines(tenantId);
+      // Build unified integrations array with type field (sanitized - no sensitive data)
+      const integrations: any[] = [
+        ...scmIntegrations.map(sanitizeScmIntegration),
+        ...cicdIntegrations.map(sanitizeCicdIntegration),
+        ...testManagementIntegrations.map(sanitizeTestManagementIntegration),
+        ...projectManagementIntegrations.map(sanitizeProjectManagementIntegration),
+        ...storeIntegrations.map(sanitizeAppDistributionIntegration),
+        ...(slackIntegration ? [sanitizeSlackIntegration(slackIntegration)] : []),
+      ];
       
-      // Build unified integrations array with type field
-      const integrations: any[] = [];
-      
-      // Add SCM integrations (sanitize - remove sensitive tokens)
-      scmIntegrations.forEach((integration: any) => {
-        integrations.push({
-          type: 'scm',
-          id: integration.id,
-          scmType: integration.scmType,
-          displayName: integration.displayName,
-          owner: integration.owner,
-          repo: integration.repo,
-          repositoryUrl: integration.repositoryUrl,
-          defaultBranch: integration.defaultBranch,
-          isActive: integration.isActive,
-          verificationStatus: integration.verificationStatus,
-          lastVerifiedAt: integration.lastVerifiedAt,
-          createdAt: integration.createdAt,
-          updatedAt: integration.updatedAt
-          // Note: accessToken, webhookSecret are intentionally excluded
-        });
-      });
-      
-      // Add Slack integration (already sanitized by controller)
-      if (slackIntegration) {
-        integrations.push({
-          type: 'communication',
-          communicationType: 'SLACK',
-          id: slackIntegration.id,
-          workspaceName: slackIntegration.slackWorkspaceName,
-          workspaceId: slackIntegration.slackWorkspaceId,
-          botUserId: slackIntegration.slackBotUserId,
-          verificationStatus: slackIntegration.verificationStatus,
-          hasValidToken: slackIntegration.verificationStatus === 'VALID',
-          createdAt: slackIntegration.createdAt,
-          updatedAt: slackIntegration.updatedAt
-          // Note: slackBotToken is intentionally excluded (never sent to client)
-        });
-      }
 
-      // Add CI CD integrations (Jenkins, Github Actions, Circle CI, GitLab CI, etc.)
-      cicdIntegrations.forEach((integration: any) => {
-        integrations.push({
-          type: 'cicd',
-          id: integration.id,
-          providerType: integration.providerType,
-          displayName: integration.displayName,
-          hostUrl: integration.hostUrl,
-          authType: integration.authType,
-          username: integration.username,
-          headerName: integration.headerName,
-          providerConfig: integration.providerConfig,
-          verificationStatus: integration.verificationStatus,
-          verificationError: integration.verificationError,
-          lastVerifiedAt: integration.lastVerifiedAt,
-          createdAt: integration.createdAt,
-          updatedAt: integration.updatedAt
-          // Note: apiToken, headerValue are intentionally excluded (never sent to client)
-        });
-      });
-
-      // Add Test Management integrations (Checkmate, TestRail, etc.)
-      testManagementIntegrations.forEach((integration: any) => {
-        integrations.push({
-          type: 'test_management',
-          id: integration.id,
-          providerType: integration.providerType,
-          name: integration.name,
-          tenantId: integration.tenantId,
-          createdAt: integration.createdAt,
-          updatedAt: integration.updatedAt
-          // Note: config (including authToken) is intentionally excluded (never sent to client)
-        });
-      });
-
-      // Add Project Management integrations (JIRA, Linear, Asana, etc.)
-      projectManagementIntegrations.forEach((integration: any) => {
-        integrations.push({
-          type: 'project_management',
-          id: integration.id,
-          providerType: integration.providerType,
-          name: integration.name,
-          projectId: integration.projectId,
-          isEnabled: integration.isEnabled,
-          verificationStatus: integration.verificationStatus,
-          lastVerifiedAt: integration.lastVerifiedAt,
-          createdAt: integration.createdAt,
-          updatedAt: integration.updatedAt
-          // Note: config (including apiToken, email) is intentionally excluded (never sent to client)
-        });
-      });
-
-      // Add App Distribution integrations (Play Store, App Store, etc.)
-      storeIntegrations.forEach((integration: any) => {
-        integrations.push({
-          type: 'app_distribution',
-          id: integration.id,
-          storeType: integration.storeType,
-          platform: integration.platform,
-          displayName: integration.displayName,
-          appIdentifier: integration.appIdentifier,
-          status: integration.status,
-          lastVerifiedAt: integration.lastVerifiedAt,
-          createdAt: integration.createdAt,
-          updatedAt: integration.updatedAt
-          // Note: credentials are intentionally excluded (never sent to client)
-        });
-      });
-      
-      // TODO: Add other integration types when implemented
-
-      // targetPlatforms.forEach(tp => integrations.push({ type: 'targetPlatform', ...tp }));
-      // pipelines.forEach(p => integrations.push({ type: 'pipeline', ...p }));
-      // const communicationIntegrations = await storage.getCommunicationIntegrations(tenantId);
-      // const cicdIntegrations = await storage.getCICDIntegrations(tenantId);
-      // const testManagementIntegrations = await storage.getTestManagementIntegrations(tenantId);
-      
-      // Calculate setup completion
-      // Setup is complete when ALL REQUIRED steps are done:
-      // - SCM Integration: REQUIRED
-      // - Target Platforms: REQUIRED (not implemented yet)
-      // - Pipelines: OPTIONAL
-      // - Communication: OPTIONAL
-      const hasRequiredSCM = scmIntegrations.length > 0;
-      const hasRequiredTargetPlatforms = false; // TODO: Check actual target platforms when implemented
-      
-      // Setup is complete ONLY when BOTH required steps are done
-      // Since target platforms are not yet implemented, setupComplete will always be FALSE
-      // Once target platforms are implemented, change line below to:
-      // const hasRequiredTargetPlatforms = targetPlatforms.length > 0;
-      const releaseSetupComplete = hasRequiredSCM && hasRequiredTargetPlatforms;
-      
-      // Build tenant-specific configuration
-      // This tells the frontend what this tenant has enabled/connected
-      const tenantConfig = {
-        connectedIntegrations: {
-          SOURCE_CONTROL: scmIntegrations.map((i: any) => ({
-            id: i.id,
-            providerId: i.scmType.toLowerCase(),
-            name: i.displayName,
-            status: i.isActive ? 'CONNECTED' : 'DISCONNECTED',
-            config: {
-              owner: i.owner,
-              repo: i.repo,
-              defaultBranch: i.defaultBranch,
-              repositoryUrl: i.repositoryUrl,
-            },
-            verificationStatus: i.verificationStatus || 'UNKNOWN',
-            connectedAt: i.createdAt,
-            connectedBy: i.createdByAccountId || 'System',
-          })),
-          COMMUNICATION: slackIntegration ? [{
-            id: slackIntegration.id,
-            providerId: 'slack',
-            name: slackIntegration.slackWorkspaceName || 'Slack Workspace',
-            status: slackIntegration.verificationStatus === 'VALID' ? 'CONNECTED' : 'DISCONNECTED',
-            config: {
-              workspaceId: slackIntegration.slackWorkspaceId,
-              workspaceName: slackIntegration.slackWorkspaceName,
-              botUserId: slackIntegration.slackBotUserId,
-              channels: slackIntegration.slackChannels || [],
-            },
-            verificationStatus: slackIntegration.verificationStatus || 'UNKNOWN',
-            connectedAt: slackIntegration.createdAt,
-            connectedBy: slackIntegration.createdByAccountId || 'System',
-          }] : [],
-          CI_CD: cicdIntegrations.map((i: any) => ({
-            id: i.id,
-            providerId: i.providerType.toLowerCase(),
-            name: i.displayName,
-            status: i.verificationStatus === 'VALID' ? 'CONNECTED' : 'DISCONNECTED',
-            config: {
-              hostUrl: i.hostUrl,
-              authType: i.authType,
-              username: i.username,
-              providerConfig: i.providerConfig,
-            },
-            verificationStatus: i.verificationStatus || 'UNKNOWN',
-            connectedAt: i.createdAt,
-            connectedBy: i.createdByAccountId || 'System',
-          })),
-          TEST_MANAGEMENT: testManagementIntegrations.map((i: any) => ({
-            id: i.id,
-            providerId: i.providerType.toLowerCase(),
-            name: i.name,
-            status: 'CONNECTED',  // If it exists in DB, it's connected
-            config: {
-              providerType: i.providerType,
-              tenantId: i.tenantId,
-              // Include non-sensitive config fields
-              baseUrl: i.config?.baseUrl,
-              orgId: i.config?.orgId,
-              // Don't expose sensitive config data (like authToken)
-            },
-            connectedAt: i.createdAt,
-            connectedBy: i.createdByAccountId || 'System',
-          })),
-          PROJECT_MANAGEMENT: projectManagementIntegrations.map((i: any) => ({
-            id: i.id,
-            providerId: i.providerType.toLowerCase(),
-            name: i.name,
-            status: i.isEnabled ? 'CONNECTED' : 'DISCONNECTED',
-            config: {
-              providerType: i.providerType,
-              projectId: i.projectId,
-              // Include non-sensitive config fields
-              baseUrl: i.config?.baseUrl,
-              jiraType: i.config?.jiraType, // JIRA-specific: CLOUD, SERVER, DATA_CENTER
-              // Don't expose sensitive config data (like apiToken, email)
-            },
-            verificationStatus: i.verificationStatus || 'NOT_VERIFIED',
-            connectedAt: i.createdAt,
-            connectedBy: i.createdByAccountId || 'System',
-          })),
-          APP_DISTRIBUTION: storeIntegrations.map((i: any) => ({
-            id: i.id,
-            providerId: i.storeType.toLowerCase(), // e.g., 'play_store', 'app_store'
-            name: i.displayName,
-            status: i.status === 'VERIFIED' ? 'CONNECTED' : 'DISCONNECTED',
-            config: {
-              storeType: i.storeType,
-              platform: i.platform,
-              appIdentifier: i.appIdentifier,
-              targetAppId: i.targetAppId || null,
-              defaultTrack: i.defaultTrack || null,
-              defaultLocale: i.defaultLocale || null,
-              teamName: i.teamName || null,
-            },
-            verificationStatus: i.status, // PENDING, VERIFIED, REVOKED
-            connectedAt: i.createdAt,
-            connectedBy: i.createdByAccountId || 'System',
-          })),
-        },
-        enabledPlatforms: ["ANDROID", "IOS"], // TODO: Make this dynamic based on tenant settings
-        enabledTargets: ["APP_STORE", "PLAY_STORE", "WEB"], // TODO: Make this dynamic
-        allowedReleaseTypes: ["MINOR", "HOTFIX", "MAJOR"], // TODO: Make this dynamic
-        customSettings: {
-          defaultKickoffLeadDays: 2,
-          workingDays: [1, 2, 3, 4, 5],
-          timezone: "UTC",
-          versioningScheme: "SEMVER",
-        },
-      };
+      const tenantConfig = buildTenantConfig(
+        scmIntegrations,
+        slackIntegration,
+        cicdIntegrations,
+        testManagementIntegrations,
+        projectManagementIntegrations,
+        storeIntegrations
+      );
       
       return res.status(200).send({
         organisation: {
           ...tenant,
           releaseManagement: {
-            setupComplete: releaseSetupComplete,
-            setupSteps: {
-              scmIntegration: scmIntegrations.length > 0,
-              targetPlatforms: false,  // TODO: Implement target platforms
-              pipelines: false,        // TODO: Implement (optional)
-              communication: !!slackIntegration
-            },
-            config: tenantConfig  // Structured config with connected integrations
+            config: tenantConfig,  // Structured config with connected integrations
           }
         }
       });

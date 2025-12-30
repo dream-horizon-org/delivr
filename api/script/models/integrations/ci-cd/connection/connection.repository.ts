@@ -81,6 +81,7 @@ export class CICDIntegrationRepository {
     // Sequelize handles updatedAt automatically when timestamps: true
     await record.update({
       ...data,
+      displayName: data.displayName ?? record.get('displayName'),
       username: data.username ?? record.get('username'),
       apiToken: data.apiToken ?? record.get('apiToken'),
       headerName: data.headerName ?? record.get('headerName'),
