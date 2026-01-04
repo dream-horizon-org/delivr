@@ -704,6 +704,31 @@ export class ReleaseUpdateService {
       `Status: ${previousStatus} → PENDING. Cron will pick up on next tick.`
     );
 
+    // Register activity log for task retry
+    if (this.activityLogService) {
+      try {
+        await this.activityLogService.registerActivityLogs(
+          task.releaseId,
+          accountId,
+          new Date(),
+          'TASK_RETRIED',
+          {
+            taskId,
+            taskType: task.taskType,
+            taskStatus: previousStatus
+          },
+          {
+            taskId,
+            taskType: task.taskType,
+            taskStatus: TaskStatus.PENDING
+          }
+        );
+      } catch (error) {
+        console.error(`[ReleaseUpdateService] Failed to log task retry activity:`, error);
+        // Don't fail the retry if activity logging fails
+      }
+    }
+
     return {
       success: true,
       taskId,

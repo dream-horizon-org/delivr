@@ -158,6 +158,7 @@ export class ProjectManagementTicketService {
 
     return {
       ticketKey,
+      ticketUrl: statusResult.url,
       currentStatus: statusResult.status,
       completedStatus: platformConfig.parameters.completedStatus,
       isCompleted,

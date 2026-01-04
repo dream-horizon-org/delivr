@@ -29,6 +29,7 @@ import { validateReleaseCreation } from './release-creation.validation';
 import { createStage1Tasks } from '../../utils/task-creation';
 import { checkIntegrationAvailability } from '../../utils/integration-availability.utils';
 import type { CronJobService } from './cron-job/cron-job.service';
+import { ReleaseActivityLogService } from './release-activity-log.service';
 
 export class ReleaseCreationService {
   private cronJobService: CronJobService | null = null;
@@ -41,7 +42,8 @@ export class ReleaseCreationService {
     private readonly stateHistoryRepo: StateHistoryRepository,
     private readonly storage: storageTypes.Storage,
     private readonly releaseConfigService: ReleaseConfigService,
-    private readonly releaseVersionService: ReleaseVersionService
+    private readonly releaseVersionService: ReleaseVersionService,
+    private readonly activityLogService: ReleaseActivityLogService
   ) {}
 
   /**
@@ -113,6 +115,24 @@ export class ReleaseCreationService {
       releasePilotAccountId: payload.releasePilotAccountId?.trim() || payload.accountId,
       lastUpdatedByAccountId: payload.accountId
     });
+
+    // Log release creation activity
+    await this.activityLogService.registerActivityLogs(
+      id,
+      payload.accountId,
+      new Date(),
+      'RELEASE_CREATED',
+      null, // No previous value for creation
+      {
+        releaseId,
+        type: payload.type,
+        branch: payload.branch,
+        baseBranch,
+        kickOffDate: payload.kickOffDate,
+        targetReleaseDate: payload.targetReleaseDate,
+        releasePilotAccountId: payload.releasePilotAccountId?.trim() || payload.accountId
+      }
+    );
 
     // Step 6: Link platform-target combinations to release
     await this.linkPlatformTargetsToRelease(id, payload.platformTargets);

@@ -494,6 +494,9 @@ export class CronJobService {
       };
     }
 
+    // Capture previous status before archiving
+    const previousStatus = release.status;
+
     // Update release status to ARCHIVED
     await this.releaseRepo.update(releaseId, {
       status: 'ARCHIVED',
@@ -501,6 +504,22 @@ export class CronJobService {
     });
 
     log.info('Release archived successfully', { releaseId });
+
+    // Register activity log
+    if (this.activityLogService) {
+      try {
+        await this.activityLogService.registerActivityLogs(
+          releaseId,
+          accountId,
+          new Date(),
+          'RELEASE_ARCHIVED',
+          { status: previousStatus },
+          { status: 'ARCHIVED' }
+        );
+      } catch (error) {
+        console.error(`[CronJobService] Failed to log archive activity:`, error);
+      }
+    }
 
     // Get and update cron job (if exists)
     const cronJob = await this.cronJobRepo.findByReleaseId(releaseId);

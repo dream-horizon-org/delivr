@@ -898,6 +898,29 @@ export class ReleaseManagementController {
         });
       }
 
+      // Register activity log for manual build upload
+      if (this.activityLogService) {
+        try {
+          await this.activityLogService.registerActivityLogs(
+            releaseId,
+            accountId,
+            new Date(),
+            'MANUAL_BUILD_UPLOADED',
+            null, // No previous value for upload
+            {
+              uploadId: result.uploadId,
+              platform: result.platform,
+              stage: result.stage,
+              filename: originalFilename,
+              allPlatformsReady: result.allPlatformsReady
+            }
+          );
+        } catch (error) {
+          console.error(`[Upload Manual Build] Failed to log activity:`, error);
+          // Don't fail the upload if activity logging fails
+        }
+      }
+
       return res.status(HTTP_STATUS.OK).json({
         success: true,
         data: {

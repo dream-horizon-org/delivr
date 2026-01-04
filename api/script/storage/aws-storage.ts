@@ -1218,6 +1218,10 @@ export class S3Storage implements storage.Storage {
           );
           console.log("Release Version Service initialized");
           
+          // Initialize Release Activity Log Service (before ReleaseCreationService, as it's a dependency)
+          this.releaseActivityLogService = new ReleaseActivityLogService(this.activityLogRepository, this);
+          console.log("Release Activity Log Service initialized");
+          
           this.releaseCreationService = new ReleaseCreationService(
             this.releaseRepository,
             this.releasePlatformTargetMappingRepository,
@@ -1226,7 +1230,8 @@ export class S3Storage implements storage.Storage {
             stateHistoryRepo,
             this,
             this.releaseConfigService,
-            this.releaseVersionService
+            this.releaseVersionService,
+            this.releaseActivityLogService
           );
           console.log("Release Creation Service initialized");
           
@@ -1285,9 +1290,6 @@ export class S3Storage implements storage.Storage {
             this.regressionCycleRepository
           );
           console.log("Release Status Service initialized");
-          
-          this.releaseActivityLogService = new ReleaseActivityLogService(this.activityLogRepository, this);
-          console.log("Release Activity Log Service initialized");
           
           // Set ReleaseStatusService in ReleaseRetrievalService (circular dependency resolution)
           this.releaseRetrievalService.setReleaseStatusService(this.releaseStatusService);

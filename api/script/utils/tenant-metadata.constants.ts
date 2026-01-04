@@ -4,7 +4,6 @@
  */
 
 import { PlatformName, TargetName, ReleaseType } from '~models/release/release.interface';
-import { IntegrationStatus } from '~storage/integrations/store/store-types';
 
 // ============================================================================
 // INTEGRATION TYPES

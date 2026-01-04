@@ -4,7 +4,6 @@
 import { Request, Response, Router } from "express";
 import rateLimit from "express-rate-limit";
 import * as fs from "fs";
-import * as path from "path";
 import * as semver from "semver";
 import * as stream from "stream";
 import * as streamifier from "streamifier";
@@ -26,15 +25,7 @@ import { isUnfinishedRollout } from "../utils/rollout-selector";
 import * as security from "../utils/security";
 import * as validationUtils from "../utils/validation";
 import { buildSystemMetadata } from "../utils/system-metadata.utils";
-import {
-  sanitizeScmIntegration,
-  sanitizeCicdIntegration,
-  sanitizeTestManagementIntegration,
-  sanitizeProjectManagementIntegration,
-  sanitizeAppDistributionIntegration,
-  sanitizeSlackIntegration,
-  buildTenantConfig,
-} from "../utils/tenant-metadata.utils";
+import { buildTenantConfig } from "../utils/tenant-metadata.utils";
 import PackageDiffer = packageDiffing.PackageDiffer;
 import NameResolver = storageTypes.NameResolver;
 import PackageManifest = hashUtils.PackageManifest;
@@ -406,16 +397,6 @@ export function getManagementRouter(config: ManagementConfig): Router {
           console.error('[TenantInfo] Error fetching store integrations:', error);
         }
       }
-      
-      // Build unified integrations array with type field (sanitized - no sensitive data)
-      const integrations: any[] = [
-        ...scmIntegrations.map(sanitizeScmIntegration),
-        ...cicdIntegrations.map(sanitizeCicdIntegration),
-        ...testManagementIntegrations.map(sanitizeTestManagementIntegration),
-        ...projectManagementIntegrations.map(sanitizeProjectManagementIntegration),
-        ...storeIntegrations.map(sanitizeAppDistributionIntegration),
-        ...(slackIntegration ? [sanitizeSlackIntegration(slackIntegration)] : []),
-      ];
       
 
       const tenantConfig = buildTenantConfig(

@@ -35,6 +35,7 @@ export type CreateTicketsResponse = Record<Platform, TicketCreationResult>;
  */
 export type CheckTicketStatusResult = {
   ticketKey: string;
+  ticketUrl: string;
   currentStatus: string;
   completedStatus: string;
   isCompleted: boolean;

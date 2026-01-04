@@ -173,6 +173,30 @@ export const verifyTestFlightBuild = async (req: Request, res: Response): Promis
       `Release: ${releaseId}, Upload: ${upload.id}, TestFlight: ${testflightBuildNumber}`
     );
 
+    // Log activity for TestFlight verification
+    const accountId = (req as any).user?.id;
+    if (accountId && storageWithServices.releaseActivityLogService) {
+      try {
+        await storageWithServices.releaseActivityLogService.registerActivityLogs(
+          releaseId,
+          accountId,
+          new Date(),
+          'TESTFLIGHT_BUILD_VERIFIED',
+          null, // No previous value for verification
+          {
+            uploadId: upload.id,
+            platform,
+            stage: uploadStage,
+            testflightNumber: testflightBuildNumber,
+            version: verificationResult.data?.version
+          }
+        );
+      } catch (logError) {
+        console.error(`[TestFlight Verification] Failed to log activity:`, logError);
+        // Don't fail the verification if activity logging fails
+      }
+    }
+
     // Step 3: Check platform status for response
     const platformMappings = await platformTargetMappingRepository.getByReleaseId(releaseId);
     const requiredPlatforms = platformMappings.map(

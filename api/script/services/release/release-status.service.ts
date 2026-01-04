@@ -26,6 +26,7 @@ export type ProjectManagementStatusResult = {
   version: string;
   hasTicket: boolean;
   ticketKey: string | null;
+  ticketUrl?: string;
   currentStatus?: string;
   completedStatus?: string;
   isCompleted?: boolean;
@@ -208,6 +209,7 @@ export class ReleaseStatusService {
         version: mapping.version,
         hasTicket: true,
         ticketKey: statusResult.ticketKey,
+        ticketUrl: statusResult.ticketUrl,
         currentStatus: statusResult.currentStatus,
         completedStatus: statusResult.completedStatus,
         isCompleted: statusResult.isCompleted,
