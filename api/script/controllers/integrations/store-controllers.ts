@@ -882,7 +882,7 @@ export const patchStoreIntegration = async (req: Request, res: Response): Promis
     const integrationController = getStoreController();
     const credentialController = getCredentialController();
 
-    // Find existing integration by ID
+    // STEP 1: Fetch existing integration
     const existingIntegration = await integrationController.findById(integrationId);
 
     const integrationNotFound = !existingIntegration;
@@ -908,220 +908,176 @@ export const patchStoreIntegration = async (req: Request, res: Response): Promis
       return;
     }
 
-    // Determine store type for credential handling
+    // Determine store type
     const isAppStoreType = existingIntegration.storeType === StoreType.APP_STORE || existingIntegration.storeType === StoreType.TESTFLIGHT;
     const isPlayStoreType = existingIntegration.storeType === StoreType.PLAY_STORE;
 
-    // Build update data for store_integrations table - only include fields that are provided in payload
-    const updateData: Partial<UpdateStoreIntegrationDto> = {};
+    // STEP 2: Fetch existing credentials from DB
+    const existingCredential = await credentialController.findByIntegrationId(existingIntegration.id);
 
-    // Update displayName if provided
-    if (payload.displayName !== undefined) {
-      updateData.displayName = payload.displayName;
+    if (!existingCredential) {
+      res.status(HTTP_STATUS.NOT_FOUND).json({
+        success: RESPONSE_STATUS.FAILURE,
+        error: 'No existing credentials found for this integration. Use PUT /integrations/store/connect to create credentials.',
+      });
+      return;
     }
 
-    // Update appIdentifier if provided
-    if (payload.appIdentifier !== undefined) {
-      updateData.appIdentifier = payload.appIdentifier;
-    }
-
-    // Update App Store specific fields if provided
-    if (isAppStoreType) {
-      if (payload.targetAppId !== undefined) {
-        updateData.targetAppId = payload.targetAppId || null;
-      }
-      if (payload.defaultLocale !== undefined) {
-        updateData.defaultLocale = payload.defaultLocale || null;
-      }
-      if (payload.teamName !== undefined) {
-        updateData.teamName = payload.teamName || null;
-      }
-    }
-
-    // Update Play Store specific fields if provided
-    if (isPlayStoreType) {
-      if (payload.defaultTrack !== undefined) {
-        const defaultTrackValue = payload.defaultTrack
-          ? (payload.defaultTrack.toUpperCase() as DefaultTrack)
-          : null;
-        
-        const trackIsValid = isValidTrackForStoreType(existingIntegration.storeType, defaultTrackValue ?? DefaultTrack.INTERNAL);
-        
-        if (defaultTrackValue && !trackIsValid) {
-          const errorMessage = getInvalidTrackErrorMessage(existingIntegration.storeType, defaultTrackValue);
-          res.status(HTTP_STATUS.BAD_REQUEST).json({
-            success: RESPONSE_STATUS.FAILURE,
-            error: errorMessage,
-          });
-          return;
-        }
-        
-        updateData.defaultTrack = defaultTrackValue;
-      }
-    }
-
-    // Update store_integrations table if there are fields to update
-    const hasFieldsToUpdate = Object.keys(updateData).length > 0;
-    let updatedIntegration = existingIntegration;
-
-    if (hasFieldsToUpdate) {
-      updatedIntegration = await integrationController.update(existingIntegration.id, updateData);
+    // Decrypt existing credentials
+    let existingCredentialData: any;
+    try {
+      const buffer = existingCredential.encryptedPayload;
       
-      const updateFailed = !updatedIntegration;
-      if (updateFailed) {
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-          success: RESPONSE_STATUS.FAILURE,
-          error: ERROR_MESSAGES.INTEGRATION_UPDATE_FAILED,
-        });
-        return;
+      let decryptedPayload: string;
+      if (Buffer.isBuffer(buffer)) {
+        decryptedPayload = decryptCredentials(buffer);
+      } else {
+        decryptedPayload = decryptFromStorage(String(buffer));
       }
+      
+      existingCredentialData = JSON.parse(decryptedPayload);
+    } catch (error) {
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: RESPONSE_STATUS.FAILURE,
+        error: 'Failed to decrypt or parse existing credentials',
+      });
+      return;
     }
 
-    // Handle credential updates (partial updates supported)
-    const hasCredentialFields = (isAppStoreType && (payload.issuerId !== undefined || payload.keyId !== undefined || payload.privateKeyPem !== undefined)) ||
-                                (isPlayStoreType && payload.serviceAccountJson !== undefined);
+    // STEP 3: Merge payload with existing data (metadata + credentials together)
+    
+    // Merge metadata fields
+    const mergedMetadata = {
+      displayName: payload.displayName ?? existingIntegration.displayName,
+      appIdentifier: payload.appIdentifier ?? existingIntegration.appIdentifier,
+      targetAppId: isAppStoreType ? (payload.targetAppId ?? existingIntegration.targetAppId) : null,
+      defaultLocale: isAppStoreType ? (payload.defaultLocale ?? existingIntegration.defaultLocale) : null,
+      teamName: isAppStoreType ? (payload.teamName ?? existingIntegration.teamName) : null,
+      defaultTrack: isPlayStoreType ? (payload.defaultTrack ?? existingIntegration.defaultTrack) : null,
+    };
 
-    if (hasCredentialFields) {
-      // Get existing credential
-      const existingCredential = await credentialController.findByIntegrationId(existingIntegration.id);
-
-      if (!existingCredential) {
-        res.status(HTTP_STATUS.NOT_FOUND).json({
-          success: RESPONSE_STATUS.FAILURE,
-          error: 'No existing credentials found for this integration. Use PUT /integrations/store/connect to create credentials.',
-        });
-        return;
-      }
-
-      // Read and decrypt existing credential payload from backend storage
-      let decryptedPayload: string;
-      try {
-        const buffer = existingCredential.encryptedPayload;
-        
-        // Decrypt using backend storage decryption (double-layer security)
-        if (Buffer.isBuffer(buffer)) {
-          decryptedPayload = decryptCredentials(buffer);
-        } else {
-          // Fallback: treat as string and try to decrypt
-          decryptedPayload = decryptFromStorage(String(buffer));
-        }
-      } catch (readError) {
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-          success: RESPONSE_STATUS.FAILURE,
-          error: 'Failed to decrypt existing credentials',
-        });
-        return;
-      }
-
-      // Parse decrypted JSON
-      let credentialData: any;
-      try {
-        credentialData = JSON.parse(decryptedPayload);
-      } catch (parseError) {
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-          success: RESPONSE_STATUS.FAILURE,
-          error: 'Failed to parse existing credential data',
-        });
-        return;
-      }
-
-      // Update only the fields provided in payload (partial update)
-      if (isAppStoreType) {
-        if (payload.issuerId !== undefined) {
-          credentialData.issuerId = payload.issuerId;
-        }
-        if (payload.keyId !== undefined) {
-          credentialData.keyId = payload.keyId;
-        }
-        if (payload.privateKeyPem !== undefined) {
-          credentialData.privateKeyPem = payload.privateKeyPem;
-        }
-      } else if (isPlayStoreType && payload.serviceAccountJson) {
-        // Update serviceAccountJson fields
-        const serviceAccountJson = payload.serviceAccountJson;
-        if (serviceAccountJson.type !== undefined) {
-          credentialData.type = serviceAccountJson.type;
-        }
-        if (serviceAccountJson.project_id !== undefined) {
-          credentialData.project_id = serviceAccountJson.project_id;
-        }
-        if (serviceAccountJson.client_email !== undefined) {
-          credentialData.client_email = serviceAccountJson.client_email;
-        }
-        if (serviceAccountJson.private_key !== undefined) {
-          credentialData.private_key = serviceAccountJson.private_key;
-          // Preserve _encrypted flag to ensure proper decryption during verification
-          if (serviceAccountJson._encrypted) {
-            credentialData._encrypted = true;
-          }
-        }
-        // Update other service account fields if provided
-        if (serviceAccountJson.private_key_id !== undefined) {
-          credentialData.private_key_id = serviceAccountJson.private_key_id;
-        }
-        if (serviceAccountJson.client_id !== undefined) {
-          credentialData.client_id = serviceAccountJson.client_id;
-        }
-        if (serviceAccountJson.auth_uri !== undefined) {
-          credentialData.auth_uri = serviceAccountJson.auth_uri;
-        }
-        if (serviceAccountJson.token_uri !== undefined) {
-          credentialData.token_uri = serviceAccountJson.token_uri;
-        }
-        if (serviceAccountJson.auth_provider_x509_cert_url !== undefined) {
-          credentialData.auth_provider_x509_cert_url = serviceAccountJson.auth_provider_x509_cert_url;
-        }
-        if (serviceAccountJson.client_x509_cert_url !== undefined) {
-          credentialData.client_x509_cert_url = serviceAccountJson.client_x509_cert_url;
-        }
-      }
-
-      let verificationResult;
-
-      if (isAppStoreType) {
-        verificationResult = await verifyAppStoreConnect({
-          issuerId: credentialData.issuerId,
-          keyId: credentialData.keyId,
-          privateKeyPem: credentialData.privateKeyPem,
-          appIdentifier: updatedIntegration.appIdentifier || existingIntegration.appIdentifier,
-          displayName: updatedIntegration.displayName || existingIntegration.displayName,
-        });
-      } else if (isPlayStoreType) {
-        verificationResult = await verifyGooglePlayStore({
-          serviceAccountJson: credentialData,
-          appIdentifier: updatedIntegration.appIdentifier || existingIntegration.appIdentifier,
-          displayName: updatedIntegration.displayName || existingIntegration.displayName,
-        });
-      }
-
-      // Check verification result
-      if (!verificationResult || !verificationResult.isValid) {
+    // Validate defaultTrack for Play Store
+    if (isPlayStoreType && mergedMetadata.defaultTrack) {
+      const defaultTrackValue = mergedMetadata.defaultTrack.toUpperCase() as DefaultTrack;
+      const trackIsValid = isValidTrackForStoreType(existingIntegration.storeType, defaultTrackValue);
+      
+      if (!trackIsValid) {
+        const errorMessage = getInvalidTrackErrorMessage(existingIntegration.storeType, defaultTrackValue);
         res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: RESPONSE_STATUS.FAILURE,
-          error: 'Verification failed',
-          details: {
-            message: verificationResult?.message,
-            ...verificationResult?.details,
-          },
+          error: errorMessage,
         });
         return;
       }
+      
+      mergedMetadata.defaultTrack = defaultTrackValue;
+    }
 
-      // Save updated credentials as plain text (no encryption)
-      // Note: encryptCredentials() just converts to Buffer, doesn't actually encrypt
-      const updatedCredentialPayload = JSON.stringify(credentialData);
-      const encryptedPayload = encryptCredentials(updatedCredentialPayload);
+    // Merge credential fields
+    let mergedCredentials: any;
+    
+    if (isAppStoreType) {
+      mergedCredentials = {
+        issuerId: payload.issuerId ?? existingCredentialData.issuerId,
+        keyId: payload.keyId ?? existingCredentialData.keyId,
+        privateKeyPem: payload.privateKeyPem ?? existingCredentialData.privateKeyPem,
+      };
+    } else if (isPlayStoreType) {
+      const serviceAccountJson = payload.serviceAccountJson ?? {};
+      
+      mergedCredentials = {
+        type: serviceAccountJson.type ?? existingCredentialData.type,
+        project_id: serviceAccountJson.project_id ?? existingCredentialData.project_id,
+        client_email: serviceAccountJson.client_email ?? existingCredentialData.client_email,
+        private_key: serviceAccountJson.private_key ?? existingCredentialData.private_key,
+        private_key_id: serviceAccountJson.private_key_id ?? existingCredentialData.private_key_id,
+        client_id: serviceAccountJson.client_id ?? existingCredentialData.client_id,
+        auth_uri: serviceAccountJson.auth_uri ?? existingCredentialData.auth_uri,
+        token_uri: serviceAccountJson.token_uri ?? existingCredentialData.token_uri,
+        auth_provider_x509_cert_url: serviceAccountJson.auth_provider_x509_cert_url ?? existingCredentialData.auth_provider_x509_cert_url,
+        client_x509_cert_url: serviceAccountJson.client_x509_cert_url ?? existingCredentialData.client_x509_cert_url,
+      };
+      
+      // Preserve _encrypted flag if present in payload
+      if (serviceAccountJson._encrypted) {
+        mergedCredentials._encrypted = true;
+      }
+    }
 
-      // Update the existing credential record
-      await credentialController.deleteByIntegrationId(existingIntegration.id);
-      await credentialController.create({
-        integrationId: existingIntegration.id,
-        credentialType: existingCredential.credentialType,
-        encryptedPayload,
-        encryptionScheme: existingCredential.encryptionScheme,
+    // STEP 4: VERIFY merged data FIRST (before saving anything)
+    let verificationResult;
+
+    if (isAppStoreType) {
+      verificationResult = await verifyAppStoreConnect({
+        issuerId: mergedCredentials.issuerId,
+        keyId: mergedCredentials.keyId,
+        privateKeyPem: mergedCredentials.privateKeyPem,
+        appIdentifier: mergedMetadata.appIdentifier,
+        displayName: mergedMetadata.displayName,
+      });
+    } else if (isPlayStoreType) {
+      verificationResult = await verifyGooglePlayStore({
+        serviceAccountJson: mergedCredentials,
+        appIdentifier: mergedMetadata.appIdentifier,
+        displayName: mergedMetadata.displayName,
       });
     }
 
+    // If verification fails, return error WITHOUT saving anything
+    if (!verificationResult || !verificationResult.isValid) {
+      res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: RESPONSE_STATUS.FAILURE,
+        error: 'Verification failed',
+        details: {
+          message: verificationResult?.message,
+          ...verificationResult?.details,
+        },
+      });
+      return;
+    }
+
+    // STEP 5: Verification passed - now save EVERYTHING to DB
+    
+    // Save metadata to store_integrations table
+    const metadataUpdateData: Partial<UpdateStoreIntegrationDto> = {
+      displayName: mergedMetadata.displayName,
+      appIdentifier: mergedMetadata.appIdentifier,
+    };
+
+    if (isAppStoreType) {
+      metadataUpdateData.targetAppId = mergedMetadata.targetAppId ?? null;
+      metadataUpdateData.defaultLocale = mergedMetadata.defaultLocale ?? null;
+      metadataUpdateData.teamName = mergedMetadata.teamName ?? null;
+    }
+
+    if (isPlayStoreType) {
+      metadataUpdateData.defaultTrack = mergedMetadata.defaultTrack ?? null;
+    }
+
+    const updatedIntegration = await integrationController.update(existingIntegration.id, metadataUpdateData);
+    
+    const updateFailed = !updatedIntegration;
+    if (updateFailed) {
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: RESPONSE_STATUS.FAILURE,
+        error: ERROR_MESSAGES.INTEGRATION_UPDATE_FAILED,
+      });
+      return;
+    }
+
+    // Save credentials to store_credentials table
+    const credentialPayload = JSON.stringify(mergedCredentials);
+    const encryptedPayload = encryptCredentials(credentialPayload);
+
+    await credentialController.deleteByIntegrationId(existingIntegration.id);
+    await credentialController.create({
+      integrationId: existingIntegration.id,
+      credentialType: existingCredential.credentialType,
+      encryptedPayload,
+      encryptionScheme: existingCredential.encryptionScheme,
+    });
+
+    // STEP 6: Return success
     res.status(HTTP_STATUS.OK).json({
       success: RESPONSE_STATUS.SUCCESS,
       data: {
