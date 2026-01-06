@@ -8,7 +8,6 @@ import { DistributionService } from '~services/distribution/distribution.service
 import { HTTP_STATUS } from '~constants/http';
 import { successResponse, errorResponse, notFoundResponse } from '~utils/response.utils';
 import { getUserTenantPermission } from '~middleware/tenant-permissions';
-import { DISTRIBUTION_ERROR_MESSAGES } from '~types/distribution/distribution.constants';
 import type { Storage } from '~storage/storage';
 
 /**
@@ -37,14 +36,9 @@ export const createDistributionController = (service: DistributionService, stora
 
       const distribution = await service.getDistributionByReleaseId(releaseId);
 
-      if (!distribution) {
-        return res.status(HTTP_STATUS.NOT_FOUND).json(
-          notFoundResponse('Distribution')
-        );
-      }
-
+      // Return 200 OK with null if not found (valid empty state, not an error)
       return res.status(HTTP_STATUS.OK).json(
-        successResponse(distribution)
+        successResponse(distribution ?? null)
       );
     } catch (error: unknown) {
       console.error('[Get Distribution by Release ID] Error:', error);
@@ -150,13 +144,7 @@ export const createDistributionController = (service: DistributionService, stora
         pageSize
       );
 
-      // Check if tenant filter was used and no distributions found
-      if (tenantId && result.distributions.length === 0 && result.pagination.totalItems === 0) {
-        return res.status(HTTP_STATUS.NOT_FOUND).json(
-          errorResponse(new Error(DISTRIBUTION_ERROR_MESSAGES.NO_DISTRIBUTIONS_FOR_TENANT), 'List Distributions')
-        );
-      }
-
+      // Always return 200 OK with result (empty array is valid, not an error)
       return res.status(HTTP_STATUS.OK).json(
         successResponse(result)
       );
