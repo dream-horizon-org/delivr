@@ -149,7 +149,8 @@ export const verifyTestFlightBuild = async (req: Request, res: Response): Promis
 
       res.status(httpStatus).json({
         success: RESPONSE_STATUS.FAILURE,
-        error: verificationResult.error,
+        error: verificationResult.error?.message || 'verification failed',
+        errorCode: verificationResult.error?.code,
       });
       return;
     }

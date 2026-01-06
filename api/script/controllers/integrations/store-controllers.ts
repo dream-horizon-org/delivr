@@ -1050,6 +1050,10 @@ export const patchStoreIntegration = async (req: Request, res: Response): Promis
         }
         if (serviceAccountJson.private_key !== undefined) {
           credentialData.private_key = serviceAccountJson.private_key;
+          // Preserve _encrypted flag to ensure proper decryption during verification
+          if (serviceAccountJson._encrypted) {
+            credentialData._encrypted = true;
+          }
         }
         // Update other service account fields if provided
         if (serviceAccountJson.private_key_id !== undefined) {
@@ -1070,6 +1074,37 @@ export const patchStoreIntegration = async (req: Request, res: Response): Promis
         if (serviceAccountJson.client_x509_cert_url !== undefined) {
           credentialData.client_x509_cert_url = serviceAccountJson.client_x509_cert_url;
         }
+      }
+
+      let verificationResult;
+
+      if (isAppStoreType) {
+        verificationResult = await verifyAppStoreConnect({
+          issuerId: credentialData.issuerId,
+          keyId: credentialData.keyId,
+          privateKeyPem: credentialData.privateKeyPem,
+          appIdentifier: updatedIntegration.appIdentifier || existingIntegration.appIdentifier,
+          displayName: updatedIntegration.displayName || existingIntegration.displayName,
+        });
+      } else if (isPlayStoreType) {
+        verificationResult = await verifyGooglePlayStore({
+          serviceAccountJson: credentialData,
+          appIdentifier: updatedIntegration.appIdentifier || existingIntegration.appIdentifier,
+          displayName: updatedIntegration.displayName || existingIntegration.displayName,
+        });
+      }
+
+      // Check verification result
+      if (!verificationResult || !verificationResult.isValid) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: RESPONSE_STATUS.FAILURE,
+          error: 'Verification failed',
+          details: {
+            message: verificationResult?.message,
+            ...verificationResult?.details,
+          },
+        });
+        return;
       }
 
       // Save updated credentials as plain text (no encryption)
