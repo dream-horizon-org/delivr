@@ -1370,13 +1370,12 @@ export const getStoreIntegrationsByTenant = async (
 interface _RevokeStoreIntegrationsResponse {
   success: boolean;
   data?: {
-    revokedCount: number;
+    deletedCount: number;
     integrations: Array<{
       integrationId: string;
       tenantId: string;
       storeType: StoreType;
       platform: 'ANDROID' | 'IOS';
-      status: IntegrationStatus;
     }>;
   };
   error?: string;
@@ -1431,6 +1430,7 @@ export const revokeStoreIntegrations = async (
     }
 
     const integrationController = getStoreController();
+    const credentialController = getCredentialController();
     
     // Find all integrations matching tenantId, storeType, and platform
     const integrations = await integrationController.findAll({
@@ -1448,31 +1448,31 @@ export const revokeStoreIntegrations = async (
       return;
     }
 
-    // Update status to REVOKED for all matching integrations
-    const revokedIntegrations = [];
+    // Hard delete: Delete credentials first, then integrations
+    const deletedIntegrations = [];
     for (const integration of integrations) {
-      const updatedIntegration = await integrationController.updateStatus(
-        integration.id,
-        IntegrationStatus.REVOKED
-      );
+      // Delete credentials associated with this integration
+      await credentialController.deleteByIntegrationId(integration.id);
       
-      if (updatedIntegration) {
-        revokedIntegrations.push({
-          integrationId: updatedIntegration.id,
-          tenantId: updatedIntegration.tenantId,
-          storeType: updatedIntegration.storeType,
-          platform: updatedIntegration.platform,
-          status: updatedIntegration.status,
+      // Delete the integration itself
+      const deleted = await integrationController.delete(integration.id);
+      
+      if (deleted) {
+        deletedIntegrations.push({
+          integrationId: integration.id,
+          tenantId: integration.tenantId,
+          storeType: integration.storeType,
+          platform: integration.platform,
         });
       }
     }
 
-    const revokedCount = revokedIntegrations.length;
-    const updateFailed = revokedCount === 0;
-    if (updateFailed) {
+    const deletedCount = deletedIntegrations.length;
+    const deleteFailed = deletedCount === 0;
+    if (deleteFailed) {
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: RESPONSE_STATUS.FAILURE,
-        error: 'Failed to revoke store integrations',
+        error: 'Failed to delete store integrations',
       });
       return;
     }
@@ -1480,13 +1480,13 @@ export const revokeStoreIntegrations = async (
     res.status(HTTP_STATUS.OK).json({
       success: RESPONSE_STATUS.SUCCESS,
       data: {
-        revokedCount,
-        integrations: revokedIntegrations,
+        deletedCount,
+        integrations: deletedIntegrations,
       },
-      message: `Successfully revoked ${revokedCount} store integration(s)`,
+      message: `Successfully deleted ${deletedCount} store integration(s)`,
     });
   } catch (error) {
-    const message = getErrorMessage(error, 'Failed to revoke store integrations');
+    const message = getErrorMessage(error, 'Failed to delete store integrations');
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: RESPONSE_STATUS.FAILURE,
       error: message,
