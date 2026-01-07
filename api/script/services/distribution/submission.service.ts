@@ -1924,42 +1924,11 @@ export class SubmissionService {
 
     console.log(
       `[SubmissionService] Found existing ${resubmittableSubmission.status} iOS submission: ${resubmittableSubmission.id}. ` +
-      `Will mark as inactive and create new submission.`
+      `Will validate Apple version state before making any database changes.`
     );
 
-    // Step 1: Mark old submission as inactive
-    await this.iosSubmissionRepository.update(resubmittableSubmission.id, {
-          isActive: false
-        });
-
-    console.log(`[SubmissionService] Marked old iOS submission ${resubmittableSubmission.id} as inactive`);
-
-    // Step 4: Create completely new submission with new ID
-    console.log(`[SubmissionService] Creating new iOS submission for distribution ${distributionId}`);
-    
-    const newSubmissionId = uuidv4();
-    const newSubmission = await this.iosSubmissionRepository.create({
-      id: newSubmissionId,
-      distributionId,
-      testflightNumber: data.testflightNumber,
-      version: data.version,
-      buildType: 'MANUAL', // Resubmissions are always manual
-      storeType: STORE_TYPE.APP_STORE,
-      status: SUBMISSION_STATUS.PENDING, // Will be updated to SUBMITTED after API call
-      releaseNotes: data.releaseNotes,
-      phasedRelease: data.phasedRelease,
-      releaseType: 'AFTER_APPROVAL', // Fixed: Automatically release after App Review approval
-      resetRating: data.resetRating,
-      rolloutPercentage: data.phasedRelease ? 1 : 100, // Phased starts at 1% (Day 1), manual at 100%
-      isActive: true,
-      submittedBy: null // Will be set after submission
-    });
-
-    if (!newSubmission) {
-      throw new Error('Failed to create new submission');
-    }
-
-    // Step 2: Get store integration and credentials (guaranteed to exist and be valid by validation)
+    // Step 1: Get store integration and credentials FIRST (before any DB writes)
+    // This ensures we can validate with Apple before modifying the database
     const storeIntegrationController = getStoreIntegrationController();
     const mappedStoreType = StoreType.APP_STORE;
 
@@ -1972,8 +1941,7 @@ export class SubmissionService {
     const integration = integrations[0];
     const targetAppId = integration.targetAppId;
 
-
-    // Step 3: Create Apple service (decrypts credentials, generates JWT token)
+    // Step 2: Create Apple service (decrypts credentials, generates JWT token)
     let appleService: AppleAppStoreConnectService | MockAppleAppStoreConnectService;
     try {
       appleService = await createAppleServiceFromIntegration(integration.id);
@@ -1982,14 +1950,16 @@ export class SubmissionService {
       throw new Error(`Failed to load Apple App Store Connect credentials: ${errorMessage}`);
     }
 
-    // Step 4: Get or create app store version and validate state
+    // Step 3: VALIDATE Apple version state BEFORE any database writes
+    // CRITICAL: This must happen BEFORE marking old submission inactive or creating new one
+    // If validation fails, no database changes should be made
     let appStoreVersionId: string;
     const versionString = data.version;
 
     try {
       console.log(`[SubmissionService] Checking for existing version ${versionString} in Apple App Store Connect`);
       
-      // Step 4a: Check if version exists in Apple
+      // Step 3a: Check if version exists in Apple
       let versionData = await appleService.getAppStoreVersionByVersionString(targetAppId, versionString);
       
       // CRITICAL: For resubmission, version MUST already exist in Apple in a rejected/cancelled state
@@ -2041,7 +2011,40 @@ export class SubmissionService {
       throw new Error(`Failed to validate or create version in Apple App Store Connect: ${errorMessage}`);
     }
 
-    // Step 6: Configure version and submit for review
+    // ==================================================================================
+    // VALIDATION PASSED - Now safe to make database changes
+    // ==================================================================================
+
+    // Step 4: Create completely new submission with new ID
+    // NOTE: Create new submission FIRST, mark old as inactive AFTER success
+    // This ensures atomicity - if submission fails, old submission remains active for retry
+    console.log(`[SubmissionService] Validation passed. Creating new iOS submission for distribution ${distributionId}`);
+    
+    const newSubmissionId = uuidv4();
+    const newSubmission = await this.iosSubmissionRepository.create({
+      id: newSubmissionId,
+      distributionId,
+      testflightNumber: data.testflightNumber,
+      version: data.version,
+      buildType: 'MANUAL', // Resubmissions are always manual
+      storeType: STORE_TYPE.APP_STORE,
+      status: SUBMISSION_STATUS.PENDING, // Will be updated to SUBMITTED after API call
+      releaseNotes: data.releaseNotes,
+      phasedRelease: data.phasedRelease,
+      releaseType: 'AFTER_APPROVAL', // Fixed: Automatically release after App Review approval
+      resetRating: data.resetRating,
+      rolloutPercentage: data.phasedRelease ? 1 : 100, // Phased starts at 1% (Day 1), manual at 100%
+      isActive: true,
+      submittedBy: null // Will be set after submission
+    });
+
+    if (!newSubmission) {
+      throw new Error('Failed to create new submission');
+    }
+
+    console.log(`[SubmissionService] Successfully created new submission ${newSubmissionId}`);
+
+    // Step 5: Configure version and submit for review
     try {
       console.log(`[SubmissionService] Starting configuration for iOS app ${targetAppId} version ${versionString}`);
       console.log(`[SubmissionService] Configuration parameters:`, {
@@ -2140,7 +2143,7 @@ export class SubmissionService {
       throw new Error(`Failed to submit to Apple App Store for review: ${errorMessage}`);
     }
 
-    // Step 7: Change submission status to SUBMITTED and save appStoreVersionId (only after Apple API succeeds)
+    // Step 6: Change submission status to SUBMITTED and save appStoreVersionId (only after Apple API succeeds)
     const finalSubmission = await this.iosSubmissionRepository.update(newSubmissionId, {
       status: SUBMISSION_STATUS.SUBMITTED,
       submittedAt: new Date(),
@@ -2153,6 +2156,14 @@ export class SubmissionService {
     }
 
     console.log(`[SubmissionService] Updated iOS submission ${newSubmissionId} status to SUBMITTED, saved appStoreVersionId: ${appStoreVersionId}`);
+
+    // Step 7: Mark old submission as inactive (ONLY after new submission is successfully created and submitted)
+    // This ensures atomicity - if anything above failed, old submission remains active for retry
+    console.log(`[SubmissionService] New submission successful. Now marking old submission ${resubmittableSubmission.id} as inactive`);
+    await this.iosSubmissionRepository.update(resubmittableSubmission.id, {
+      isActive: false
+    });
+    console.log(`[SubmissionService] Marked old iOS submission ${resubmittableSubmission.id} as inactive`);
 
     // Step 7.5: Send notification (iOS App Store Build Resubmitted)
     if (this.releaseNotificationService && distribution.releaseId) {
@@ -2295,31 +2306,16 @@ export class SubmissionService {
     console.log(
       `[SubmissionService] Step 2 completed: Found active Android submission: ${activeSubmission.id} with status ${activeSubmission.status}. ` +
       `Previous versionCode: ${previousVersionCode}. ` +
-      `Will mark as inactive with status ${ANDROID_SUBMISSION_STATUS.SUSPENDED} and create new submission.`
+      `This submission is still active (Cronicle set it to SUSPENDED but kept isActive=true for resubmission). ` +
+      `Will mark as inactive and create new submission.`
     );
 
-    // Step 3: Stop old Cronicle job if it exists
-    if (activeSubmission.cronicleJobId) {
-      console.log(`[SubmissionService] Step 3: Stopping Cronicle job ${activeSubmission.cronicleJobId} for old submission ${activeSubmission.id}`);
-      try {
-        await this.deleteSubmissionJob(activeSubmission.id, activeSubmission.cronicleJobId);
-        console.log(`[SubmissionService] Step 3 completed: Stopped Cronicle job ${activeSubmission.cronicleJobId}`);
-      } catch (error) {
-        console.error(`[SubmissionService] Failed to stop Cronicle job ${activeSubmission.cronicleJobId}:`, error);
-        // Continue even if job deletion fails
-      }
-    }
+    // NOTE: We keep the old submission active until new one succeeds
+    // Even though status is SUSPENDED, isActive remains true (set by Cronicle for resubmission)
+    // Old submission's Cronicle job is already stopped (Cronicle stopped it when status became SUSPENDED)
+    console.log(`[SubmissionService] Step 3: Old submission ${activeSubmission.id} will remain active until new submission succeeds.`);
 
-    // Step 4: Mark old submission as inactive and set status to SUSPENDED
-    await this.androidSubmissionRepository.update(activeSubmission.id, {
-      isActive: false,
-      status: ANDROID_SUBMISSION_STATUS.SUSPENDED,
-      cronicleJobId: null // Clear the job ID
-    });
-
-    console.log(`[SubmissionService] Step 4 completed: Marked old Android submission ${activeSubmission.id} as inactive with status ${ANDROID_SUBMISSION_STATUS.SUSPENDED}`);
-
-      // Step 5: Get store integration to get packageName and credentials
+      // Step 3: Get store integration to get packageName and credentials
       const storeIntegrationController = getStoreIntegrationController();
       const integrations = await storeIntegrationController.findAll({
         tenantId,
@@ -2347,7 +2343,7 @@ export class SubmissionService {
 
       const apiBaseUrl = PLAY_STORE_UPLOAD_CONSTANTS.API_BASE_URL;
 
-      // Step 6: Check for active releases in production track and mark as SUSPENDED
+      // Step 4: Check for active releases in production track and remove old version
       console.log(`[SubmissionService] Step 6: Checking for active releases in production track`);
       
       // Create edit to check for active releases
@@ -2423,7 +2419,7 @@ export class SubmissionService {
         }
       }
 
-      // Step 7: Upload AAB to S3 first
+      // Step 5: Upload AAB to S3 first
       console.log(`[SubmissionService] Step 7: Uploading AAB to S3`);
       const storage = getStorage();
       const isS3Storage = storage instanceof S3Storage;
@@ -2454,7 +2450,7 @@ export class SubmissionService {
       artifactPath = buildS3Uri(bucketName, s3Key);
       console.log(`[SubmissionService] Step 7 completed: AAB uploaded to S3 at ${artifactPath}`);
 
-      // Step 8: Create new submission record
+      // Step 6: Create new submission record
       console.log(`[SubmissionService] Step 8: Creating new Android submission record`);
       const newSubmissionId = uuidv4();
       
@@ -2479,7 +2475,7 @@ export class SubmissionService {
 
       console.log(`[SubmissionService] Step 8 completed: Created new Android submission ${newSubmissionId}`);
 
-      // Step 9: Create edit session for resubmission
+      // Step 7: Create edit session for resubmission
       console.log(`[SubmissionService] Step 9: Creating edit session for resubmission`);
       console.log(`[SubmissionService] Request body: {}`);
       
@@ -2504,7 +2500,7 @@ export class SubmissionService {
       console.log(`[SubmissionService] Step 9 completed: Edit session created with ID ${editId}`);
       console.log(`[SubmissionService] Response body:`, JSON.stringify(editData, null, 2));
 
-      // Step 10: Upload bundle to Google Play
+      // Step 8: Upload bundle to Google Play
       console.log(`[SubmissionService] Step 10: Uploading AAB bundle to Google Play`);
       const uploadBundleUrl = `https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/${packageName}/edits/${editId}/bundles?uploadType=media`;
       
@@ -2537,7 +2533,7 @@ export class SubmissionService {
         versionCode: uploadedVersionCode,
       });
 
-      // Step 11: Update track (assigning the release)
+      // Step 9: Update track (assigning the release)
       // Using stored productionTrackState from Step 6 (already has previousVersionCode release removed)
       console.log(`[SubmissionService] Step 11: Updating production track with new release`);
       
@@ -2619,7 +2615,7 @@ export class SubmissionService {
       console.log(`[SubmissionService] Step 11 completed: Track updated successfully`);
       console.log(`[SubmissionService] Response body:`, JSON.stringify(updateTrackData, null, 2));
 
-      // Step 12: Validate (dry run)
+      // Step 10: Validate (dry run)
       console.log(`[SubmissionService] Step 12: Validating edit (dry run)`);
       const validateUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editId}:validate`;
       const validateResponse = await fetch(validateUrl, {
@@ -2640,7 +2636,7 @@ export class SubmissionService {
       console.log(`[SubmissionService] Step 12 completed: Validation successful`);
       console.log(`[SubmissionService] Response body:`, JSON.stringify(validateData, null, 2));
 
-      // Step 13: Commit (live submission)
+      // Step 11: Commit (live submission)
       console.log(`[SubmissionService] Step 13: Committing edit (live submission)`);
       const commitUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editId}:commit`;
       const commitResponse = await fetch(commitUrl, {
@@ -2661,16 +2657,43 @@ export class SubmissionService {
       console.log(`[SubmissionService] Step 13 completed: Edit committed successfully`);
       console.log(`[SubmissionService] Response body:`, JSON.stringify(commitData, null, 2));
 
-      // Step 14: Update submission status to SUBMITTED
-      console.log(`[SubmissionService] Step 14: Updating submission status to SUBMITTED`);
+      // Step 12: Update submission status to SUBMITTED
+      console.log(`[SubmissionService] Step 13: Updating submission status to SUBMITTED`);
       await this.androidSubmissionRepository.update(newSubmissionId, {
         status: ANDROID_SUBMISSION_STATUS.SUBMITTED,
         submittedAt: new Date()
       });
 
-      console.log(`[SubmissionService] Step 14 completed: Submission status updated to SUBMITTED`);
+      console.log(`[SubmissionService] Step 12 completed: Submission status updated to SUBMITTED`);
 
-      // Step 15: Create Cronicle job for status sync (if Cronicle is available)
+      // Step 13: Mark old submission as inactive (ONLY after new submission is successfully created and submitted)
+      // This ensures atomicity - if anything above failed, old submission remains active for retry
+      console.log(`[SubmissionService] Step 13: New submission successful. Now marking old submission ${activeSubmission.id} as inactive with status SUSPENDED`);
+      await this.androidSubmissionRepository.update(activeSubmission.id, {
+        isActive: false,
+        status: ANDROID_SUBMISSION_STATUS.SUSPENDED,
+        cronicleJobId: null // Clear the job ID
+      });
+      console.log(`[SubmissionService] Step 13 completed: Marked old Android submission ${activeSubmission.id} as inactive with status SUSPENDED`);
+
+      // Step 13.5: Stop old submission's Cronicle job if it still exists (AFTER marking as inactive)
+      // NOTE: For SUSPENDED submissions, Cronicle already stopped the job (cronicleJobId should be null)
+      // For HALTED submissions, the job might still be running, so we stop it here
+      // This ensures proper cleanup order - submission is inactive first, then job is stopped
+      if (activeSubmission.cronicleJobId) {
+        console.log(`[SubmissionService] Step 13.5: Stopping Cronicle job ${activeSubmission.cronicleJobId} for old submission ${activeSubmission.id}`);
+        try {
+          await this.deleteSubmissionJob(activeSubmission.id, activeSubmission.cronicleJobId);
+          console.log(`[SubmissionService] Step 13.5 completed: Stopped Cronicle job ${activeSubmission.cronicleJobId}`);
+        } catch (error) {
+          console.error(`[SubmissionService] Failed to stop Cronicle job ${activeSubmission.cronicleJobId}:`, error);
+          // Don't fail the resubmission if job deletion fails (job is already disabled in DB by clearing cronicleJobId)
+        }
+      } else {
+        console.log(`[SubmissionService] Step 13.5: No Cronicle job to stop (already stopped by Cronicle when status became SUSPENDED)`);
+      }
+
+      // Step 14: Create Cronicle job for status sync (if Cronicle is available)
       if (this.cronicleService) {
         try {
           const cronicleJobId = await this.createAndroidSubmissionJob(
@@ -2686,14 +2709,14 @@ export class SubmissionService {
             cronicleCreatedDate
           });
 
-          console.log(`[SubmissionService] Step 15 completed: Created Cronicle job ${cronicleJobId} for new submission ${newSubmissionId} (created: ${cronicleCreatedDate.toISOString()})`);
+          console.log(`[SubmissionService] Step 14 completed: Created Cronicle job ${cronicleJobId} for new submission ${newSubmissionId} (created: ${cronicleCreatedDate.toISOString()})`);
         } catch (error) {
           console.error('[SubmissionService] Failed to create Cronicle job for new submission:', error);
           // Don't fail the submission if job creation fails
         }
       }
 
-      // Step 16: Get full submission details for response
+      // Step 15: Get full submission details for response
       const finalSubmission = await this.androidSubmissionRepository.findById(newSubmissionId);
       if (!finalSubmission) {
         throw new Error('Failed to retrieve created submission');
@@ -4425,7 +4448,6 @@ export class SubmissionService {
       'METADATA_REJECTED': SUBMISSION_STATUS.REJECTED,
       'INVALID_BINARY': SUBMISSION_STATUS.REJECTED,
       'DEVELOPER_REJECTED': SUBMISSION_STATUS.CANCELLED,
-      'REMOVED_FROM_SALE': SUBMISSION_STATUS.HALTED
     };
 
     return statusMap[appleStatus] ?? SUBMISSION_STATUS.SUBMITTED;
@@ -4844,9 +4866,14 @@ export class SubmissionService {
         jobDeleted = true;
 
         // Clear job ID from database
+        // NOTE: Keep submission as active even when SUSPENDED - it remains active until resubmission
+        // Only IN_PROGRESS, COMPLETED, and SUSPENDED stop the Cronicle job (terminal states)
+        // The submission will be marked inactive only when a new submission successfully replaces it
         await this.androidSubmissionRepository.update(submissionId, {
           cronicleJobId: null
         });
+        
+        console.log(`[updateAndroidSubmissionStatus] Cleared Cronicle job ID. Submission remains active (isActive=true) until resubmission.`);
       }
     } else {
       console.log(`[updateAndroidSubmissionStatus] No status change (current: ${oldStatus})`);

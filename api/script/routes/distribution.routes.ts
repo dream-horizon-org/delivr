@@ -103,7 +103,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   // ============================================================================
   
   /**
-   * PUT /tenants/:tenantId/submissions/:submissionId/submit?platform=<ANDROID|IOS>
+   * PUT /tenants/:tenantId/releases/:releaseId/submissions/:submissionId/submit?platform=<ANDROID|IOS>
    * 
    * Submit an existing PENDING submission to the store (first-time submission).
    * 
@@ -126,7 +126,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * 3. If successful, changes status to SUBMITTED
    */
   router.put(
-    "/tenants/:tenantId/submissions/:submissionId/submit",
+    "/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/submit",
     releasePermissions.requireReleaseOwner({ storage }),
     submissionController.submitExistingSubmission
   );
@@ -136,7 +136,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   // ============================================================================
   
   /**
-   * POST /tenants/:tenantId/distributions/:distributionId/submissions
+   * POST /tenants/:tenantId/releases/:releaseId/distributions/:distributionId/submissions
    * 
    * Create a completely new submission after rejection or cancellation.
    * 
@@ -170,7 +170,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * 6. Old submission remains in history
    */
   router.post(
-    "/tenants/:tenantId/distributions/:distributionId/submissions",
+    "/tenants/:tenantId/releases/:releaseId/distributions/:distributionId/submissions",
     releasePermissions.requireReleaseOwner({ storage }),
     upload.single('aabFile'),
     submissionController.createNewSubmission
@@ -218,7 +218,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   // ============================================================================
   
   /**
-   * PATCH /tenants/:tenantId/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
+   * PATCH /tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
    * 
    * Increase/decrease rollout percentage for a submission.
    * 
@@ -234,7 +234,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * - rolloutPercent: float (0-100)
    */
   router.patch(
-    "/tenants/:tenantId/submissions/:submissionId/rollout",
+    "/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout",
     releasePermissions.requireReleaseOwner({ storage }),
     submissionController.updateRolloutPercentage
   );
@@ -244,7 +244,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   // ============================================================================
   
   /**
-   * PATCH /submissions/:submissionId/cancel?platform=IOS
+   * PATCH /tenants/:tenantId/releases/:releaseId/submissions/:submissionId/cancel?platform=IOS
    * 
    * Cancel an iOS submission (iOS only).
    * Deletes the app store review submission in Apple App Store Connect.
@@ -261,7 +261,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * - reason: string (required) - Reason for cancellation
    */
   router.patch(
-    "/tenants/:tenantId/submissions/:submissionId/cancel",
+    "/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/cancel",
     releasePermissions.requireReleaseOwner({ storage }),
     submissionController.cancelSubmission
   );
@@ -271,7 +271,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   // ============================================================================
   
   /**
-   * PATCH /tenants/:tenantId/submissions/:submissionId/rollout/pause?platform=<IOS|ANDROID>
+   * PATCH /tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/pause?platform=<IOS|ANDROID>
    * 
    * - iOS: Pause an active rollout (iOS only).
    * - Android: Halt an active rollout (Android only).
@@ -283,7 +283,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * - reason: string (required)
    */
   router.patch(
-    "/tenants/:tenantId/submissions/:submissionId/rollout/pause",
+    "/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/pause",
     releasePermissions.requireReleaseOwner({ storage }),
     submissionController.pauseRollout
   );
@@ -293,7 +293,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   // ============================================================================
   
   /**
-   * PATCH /tenants/:tenantId/submissions/:submissionId/rollout/resume?platform=<IOS|ANDROID>
+   * PATCH /tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/resume?platform=<IOS|ANDROID>
    * 
    * Resume a paused/halted rollout.
    * 
@@ -304,7 +304,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * - platform: string (required) - "IOS" or "ANDROID"
    */
   router.patch(
-    "/tenants/:tenantId/submissions/:submissionId/rollout/resume",
+    "/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/resume",
     releasePermissions.requireReleaseOwner({ storage }),
     submissionController.resumeRollout
   );
@@ -314,7 +314,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   // ============================================================================
   
   /**
-   * PATCH /tenants/:tenantId/submissions/:submissionId/rollout/halt
+   * PATCH /tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/halt
    * 
    * Immediately halt a release (cannot resubmit, must create new release).
    * 
@@ -322,7 +322,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * - reason: string (required)
    */
   router.patch(
-    "/tenants/:tenantId/submissions/:submissionId/rollout/halt",
+    "/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/halt",
     releasePermissions.requireReleaseOwner({ storage }),
     async (req: Request, res: Response): Promise<Response> => {
       // TODO: Implement submissionController.emergencyHalt

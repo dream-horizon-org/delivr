@@ -87,6 +87,22 @@ function seedMockAppleData(db: MockAppleDB) {
     buildId: 'build-121'
   });
 
+  // v1.2.2 → DEVELOPER_REJECTED (was submitted, then cancelled by developer)
+  db.versions.set('version-122', {
+    id: 'version-122',
+    versionString: '1.2.2',
+    state: 'DEVELOPER_REJECTED',
+    buildId: 'build-122'
+  });
+
+  // v1.2.3 → READY_FOR_SALE (approved, passed review)
+  db.versions.set('version-123', {
+    id: 'version-123',
+    versionString: '1.2.3',
+    state: 'READY_FOR_SALE',
+    buildId: 'build-123'
+  });
+
   // v1.3.x → PREPARE_FOR_SUBMISSION (first-time submission)
   db.versions.set('version-130', {
     id: 'version-130',
@@ -127,6 +143,14 @@ function seedMockAppleData(db: MockAppleDB) {
     buildId: 'build-170'
   });
 
+  // v1.7.1 → READY_FOR_SALE (was live, then halted - emergency stop)
+  db.versions.set('version-171', {
+    id: 'version-171',
+    versionString: '1.7.1',
+    state: 'READY_FOR_SALE',
+    buildId: 'build-171'
+  });
+
   // v1.8.2 → READY_FOR_SALE (with PAUSED phased release)
   db.versions.set('version-182', {
     id: 'version-182',
@@ -165,6 +189,62 @@ function seedMockAppleData(db: MockAppleDB) {
     versionString: '1.8.6',
     state: 'READY_FOR_SALE',
     buildId: 'build-186'
+  });
+
+  // v1.2.4 → IN_REVIEW (another review case)
+  db.versions.set('version-124', {
+    id: 'version-124',
+    versionString: '1.2.4',
+    state: 'IN_REVIEW',
+    buildId: 'build-124'
+  });
+
+  // v1.2.5 → IN_REVIEW (third review case)
+  db.versions.set('version-125', {
+    id: 'version-125',
+    versionString: '1.2.5',
+    state: 'IN_REVIEW',
+    buildId: 'build-125'
+  });
+
+  // v1.2.6 → READY_FOR_SALE (approved, second case)
+  db.versions.set('version-126', {
+    id: 'version-126',
+    versionString: '1.2.6',
+    state: 'READY_FOR_SALE',
+    buildId: 'build-126'
+  });
+
+  // v1.2.7 → READY_FOR_SALE (approved, third case)
+  db.versions.set('version-127', {
+    id: 'version-127',
+    versionString: '1.2.7',
+    state: 'READY_FOR_SALE',
+    buildId: 'build-127'
+  });
+
+  // v1.8.7 → READY_FOR_SALE (LIVE without phased)
+  db.versions.set('version-187', {
+    id: 'version-187',
+    versionString: '1.8.7',
+    state: 'READY_FOR_SALE',
+    buildId: 'build-187'
+  });
+
+  // v1.3.1 → PREPARE_FOR_SUBMISSION (for SUBMITTED status)
+  db.versions.set('version-131', {
+    id: 'version-131',
+    versionString: '1.3.1',
+    state: 'PREPARE_FOR_SUBMISSION',
+    buildId: 'build-131'
+  });
+
+  // v1.3.2 → PREPARE_FOR_SUBMISSION (for SUBMITTED status)
+  db.versions.set('version-132', {
+    id: 'version-132',
+    versionString: '1.3.2',
+    state: 'PREPARE_FOR_SUBMISSION',
+    buildId: 'build-132'
   });
 
   // ========== PHASED RELEASES ==========
@@ -220,9 +300,11 @@ function seedMockAppleData(db: MockAppleDB) {
   });
 
   console.log('[MockApple] ✅ Seeded versions:');
-  console.log('  - version-121 (v1.2.1): IN_REVIEW (cancelable)');
-  console.log('  - version-130 (v1.3.0): PREPARE_FOR_SUBMISSION');
-  console.log('  - version-182 to version-186 (v1.8.2-1.8.6): READY_FOR_SALE');
+  console.log('  - version-121 to version-127 (v1.2.1-1.2.7): Various states for testing');
+  console.log('  - version-130 to version-132 (v1.3.x): PREPARE_FOR_SUBMISSION/SUBMITTED');
+  console.log('  - version-140 to version-170: Rejections/cancellations');
+  console.log('  - version-171 (v1.7.1): READY_FOR_SALE (halted)');
+  console.log('  - version-182 to version-187 (v1.8.x): READY_FOR_SALE with/without phased');
   console.log('[MockApple] ✅ Seeded phased releases (5 test cases):');
   console.log('  - phased-182 (v1.8.2): PAUSED, day 4 → Can RESUME');
   console.log('  - phased-183 (v1.8.3): PAUSED, day 3 → Can RESUME');
@@ -584,42 +666,31 @@ export class MockAppleAppStoreConnectService {
 
   /**
    * Submit version for review
+   * @param appId - The app ID (matches real Apple service signature)
+   * @param appStoreVersionId - The app store version ID to submit
    */
-  async submitForReview(versionId: string): Promise<any> {
-    console.log(`[MockApple] Submitting version ${versionId} for review`);
+  async submitForReview(appId: string, appStoreVersionId: string): Promise<string> {
+    console.log(`[MockApple] Submitting app ${appId}, version ${appStoreVersionId} for review`);
     
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    const submissionId = `submission-${versionId}`;
+    const submissionId = `submission-${appStoreVersionId}`;
     
+    // Store review submission with correct versionId
     this.db.reviewSubmissions.set(submissionId, {
-      versionId: versionId,
+      versionId: appStoreVersionId,
       submittedDate: new Date().toISOString()
     });
     
-    console.log(`[MockApple] Submitted: ${submissionId}`);
+    console.log(`[MockApple] Created review submission: ${submissionId}`);
     
-    return {
-      data: {
-        type: 'appStoreReviewSubmissions',
-        id: submissionId,
-        attributes: {
-          submittedDate: new Date().toISOString()
-        },
-        relationships: {
-          appStoreVersion: {
-            data: {
-              type: 'appStoreVersions',
-              id: versionId
-            }
-          }
-        }
-      }
-    };
+    // Return submission ID (matches real Apple service)
+    return submissionId;
   }
 
   /**
    * Delete (cancel) a review submission
+   * When a developer cancels a review submission, the version state changes to DEVELOPER_REJECTED
    */
   async deleteVersionSubmissionRelationship(
     versionId: string,
@@ -632,8 +703,18 @@ export class MockAppleAppStoreConnectService {
       if (submission.versionId === versionId) {
         console.log(`[MockApple] Found matching review submission: ${submissionId}`);
         await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Delete the review submission
         this.db.reviewSubmissions.delete(submissionId);
         console.log(`[MockApple] Successfully deleted review submission ${submissionId}`);
+        
+        // Update version state to DEVELOPER_REJECTED (developer cancelled the submission)
+        const version = this.db.versions.get(versionId);
+        if (version) {
+          version.state = 'DEVELOPER_REJECTED';
+          console.log(`[MockApple] Updated version ${versionId} state to DEVELOPER_REJECTED`);
+        }
+        
         return;
       }
     }
