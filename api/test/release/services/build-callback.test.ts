@@ -480,6 +480,7 @@ describe('Build Callback & Retry Tests (TDD)', () => {
         mocks.taskRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
         mocks.buildRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
         {} as any,  // regressionCycleRepository - ✅ Required - actively initialized in aws-storage.ts
+        {} as any,  // releaseConfigService - ✅ Required for workflow validation
         undefined  // releaseNotificationService - optional
       );
       
@@ -503,6 +504,7 @@ describe('Build Callback & Retry Tests (TDD)', () => {
         mocks.taskRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
         mocks.buildRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
         {} as any,  // regressionCycleRepository - ✅ Required - actively initialized in aws-storage.ts
+        {} as any,  // releaseConfigService - ✅ Required for workflow validation
         undefined  // releaseNotificationService - optional
       );
       
@@ -530,6 +532,7 @@ describe('Build Callback & Retry Tests (TDD)', () => {
         mocks.taskRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
         mocks.buildRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
         {} as any,  // regressionCycleRepository - ✅ Required - actively initialized in aws-storage.ts
+        {} as any,  // releaseConfigService - ✅ Required for workflow validation
         undefined  // releaseNotificationService - optional
       );
       
@@ -559,6 +562,7 @@ describe('Build Callback & Retry Tests (TDD)', () => {
         mocks.taskRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
         mocks.buildRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
         {} as any,  // regressionCycleRepository - ✅ Required - actively initialized in aws-storage.ts
+        {} as any,  // releaseConfigService - ✅ Required for workflow validation
         undefined  // releaseNotificationService - optional
       );
       
@@ -587,6 +591,7 @@ describe('Build Callback & Retry Tests (TDD)', () => {
         mocks.taskRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
         mocks.buildRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
         {} as any,  // regressionCycleRepository - ✅ Required - actively initialized in aws-storage.ts
+        {} as any,  // releaseConfigService - ✅ Required for workflow validation
         undefined  // releaseNotificationService - optional
       );
       
@@ -612,6 +617,7 @@ describe('Build Callback & Retry Tests (TDD)', () => {
         mocks.taskRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
         mocks.buildRepo as any,  // ✅ Required - actively initialized in aws-storage.ts
         {} as any,  // regressionCycleRepository - ✅ Required - actively initialized in aws-storage.ts
+        {} as any,  // releaseConfigService - ✅ Required for workflow validation
         undefined  // releaseNotificationService - optional
       );
       

@@ -12,7 +12,8 @@ import type {
   UpdateReleaseConfigDto,
   IntegrationValidationResult,
   ValidationResult,
-  ServiceResult
+  ServiceResult,
+  VerboseReleaseConfiguration
 } from '~types/release-configs';
 import type {
   ReleaseSchedule,
@@ -553,7 +554,7 @@ export class ReleaseConfigService {
    * - Standardized keys with "Config" suffix: ciConfig, testManagementConfig, projectManagementConfig, communicationConfig
    * - Each integration config has its own id
    */
-  async getConfigByIdVerbose(id: string): Promise<any | null> {
+  async getConfigByIdVerbose(id: string): Promise<VerboseReleaseConfiguration | null> {
     const config = await this.configRepo.findById(id);
     
     if (!config) {
@@ -563,7 +564,7 @@ export class ReleaseConfigService {
     // Fetch integration configs in parallel
     const [ciConfig, testManagementConfig, communicationConfig, projectManagementConfig, releaseScheduleRecord] = await Promise.all([
       config.ciConfigId && this.cicdConfigService 
-        ? this.cicdConfigService.findById(config.ciConfigId)
+        ? this.cicdConfigService.getByIdVerbose(config.ciConfigId)
         : Promise.resolve(null),
       
       config.testManagementConfigId && this.testManagementConfigService
@@ -655,7 +656,7 @@ export class ReleaseConfigService {
    * List configs by tenant ID with verbose integration details
    * Returns array of VerboseReleaseConfiguration
    */
-  async listConfigsByTenantVerbose(tenantId: string, includeArchived = false): Promise<any[]> {
+  async listConfigsByTenantVerbose(tenantId: string, includeArchived = false): Promise<VerboseReleaseConfiguration[]> {
     const configs = await this.configRepo.findByTenantId(tenantId, includeArchived);
     
     // Fetch verbose details for each config in parallel
@@ -663,7 +664,7 @@ export class ReleaseConfigService {
       configs.map(config => this.getConfigByIdVerbose(config.id))
     );
     
-    return verboseConfigs.filter(config => config !== null);
+    return verboseConfigs.filter((config): config is VerboseReleaseConfiguration => config !== null);
   }
 
   /**

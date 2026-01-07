@@ -9,6 +9,7 @@ import { Sequelize } from 'sequelize';
 import * as storageTypes from '../../storage/storage';
 import { ReleaseType, Phase, PlatformName } from '../../models/release/release.interface';
 import { BuildPlatform, BuildStage, BuildType, BuildUploadStatus, CiRunType, StoreType, WorkflowStatus } from '~types/release-management/builds/build.constants';
+import type { TaskOutput } from './task-output.interface';
 
 /**
  * Extended Storage interface that includes Sequelize instance
@@ -188,7 +189,7 @@ export interface ReleaseTaskResponse {
   isRegressionSubTasks: boolean;
   identifier: string | null;
   externalId: string | null;
-  output: import('./task-output.interface').TaskOutput | null;
+  output: TaskOutput | null;
   branch: string | null;
   regressionId: string | null;
   builds: BuildInfoResponse[];

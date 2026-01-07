@@ -226,6 +226,11 @@ async function createTestRegressionCycle(
         registerConfigActivityLogs: jest.fn().mockResolvedValue(undefined)
       } as any;
 
+      // Mock ReleaseConfigService
+      const mockReleaseConfigService = {
+        getConfigByIdVerbose: jest.fn().mockResolvedValue(null)
+      } as any;
+
       // Create ReleaseUpdateService with all dependencies
       updateService = new ReleaseUpdateService(
         releaseRepo,
@@ -235,7 +240,8 @@ async function createTestRegressionCycle(
         mockCronJobService,
         releaseTaskRepo,
         buildRepo,
-        regressionCycleRepo
+        regressionCycleRepo,
+        mockReleaseConfigService
       );
     } catch (error) {
       console.error('❌ Failed to connect:', error);

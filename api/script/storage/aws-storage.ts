@@ -1467,6 +1467,7 @@ export class S3Storage implements storage.Storage {
             this.releaseTaskRepository,
             this.buildRepository,
             this.regressionCycleRepository,
+            this.releaseConfigService,  // ✅ For pre-regression workflow validation
             this.releaseNotificationService
           );
           console.log("Release Update Service initialized");

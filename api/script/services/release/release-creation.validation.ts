@@ -7,7 +7,9 @@
 
 import { ReleaseVersionService } from './release-version.service';
 import type { CreateReleasePayload, Platform, Target } from '~types/release';
-import type { ReleaseConfiguration } from '~types/release-configs';
+import type { ReleaseConfiguration, VerboseReleaseConfiguration } from '~types/release-configs';
+import { WorkflowType } from '~types/integrations/ci-cd/workflow.interface';
+import { normalizePlatform } from '~services/integrations/ci-cd/utils/cicd.utils';
 
 /**
  * Validation result interface
@@ -226,6 +228,69 @@ export const validateRegressionSlots = (
     return {
       isValid: false,
       error: 'At least one regression slot is required. Please add regression build slots to proceed.'
+    };
+  }
+
+  return { isValid: true };
+};
+
+/**
+ * Validates that PRE_REGRESSION_BUILD workflows exist for all selected platforms
+ * when pre-regression builds are enabled in CI/CD mode.
+ * 
+ * @param verboseConfig - The verbose release config with hydrated workflows
+ * @param platformTargets - The platform-target combinations for the release
+ * @param hasManualBuildUpload - Whether manual build upload is enabled
+ * @returns Validation result
+ */
+export const validatePreRegressionWorkflows = (
+  verboseConfig: VerboseReleaseConfiguration | null,
+  platformTargets: Array<{ platform: string }>,
+  hasManualBuildUpload: boolean
+): ServiceValidationResult => {
+  // Only validate in CI/CD mode (not manual upload)
+  if (hasManualBuildUpload) {
+    return { isValid: true };
+  }
+
+  // Only validate if CI config exists
+  const hasCiConfig = verboseConfig?.ciConfig !== null && verboseConfig?.ciConfig !== undefined;
+  if (!hasCiConfig) {
+    return { isValid: true };
+  }
+
+  const workflows = verboseConfig.ciConfig?.workflows ?? [];
+  
+  // Filter to PRE_REGRESSION_BUILD workflows only
+  const preRegressionWorkflows = workflows.filter(
+    w => w.workflowType === WorkflowType.PRE_REGRESSION_BUILD
+  );
+
+  // Get unique platforms from platform targets (normalized to uppercase)
+  const uniquePlatforms = [...new Set(
+    platformTargets
+      .map(pt => normalizePlatform(pt.platform))
+      .filter((p): p is string => p !== undefined)
+  )];
+
+  // Check if each platform has a PRE_REGRESSION_BUILD workflow
+  const missingPlatforms: string[] = [];
+  
+  for (const platform of uniquePlatforms) {
+    const hasWorkflow = preRegressionWorkflows.some(
+      w => normalizePlatform(w.platform) === platform
+    );
+    
+    if (!hasWorkflow) {
+      missingPlatforms.push(platform);
+    }
+  }
+
+  const hasMissingPlatforms = missingPlatforms.length > 0;
+  if (hasMissingPlatforms) {
+    return {
+      isValid: false,
+      error: `Pre-regression build workflows not configured for platforms: ${missingPlatforms.join(', ')}`
     };
   }
 

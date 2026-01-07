@@ -1230,19 +1230,16 @@ export class ReleaseRetrievalService {
     task: ReleaseTask,
     allBuilds?: Build[]
   ): Promise<SinglePlatformBuildTaskOutput | null> {
-    // Build ID stored in externalId
-    const buildId = task.externalId;
-    
-    if (!buildId || !allBuilds || allBuilds.length === 0) {
+    if (!allBuilds || allBuilds.length === 0) {
       return { jobUrl: null };
     }
 
     try {
-      // Find the build by ID
-      const build = allBuilds.find(b => b.id === buildId);
+      // Find build by taskId (builds are linked via taskId field, not task.externalId)
+      const build = allBuilds.find(b => b.taskId === task.id);
       
       if (!build) {
-        console.error(`[ReleaseRetrievalService] Build ${buildId} not found for task ${task.id}`);
+        console.error(`[ReleaseRetrievalService] Build not found for task ${task.id}`);
         return { jobUrl: null };
       }
 
@@ -1260,14 +1257,17 @@ export class ReleaseRetrievalService {
    * Derive job URL from build's CI/CD data
    * 
    * For all CI/CD providers (Jenkins, GitHub Actions, etc.):
-   * ciRunId IS the job URL - can be used directly
+   * - ciRunId IS the job URL (populated via callback after job starts)
+   * - queueLocation is the queue URL (available immediately after trigger)
+   * 
+   * Fallback order: ciRunId → queueLocation → null
    * 
    * @param build - Build record with CI/CD data
    * @returns Job URL or null if not available
    */
   private deriveJobUrl(build: Build): string | null {
-    // ciRunId IS the job URL for all providers
-    // (Jenkins stores full job URL, GitHub Actions stores run URL, etc.)
-    return build.ciRunId || null;
+    // Prefer ciRunId (populated by callback when job starts)
+    // Fallback to queueLocation (available immediately after trigger)
+    return build.ciRunId ?? build.queueLocation ?? null;
   }
 }

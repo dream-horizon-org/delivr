@@ -1,4 +1,4 @@
-import type { CreateWorkflowDto } from '~types/integrations/ci-cd/workflow.interface';
+import type { CreateWorkflowDto, TenantCICDWorkflow } from '~types/integrations/ci-cd/workflow.interface';
 
 export interface TenantCICDConfig {
   id: string;
@@ -7,6 +7,14 @@ export interface TenantCICDConfig {
   createdByAccountId: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/**
+ * TenantCICDConfig with hydrated workflows array
+ * Used when full workflow details are needed (e.g., for validation)
+ */
+export interface TenantCICDConfigWithWorkflows extends TenantCICDConfig {
+  workflows: TenantCICDWorkflow[];
 }
 
 export interface CreateCICDConfigDto {

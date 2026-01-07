@@ -1,5 +1,5 @@
 import type { CICDConfigRepository, CICDWorkflowRepository, CICDIntegrationRepository } from '~models/integrations/ci-cd';
-import type { CreateCICDConfigDto, FieldError, TenantCICDConfig, UpdateCICDConfigDto } from '~types/integrations/ci-cd/config.interface';
+import type { CreateCICDConfigDto, FieldError, TenantCICDConfig, TenantCICDConfigWithWorkflows, UpdateCICDConfigDto } from '~types/integrations/ci-cd/config.interface';
 import type { TenantCICDWorkflow } from '~types/integrations/ci-cd/workflow.interface';
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 import { CICD_CONFIG_ERROR_MESSAGES } from './config.constants';
@@ -108,6 +108,35 @@ export class CICDConfigService {
 
   async findById(id: string): Promise<TenantCICDConfig | null> {
     return this.configRepository.findById(id);
+  }
+
+  /**
+   * Get config by ID with hydrated workflows
+   * Returns TenantCICDConfigWithWorkflows with full workflow objects populated
+   * 
+   * @param id - Config ID
+   * @returns Config with workflows array populated, or null if not found
+   */
+  async getByIdVerbose(id: string): Promise<TenantCICDConfigWithWorkflows | null> {
+    const config = await this.configRepository.findById(id);
+    
+    if (!config) {
+      return null;
+    }
+
+    // Load all workflows from the config's workflowIds
+    const workflowIds: string[] = Array.isArray(config.workflowIds) ? config.workflowIds : [];
+    const loadedWorkflows = await Promise.all(
+      workflowIds.map((workflowId) => this.workflowRepository.findById(workflowId))
+    );
+    
+    // Filter out any null results (workflows that may have been deleted)
+    const workflows = loadedWorkflows.filter((w): w is TenantCICDWorkflow => w !== null);
+
+    return {
+      ...config,
+      workflows
+    };
   }
 
   async listByTenant(tenantId: string): Promise<TenantCICDConfig[]> {

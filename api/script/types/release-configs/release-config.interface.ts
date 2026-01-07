@@ -9,7 +9,7 @@ import type {
   CreateTestManagementConfigDto,
   TestManagementConfig
 } from '~types/integrations/test-management/test-management-config';
-import type { TenantCICDConfig } from '~types/integrations/ci-cd/config.interface';
+import type { TenantCICDConfig, TenantCICDConfigWithWorkflows } from '~types/integrations/ci-cd/config.interface';
 import type { CreateWorkflowDto } from '~types/integrations/ci-cd/workflow.interface';
 import type { ProjectManagementConfig } from '~types/integrations/project-management/configuration';
 import type { TenantCommChannel } from '~types/integrations/comm/comm-integration';
@@ -180,7 +180,7 @@ export type VerboseReleaseConfiguration = {
   
   // NESTED INTEGRATION CONFIGS (standardized keys with "Config" suffix, null if not configured)
   // Types imported from respective integration services (NOT duplicated here)
-  ciConfig: TenantCICDConfig | null;
+  ciConfig: TenantCICDConfigWithWorkflows | null;
   testManagementConfig: TestManagementConfig | null;
   projectManagementConfig: ProjectManagementConfig | null;
   communicationConfig: TenantCommChannel | null;

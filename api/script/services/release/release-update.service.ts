@@ -34,6 +34,8 @@ import {
 } from '../../controllers/release/release-validation';
 import { ReleaseNotificationService } from '../release-notification/release-notification.service';
 import { NotificationType } from '~types/release-notification';
+import { ReleaseConfigService } from '../release-configs/release-config.service';
+import { validatePreRegressionWorkflows } from './release-creation.validation';
 
 export interface UpdateReleasePayload {
   releaseId: string;
@@ -79,6 +81,7 @@ export class ReleaseUpdateService {
     private readonly taskRepository: ReleaseTaskRepository,  // ✅ Required - actively initialized in aws-storage.ts
     private readonly buildRepository: BuildRepository,  // ✅ Required - actively initialized in aws-storage.ts
     private readonly regressionCycleRepository: RegressionCycleRepository,  // ✅ Required - actively initialized in aws-storage.ts
+    private readonly releaseConfigService: ReleaseConfigService,  // ✅ Required for pre-regression workflow validation
     private readonly releaseNotificationService?: ReleaseNotificationService  // Can be undefined if notifications not configured
   ) {}
 
@@ -409,6 +412,36 @@ export class ReleaseUpdateService {
         ...oldCronConfig,              // Existing values
         ...cronJobUpdates.cronConfig   // Overwrite with new values
       };
+      
+      // Validate pre-regression workflows if being enabled
+      const preRegressionEnabled = mergedCronConfig.preRegressionBuilds === true;
+      const wasDisabled = oldCronConfig?.preRegressionBuilds !== true;
+      const isBeingEnabled = preRegressionEnabled && wasDisabled;
+      
+      if (isBeingEnabled || preRegressionEnabled) {
+        // Fetch release to check hasManualBuildUpload and releaseConfigId
+        const release = await this.releaseRepository.findById(releaseId);
+        const hasManualBuildUpload = release?.hasManualBuildUpload ?? false;
+        const isCiCdMode = !hasManualBuildUpload;
+        const hasReleaseConfigId = release?.releaseConfigId !== null && release?.releaseConfigId !== undefined;
+        
+        if (isCiCdMode && hasReleaseConfigId) {
+          const verboseConfig = await this.releaseConfigService.getConfigByIdVerbose(release!.releaseConfigId!);
+          const platformMappings = await this.platformMappingRepository.getByReleaseId(releaseId);
+          const platformTargets = platformMappings.map(m => ({ platform: m.platform }));
+          
+          const workflowValidation = validatePreRegressionWorkflows(
+            verboseConfig,
+            platformTargets,
+            hasManualBuildUpload
+          );
+          
+          if (!workflowValidation.isValid) {
+            throw new Error(workflowValidation.error);
+          }
+        }
+      }
+      
       updates.cronConfig = mergedCronConfig;
       
       // Compare merged result with original to detect actual changes

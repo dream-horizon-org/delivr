@@ -25,7 +25,7 @@ import { hasSequelize } from '~types/release';
 import * as storageTypes from '../../storage/storage';
 import { ReleaseConfigService } from '../release-configs/release-config.service';
 import { ReleaseVersionService } from './release-version.service';
-import { validateReleaseCreation } from './release-creation.validation';
+import { validateReleaseCreation, validatePreRegressionWorkflows } from './release-creation.validation';
 import { createStage1Tasks } from '../../utils/task-creation';
 import { checkIntegrationAvailability } from '../../utils/integration-availability.utils';
 import type { CronJobService } from './cron-job/cron-job.service';
@@ -78,6 +78,33 @@ export class ReleaseCreationService {
 
     // Step 3: Extract hasManualBuildUpload from release config
     const hasManualBuildUpload = releaseConfig?.hasManualBuildUpload ?? payload.hasManualBuildUpload ?? false;
+
+    // Step 3.1: Determine cronConfig early (needed for pre-regression workflow validation)
+    const cronConfig = payload.cronConfig || {
+      kickOffReminder: true,
+      preRegressionBuilds: true,
+      automationBuilds: false,
+      automationRuns: false,
+      testFlightBuilds: true
+    };
+
+    // Step 3.2: Validate pre-regression workflows if enabled in CI/CD mode
+    const preRegressionEnabled = cronConfig.preRegressionBuilds === true;
+    const isCiCdMode = !hasManualBuildUpload;
+    const shouldValidateWorkflows = preRegressionEnabled && isCiCdMode && payload.releaseConfigId;
+    
+    if (shouldValidateWorkflows) {
+      const verboseConfig = await this.releaseConfigService.getConfigByIdVerbose(payload.releaseConfigId!);
+      const workflowValidation = validatePreRegressionWorkflows(
+        verboseConfig,
+        payload.platformTargets,
+        hasManualBuildUpload
+      );
+      
+      if (!workflowValidation.isValid) {
+        throw new Error(workflowValidation.error);
+      }
+    }
 
     // Step 4: baseBranch resolution for HOTFIX
     let baseBranch = payload.baseBranch;
@@ -137,15 +164,8 @@ export class ReleaseCreationService {
     // Step 6: Link platform-target combinations to release
     await this.linkPlatformTargetsToRelease(id, payload.platformTargets);
 
-    // Step 7: Create cron job
+    // Step 7: Create cron job (cronConfig already determined in Step 3.1)
     const cronJobId = uuidv4();
-    const cronConfig = payload.cronConfig || {
-      kickOffReminder: true,
-      preRegressionBuilds: true,
-      automationBuilds: false,
-      automationRuns: false,
-      testFlightBuilds: true
-    };
 
     // Determine autoTransitionToStage2 based on hasManualBuildUpload
     // If hasManualBuildUpload is true, we need manual intervention so autoTransition is false
