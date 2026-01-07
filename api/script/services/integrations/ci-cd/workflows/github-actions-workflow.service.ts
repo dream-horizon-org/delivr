@@ -3,7 +3,7 @@ import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface
 import { ProviderFactory } from '../providers/provider.factory';
 import type { GitHubActionsProviderContract, GHAWorkflowInputsParams, GHARunStatusParams, GHAWorkflowDispatchParams } from '../providers/github-actions/github-actions.interface';
 import { ERROR_MESSAGES, HEADERS, PROVIDER_DEFAULTS } from '../../../../controllers/integrations/ci-cd/constants';
-import { parseGitHubRunUrl, parseGitHubWorkflowUrl, mergeWorkflowInputs, fetchWithTimeout } from '../utils/cicd.utils';
+import { parseGitHubRunUrl, parseGitHubWorkflowUrl, mergeWorkflowInputs, fetchWithTimeout, extractWorkflowFilename, validateGitHubWorkflowUrl } from '../utils/cicd.utils';
 import { WorkflowStatus } from '~controllers/integrations/ci-cd/workflows/workflow-adapter.utils';
 
 export class GitHubActionsWorkflowService extends WorkflowService {
@@ -53,6 +53,8 @@ export class GitHubActionsWorkflowService extends WorkflowService {
   fetchWorkflowInputs = async (tenantId: string, workflowUrl: string): Promise<{ parameters: Array<{
     name: string; type: string; description?: string; defaultValue?: unknown; options?: string[]; required?: boolean;
   }>}> => {
+    validateGitHubWorkflowUrl(workflowUrl);
+    
     const token = await this.getGithubTokenForTenant(tenantId);
     if (!token) throw new Error(ERROR_MESSAGES.GHA_NO_TOKEN_AVAILABLE);
     const provider = await ProviderFactory.getProvider(CICDProviderType.GITHUB_ACTIONS) as GitHubActionsProviderContract;
@@ -103,6 +105,8 @@ export class GitHubActionsWorkflowService extends WorkflowService {
       workflow = items[0];
     }
 
+    validateGitHubWorkflowUrl(workflow.workflowUrl);
+    
     const parsed = parseGitHubWorkflowUrl(workflow.workflowUrl);
     if (!parsed) {
       throw new Error(ERROR_MESSAGES.GHA_INVALID_WORKFLOW_URL);
@@ -114,20 +118,22 @@ export class GitHubActionsWorkflowService extends WorkflowService {
     // Merge workflow defaults with provided job parameters (ignores extra keys from overrides)
     const inputs = mergeWorkflowInputs(workflow.parameters, input.jobParameters);
 
-    // Determine the ref (branch where workflow file exists)
-    // Priority: 1. From URL (blob format), 2. Fetch default branch from GitHub API, 3. Fallback to env/default
-    let ref = parsed.ref;
-    if (!ref) {
-      ref = await this.getDefaultBranch(token, parsed.owner, parsed.repo);
-    }
+    // If no ref in URL (actions format), fetch default branch
+    const ref = parsed.ref;
+    const finalRef = ref ?? await this.getDefaultBranch(token, parsed.owner, parsed.repo);
 
     const provider = await ProviderFactory.getProvider(CICDProviderType.GITHUB_ACTIONS) as GitHubActionsProviderContract;
+    
+    // GitHub workflow dispatch API expects just the filename, not the full path
+    // Both URL formats (actions/workflows/X and blob/ref/.github/workflows/X) are normalized to full path by parser
+    const workflowFilename = extractWorkflowFilename(parsed.path);
+    
     const args: GHAWorkflowDispatchParams = {
       token,
       owner: parsed.owner,
       repo: parsed.repo,
-      workflow: parsed.path,
-      ref,
+      workflow: workflowFilename,
+      ref: finalRef,
       inputs,
       acceptHeader: HEADERS.ACCEPT_GITHUB_JSON,
       userAgent: HEADERS.USER_AGENT,

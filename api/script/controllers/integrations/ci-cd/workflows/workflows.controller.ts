@@ -2,11 +2,13 @@ import { Request, Response } from "express";
 import { HTTP_STATUS, RESPONSE_STATUS } from "~constants/http";
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "../constants";
 import { getStorage } from "../../../../storage/storage-instance";
-import { normalizePlatform } from "../../../../services/integrations/ci-cd/utils/cicd.utils";
+import { normalizePlatform, validateGitHubWorkflowUrl, validateJenkinsWorkflowUrl } from "../../../../services/integrations/ci-cd/utils/cicd.utils";
 import { formatErrorMessage } from "~utils/error.utils";
 import type { CreateWorkflowDto, UpdateWorkflowDto, WorkflowType } from "~types/integrations/ci-cd/workflow.interface";
 import shortid = require("shortid");
 import { CICDProviderType } from "~types/integrations/ci-cd";
+import { GitHubActionsWorkflowService } from "../../../../services/integrations/ci-cd/workflows/github-actions-workflow.service";
+import { JenkinsWorkflowService } from "../../../../services/integrations/ci-cd/workflows/jenkins-workflow.service";
 
 const getCICDIntegrationRepository = () => {
   const storage = getStorage();
@@ -21,6 +23,50 @@ const getWorkflowRepository = () => {
 const getConfigRepository = () => {
   const storage = getStorage();
   return (storage as any).cicdConfigRepository;
+};
+
+/**
+ * Validate workflow parameters against actual workflow definition.
+ * Ensures only valid parameter names are provided (no extra/unknown parameters).
+ */
+const validateWorkflowParameters = async (
+  tenantId: string,
+  providerType: CICDProviderType,
+  workflowUrl: string,
+  providedParameters: Array<{ name: string }> | null | undefined
+): Promise<string | null> => {
+  if (!providedParameters || providedParameters.length === 0) {
+    return null;
+  }
+
+  try {
+    let actualParameters: Array<{ name: string }> = [];
+
+    if (providerType === CICDProviderType.GITHUB_ACTIONS) {
+      const service = new GitHubActionsWorkflowService();
+      const result = await service.fetchWorkflowInputs(tenantId, workflowUrl);
+      actualParameters = result.parameters;
+    } else if (providerType === CICDProviderType.JENKINS) {
+      const service = new JenkinsWorkflowService();
+      const result = await service.fetchJobParameters(tenantId, workflowUrl);
+      actualParameters = result.parameters;
+    }
+
+    const validParameterNames = new Set(actualParameters.map(p => p.name));
+    const providedParameterNames = providedParameters.map(p => p.name);
+    const extraParameters = providedParameterNames.filter(name => !validParameterNames.has(name));
+
+    const hasExtraParameters = extraParameters.length > 0;
+    if (hasExtraParameters) {
+      const extraParamsList = extraParameters.join(', ');
+      const validParamsList = Array.from(validParameterNames).join(', ');
+      return `Invalid parameter(s): ${extraParamsList}. Valid parameters are: ${validParamsList}`;
+    }
+
+    return null;
+  } catch (error) {
+    return `Failed to validate parameters: ${error instanceof Error ? error.message : 'Unknown error'}`;
+  }
 };
 
 export const createWorkflow = async (req: Request, res: Response): Promise<any> => {
@@ -43,6 +89,43 @@ export const createWorkflow = async (req: Request, res: Response): Promise<any> 
     const invalidIntegration = !integration || integration.id !== body.integrationId;
     if (invalidIntegration || integration.tenantId !== tenantId || integration.providerType !== body.providerType) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_INTEGRATION_INVALID });
+    }
+
+    // Validate workflow URL based on provider type
+    const isGitHubActions = integration.providerType === CICDProviderType.GITHUB_ACTIONS;
+    const isJenkins = integration.providerType === CICDProviderType.JENKINS;
+    
+    if (isGitHubActions) {
+      try {
+        validateGitHubWorkflowUrl(body.workflowUrl as string);
+      } catch (validationError: unknown) {
+        const errorMessage = validationError instanceof Error ? validationError.message : ERROR_MESSAGES.GHA_INVALID_WORKFLOW_URL;
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: errorMessage });
+      }
+    } else if (isJenkins) {
+      try {
+        validateJenkinsWorkflowUrl(body.workflowUrl as string);
+      } catch (validationError: unknown) {
+        const errorMessage = validationError instanceof Error ? validationError.message : ERROR_MESSAGES.JENKINS_INVALID_WORKFLOW_URL;
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: errorMessage });
+      }
+    }
+
+    // Validate workflow parameters if provided
+    if (body.parameters) {
+      const parameterValidationError = await validateWorkflowParameters(
+        tenantId,
+        integration.providerType as CICDProviderType,
+        body.workflowUrl as string,
+        body.parameters
+      );
+      
+      if (parameterValidationError) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+          success: RESPONSE_STATUS.FAILURE, 
+          error: parameterValidationError 
+        });
+      }
     }
 
     const wfRepository = getWorkflowRepository();
@@ -125,6 +208,49 @@ export const updateWorkflow = async (req: Request, res: Response): Promise<any> 
     if (notFound) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_NOT_FOUND });
     }
+
+    // Validate workflow URL based on provider type if being updated
+    const isGitHubActions = existing.providerType === CICDProviderType.GITHUB_ACTIONS;
+    const isJenkins = existing.providerType === CICDProviderType.JENKINS;
+    const isUpdatingWorkflowUrl = body.workflowUrl !== undefined;
+    const isUpdatingParameters = body.parameters !== undefined;
+    
+    if (isUpdatingWorkflowUrl) {
+      if (isGitHubActions) {
+        try {
+          validateGitHubWorkflowUrl(body.workflowUrl as string);
+        } catch (validationError: unknown) {
+          const errorMessage = validationError instanceof Error ? validationError.message : ERROR_MESSAGES.GHA_INVALID_WORKFLOW_URL;
+          return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: errorMessage });
+        }
+      } else if (isJenkins) {
+        try {
+          validateJenkinsWorkflowUrl(body.workflowUrl as string);
+        } catch (validationError: unknown) {
+          const errorMessage = validationError instanceof Error ? validationError.message : ERROR_MESSAGES.JENKINS_INVALID_WORKFLOW_URL;
+          return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: errorMessage });
+        }
+      }
+    }
+
+    // Validate workflow parameters if being updated
+    if (isUpdatingParameters) {
+      const urlToValidateAgainst = body.workflowUrl ?? existing.workflowUrl;
+      const parameterValidationError = await validateWorkflowParameters(
+        tenantId,
+        existing.providerType as CICDProviderType,
+        urlToValidateAgainst,
+        body.parameters
+      );
+      
+      if (parameterValidationError) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+          success: RESPONSE_STATUS.FAILURE, 
+          error: parameterValidationError 
+        });
+      }
+    }
+
     const updated = await wfRepository.update(id, body);
     return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, workflow: updated });
   } catch (e: unknown) {
