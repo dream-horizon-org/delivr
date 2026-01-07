@@ -1,6 +1,6 @@
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 import type { GitHubActionsProviderContract, GHAVerifyParams, GHAVerifyResult, GHAWorkflowInputsParams, GHAWorkflowInputsResult, GHARunStatusParams, GHAWorkflowDispatchParams, GHAWorkflowDispatchResult, GHAFindDispatchedRunParams, GHAFindDispatchedRunResult } from './github-actions.interface';
-import { fetchWithTimeout, parseGitHubWorkflowUrl, extractWorkflowDispatchInputs, mapGitHubRunStatus } from '../../utils/cicd.utils';
+import { fetchWithTimeout, parseGitHubWorkflowUrl, extractWorkflowDispatchInputs, mapGitHubRunStatus, extractWorkflowFilename } from '../../utils/cicd.utils';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../../../../../controllers/integrations/ci-cd/constants';
 import { WorkflowStatus } from '~controllers/integrations/ci-cd/workflows/workflow-adapter.utils';
 
@@ -145,7 +145,11 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
       'Accept': acceptHeader,
       'User-Agent': userAgent
     };
-    const base = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${encodeURIComponent(workflow)}/runs`;
+    
+    // GitHub workflow runs API expects just the filename, not the full path
+    const workflowFilename = extractWorkflowFilename(workflow);
+    
+    const base = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${encodeURIComponent(workflowFilename)}/runs`;
     const qs = new URLSearchParams();
     qs.set('event', 'workflow_dispatch');
     qs.set('branch', ref);

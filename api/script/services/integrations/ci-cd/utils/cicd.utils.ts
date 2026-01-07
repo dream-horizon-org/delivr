@@ -163,6 +163,110 @@ export const ensureTrailingSlash = (u: string): string => {
   return u.endsWith('/') ? u : (u + '/');
 };
 
+/**
+ * Extract workflow filename from full path.
+ * 
+ * GitHub's workflow dispatch API expects just the filename, not the full path.
+ * This handles both normalized paths (.github/workflows/file.yml) and just filenames.
+ * 
+ * @param path - Full workflow path (e.g., '.github/workflows/build.yml')
+ * @returns Workflow filename (e.g., 'build.yml')
+ */
+export const extractWorkflowFilename = (path: string): string => {
+  const parts = path.split('/');
+  const filename = parts[parts.length - 1];
+  const hasFilename = filename && filename.length > 0;
+  
+  if (!hasFilename) {
+    return path;
+  }
+  
+  return filename;
+};
+
+/**
+ * Check if a ref is a Git commit SHA.
+ * 
+ * GitHub's workflow_dispatch API does NOT accept commit SHAs as the ref parameter.
+ * It only accepts branch names or tag names.
+ * 
+ * @param ref - The ref to check (e.g., 'main', 'b3d2555a814b950d4baeec949e19bcac614253fc')
+ * @returns true if ref is a commit SHA (40-char hex string), false otherwise
+ */
+export const isCommitSha = (ref: string): boolean => {
+  const trimmedRef = ref.trim();
+  const isFortyChars = trimmedRef.length === 40;
+  const isHexOnly = /^[0-9a-f]+$/i.test(trimmedRef);
+  
+  return isFortyChars && isHexOnly;
+};
+
+/**
+ * Validate a GitHub workflow URL format and content.
+ * 
+ * Supported formats:
+ * 1. Actions format: https://github.com/{org}/{repo}/actions/workflows/{file.yml}
+ * 2. Blob format: https://github.com/{org}/{repo}/blob/{branch}/.github/workflows/{file.yml}
+ * 
+ * @param workflowUrl - The GitHub workflow URL to validate
+ * @throws Error if URL doesn't match supported formats or contains a commit SHA
+ */
+export const validateGitHubWorkflowUrl = (workflowUrl: string): void => {
+  const parsed = parseGitHubWorkflowUrl(workflowUrl);
+  
+  if (!parsed) {
+    throw new Error(
+      'Invalid GitHub workflow URL. Supported formats:\n' +
+      '1. Actions format: https://github.com/{org}/{repo}/actions/workflows/{file.yml}\n' +
+      '2. Blob format: https://github.com/{org}/{repo}/blob/{branch}/.github/workflows/{file.yml}'
+    );
+  }
+  
+  const ref = parsed.ref;
+  const refIsCommitSha = ref && isCommitSha(ref);
+  
+  if (refIsCommitSha) {
+    throw new Error(
+      'Workflow URL contains a commit SHA - GitHub workflow_dispatch requires a branch or tag name.\n' +
+      'Supported formats:\n' +
+      '1. Actions format: https://github.com/{org}/{repo}/actions/workflows/{file.yml}\n' +
+      '2. Blob format with branch: https://github.com/{org}/{repo}/blob/{branch}/.github/workflows/{file.yml}'
+    );
+  }
+};
+
+/**
+ * Validate a Jenkins job URL format.
+ * 
+ * @param workflowUrl - The Jenkins job URL to validate
+ * @throws Error if URL is invalid or not a Jenkins job URL
+ */
+export const validateJenkinsWorkflowUrl = (workflowUrl: string): void => {
+  try {
+    const url = new URL(workflowUrl);
+    
+    const hasProtocol = url.protocol === 'http:' || url.protocol === 'https:';
+    if (!hasProtocol) {
+      throw new Error('Invalid Jenkins URL - must use http:// or https://');
+    }
+    
+    const hasHost = url.host && url.host.length > 0;
+    if (!hasHost) {
+      throw new Error('Invalid Jenkins URL - missing host');
+    }
+    
+    const hasJobPath = url.pathname.includes('/job/');
+    if (!hasJobPath) {
+      throw new Error('Invalid Jenkins URL - must be a job URL (should contain /job/)');
+    }
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error('Invalid Jenkins URL format');
+    }
+    throw error;
+  }
+};
+
 export const parseGitHubWorkflowUrl = (url: string): { owner: string; repo: string; path: string; ref?: string } | null => {
   try {
     const u = new URL(url);
