@@ -1924,42 +1924,11 @@ export class SubmissionService {
 
     console.log(
       `[SubmissionService] Found existing ${resubmittableSubmission.status} iOS submission: ${resubmittableSubmission.id}. ` +
-      `Will mark as inactive and create new submission.`
+      `Will validate Apple version state before making any database changes.`
     );
 
-    // Step 1: Mark old submission as inactive
-    await this.iosSubmissionRepository.update(resubmittableSubmission.id, {
-          isActive: false
-        });
-
-    console.log(`[SubmissionService] Marked old iOS submission ${resubmittableSubmission.id} as inactive`);
-
-    // Step 4: Create completely new submission with new ID
-    console.log(`[SubmissionService] Creating new iOS submission for distribution ${distributionId}`);
-    
-    const newSubmissionId = uuidv4();
-    const newSubmission = await this.iosSubmissionRepository.create({
-      id: newSubmissionId,
-      distributionId,
-      testflightNumber: data.testflightNumber,
-      version: data.version,
-      buildType: 'MANUAL', // Resubmissions are always manual
-      storeType: STORE_TYPE.APP_STORE,
-      status: SUBMISSION_STATUS.PENDING, // Will be updated to SUBMITTED after API call
-      releaseNotes: data.releaseNotes,
-      phasedRelease: data.phasedRelease,
-      releaseType: 'AFTER_APPROVAL', // Fixed: Automatically release after App Review approval
-      resetRating: data.resetRating,
-      rolloutPercentage: data.phasedRelease ? 1 : 100, // Phased starts at 1% (Day 1), manual at 100%
-      isActive: true,
-      submittedBy: null // Will be set after submission
-    });
-
-    if (!newSubmission) {
-      throw new Error('Failed to create new submission');
-    }
-
-    // Step 2: Get store integration and credentials (guaranteed to exist and be valid by validation)
+    // Step 1: Get store integration and credentials FIRST (before any DB writes)
+    // This ensures we can validate with Apple before modifying the database
     const storeIntegrationController = getStoreIntegrationController();
     const mappedStoreType = StoreType.APP_STORE;
 
@@ -1972,8 +1941,7 @@ export class SubmissionService {
     const integration = integrations[0];
     const targetAppId = integration.targetAppId;
 
-
-    // Step 3: Create Apple service (decrypts credentials, generates JWT token)
+    // Step 2: Create Apple service (decrypts credentials, generates JWT token)
     let appleService: AppleAppStoreConnectService | MockAppleAppStoreConnectService;
     try {
       appleService = await createAppleServiceFromIntegration(integration.id);
@@ -1982,14 +1950,16 @@ export class SubmissionService {
       throw new Error(`Failed to load Apple App Store Connect credentials: ${errorMessage}`);
     }
 
-    // Step 4: Get or create app store version and validate state
+    // Step 3: VALIDATE Apple version state BEFORE any database writes
+    // CRITICAL: This must happen BEFORE marking old submission inactive or creating new one
+    // If validation fails, no database changes should be made
     let appStoreVersionId: string;
     const versionString = data.version;
 
     try {
       console.log(`[SubmissionService] Checking for existing version ${versionString} in Apple App Store Connect`);
       
-      // Step 4a: Check if version exists in Apple
+      // Step 3a: Check if version exists in Apple
       let versionData = await appleService.getAppStoreVersionByVersionString(targetAppId, versionString);
       
       // CRITICAL: For resubmission, version MUST already exist in Apple in a rejected/cancelled state
@@ -2040,6 +2010,44 @@ export class SubmissionService {
         const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to validate or create version in Apple App Store Connect: ${errorMessage}`);
     }
+
+    // ==================================================================================
+    // VALIDATION PASSED - Now safe to make database changes
+    // ==================================================================================
+
+    // Step 4: Mark old submission as inactive
+    console.log(`[SubmissionService] Validation passed. Marking old submission ${resubmittableSubmission.id} as inactive`);
+    await this.iosSubmissionRepository.update(resubmittableSubmission.id, {
+      isActive: false
+    });
+    console.log(`[SubmissionService] Marked old iOS submission ${resubmittableSubmission.id} as inactive`);
+
+    // Step 5: Create completely new submission with new ID
+    console.log(`[SubmissionService] Creating new iOS submission for distribution ${distributionId}`);
+    
+    const newSubmissionId = uuidv4();
+    const newSubmission = await this.iosSubmissionRepository.create({
+      id: newSubmissionId,
+      distributionId,
+      testflightNumber: data.testflightNumber,
+      version: data.version,
+      buildType: 'MANUAL', // Resubmissions are always manual
+      storeType: STORE_TYPE.APP_STORE,
+      status: SUBMISSION_STATUS.PENDING, // Will be updated to SUBMITTED after API call
+      releaseNotes: data.releaseNotes,
+      phasedRelease: data.phasedRelease,
+      releaseType: 'AFTER_APPROVAL', // Fixed: Automatically release after App Review approval
+      resetRating: data.resetRating,
+      rolloutPercentage: data.phasedRelease ? 1 : 100, // Phased starts at 1% (Day 1), manual at 100%
+      isActive: true,
+      submittedBy: null // Will be set after submission
+    });
+
+    if (!newSubmission) {
+      throw new Error('Failed to create new submission');
+    }
+
+    console.log(`[SubmissionService] Successfully created new submission ${newSubmissionId}`);
 
     // Step 6: Configure version and submit for review
     try {
@@ -4425,7 +4433,6 @@ export class SubmissionService {
       'METADATA_REJECTED': SUBMISSION_STATUS.REJECTED,
       'INVALID_BINARY': SUBMISSION_STATUS.REJECTED,
       'DEVELOPER_REJECTED': SUBMISSION_STATUS.CANCELLED,
-      'REMOVED_FROM_SALE': SUBMISSION_STATUS.HALTED
     };
 
     return statusMap[appleStatus] ?? SUBMISSION_STATUS.SUBMITTED;
