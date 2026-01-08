@@ -20,14 +20,16 @@ export const CODEPUSH_PACKAGE_KOTLIN = `
               resources.getString(R.string.CodePushDeploymentKey),
               applicationContext,
               BuildConfig.DEBUG
-            ))`;
+            ))
+            CodePush.getJSBundleFile()  `;
 
 export const CODEPUSH_PACKAGE_KOTLIN_WITH_PACKAGE_LIST = `
             packages.add(CodePush.getInstance(
               resources.getString(R.string.CodePushDeploymentKey),
               applicationContext,
               BuildConfig.DEBUG
-            ))`;
+            ))
+            CodePush.getJSBundleFile()  `;
 
 export const CODEPUSH_PACKAGE_JAVA = `
             packages.add(CodePush.getInstance(
@@ -35,7 +37,7 @@ export const CODEPUSH_PACKAGE_JAVA = `
               getApplicationContext(),
               BuildConfig.DEBUG
             ));
-            `;
+            CodePush.getJSBundleFile()  `;
 
 export const JS_BUNDLE_OVERRIDE_KOTLIN = `
           override fun getJSBundleFile(): String? {
@@ -44,6 +46,7 @@ export const JS_BUNDLE_OVERRIDE_KOTLIN = `
                 applicationContext,
                 BuildConfig.DEBUG
               )
+            System.out.println("CodePush from MainApplication: mCurrentInstance is not null, returning existing instance");
             return CodePush.getJSBundleFile()
           }`;
 
