@@ -40,7 +40,7 @@ Most commands require authentication. You'll need an access key to use the CLI.
 ### Login
 ```bash
 # Login with access key
-code-push-standalone login --accessKey <your-access-key>
+code-push-standalone login --accessKey <your-access-key> <server-url>
 
 # Check login status
 code-push-standalone whoami
