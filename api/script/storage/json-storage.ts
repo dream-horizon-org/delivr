@@ -213,7 +213,7 @@ export class JsonStorage implements storage.Storage {
     this.saveStateAsync();
     return Promise.resolve(clone(tenant));
   }
-
+  
   // Tenant Collaborator Methods (stubs for json-storage)
   public getTenantCollaborators(_tenantId: string): Promise<storage.CollaboratorMap> {
     return Promise.resolve({});

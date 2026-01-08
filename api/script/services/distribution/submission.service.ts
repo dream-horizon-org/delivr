@@ -288,7 +288,7 @@ export class SubmissionService {
     
     if (androidSubmission) {
       const actionHistory = await this.actionHistoryRepository.findBySubmissionId(submissionId);
-      return this.mapAndroidSubmissionToResponse(androidSubmission, actionHistory);
+      return await this.mapAndroidSubmissionToResponse(androidSubmission, actionHistory);
     }
 
     // If not found in Android, try iOS submissions
@@ -296,7 +296,7 @@ export class SubmissionService {
     
     if (iosSubmission) {
       const actionHistory = await this.actionHistoryRepository.findBySubmissionId(submissionId);
-      return this.mapIosSubmissionToResponse(iosSubmission, actionHistory);
+      return await this.mapIosSubmissionToResponse(iosSubmission, actionHistory);
     }
 
     // Not found in either table
@@ -306,10 +306,26 @@ export class SubmissionService {
   /**
    * Map Android submission to API response format
    */
-  private mapAndroidSubmissionToResponse(
+  private async mapAndroidSubmissionToResponse(
     submission: AndroidSubmissionBuild,
     actionHistory: SubmissionActionHistory[]
-  ): SubmissionDetailsResponse {
+  ): Promise<SubmissionDetailsResponse> {
+    const submitterEmail = submission.submittedBy 
+      ? await this.getUserEmail(submission.submittedBy) 
+      : null;
+    
+    const enrichedActionHistory = await Promise.all(
+      actionHistory.map(async (h) => {
+        const creatorEmail = h.createdBy ? await this.getUserEmail(h.createdBy) : null;
+        return {
+          action: h.action,
+          createdBy: creatorEmail ?? h.createdBy,
+          createdAt: h.createdAt,
+          reason: h.reason
+        };
+      })
+    );
+
     return {
       id: submission.id,
       distributionId: submission.distributionId,
@@ -322,7 +338,7 @@ export class SubmissionService {
       inAppPriority: submission.inAppUpdatePriority ?? 0,
       releaseNotes: submission.releaseNotes,
       submittedAt: submission.submittedAt,
-      submittedBy: submission.submittedBy,
+      submittedBy: submitterEmail ?? submission.submittedBy,
       statusUpdatedAt: submission.statusUpdatedAt,
       createdAt: submission.createdAt,
       updatedAt: submission.updatedAt,
@@ -330,22 +346,33 @@ export class SubmissionService {
         artifactPath: submission.artifactPath,
         internalTrackLink: submission.internalTrackLink
       },
-      actionHistory: actionHistory.map(h => ({
-        action: h.action,
-        createdBy: h.createdBy,
-        createdAt: h.createdAt,
-        reason: h.reason
-      }))
+      actionHistory: enrichedActionHistory
     };
   }
 
   /**
    * Map iOS submission to API response format
    */
-  private mapIosSubmissionToResponse(
+  private async mapIosSubmissionToResponse(
     submission: IosSubmissionBuild,
     actionHistory: SubmissionActionHistory[]
-  ): SubmissionDetailsResponse {
+  ): Promise<SubmissionDetailsResponse> {
+    const submitterEmail = submission.submittedBy 
+      ? await this.getUserEmail(submission.submittedBy) 
+      : null;
+    
+    const enrichedActionHistory = await Promise.all(
+      actionHistory.map(async (h) => {
+        const creatorEmail = h.createdBy ? await this.getUserEmail(h.createdBy) : null;
+        return {
+          action: h.action,
+          createdBy: creatorEmail ?? h.createdBy,
+          createdAt: h.createdAt,
+          reason: h.reason
+        };
+      })
+    );
+
     return {
       id: submission.id,
       distributionId: submission.distributionId,
@@ -359,19 +386,14 @@ export class SubmissionService {
       rolloutPercentage: submission.rolloutPercentage ?? 0,
       releaseNotes: submission.releaseNotes,
       submittedAt: submission.submittedAt,
-      submittedBy: submission.submittedBy,
+      submittedBy: submitterEmail ?? submission.submittedBy,
       statusUpdatedAt: submission.statusUpdatedAt,
       createdAt: submission.createdAt,
       updatedAt: submission.updatedAt,
       artifact: {
         testflightNumber: submission.testflightNumber
       },
-      actionHistory: actionHistory.map(h => ({
-        action: h.action,
-        createdBy: h.createdBy,
-        createdAt: h.createdAt,
-        reason: h.reason
-      }))
+      actionHistory: enrichedActionHistory
     };
   }
 

@@ -169,7 +169,8 @@ export interface Storage {
   getTenants(accountId: string): Promise<Organization[]>;
   addTenant(accountId: string, tenant: Organization): Promise<Organization>;
   removeTenant(accountId: string, tenantId: string): Promise<void>;
-
+  
+  
   addApp(accountId: string, app: App): Promise<App>;
   getApps(accountId: string): Promise<App[]>;
   getApp(accountId: string, appId: string): Promise<App>;

@@ -137,11 +137,25 @@ export class ReleaseActivityLogService {
     const logsWithAccountDetails = await Promise.all(
       logs.map(async (log) => {
         const accountDetails = await this.getAccountDetails(log.updatedBy);
+        
+        // Extract approvedBy from newValue if present (for regression approvals)
+        let approvedByEmail: string | null = null;
+        if (log.newValue?.approvedBy) {
+          const approvedByAccount = await this.getAccountDetails(log.newValue.approvedBy);
+          approvedByEmail = approvedByAccount?.email ?? null;
+        }
+        
+        // Replace approvedBy in newValue with email if present
+        const enrichedNewValue = log.newValue?.approvedBy 
+          ? { ...log.newValue, approvedBy: approvedByEmail ?? log.newValue.approvedBy }
+          : log.newValue;
+        
         return {
           ...log,
           updatedAt: log.updatedAt instanceof Date ? log.updatedAt.toISOString() : log.updatedAt, // Convert Date to ISO string
           updatedBy: log.updatedBy, // Keep the account ID
-          updatedByAccount: accountDetails // Add populated account details
+          updatedByAccount: accountDetails, // Add populated account details
+          newValue: enrichedNewValue // Replace approvedBy with email if present
         };
       })
     );

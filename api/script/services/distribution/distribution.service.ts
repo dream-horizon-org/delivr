@@ -28,6 +28,7 @@ import type { MockAppleAppStoreConnectService } from './apple-app-store-connect.
 import { getStorage } from '../../storage/storage-instance';
 import { StoreIntegrationController } from '../../storage/integrations/store/store-controller';
 import { StoreType } from '../../storage/integrations/store/store-types';
+import { getAccountDetails } from '~utils/account.utils';
 
 /**
  * Formatted submission response (matches API contract)
@@ -122,6 +123,22 @@ export class DistributionService {
   ) {}
 
   /**
+   * Get user email from user ID
+   * Helper method to look up email for submissions
+   */
+  private async getUserEmail(userId: string | null): Promise<string | null> {
+    if (!userId) return null;
+    try {
+      const storage = getStorage();
+      const accountDetails = await getAccountDetails(storage, userId, 'DistributionService');
+      return accountDetails?.email ?? null;
+    } catch (error) {
+      console.error(`[DistributionService] Failed to get email for user ${userId}:`, error);
+      return null;
+    }
+  }
+
+  /**
    * Get distribution by ID with all submissions and action history
    */
   async getDistributionById(distributionId: string): Promise<DistributionWithSubmissions | null> {
@@ -152,73 +169,91 @@ export class DistributionService {
     });
 
     // Format iOS submissions to match expected response structure
-    const formattedIosSubmissions = iosSubmissions.map(submission => {
-      const actionHistory = actionHistoryMap.get(submission.id) ?? [];
-      return {
-        id: submission.id,
-        distributionId: submission.distributionId,
-        platform: 'IOS' as const,
-        storeType: submission.storeType,
-        status: submission.status,
-        version: submission.version,
-        releaseType: submission.releaseType,
-        phasedRelease: submission.phasedRelease,
-        resetRating: submission.resetRating,
-        rolloutPercentage: submission.rolloutPercentage ?? 0,
-        releaseNotes: submission.releaseNotes ?? '',
-        submittedAt: submission.submittedAt,
-        submittedBy: submission.submittedBy,
-        statusUpdatedAt: submission.statusUpdatedAt,
-        createdAt: submission.createdAt,
-        updatedAt: submission.updatedAt,
-        isActive: submission.isActive,
-        artifact: {
-          testflightNumber: submission.testflightNumber
-        },
-        actionHistory: actionHistory.map(history => ({
-          action: history.action,
-          createdBy: history.createdBy,
-          createdAt: history.createdAt,
-          reason: history.reason
-        }))
-      };
-    });
+    const formattedIosSubmissions = await Promise.all(
+      iosSubmissions.map(async (submission) => {
+        const actionHistory = actionHistoryMap.get(submission.id) ?? [];
+        const submitterEmail = await this.getUserEmail(submission.submittedBy);
+        const enrichedHistory = await Promise.all(
+          actionHistory.map(async (history) => {
+            const creatorEmail = await this.getUserEmail(history.createdBy);
+            return {
+              action: history.action,
+              createdBy: creatorEmail ?? history.createdBy,
+              createdAt: history.createdAt,
+              reason: history.reason
+            };
+          })
+        );
+        return {
+          id: submission.id,
+          distributionId: submission.distributionId,
+          platform: 'IOS' as const,
+          storeType: submission.storeType,
+          status: submission.status,
+          version: submission.version,
+          releaseType: submission.releaseType,
+          phasedRelease: submission.phasedRelease,
+          resetRating: submission.resetRating,
+          rolloutPercentage: submission.rolloutPercentage ?? 0,
+          releaseNotes: submission.releaseNotes ?? '',
+          submittedAt: submission.submittedAt,
+          submittedBy: submitterEmail ?? submission.submittedBy,
+          statusUpdatedAt: submission.statusUpdatedAt,
+          createdAt: submission.createdAt,
+          updatedAt: submission.updatedAt,
+          isActive: submission.isActive,
+          artifact: {
+            testflightNumber: submission.testflightNumber
+          },
+          actionHistory: enrichedHistory
+        };
+      })
+    );
 
     // Enrich iOS submissions with totalPauseDuration from Apple API
     await this.enrichIosSubmissionsWithPauseDuration(formattedIosSubmissions, distribution.tenantId);
 
     // Format Android submissions to match expected response structure
-    const formattedAndroidSubmissions = androidSubmissions.map(submission => {
-      const actionHistory = actionHistoryMap.get(submission.id) ?? [];
-      return {
-        id: submission.id,
-        distributionId: submission.distributionId,
-        platform: 'ANDROID' as const,
-        storeType: submission.storeType,
-        status: submission.status,
-        version: submission.version,
-        versionCode: submission.versionCode,
-        rolloutPercentage: submission.rolloutPercentage ?? 0,
-        inAppUpdatePriority: submission.inAppUpdatePriority ?? 0,
-        releaseNotes: submission.releaseNotes ?? '',
-        submittedAt: submission.submittedAt,
-        submittedBy: submission.submittedBy,
-        statusUpdatedAt: submission.statusUpdatedAt,
-        createdAt: submission.createdAt,
-        updatedAt: submission.updatedAt,
-        isActive: submission.isActive,
-        artifact: {
-          artifactPath: submission.artifactPath,
-          internalTrackLink: submission.internalTrackLink
-        },
-        actionHistory: actionHistory.map(history => ({
-          action: history.action,
-          createdBy: history.createdBy,
-          createdAt: history.createdAt,
-          reason: history.reason
-        }))
-      };
-    });
+    const formattedAndroidSubmissions = await Promise.all(
+      androidSubmissions.map(async (submission) => {
+        const actionHistory = actionHistoryMap.get(submission.id) ?? [];
+        const submitterEmail = await this.getUserEmail(submission.submittedBy);
+        const enrichedHistory = await Promise.all(
+          actionHistory.map(async (history) => {
+            const creatorEmail = await this.getUserEmail(history.createdBy);
+            return {
+              action: history.action,
+              createdBy: creatorEmail ?? history.createdBy,
+              createdAt: history.createdAt,
+              reason: history.reason
+            };
+          })
+        );
+        return {
+          id: submission.id,
+          distributionId: submission.distributionId,
+          platform: 'ANDROID' as const,
+          storeType: submission.storeType,
+          status: submission.status,
+          version: submission.version,
+          versionCode: submission.versionCode,
+          rolloutPercentage: submission.rolloutPercentage ?? 0,
+          inAppUpdatePriority: submission.inAppUpdatePriority ?? 0,
+          releaseNotes: submission.releaseNotes ?? '',
+          submittedAt: submission.submittedAt,
+          submittedBy: submitterEmail ?? submission.submittedBy,
+          statusUpdatedAt: submission.statusUpdatedAt,
+          createdAt: submission.createdAt,
+          updatedAt: submission.updatedAt,
+          isActive: submission.isActive,
+          artifact: {
+            artifactPath: submission.artifactPath,
+            internalTrackLink: submission.internalTrackLink
+          },
+          actionHistory: enrichedHistory
+        };
+      })
+    );
 
     // Combine all submissions
     const allSubmissions = [...formattedIosSubmissions, ...formattedAndroidSubmissions];
@@ -268,70 +303,88 @@ export class DistributionService {
     });
 
     // Format iOS submissions to match expected response structure
-    const formattedIosSubmissions = iosSubmissions.map(submission => {
-      const actionHistory = actionHistoryMap.get(submission.id) ?? [];
-      return {
-        id: submission.id,
-        distributionId: submission.distributionId,
-        platform: 'IOS' as const,
-        storeType: submission.storeType,
-        status: submission.status,
-        version: submission.version,
-        releaseType: submission.releaseType,
-        phasedRelease: submission.phasedRelease,
-        resetRating: submission.resetRating,
-        rolloutPercentage: submission.rolloutPercentage ?? 0,
-        releaseNotes: submission.releaseNotes ?? '',
-        submittedAt: submission.submittedAt,
-        submittedBy: submission.submittedBy,
-        statusUpdatedAt: submission.statusUpdatedAt,
-        createdAt: submission.createdAt,
-        updatedAt: submission.updatedAt,
-        isActive: submission.isActive,
-        artifact: {
-          testflightNumber: submission.testflightNumber
-        },
-        actionHistory: actionHistory.map(history => ({
-          action: history.action,
-          createdBy: history.createdBy,
-          createdAt: history.createdAt,
-          reason: history.reason
-        }))
-      };
-    });
+    const formattedIosSubmissions = await Promise.all(
+      iosSubmissions.map(async (submission) => {
+        const actionHistory = actionHistoryMap.get(submission.id) ?? [];
+        const submitterEmail = await this.getUserEmail(submission.submittedBy);
+        const enrichedHistory = await Promise.all(
+          actionHistory.map(async (history) => {
+            const creatorEmail = await this.getUserEmail(history.createdBy);
+            return {
+              action: history.action,
+              createdBy: creatorEmail ?? history.createdBy,
+              createdAt: history.createdAt,
+              reason: history.reason
+            };
+          })
+        );
+        return {
+          id: submission.id,
+          distributionId: submission.distributionId,
+          platform: 'IOS' as const,
+          storeType: submission.storeType,
+          status: submission.status,
+          version: submission.version,
+          releaseType: submission.releaseType,
+          phasedRelease: submission.phasedRelease,
+          resetRating: submission.resetRating,
+          rolloutPercentage: submission.rolloutPercentage ?? 0,
+          releaseNotes: submission.releaseNotes ?? '',
+          submittedAt: submission.submittedAt,
+          submittedBy: submitterEmail ?? submission.submittedBy,
+          statusUpdatedAt: submission.statusUpdatedAt,
+          createdAt: submission.createdAt,
+          updatedAt: submission.updatedAt,
+          isActive: submission.isActive,
+          artifact: {
+            testflightNumber: submission.testflightNumber
+          },
+          actionHistory: enrichedHistory
+        };
+      })
+    );
 
     // Format Android submissions to match expected response structure
-    const formattedAndroidSubmissions = androidSubmissions.map(submission => {
-      const actionHistory = actionHistoryMap.get(submission.id) ?? [];
-      return {
-        id: submission.id,
-        distributionId: submission.distributionId,
-        platform: 'ANDROID' as const,
-        storeType: submission.storeType,
-        status: submission.status,
-        version: submission.version,
-        versionCode: submission.versionCode,
-        rolloutPercentage: submission.rolloutPercentage ?? 0,
-        inAppUpdatePriority: submission.inAppUpdatePriority ?? 0,
-        releaseNotes: submission.releaseNotes ?? '',
-        submittedAt: submission.submittedAt,
-        submittedBy: submission.submittedBy,
-        statusUpdatedAt: submission.statusUpdatedAt,
-        createdAt: submission.createdAt,
-        updatedAt: submission.updatedAt,
-        isActive: submission.isActive,
-        artifact: {
-          artifactPath: submission.artifactPath,
-          internalTrackLink: submission.internalTrackLink
-        },
-        actionHistory: actionHistory.map(history => ({
-          action: history.action,
-          createdBy: history.createdBy,
-          createdAt: history.createdAt,
-          reason: history.reason
-        }))
-      };
-    });
+    const formattedAndroidSubmissions = await Promise.all(
+      androidSubmissions.map(async (submission) => {
+        const actionHistory = actionHistoryMap.get(submission.id) ?? [];
+        const submitterEmail = await this.getUserEmail(submission.submittedBy);
+        const enrichedHistory = await Promise.all(
+          actionHistory.map(async (history) => {
+            const creatorEmail = await this.getUserEmail(history.createdBy);
+            return {
+              action: history.action,
+              createdBy: creatorEmail ?? history.createdBy,
+              createdAt: history.createdAt,
+              reason: history.reason
+            };
+          })
+        );
+        return {
+          id: submission.id,
+          distributionId: submission.distributionId,
+          platform: 'ANDROID' as const,
+          storeType: submission.storeType,
+          status: submission.status,
+          version: submission.version,
+          versionCode: submission.versionCode,
+          rolloutPercentage: submission.rolloutPercentage ?? 0,
+          inAppUpdatePriority: submission.inAppUpdatePriority ?? 0,
+          releaseNotes: submission.releaseNotes ?? '',
+          submittedAt: submission.submittedAt,
+          submittedBy: submitterEmail ?? submission.submittedBy,
+          statusUpdatedAt: submission.statusUpdatedAt,
+          createdAt: submission.createdAt,
+          updatedAt: submission.updatedAt,
+          isActive: submission.isActive,
+          artifact: {
+            artifactPath: submission.artifactPath,
+            internalTrackLink: submission.internalTrackLink
+          },
+          actionHistory: enrichedHistory
+        };
+      })
+    );
 
     // Combine all submissions
     const allSubmissions = [...formattedIosSubmissions, ...formattedAndroidSubmissions];

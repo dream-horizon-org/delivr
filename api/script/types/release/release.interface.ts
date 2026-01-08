@@ -227,7 +227,7 @@ export interface ReleaseResponseBody {
   targetReleaseDate: string | null;
   releaseDate: string | null;
   hasManualBuildUpload: boolean;
-  createdByAccountId: string;
+  createdBy: string;
   releasePilotAccountId: string | null;
   releasePilot?: AccountDetails | null;
   lastUpdatedByAccountId: string;

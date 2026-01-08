@@ -340,6 +340,9 @@ export class ReleaseRetrievalService {
 
       // Fetch release pilot account details
       const releasePilot = await this.getAccountDetails(release.releasePilotAccountId);
+      
+      // Fetch createdBy account details
+      const createdByAccount = await this.getAccountDetails(release.createdByAccountId);
 
       const releaseResponse: ReleaseResponseBody = {
         id: release.id,
@@ -357,7 +360,7 @@ export class ReleaseRetrievalService {
         targetReleaseDate: release.targetReleaseDate ? release.targetReleaseDate.toISOString() : null,
         releaseDate: release.releaseDate ? release.releaseDate.toISOString() : null,
         hasManualBuildUpload: release.hasManualBuildUpload,
-        createdByAccountId: release.createdByAccountId,
+        createdBy: createdByAccount?.email ?? release.createdByAccountId,
         releasePilotAccountId: release.releasePilotAccountId,
         releasePilot: releasePilot,
         lastUpdatedByAccountId: release.lastUpdatedByAccountId,
@@ -457,6 +460,9 @@ export class ReleaseRetrievalService {
 
     // Fetch release pilot account details
     const releasePilot = await this.getAccountDetails(release.releasePilotAccountId);
+    
+    // Fetch createdBy account details
+    const createdByAccount = await this.getAccountDetails(release.createdByAccountId);
 
     const releaseResponse: ReleaseResponseBody = {
       id: release.id,
@@ -476,7 +482,7 @@ export class ReleaseRetrievalService {
       targetReleaseDate: release.targetReleaseDate ? release.targetReleaseDate.toISOString() : null,
       releaseDate: release.releaseDate ? release.releaseDate.toISOString() : null,
       hasManualBuildUpload: release.hasManualBuildUpload,
-      createdByAccountId: release.createdByAccountId,
+      createdBy: createdByAccount?.email ?? release.createdByAccountId,
       releasePilotAccountId: release.releasePilotAccountId,
       releasePilot: releasePilot,
       lastUpdatedByAccountId: release.lastUpdatedByAccountId,

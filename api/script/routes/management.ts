@@ -313,15 +313,35 @@ export function getManagementRouter(config: ManagementConfig): Router {
       return res.status(400).send({ error: "displayName is required" });
     }
 
+      // Check for duplicate tenant name before creating
     storage
-      .addTenant(accountId, tenant)
-      .then((createdTenant: storageTypes.Organization) => {
-        res.status(201).send({ organisation: createdTenant });
-      })
-      .catch((error: any) => {
-        console.error("Error creating tenant:", error);
-        next(error);
-      });
+    .getTenants(accountId)
+    .then((existingTenants: storageTypes.Organization[]) => {
+      // Check if a tenant with the same displayName already exists
+      const duplicateTenant = existingTenants.find(
+        (t: storageTypes.Organization) => 
+          t.displayName.toLowerCase().trim() === tenant.displayName.toLowerCase().trim()
+      );
+
+      if (duplicateTenant) {
+        errorUtils.sendConflictError(
+          res, 
+          `An organization named '${tenant.displayName}' already exists.`
+        );
+        return;
+      }
+
+      // No duplicate found, proceed with creation
+      return storage
+        .addTenant(accountId, tenant)
+        .then((createdTenant: storageTypes.Organization) => {
+          res.status(201).send({ organisation: createdTenant });
+        });
+    })
+    .catch((error: any) => {
+      console.error("Error creating tenant:", error);
+      next(error);
+    });
   });
 
   // Get tenant info with release setup status and integrations
@@ -399,13 +419,14 @@ export function getManagementRouter(config: ManagementConfig): Router {
       }
       
 
-      const tenantConfig = buildTenantConfig(
+      const tenantConfig = await buildTenantConfig(
         scmIntegrations,
         slackIntegration,
         cicdIntegrations,
         testManagementIntegrations,
         projectManagementIntegrations,
-        storeIntegrations
+        storeIntegrations,
+        storage
       );
       
       return res.status(200).send({

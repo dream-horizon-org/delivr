@@ -131,7 +131,21 @@ export async function createGitHubConnection(
       error: "owner, repo, and accessToken are required"
     });
   }
+  // Verify credentials before saving
+  const decryptedToken = _encrypted 
+  ? decryptIfEncrypted(accessToken, 'accessToken')
+  : accessToken;
 
+  const verificationResult = await verifyGitHub(owner, repo, decryptedToken);
+
+  if (!verificationResult.isValid) {
+  return res.status(400).json({
+    success: false,
+    error: `Verification failed: ${verificationResult.message}`,
+    details: verificationResult.details
+  });
+  }
+  
   try {
     const scmController = getSCMController();
     const existing = await scmController.findActiveByTenant(tenantId);
@@ -332,7 +346,7 @@ export async function deleteGitHubConnection(
       });
     }
 
-    await scmController.softDelete(existing.id);
+    await scmController.hardDelete(existing.id);
 
     return res.status(200).json({
       success: true,

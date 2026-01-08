@@ -364,7 +364,7 @@ export class AzureStorage implements storage.Storage {
     // Azure implementation - stub for now
     return Promise.resolve(tenant);
   }
-
+  
   public removeTenant(_accountId: string, _tenantId: string): Promise<void> {
     return Promise.resolve(<void>null);
   }

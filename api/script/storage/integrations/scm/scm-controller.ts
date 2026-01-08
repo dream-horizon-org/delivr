@@ -49,7 +49,7 @@ export class SCMIntegrationController {
       defaultBranch: data.defaultBranch || 'main',
       webhookEnabled: data.webhookEnabled || false,
       isActive: true,
-      verificationStatus: VerificationStatus.PENDING,
+      verificationStatus: data.verificationStatus ?? VerificationStatus.PENDING,
     });
 
     return this.toSafeObject(integration.toJSON());
