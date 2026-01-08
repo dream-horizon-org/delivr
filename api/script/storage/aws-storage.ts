@@ -1838,26 +1838,7 @@ export class S3Storage implements storage.Storage {
         })
         .catch(S3Storage.storageErrorHandler);
     }
-    public tenantNameExists(displayName: string): Promise<boolean> {
-      return this.setupPromise
-        .then(async () => {
-          const normalizedName = displayName.toLowerCase().trim();
-          
-          // Find any tenant with the same displayName (case-insensitive)
-          const existingTenant = await this.sequelize.models[MODELS.TENANT].findOne({
-            where: this.sequelize.where(
-              this.sequelize.fn('LOWER', this.sequelize.fn('TRIM', this.sequelize.col('displayName'))),
-              normalizedName
-            )
-          });
-          
-          return !!existingTenant;
-        })
-        .catch((error: any) => {
-          console.error("Error checking tenant name existence:", error);
-          throw error;
-        });
-    }
+    
     public addTenant(accountId: string, tenant: storage.Organization): Promise<storage.Organization> {
       return this.setupPromise
         .then(async () => {
