@@ -1844,8 +1844,6 @@ export class S3Storage implements storage.Storage {
           const normalizedName = displayName.toLowerCase().trim();
           
           // Find any tenant with the same displayName (case-insensitive)
-          // Using Sequelize's Op to safely query
-          const { Op } = require('sequelize');
           const existingTenant = await this.sequelize.models[MODELS.TENANT].findOne({
             where: this.sequelize.where(
               this.sequelize.fn('LOWER', this.sequelize.fn('TRIM', this.sequelize.col('displayName'))),
