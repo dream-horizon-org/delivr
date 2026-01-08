@@ -1167,7 +1167,7 @@ export class SubmissionService {
       resetRating: data.resetRating,
       releaseNotes: data.releaseNotes,
       releaseType: 'AFTER_APPROVAL', // Fixed: Automatically release after App Review approval
-      rolloutPercentage: data.phasedRelease ? 1 : 100, // Phased starts at 1% (Day 1), manual at 100%
+      rolloutPercentage: 0, // Always start at 0% - will be set to 1% or 100% when LIVE
       submittedAt: new Date(),
       submittedBy
     });
@@ -2033,7 +2033,7 @@ export class SubmissionService {
       phasedRelease: data.phasedRelease,
       releaseType: 'AFTER_APPROVAL', // Fixed: Automatically release after App Review approval
       resetRating: data.resetRating,
-      rolloutPercentage: data.phasedRelease ? 1 : 100, // Phased starts at 1% (Day 1), manual at 100%
+      rolloutPercentage: 0, // Always start at 0% - will be set to 1% or 100% when LIVE
       isActive: true,
       submittedBy: null // Will be set after submission
     });
@@ -3338,7 +3338,7 @@ export class SubmissionService {
         submissionId,
         platform: SUBMISSION_PLATFORM.ANDROID,
         action: SUBMISSION_ACTION.RESUMED,
-        reason: 'Rollout resumed',
+        reason: null,
         createdBy
       });
 
@@ -3498,7 +3498,7 @@ export class SubmissionService {
       submissionId,
       platform: SUBMISSION_PLATFORM.IOS,
       action: SUBMISSION_ACTION.RESUMED,
-      reason: 'Rollout resumed',
+      reason: null,
       createdBy
     });
 
@@ -4318,11 +4318,20 @@ export class SubmissionService {
     if (newStatus !== oldStatus) {
       console.log(`[IosSubmissionStatus] Status changed: ${oldStatus} → ${newStatus}`);
 
-      // Update status in database
-      await this.iosSubmissionRepository.update(submissionId, {
+      // Prepare update data
+      const updateData: any = {
         status: newStatus,
         statusUpdatedAt: new Date()
-      });
+      };
+
+      // If transitioning to LIVE, set rollout percentage
+      if (newStatus === SUBMISSION_STATUS.LIVE) {
+        updateData.rolloutPercentage = submission.phasedRelease ? 1 : 100;
+        console.log(`[IosSubmissionStatus] Setting rolloutPercentage to ${updateData.rolloutPercentage}% (phasedRelease: ${submission.phasedRelease})`);
+      }
+
+      // Update status (and rollout percentage if LIVE) in database
+      await this.iosSubmissionRepository.update(submissionId, updateData);
 
       // Step 5: Check if terminal state reached
       const isTerminalState = newStatus === SUBMISSION_STATUS.LIVE || 

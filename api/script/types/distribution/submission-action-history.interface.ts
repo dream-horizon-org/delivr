@@ -8,7 +8,7 @@ export type SubmissionActionHistory = {
   submissionId: string;
   platform: SubmissionPlatform;
   action: SubmissionAction;
-  reason: string;
+  reason: string | null;
   createdAt: Date;
   createdBy: string;
 };
@@ -21,7 +21,7 @@ export type CreateSubmissionActionHistoryDto = {
   submissionId: string;
   platform: SubmissionPlatform;
   action: SubmissionAction;
-  reason: string;
+  reason: string | null;
   createdBy: string;
 };
 
