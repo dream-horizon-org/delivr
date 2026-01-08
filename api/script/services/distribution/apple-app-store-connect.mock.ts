@@ -16,6 +16,7 @@
 
 type AppStoreState =
   | 'PREPARE_FOR_SUBMISSION'
+  | 'WAITING_FOR_REVIEW'
   | 'IN_REVIEW'
   | 'REJECTED'
   | 'METADATA_REJECTED'
@@ -683,6 +684,16 @@ export class MockAppleAppStoreConnectService {
     });
     
     console.log(`[MockApple] Created review submission: ${submissionId}`);
+    
+    // Update version state to WAITING_FOR_REVIEW (matches real Apple behavior)
+    // Real Apple flow: WAITING_FOR_REVIEW (in queue) → IN_REVIEW (Apple starts reviewing)
+    const version = this.db.versions.get(appStoreVersionId);
+    if (version) {
+      version.state = 'WAITING_FOR_REVIEW';
+      console.log(`[MockApple] Updated version ${appStoreVersionId} state to WAITING_FOR_REVIEW`);
+    } else {
+      console.warn(`[MockApple] Warning: Version ${appStoreVersionId} not found in DB, cannot update state`);
+    }
     
     // Return submission ID (matches real Apple service)
     return submissionId;

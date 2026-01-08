@@ -12,7 +12,7 @@ export type SubmissionActionHistoryAttributes = {
   submissionId: string;
   platform: SubmissionPlatform;
   action: SubmissionAction;
-  reason: string;
+  reason: string | null;
   createdAt: Date;
   createdBy: string;
 };
@@ -53,9 +53,9 @@ export const createSubmissionActionHistoryModel = (
       },
       reason: {
         type: DataTypes.TEXT,
-        allowNull: false,
+        allowNull: true,
         field: 'reason',
-        comment: 'Reason for the action'
+        comment: 'Reason for the action (nullable for resume actions)'
       },
       createdAt: {
         type: DataTypes.DATE,
