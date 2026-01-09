@@ -483,7 +483,7 @@ export function AppDistributionConnectionFlow({
         description={
           isEditMode 
             ? hasPlayStoreCredentialChanged 
-              ? 'All credentials are required when any credential is changed'
+              ? ''
               : 'Only provide a new project ID if you want to update it'
             : ''
         }
@@ -508,7 +508,7 @@ export function AppDistributionConnectionFlow({
         description={
           isEditMode 
             ? hasPlayStoreCredentialChanged 
-              ? 'All credentials are required when any credential is changed'
+              ? ''
               : 'Only provide a new client email if you want to update it'
             : ''
         }
@@ -534,7 +534,7 @@ export function AppDistributionConnectionFlow({
         description={
           isEditMode 
             ? hasPlayStoreCredentialChanged
-              ? 'All credentials are required when any credential is changed'
+              ? 'Paste the complete private key from your .pem file, including the BEGIN and END markers'
               : 'Only provide a new private key if you want to update it'
             : 'Paste the complete private key from your .pem file, including the BEGIN and END markers'
         }
@@ -613,7 +613,7 @@ export function AppDistributionConnectionFlow({
         description={
           isEditMode 
             ? hasAppStoreCredentialChanged 
-              ? 'All credentials are required when any credential is changed'
+              ? ''
               : 'Only provide a new issuer ID if you want to update it'
             : ''
         }
@@ -632,7 +632,7 @@ export function AppDistributionConnectionFlow({
         description={
           isEditMode 
             ? hasAppStoreCredentialChanged 
-              ? 'All credentials are required when any credential is changed'
+              ? ''
               : 'Only provide a new key ID if you want to update it'
             : ''
         }
@@ -652,7 +652,7 @@ export function AppDistributionConnectionFlow({
         description={
           isEditMode 
             ? hasAppStoreCredentialChanged
-              ? 'All credentials are required when any credential is changed'
+              ? 'Paste the complete private key from your .p8 file, including the BEGIN and END markers'
               : 'Only provide a new private key if you want to update it'
             : 'Paste the complete private key from your .p8 file, including the BEGIN and END markers'
         }
