@@ -79,36 +79,6 @@ export default function GettingStartedPage() {
             <CreateOrgModal onSuccess={handleOrgCreated} />
           </Paper>
 
-          {/* Info Box */}
-          <Paper 
-            p="lg" 
-            radius="md" 
-            w="100%"
-            style={{
-              background: `linear-gradient(135deg, ${theme.colors.brand[0]} 0%, ${theme.colors.blue[0]} 100%)`,
-              border: `1px solid ${theme.colors.brand[2]}`,
-            }}
-          >
-            <Group gap="md">
-              <ThemeIcon 
-                size="lg" 
-                radius="md" 
-                variant="light" 
-                color="brand"
-                style={{ background: 'white' }}
-              >
-                <IconCheck size={20} color={theme.colors.brand[6]} />
-              </ThemeIcon>
-              <Box style={{ flex: 1 }}>
-                <Text fw={600} size="sm" c="slate.9" mb={4}>
-                  Start your 14-day free trial
-                </Text>
-                <Text size="sm" c="slate.6">
-                  No credit card required. Get full access to all features.
-                </Text>
-              </Box>
-            </Group>
-          </Paper>
         </Stack>
       </Container>
     </Box>

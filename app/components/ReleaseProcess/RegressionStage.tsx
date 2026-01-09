@@ -10,7 +10,7 @@ import {
   Stack,
   Text,
 } from '@mantine/core';
-import { IconArchive, IconCheck, IconX } from '@tabler/icons-react';
+import { IconArchive, IconCheck, IconX, IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useRouteLoaderData } from '@remix-run/react';
 import {
@@ -25,6 +25,7 @@ import { validateStageProps } from '~/utils/prop-validation';
 import { handleStageError } from '~/utils/stage-error-handling';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
 import type { OrgLayoutLoaderData } from '~/routes/dashboard.$org';
+import { StageStatus, ReleaseStatus } from '~/types/release-process-enums';
 import { StageErrorBoundary } from './shared/StageErrorBoundary';
 import { RegressionCyclesList } from './RegressionCyclesList';
 import { StageApprovalSection, type ApprovalRequirement } from './shared/StageApprovalSection';
@@ -40,7 +41,9 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
   // Validate required props
   validateStageProps({ tenantId, releaseId }, 'RegressionStage');
 
-  const { data, isLoading, error, refetch } = useRegressionStage(tenantId, releaseId);
+  // Enable polling to keep data fresh, especially for upcomingRegressions which can change
+  // when slots are executed and removed on the backend
+  const { data, isLoading, error, refetch } = useRegressionStage(tenantId, releaseId, true);
   
   // Get release data to access releaseConfigId
   const { release } = useRelease(tenantId, releaseId);
@@ -83,6 +86,11 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
   const upcomingSlot = data?.upcomingSlot;
   const approvalStatus = data?.approvalStatus;
 
+  // Show loading message only when actively fetching data
+  // Don't show when tasks.length === 0 because tasks are created cycle-wise
+  // and future cycles might not have tasks yet
+  const isFetchingTasks = isLoading;
+
   const handleApproveClick = useCallback(() => {
     if (!approvalStatus?.canApprove) {
       showErrorToast({ message: 'Approval requirements not met' });
@@ -113,8 +121,8 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
     // Disable if pre-release is already in progress or completed
     // Pre-release only gets triggered when approval is given, so if it's already started,
     // the approval button should be disabled
-    const isPreReleaseInProgress = release?.cronJob?.stage3Status === 'IN_PROGRESS' || 
-                                    release?.cronJob?.stage3Status === 'COMPLETED';
+    const isPreReleaseInProgress = release?.cronJob?.stage3Status === StageStatus.IN_PROGRESS || 
+                                    release?.cronJob?.stage3Status === StageStatus.COMPLETED;
     
     if (isPreReleaseInProgress) {
       return false;
@@ -168,41 +176,55 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
     return requirements.filter((r) => !r.passed).length;
   }, [requirements]);
 
-  const isArchived = release?.status === 'ARCHIVED';
+  const isArchived = release?.status === ReleaseStatus.ARCHIVED;
 
   return (
     <StageErrorBoundary
-      isLoading={isLoading}
+      isLoading={false} // We handle loading state ourselves
       error={error}
       data={data}
       stageName="regression stage"
     >
       <Stack gap="lg" className={className}>
-      {/* Archived Message Banner */}
-      {isArchived && (
-        <Alert
-          icon={<IconArchive size={16} />}
-          title="This release is archived"
-          color="gray"
-          variant="light"
-        >
-          <Text size="sm">
-            This release has been archived. You can view the tasks and history, but no actions can be performed.
-          </Text>
-        </Alert>
-      )}
+        {/* Show loading message when fetching tasks */}
+        {isFetchingTasks && (
+          <Alert 
+            icon={<IconInfoCircle size={16} />} 
+            color="blue" 
+            variant="light" 
+            radius="md"
+          >
+            <Text size="sm">Please wait while we are fetching the tasks...</Text>
+          </Alert>
+        )}
 
-      {/* Regression Cycles List */}
-      <RegressionCyclesList
-        cycles={cycles}
-        currentCycle={currentCycle}
-        tasks={tasks}
-        uploadedBuilds={uploadedBuilds}
-        upcomingSlot={upcomingSlot ?? null}
-        tenantId={tenantId}
-        releaseId={releaseId}
-        onRetryTask={handleRetry}
-      />
+        {/* Archived Message Banner */}
+        {isArchived && (
+          <Alert
+            icon={<IconArchive size={16} />}
+            title="This release is archived"
+            color="gray"
+            variant="light"
+          >
+            <Text size="sm">
+              This release has been archived. You can view the tasks and history, but no actions can be performed.
+            </Text>
+          </Alert>
+        )}
+
+        {/* Regression Cycles List - Only show when tasks are available */}
+        {!isFetchingTasks && (
+          <RegressionCyclesList
+            cycles={cycles}
+            currentCycle={currentCycle}
+            tasks={tasks}
+            uploadedBuilds={uploadedBuilds}
+            upcomingSlot={upcomingSlot ?? null}
+            tenantId={tenantId}
+            releaseId={releaseId}
+            onRetryTask={handleRetry}
+          />
+        )}
 
       {/* Approval Section */}
       {approvalStatus && (

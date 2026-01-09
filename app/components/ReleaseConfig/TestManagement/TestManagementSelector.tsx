@@ -12,20 +12,19 @@ import {
   Box,
   ThemeIcon,
   useMantineTheme,
-  Anchor,
 } from '@mantine/core';
 import {
   IconTestPipe,
   IconInfoCircle,
   IconCheck,
-  IconAlertCircle,
-  IconPlug,
 } from '@tabler/icons-react';
-import { Link, useParams } from '@remix-run/react';
-import type { TestManagementConfig, CheckmateSettings } from '~/types/release-config';
+import { useParams } from '@remix-run/react';
+import type { TestManagementConfig } from '~/types/release-config';
 import type { TestManagementSelectorProps } from '~/types/release-config-props';
 import { CheckmateConfigFormEnhanced } from './CheckmateConfigFormEnhanced';
 import { IntegrationCategory } from '~/types/integrations';
+import { TEST_PROVIDERS } from '~/types/release-config-constants';
+import { NoIntegrationAlert } from '~/components/Common/NoIntegrationAlert';
 
 export function TestManagementSelector({
   config,
@@ -47,31 +46,21 @@ export function TestManagementSelector({
 
       onChange({
         enabled: true,
-        provider: 'checkmate',
+        provider: TEST_PROVIDERS.CHECKMATE,
         integrationId: integrationId,
-        projectId: '',
-        providerConfig: {
-          type: 'checkmate',
-          integrationId: integrationId,
-          projectId: 0,
-          platformConfigurations: [],
-          autoCreateRuns: false,
-          passThresholdPercent: 100,
-          filterType: 'AND',
-        },
+        platformConfigurations: [],
+        autoCreateRuns: false,
+        passThresholdPercent: 100,
+        filterType: 'AND',
       });
     } else {
       onChange(undefined);
     }
   };
 
-  const handleProviderConfigChange = (updatedProviderConfig: CheckmateSettings) => {
+  const handleConfigChange = (updatedConfig: TestManagementConfig) => {
     if (!config) return;
-    onChange({
-      ...config,
-      providerConfig: updatedProviderConfig,
-      integrationId: updatedProviderConfig.integrationId,
-    });
+    onChange(updatedConfig);
   };
 
   return (
@@ -174,79 +163,28 @@ export function TestManagementSelector({
                     Configuration
                   </Text>
                   <CheckmateConfigFormEnhanced
-                    config={(config.providerConfig || {}) as Partial<CheckmateSettings>}
-                    onChange={handleProviderConfigChange}
+                    config={config}
+                    onChange={handleConfigChange}
                     availableIntegrations={availableIntegrations.checkmate}
                     selectedTargets={selectedTargets}
                     integrationId={connection.id}
+                    tenantId={tenantId}
                   />
                 </Box>
               </>
             ) : (
               /* No Connection Warning */
-              <Paper
-                p="md"
-                radius="md"
-                style={{
-                  backgroundColor: theme.colors.yellow[0],
-                  border: `1px solid ${theme.colors.yellow[2]}`,
-                }}
-              >
-                <Group gap="sm" align="flex-start">
-                  <ThemeIcon size={28} radius="md" variant="light" color="yellow">
-                    <IconAlertCircle size={16} />
-                  </ThemeIcon>
-                  <Box style={{ flex: 1 }}>
-                    <Text size="sm" fw={600} c={theme.colors.yellow[8]} mb={4}>
-                      Checkmate Integration Required
-                    </Text>
-                    <Text size="xs" c={theme.colors.yellow[7]} mb="sm">
-                      Connect a Checkmate integration to configure test management.
-                    </Text>
-                    <Anchor
-                      component={Link}
-                      to={`/dashboard/${tenantId}/integrations?tab=${IntegrationCategory.TEST_MANAGEMENT}`}
-                      size="xs"
-                      c={theme.colors.yellow[8]}
-                      fw={600}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4,
-                      }}
-                    >
-                      <IconPlug size={14} />
-                      Connect Checkmate
-                    </Anchor>
-                  </Box>
-                </Group>
-              </Paper>
+              <NoIntegrationAlert
+                category={IntegrationCategory.TEST_MANAGEMENT}
+                tenantId={tenantId}
+                color="yellow"
+              />
             )}
           </Stack>
         </Paper>
       )}
 
       {/* Disabled State Message */}
-      {!isEnabled && (
-        <Paper
-          p="md"
-          radius="md"
-          style={{
-            backgroundColor: theme.colors.slate[0],
-            border: `1px solid ${theme.colors.slate[2]}`,
-          }}
-        >
-          <Group gap="sm">
-            <ThemeIcon size={28} radius="md" variant="light" color="gray">
-              <IconInfoCircle size={16} />
-            </ThemeIcon>
-            <Text size="sm" c={theme.colors.slate[6]}>
-              Test management integration is disabled. You can still create releases
-              without automated test tracking.
-            </Text>
-          </Group>
-        </Paper>
-      )}
     </Stack>
   );
 }

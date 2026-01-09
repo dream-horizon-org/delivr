@@ -385,14 +385,14 @@ class ReleaseProcess {
     tenantId: string,
     releaseId: string,
     stage: BuildUploadStage,
-    request: { testflightBuildNumber: string; versionName: string },
+    request: { testflightBuildNumber: string },
     userId: string
   ) {
     // Map BuildUploadStage to TaskStage for backend
     const backendStage = mapBuildUploadStageToTaskStage(stage);
     
     return this.__client.post<
-      { testflightBuildNumber: string; versionName: string },
+      { testflightBuildNumber: string },
       AxiosResponse<BuildUploadResponse>
     >(
       `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/${backendStage}/builds/ios/verify-testflight`,

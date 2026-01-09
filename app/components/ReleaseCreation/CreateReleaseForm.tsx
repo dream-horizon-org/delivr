@@ -5,7 +5,7 @@
  * All form sections are displayed at once.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Stack, Button, Box, Group, Alert, Text, List, Divider } from '@mantine/core';
 import { IconRocket, IconArrowLeft, IconAlertCircle, IconInfoCircle } from '@tabler/icons-react';
 import { useMantineTheme } from '@mantine/core';
@@ -19,20 +19,21 @@ import { ConfigurationSelector } from './ConfigurationSelector';
 import { ReleaseDetailsForm } from './ReleaseDetailsForm';
 import { ReleaseSchedulingPanel } from './ReleaseSchedulingPanel';
 import { ReleaseReviewModal } from './ReleaseReviewModal';
-import type { ReleaseCreationState, CronConfig } from '~/types/release-creation-backend';
+import type { ReleaseCreationState, CronConfig, PlatformTargetWithVersion } from '~/types/release-creation-backend';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
+import { StageStatus } from '~/types/release-process-enums';
 import { validateReleaseCreationState } from '~/utils/release-creation-validation';
 import { 
   convertStateToBackendRequest, 
   convertUpdateStateToBackendRequest,
   convertReleaseToFormState,
 } from '~/utils/release-creation-converter';
-import { DEFAULT_KICKOFF_TIME, DEFAULT_RELEASE_TIME } from '~/constants/release-creation';
+import { DEFAULT_KICKOFF_TIME, DEFAULT_RELEASE_TIME, DEFAULT_VERSIONS } from '~/constants/release-creation';
 import { getReleaseActiveStatus } from '~/utils/release-utils';
 import { RELEASE_ACTIVE_STATUS } from '~/constants/release-ui';
 import { applyVersionSuggestions } from '~/utils/release-version-suggestions';
-import { clearErrorsForFields } from '~/utils/form-error-utils';
+import { clearErrorsForFields, formatFieldLabel } from '~/utils/form-error-utils';
 
 interface CreateReleaseFormProps {
   org: string;
@@ -91,6 +92,26 @@ export function CreateReleaseForm({
   const activeStatus = existingRelease ? getReleaseActiveStatus(existingRelease) : null;
   const isUpcoming = activeStatus === RELEASE_ACTIVE_STATUS.UPCOMING;
   const isAfterKickoff = activeStatus === RELEASE_ACTIVE_STATUS.RUNNING || activeStatus === RELEASE_ACTIVE_STATUS.PAUSED;
+  
+  // Check if pre-release stage or later stages have started (to determine if slots can be added)
+  const isPreReleaseInProgress = useMemo(() => {
+    if (!isEditMode || !existingRelease || !existingRelease.cronJob) return false;
+    const cronJob = existingRelease.cronJob as any;
+    const stage3Status = cronJob.stage3Status;
+    const stage4Status = cronJob.stage4Status;
+    
+    // Disallow if pre-release has started or completed
+    if (stage3Status === StageStatus.IN_PROGRESS || stage3Status === StageStatus.COMPLETED) {
+      return true;
+    }
+    
+    // Disallow if any later stage has started or completed
+    if (stage4Status === StageStatus.IN_PROGRESS || stage4Status === StageStatus.COMPLETED) {
+      return true;
+    }
+    
+    return false;
+  }, [isEditMode, existingRelease]);
 
   // Release creation state
   const [selectedConfigId, setSelectedConfigId] = useState<string | undefined>();
@@ -98,9 +119,10 @@ export function CreateReleaseForm({
 
   // Ensure platformTargets only contain targets from selected config
   useEffect(() => {
-    if (!selectedConfig?.targets) return;
+    if (!selectedConfig?.platformTargets || selectedConfig.platformTargets.length === 0) return;
     
-    const configTargets = selectedConfig.targets;
+    // Extract unique targets from config's platformTargets
+    const configTargets = Array.from(new Set(selectedConfig.platformTargets.map(pt => pt.target)));
     
     setState((prev) => {
       if (!prev.platformTargets || prev.platformTargets.length === 0) {
@@ -127,7 +149,7 @@ export function CreateReleaseForm({
         platformTargets: validTargets,
       };
     });
-  }, [selectedConfig?.targets]);
+  }, [selectedConfig?.platformTargets]);
   // Cron config: use user-provided values if available, otherwise auto-derive from config
   const getCronConfig = (): Partial<CronConfig> => {
     // Start with user-provided cronConfig if it exists
@@ -221,6 +243,11 @@ export function CreateReleaseForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConfigId, configurations.length]); // Use configurations.length instead of full array
 
+  // Track which platform-targets have had suggestions applied (one-time per selection)
+  const suggestionsApplied = useRef<Set<string>>(new Set());
+  // Track previous platformTargets to detect new additions
+  const previousPlatformTargets = useRef<PlatformTargetWithVersion[] | undefined>(state.platformTargets);
+
   // Use version suggestions hook
   const { suggestions, needsVersionSuggestions, shouldUpdateBranch } = useVersionSuggestions({
     releases,
@@ -230,33 +257,101 @@ export function CreateReleaseForm({
     isEditMode,
   });
 
-  // Apply version suggestions when available
+  // Detect newly added platforms and mark them for suggestions
   useEffect(() => {
-    if (isEditMode || !suggestions || !needsVersionSuggestions) {
+    if (isEditMode || !state.platformTargets || state.platformTargets.length === 0) {
+      previousPlatformTargets.current = state.platformTargets;
       return;
     }
 
-    const updatedPlatformTargets = applyVersionSuggestions(
-      state.platformTargets!,
-      suggestions.suggestions
-    );
+    const prev = previousPlatformTargets.current || [];
+    const current = state.platformTargets;
 
-    setState((prev) => {
-      const versionsChanged = JSON.stringify(prev.platformTargets) !== JSON.stringify(updatedPlatformTargets);
-      const updateBranch = shouldUpdateBranch(suggestions.branchName, versionsChanged);
+    // Find newly added platform-targets
+    const newPlatformTargets = current.filter((currentPt) => {
+      const key = `${currentPt.platform}:${currentPt.target}`;
+      const wasInPrevious = prev.some(
+        (prevPt) => prevPt.platform === currentPt.platform && prevPt.target === currentPt.target
+      );
+      
+      // If it's new, check if it needs suggestions
+      if (!wasInPrevious) {
+        // Check if version is empty, undefined, or matches default versions
+        const needsSuggestion = !currentPt.version || 
+                                currentPt.version === '' ||
+                                DEFAULT_VERSIONS.includes(currentPt.version as any);
+        
+        if (needsSuggestion) {
+          // Remove from applied set (allows re-application if re-selected)
+          suggestionsApplied.current.delete(key);
+        } else {
+          // Has a real version, mark as applied so we don't overwrite it
+          suggestionsApplied.current.add(key);
+        }
+      }
+      
+      return !wasInPrevious;
+    });
 
-      if (!versionsChanged && !updateBranch) {
-        return prev;
+    previousPlatformTargets.current = current;
+  }, [state.platformTargets, isEditMode]);
+
+  // Apply version suggestions when available (one-time per platform selection)
+  useEffect(() => {
+    if (isEditMode || !suggestions || !state.platformTargets || state.platformTargets.length === 0) {
+      return;
+    }
+
+    // Only apply suggestions for platforms that haven't had suggestions applied yet
+    const updatedPlatformTargets = state.platformTargets.map((pt) => {
+      const key = `${pt.platform}:${pt.target}`;
+      
+      // Skip if suggestions already applied for this platform
+      if (suggestionsApplied.current.has(key)) {
+        return pt;
       }
 
-      return {
+      // Check if version needs suggestion (empty, undefined, or default)
+      const needsSuggestion = !pt.version || 
+                              pt.version === '' ||
+                              DEFAULT_VERSIONS.includes(pt.version as any);
+      
+      if (!needsSuggestion) {
+        // Has a real version, mark as applied
+        suggestionsApplied.current.add(key);
+        return pt;
+      }
+
+      // Find suggestion for this platform-target
+      const suggestion = suggestions.suggestions.find(
+        (s) => s.platform === pt.platform && s.target === pt.target
+      );
+
+      if (suggestion) {
+        // Mark as applied and update version
+        suggestionsApplied.current.add(key);
+        return {
+          ...pt,
+          version: suggestion.suggestedVersion,
+        };
+      }
+
+      return pt;
+    });
+
+    // Check if any versions changed
+    const versionsChanged = JSON.stringify(state.platformTargets) !== JSON.stringify(updatedPlatformTargets);
+    const updateBranch = shouldUpdateBranch(suggestions.branchName, versionsChanged);
+
+    if (versionsChanged || updateBranch) {
+      setState((prev) => ({
         ...prev,
         platformTargets: updatedPlatformTargets,
         branch: updateBranch ? suggestions.branchName : prev.branch,
-      };
-    });
+      }));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [suggestions, needsVersionSuggestions, shouldUpdateBranch, isEditMode]);
+  }, [suggestions, shouldUpdateBranch, isEditMode]);
 
   // Handler to create new configuration
   const handleCreateNewConfig = () => {
@@ -479,14 +574,13 @@ export function CreateReleaseForm({
         {/* Edit Mode Info */}
         {isEditMode && (
           <Alert icon={<IconAlertCircle size={16} />} color="blue" variant="light" radius="md">
-            <Text size="sm" fw={500} mb={4}>
-              Editing Release
-            </Text>
             <Text size="xs">
               {isUpcoming 
                 ? "You can edit branch, base branch, and scheduling info. Configuration and platform targets cannot be changed."
                 : isAfterKickoff
-                ? "You can only edit target release date and modify regression slots."
+                ? isPreReleaseInProgress
+                  ? "You can only edit target release date. Regression slots cannot be modified as pre-release stage has started."
+                  : "You can only edit target release date and modify regression slots."
                 : "This release cannot be edited."}
             </Text>
           </Alert>
@@ -575,14 +669,7 @@ export function CreateReleaseForm({
             </Text>
             <List size="sm" spacing="xs">
               {Object.entries(errors).map(([field, message]) => {
-                // Format field names for better readability
-                const fieldLabel = field
-                  .replace(/([A-Z])/g, ' $1')
-                  .replace(/^./, str => str.toUpperCase())
-                  .replace(/platform targets/i, 'Platform Targets')
-                  .replace(/kick off/i, 'Kickoff')
-                  .replace(/target release/i, 'Target Release')
-                  .replace(/release config/i, 'Configuration');
+                const fieldLabel = formatFieldLabel(field);
                 
                 return (
                   <List.Item key={field}>

@@ -14,6 +14,7 @@
 
 import type { BackendReleaseResponse } from '~/types/release-management.types';
 import type { ReleaseType, PlatformTargetWithVersion } from '~/types/release-creation-backend';
+import { ReleaseStatus } from '~/types/release-process-enums';
 
 // ============================================================================
 // Types
@@ -139,7 +140,7 @@ function extractLatestVersions(
   
   // Filter out archived releases
   const activeReleases = releases.filter(
-    (release) => release.status !== 'ARCHIVED'
+    (release) => release.status !== ReleaseStatus.ARCHIVED
   );
   
   // Process each release

@@ -20,7 +20,7 @@ export const ConfigurationLoadError = memo(function ConfigurationLoadError({
   const navigate = useNavigate();
 
   const handleGoToConfigurations = () => {
-    navigate(`/dashboard/${organizationId}/releases/settings?tab=configurations`);
+    navigate(`/dashboard/${organizationId}/releases/configurations`);
   };
 
   const handleRetry = () => {

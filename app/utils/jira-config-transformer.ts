@@ -5,7 +5,6 @@
 
 import type { JiraProjectConfig, JiraPlatformConfig, Platform } from '~/types/release-config';
 import { PLATFORMS } from '~/types/release-config-constants';
-import { JIRA_BACKEND_PARAMS } from '~/constants/release-config-ui';
 
 /**
  * Backend DTO structure (matches server-ota types)
@@ -20,13 +19,7 @@ export interface CreateProjectManagementConfigDto {
   description?: string;
   platformConfigurations: Array<{
     platform: Platform;
-    parameters: {
-      projectKey: string;
-      issueType?: string;
-      completedStatus: string;
-      priority?: string;
-      [key: string]: unknown;
-    };
+    parameters: Record<string, unknown>; // Matches backend format
   }>;
   createdByAccountId?: string;
 }
@@ -98,7 +91,13 @@ export function transformJiraConfigToBackendDTO(
 
   // Filter out invalid platform configurations (missing required fields)
   const validPlatformConfigs = jiraConfig.platformConfigurations.filter(
-    pc => pc.projectKey && pc.projectKey.trim() && pc.completedStatus
+    pc => {
+      const params = pc.parameters || {};
+      const projectKey = params.projectKey;
+      const completedStatus = params.completedStatus;
+      return projectKey && typeof projectKey === 'string' && projectKey.trim() && 
+             completedStatus && typeof completedStatus === 'string' && completedStatus.trim();
+    }
   );
 
   return {
@@ -108,12 +107,7 @@ export function transformJiraConfigToBackendDTO(
     description: `Project management configuration for ${configName}`,
     platformConfigurations: validPlatformConfigs.map(pc => ({
       platform: pc.platform,
-      parameters: {
-        [JIRA_BACKEND_PARAMS.PROJECT_KEY]: pc.projectKey,
-        [JIRA_BACKEND_PARAMS.ISSUE_TYPE]: pc.issueType,
-        [JIRA_BACKEND_PARAMS.COMPLETED_STATUS]: pc.completedStatus,
-        [JIRA_BACKEND_PARAMS.PRIORITY]: pc.priority,
-      }
+      parameters: pc.parameters || {},
     })),
     createdByAccountId: userId,
   };
@@ -138,10 +132,7 @@ export function transformBackendDTOToJiraConfig(
       .filter(pc => pc.platform === PLATFORMS.ANDROID || pc.platform === PLATFORMS.IOS) // Filter out WEB
       .map(pc => ({
         platform: pc.platform as Platform, // Safe cast after filter
-        projectKey: (pc.parameters[JIRA_BACKEND_PARAMS.PROJECT_KEY] as string) || '',
-        issueType: pc.parameters[JIRA_BACKEND_PARAMS.ISSUE_TYPE] as string | undefined,
-        completedStatus: (pc.parameters[JIRA_BACKEND_PARAMS.COMPLETED_STATUS] as string) || 'Done',
-        priority: pc.parameters[JIRA_BACKEND_PARAMS.PRIORITY] as string | undefined,
+        parameters: (pc.parameters || {}) as Record<string, unknown>,
       })),
     createReleaseTicket: true,
     linkBuildsToIssues: true,
@@ -157,9 +148,12 @@ export function transformBackendDTOToJiraConfig(
 export function createDefaultPlatformConfigs(platforms: Platform[]): JiraPlatformConfig[] {
   return platforms.map(platform => ({
     platform, // Use system platforms directly (ANDROID | IOS)
-    projectKey: '',
-    completedStatus: 'Done', // Default completion status
-    priority: 'High', // Default priority
+    parameters: {
+      projectKey: '',
+      issueType: 'Task', // Default issue type (required)
+      completedStatus: 'Done', // Default completion status
+      priority: 'High', // Default priority
+    },
   }));
 }
 
@@ -170,17 +164,21 @@ export function createDefaultPlatformConfigs(platforms: Platform[]): JiraPlatfor
  * @returns Validation result with error message if invalid
  */
 export function validatePlatformConfig(config: JiraPlatformConfig): { valid: boolean; error?: string } {
-  if (!config.projectKey || !config.projectKey.trim()) {
+  const params = config.parameters || {};
+  const projectKey = params.projectKey;
+  const completedStatus = params.completedStatus;
+
+  if (!projectKey || typeof projectKey !== 'string' || !projectKey.trim()) {
     return { valid: false, error: 'Project key is required' };
   }
 
-  if (!config.completedStatus || !config.completedStatus.trim()) {
+  if (!completedStatus || typeof completedStatus !== 'string' || !completedStatus.trim()) {
     return { valid: false, error: 'Completion status is required' };
   }
 
   // Project key should be uppercase alphanumeric (JIRA convention)
   const projectKeyRegex = /^[A-Z][A-Z0-9]*$/;
-  if (!projectKeyRegex.test(config.projectKey)) {
+  if (!projectKeyRegex.test(projectKey)) {
     return { valid: false, error: 'Project key must be uppercase letters and numbers (e.g., APP, FE, MOBILE)' };
   }
 

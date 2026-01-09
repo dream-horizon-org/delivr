@@ -14,7 +14,6 @@
 
 import {
   Alert,
-  Badge,
   Button,
   Card,
   Center,
@@ -39,20 +38,22 @@ import {
   IconRocket
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
-import { LatestSubmissionCard } from '~/components/Distribution/LatestSubmissionCard';
-import { PromoteAndroidSubmissionDialog } from '~/components/Distribution/PromoteAndroidSubmissionDialog';
-import { PromoteIOSSubmissionDialog } from '~/components/Distribution/PromoteIOSSubmissionDialog';
+import { LatestSubmissionCard } from '~/components/distribution/LatestSubmissionCard';
+import { PromoteAndroidSubmissionDialog } from '~/components/distribution/PromoteAndroidSubmissionDialog';
+import { PromoteIOSSubmissionDialog } from '~/components/distribution/PromoteIOSSubmissionDialog';
 import {
   DISTRIBUTION_STATUS_COLORS,
   SUBMISSION_STATUS_COLORS
 } from '~/constants/distribution/distribution.constants';
 import { useDistributionStage } from '~/hooks/useDistributionStage';
+import { ReleaseStatus } from '~/types/release-process-enums';
 import { useRelease } from '~/hooks/useRelease';
 import {
   Platform,
   SubmissionStatus
 } from '~/types/distribution/distribution.types';
 import { formatStatus } from '~/utils/distribution/distribution-ui.utils';
+import { AppBadge } from '~/components/Common/AppBadge';
 
 interface DistributionStageProps {
   tenantId: string;
@@ -136,7 +137,7 @@ export function DistributionStage({
   
   const { distribution, isLoading, error, refetch } = useDistributionStage(tenantId, releaseId);
   const { release } = useRelease(tenantId, releaseId);
-  const isArchived = release?.status === 'ARCHIVED';
+  const isArchived = release?.status === ReleaseStatus.ARCHIVED;
   
   console.log('[DistributionStage] Hook state:', { 
     hasDistribution: !!distribution, 
@@ -232,15 +233,14 @@ export function DistributionStage({
               <Title order={2} size="h3">
                 Distribution
               </Title>
-              <Badge
+              <AppBadge
+                type="status"
+                value="info"
+                title={formatStatus(distribution.status)}
                 size="xl"
-                variant="light"
                 color={statusColor}
-                radius="sm"
                 styles={{ root: { textTransform: 'uppercase' } }}
-              >
-                {formatStatus(distribution.status)}
-              </Badge>
+              />
             </Group>
             {isLoading && <Loader size="md" />}
           </Group>
@@ -258,28 +258,28 @@ export function DistributionStage({
                   <Group gap="sm">
                     {/* Android Status - Only if configured */}
                     {hasAndroid && latestAndroidSubmission && (
-                      <Badge
+                      <AppBadge
+                        type="status"
+                        value="info"
+                        title={`${latestAndroidSubmission.rolloutPercentage || 0}%`}
                         size="lg"
-                        variant="light"
                         color={SUBMISSION_STATUS_COLORS[latestAndroidSubmission.status] || 'gray'}
                         leftSection={<IconBrandAndroid size={16} />}
                         styles={{ root: { paddingLeft: 8 } }}
-                      >
-                        {latestAndroidSubmission.rolloutPercentage || 0}%
-                      </Badge>
+                      />
                     )}
 
                     {/* iOS Status - Only if configured */}
                     {hasIOS && latestIOSSubmission && (
-                      <Badge
+                      <AppBadge
+                        type="status"
+                        value="info"
+                        title={`${latestIOSSubmission.rolloutPercentage || 0}%`}
                         size="lg"
-                        variant="light"
                         color={SUBMISSION_STATUS_COLORS[latestIOSSubmission.status] || 'gray'}
                         leftSection={<IconBrandApple size={16} />}
                         styles={{ root: { paddingLeft: 8 } }}
-                      >
-                        {latestIOSSubmission.rolloutPercentage || 0}%
-                      </Badge>
+                      />
                     )}
                   </Group>
                 </Stack>

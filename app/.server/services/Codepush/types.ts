@@ -89,8 +89,6 @@ export type Organization = {
   displayName: string;
   role: "Owner" | "Collaborator";
   releaseManagement?: {
-    setupComplete: boolean;
-    setupSteps: SetupStepsInfo;
     config?: {
       connectedIntegrations: {
         SOURCE_CONTROL: any[];
@@ -106,13 +104,6 @@ export type Organization = {
       customSettings: Record<string, any>;
     };
   };
-};
-
-export type SetupStepsInfo = {
-  scmIntegration?: boolean;
-  targetPlatforms: boolean;
-  pipelines?: boolean;
-  communication?: boolean;
 };
 
 // Base types for terms-related entities

@@ -9,6 +9,7 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
 import { GitHubActionsIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 import { requireUserId } from '~/.server/services/Auth';
+import { logApiError } from '~/utils/api-route-helpers';
 
 /**
  * GET - Fetch existing GitHub Actions integration
@@ -25,7 +26,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     const result = await GitHubActionsIntegrationService.getIntegration(tenantId, userId);
     return json(result, { status: result.success ? 200 : 404 });
   } catch (error: any) {
-    console.error('Error getting GitHub Actions integration:', error);
+    logApiError('[GitHubActions-Get]', error);
     return json(
       { success: false, error: error.message || 'Failed to get GitHub Actions integration' },
       { status: 500 }
@@ -97,7 +98,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     return json({ success: false, error: 'Method not allowed' }, { status: 405 });
   } catch (error: any) {
-    console.error(`Error ${method} GitHub Actions integration:`, error);
+    logApiError(`[GitHubActions-${method}]`, error);
     return json(
       { success: false, error: error.message || `Failed to ${method} GitHub Actions integration` },
       { status: 500 }

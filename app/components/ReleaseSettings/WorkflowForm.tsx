@@ -4,10 +4,14 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link } from '@remix-run/react';
+import { Breadcrumb } from '~/components/Common';
+import { PageHeader } from '~/components/Common/PageHeader';
+import { getBreadcrumbItems } from '~/constants/breadcrumbs';
+import { WORKFLOW_FORM_HEADER } from '~/constants/page-headers';
 import {
   Box,
   Card,
+  Container,
   Stack,
   Text,
   TextInput,
@@ -16,10 +20,7 @@ import {
   Button,
   Alert,
   Divider,
-  Breadcrumbs,
-  Anchor,
   useMantineTheme,
-  ThemeIcon,
   Paper,
 } from '@mantine/core';
 import {
@@ -43,6 +44,7 @@ import {
 import { workflowTypeToEnvironment, environmentToWorkflowType, getEnvironmentsForPlatform } from '~/types/workflow-mappings';
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
+import { validateWorkflowName } from '~/utils/workflow-validation';
 
 const platformOptions = [
   { value: PLATFORMS.ANDROID, label: PLATFORM_LABELS.ANDROID },
@@ -110,8 +112,6 @@ export function WorkflowForm({
   // Initialize form from existing workflow
   useEffect(() => {
     if (existingWorkflow) {
-      
-      
       setName(existingWorkflow.displayName || '');
       
       // Normalize platform to uppercase (backend may return lowercase)
@@ -151,11 +151,15 @@ export function WorkflowForm({
             }, {} as Record<string, string>)
           : (params as Record<string, string>) || {};
         
+        // Extract parameterDefinitions if params is an array
+        const parameterDefinitions = Array.isArray(params) ? params : undefined;
+        
         setProviderConfig({
           type: BUILD_PROVIDERS.JENKINS,
           integrationId: existingWorkflow.integrationId,
           jobUrl: existingWorkflow.workflowUrl,
           parameters: parametersRecord,
+          parameterDefinitions, // Add this to restore fetched parameters
         });
       } else if (existingWorkflow.providerType === BUILD_PROVIDERS.GITHUB_ACTIONS) {
         const params = existingWorkflow.parameters;
@@ -170,11 +174,15 @@ export function WorkflowForm({
           inputsRecord = (params as any).inputs || {};
         }
         
+        // Extract parameterDefinitions if params is an array
+        const parameterDefinitions = Array.isArray(params) ? params : undefined;
+        
         setProviderConfig({
           type: BUILD_PROVIDERS.GITHUB_ACTIONS,
           integrationId: existingWorkflow.integrationId,
           workflowUrl: existingWorkflow.workflowUrl,
           inputs: inputsRecord,
+          parameterDefinitions, // Add this to restore fetched parameters
         });
       }
     } else {
@@ -234,21 +242,14 @@ export function WorkflowForm({
 
   const validate = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
-
-    if (!name || !name.trim()) {
-      newErrors.name = 'Workflow name is required';
-    } else if (workflows && workflows.length > 0) {
-      // Check for duplicate display names (exclude current workflow if editing)
-      const trimmedName = name.trim();
-      const duplicateWorkflow = workflows.find(
-        (wf) => 
-          wf.displayName.toLowerCase() === trimmedName.toLowerCase() &&
-          (!existingWorkflow || wf.id !== existingWorkflow.id)
-      );
-      
-      if (duplicateWorkflow) {
-        newErrors.name = 'A workflow with this name already exists. Please use a different name.';
-      }
+        // Validate workflow name using utility function
+    const nameError = validateWorkflowName(name, workflows, {
+      existingWorkflow,
+      workflowId,
+      isEditMode,
+    });
+    if (nameError) {
+      newErrors.name = nameError;
     }
 
     if (provider === BUILD_PROVIDERS.JENKINS) {
@@ -276,7 +277,7 @@ export function WorkflowForm({
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [name, provider, providerConfig, workflows, existingWorkflow]);
+  }, [name, provider, providerConfig, workflows, existingWorkflow, workflowId, isEditMode]);
 
   const handleSave = useCallback(async () => {
     if (!validate()) {
@@ -404,58 +405,31 @@ export function WorkflowForm({
   }, []);
 
   // Breadcrumb items
-  const breadcrumbItems = [
-    { title: 'Release Management', href: `/dashboard/${tenantId}/releases` },
-    { title: 'Workflows', href: `/dashboard/${tenantId}/releases/workflows` },
-    { title: isEditMode ? 'Edit' : 'New', href: '#' },
-  ].map((item, index) => (
-    item.href === '#' ? (
-      <Text key={index} size="sm" c={theme.colors.slate[6]}>
-        {item.title}
-      </Text>
-    ) : (
-      <Anchor
-        key={index}
-        component={Link}
-        to={item.href}
-        size="sm"
-        c={theme.colors.slate[5]}
-      >
-        {item.title}
-      </Anchor>
-    )
-  ));
+  const breadcrumbItems = getBreadcrumbItems('releases.workflows.detail', {
+    org: tenantId,
+    isEditMode,
+  });
 
   return (
-    <Box p={32}>
+    <Container size="xl" py={16}>
       {/* Breadcrumbs */}
-      <Breadcrumbs mb={24}>{breadcrumbItems}</Breadcrumbs>
+      <Breadcrumb items={breadcrumbItems} mb={24} />
 
       {/* Header */}
-      <Group justify="space-between" align="flex-start" mb={32}>
-        <Box>
-          <Group gap="sm" mb={8}>
-            <ThemeIcon size={36} radius="md" variant="light" color="brand">
-              <IconRocket size={20} />
-            </ThemeIcon>
-            <Text size="xl" fw={700} c={theme.colors.slate[9]}>
-              {isEditMode ? 'Edit Workflow' : 'Create Workflow'}
-            </Text>
-          </Group>
-          <Text size="sm" c={theme.colors.slate[5]}>
-            {isEditMode 
-              ? 'Update your CI/CD workflow configuration'
-              : 'Configure a new CI/CD workflow for Jenkins or GitHub Actions'}
-          </Text>
-        </Box>
-        <Button
-          variant="default"
-          leftSection={<IconArrowLeft size={16} />}
-          onClick={onCancel}
-        >
-          Cancel
-        </Button>
-      </Group>
+      <PageHeader
+        title={isEditMode ? WORKFLOW_FORM_HEADER.TITLE_EDIT : WORKFLOW_FORM_HEADER.TITLE_CREATE}
+        description={isEditMode ? WORKFLOW_FORM_HEADER.DESCRIPTION_EDIT : WORKFLOW_FORM_HEADER.DESCRIPTION_CREATE}
+        icon={IconRocket}
+        rightSection={
+          <Button
+            variant="default"
+            leftSection={<IconArrowLeft size={16} />}
+            onClick={onCancel}
+          >
+            Cancel
+          </Button>
+        }
+      />
 
       {/* Form Card */}
       <Card shadow="sm" padding="xl" radius="md" withBorder maw={800} mx="auto">
@@ -635,7 +609,7 @@ export function WorkflowForm({
           </Group>
         </Stack>
       </Card>
-    </Box>
+    </Container>
   );
 }
 

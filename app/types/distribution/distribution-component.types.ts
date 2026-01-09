@@ -106,7 +106,6 @@ export type UploadAABFormProps = BaseProps & Closeable & WithReleaseId & OnBuild
 };
 
 export type VerifyTestFlightFormProps = BaseProps & Closeable & WithReleaseId & OnVerifyResult & {
-  expectedVersion?: string;
   isVerifying?: boolean;
 };
 

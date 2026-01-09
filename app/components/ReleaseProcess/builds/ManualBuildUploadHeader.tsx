@@ -4,9 +4,10 @@
  * Shows title, badges, and platform information
  */
 
-import { Badge, Group, Text } from '@mantine/core';
+import { Group, Text } from '@mantine/core';
 import { PLATFORMS } from '~/types/release-config-constants';
 import { Platform, TaskType } from '~/types/release-process-enums';
+import { AppBadge, PlatformBadge } from '~/components/Common/AppBadge';
 
 interface ManualBuildUploadHeaderProps {
   isTestFlightVerification: boolean;
@@ -42,18 +43,27 @@ export function ManualBuildUploadHeader({
       {isTestFlightVerification ? (
         <>
           <Text fw={600} size="sm">Verify</Text>
-          <Badge size="sm" variant="light" color="blue">TestFlight</Badge>
+          <AppBadge
+            type="store-type"
+            value="TESTFLIGHT"
+            title="TestFlight"
+            size="sm"
+          />
         </>
       ) : (
         <>
           <Text fw={600} size="sm">Upload</Text>
           {getFileExtension() && (
-            <Badge size="sm" variant="light" color={fixedPlatform === PLATFORMS.ANDROID ? 'green' : 'blue'}>
-              {getFileExtension()}
-            </Badge>
+            <AppBadge
+              type="status"
+              value="info"
+              title={getFileExtension()}
+              size="sm"
+              color={fixedPlatform === PLATFORMS.ANDROID ? 'green' : 'blue'}
+            />
           )}
-          {getPlatformName() && (
-            <Text size="sm" c="dimmed">for {getPlatformName()}</Text>
+          {fixedPlatform && (
+            <PlatformBadge platform={fixedPlatform} size="sm" />
           )}
         </>
       )}

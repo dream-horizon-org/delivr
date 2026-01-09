@@ -16,7 +16,6 @@ import {
   Text,
   Group,
   Box,
-  Badge,
   Loader as MantineLoader,
 } from '@mantine/core';
 import { apiGet } from '~/utils/api-client';
@@ -25,6 +24,8 @@ import type { ReleaseConfiguration, Platform, TargetPlatform } from '~/types/rel
 import { RELEASE_TYPES as RELEASE_TYPE_CONSTANTS, TARGET_PLATFORMS, PLATFORMS } from '~/types/release-config-constants';
 import { PlatformTargetsSelector } from './PlatformTargetsSelector';
 import { convertConfigTargetsToPlatformTargets } from '~/utils/release-creation-converter';
+import { RELEASE_DETAILS_FORM } from '~/constants/release-creation-ui';
+import { AppBadge } from '~/components/Common/AppBadge';
 
 interface ReleaseDetailsFormProps {
   state: Partial<ReleaseCreationState>;
@@ -59,7 +60,6 @@ export function ReleaseDetailsForm({
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [defaultBranch, setDefaultBranch] = useState<string>('main');
 
-  console.log("state", "config", state, config);
 
   // Fetch branches from SCM
   useEffect(() => {
@@ -72,13 +72,16 @@ export function ReleaseDetailsForm({
         }>(`/api/v1/tenants/${tenantId}/integrations/scm/branches`);
 
         if (result.success && result.data?.branches) {
-          const branchOptions = result.data.branches.map((branch: { name: string; default?: boolean }) => ({
-            value: branch.name,
-            label: branch.default ? `${branch.name} (default)` : branch.name,
-          }));
+        const branchOptions = result.data.branches.map((branch: { name: string; default?: boolean }) => ({
+          value: branch.name,
+          label: branch.default ? `${branch.name}${RELEASE_DETAILS_FORM.BRANCH_DEFAULT_SUFFIX}` : branch.name,
+        }));
           setBranches(branchOptions);
-          if (result.data.defaultBranch) {
-            setDefaultBranch(result.data.defaultBranch);
+          
+          // Find the actual default branch from the branches array (not the stored defaultBranch)
+          const actualDefaultBranch = result.data.branches.find((branch: { name: string; default?: boolean }) => branch.default)?.name;
+          if (actualDefaultBranch) {
+            setDefaultBranch(actualDefaultBranch);
           }
         } else {
           console.warn('[ReleaseDetailsForm] Failed to fetch branches');
@@ -95,16 +98,23 @@ export function ReleaseDetailsForm({
     }
   }, [tenantId]);
 
-  // Pre-fill baseBranch from config
+  // Pre-fill baseBranch from config (prioritize config.baseBranch over repository default)
   useEffect(() => {
-    if (config && !state.baseBranch) {
-      const baseBranch = config.baseBranch || defaultBranch;
-      onChange({
-        ...state,
-        baseBranch,
-      });
+    // Only pre-fill if state doesn't already have a baseBranch
+    if (!state.baseBranch) {
+      // Prioritize config.baseBranch (the branch selected in release configuration)
+      // This is the branch the user selected when creating the release configuration
+      // Only fall back to repository default branch if config doesn't have one
+      const baseBranch = config?.baseBranch || defaultBranch;
+      if (baseBranch) {
+        onChange({
+          ...state,
+          baseBranch,
+        });
+      }
     }
-  }, [config, defaultBranch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config?.baseBranch, defaultBranch]); // Only depend on config.baseBranch and defaultBranch to avoid loops
 
   // Platform-target mapping (matches PlatformTargetsSelector)
   const PLATFORM_TARGET_MAPPING: Record<TargetPlatform, Platform | 'WEB'> = {
@@ -116,32 +126,13 @@ export function ReleaseDetailsForm({
   // Auto-populate platformTargets from config when creating release for the first time
   useEffect(() => {
     if (config && (!state.platformTargets || state.platformTargets.length === 0)) {
-      // Check if config has platformTargets (from backend response, even if not in TypeScript type)
-      const configPlatformTargets = (config as any).platformTargets as Array<{ platform: string; target: string }> | undefined;
-      
-      if (configPlatformTargets && configPlatformTargets.length > 0) {
-        // Use platformTargets from config if available
-        const preFilledTargets: PlatformTargetWithVersion[] = configPlatformTargets.map((pt) => ({
+      // Use platformTargets from config if available
+      if (config.platformTargets && config.platformTargets.length > 0) {
+        const preFilledTargets: PlatformTargetWithVersion[] = config.platformTargets.map((pt) => ({
           platform: pt.platform as PlatformTargetWithVersion['platform'],
           target: pt.target as TargetPlatform,
           version: getDefaultVersion(), // Use default version for pre-filled targets
         }));
-        
-        onChange({
-          ...state,
-          platformTargets: preFilledTargets,
-        });
-        return; // Exit early to avoid filtering logic below
-      } else if (config.targets && config.targets.length > 0) {
-        // Fallback: derive from config.targets
-        const preFilledTargets: PlatformTargetWithVersion[] = config.targets.map((target) => {
-          const platform = PLATFORM_TARGET_MAPPING[target];
-          return {
-            platform: platform as PlatformTargetWithVersion['platform'],
-            target: target,
-            version: getDefaultVersion(), // Use default version for pre-filled targets
-          };
-        });
         
         onChange({
           ...state,
@@ -153,8 +144,8 @@ export function ReleaseDetailsForm({
     
     // Filter platformTargets to only include targets that exist in config
     // This handles cases where a draft had targets that are no longer in the current config
-    if (config && state.platformTargets && state.platformTargets.length > 0) {
-      const configTargets = config.targets || [];
+    if (config?.platformTargets && config.platformTargets.length > 0 && state.platformTargets && state.platformTargets.length > 0) {
+      const configTargets = config.platformTargets.map((pt) => pt.target);
       
       // Filter out any platformTargets that are not in config
       const validTargets = state.platformTargets.filter((pt) => 
@@ -170,13 +161,11 @@ export function ReleaseDetailsForm({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config?.targets]);
+  }, [config?.platformTargets]);
 
   // Pre-fill release type from config or default to MINOR
   // Update release type whenever config changes (not just on initial load)
   useEffect(() => {
-    console.log('[ReleaseDetailsForm] useEffect [config] state:', state.type, 'config:', config);
-    
     // Default to MINOR (regular release)
     let releaseType: ReleaseType = RELEASE_TYPE_CONSTANTS.MINOR;
     
@@ -219,18 +208,23 @@ export function ReleaseDetailsForm({
       <Box>
         <Group gap="md" align="center" mb={4}>
           <Text fw={600} size="lg">
-            Release Details
+            {RELEASE_DETAILS_FORM.TITLE}
           </Text>
           {state.type && (
-            <Badge size="lg" variant="light" color="blue">
-              {state.type === RELEASE_TYPE_CONSTANTS.MAJOR && 'Major Release'}
-              {state.type === RELEASE_TYPE_CONSTANTS.MINOR && 'Minor Release'}
-              {state.type === RELEASE_TYPE_CONSTANTS.HOTFIX && 'Hotfix'}
-            </Badge>
+            <AppBadge
+              type="release-type"
+              value={state.type}
+              title={
+                state.type === RELEASE_TYPE_CONSTANTS.MAJOR ? RELEASE_DETAILS_FORM.MAJOR_RELEASE :
+                state.type === RELEASE_TYPE_CONSTANTS.MINOR ? RELEASE_DETAILS_FORM.MINOR_RELEASE :
+                RELEASE_DETAILS_FORM.HOTFIX
+              }
+              size="lg"
+            />
           )}
         </Group>
         <Text size="sm" c="dimmed">
-          Configure the source branch, release branch name, platform targets with versions, and optional description for this release.
+          {RELEASE_DETAILS_FORM.DESCRIPTION}
         </Text>
       </Box>
 
@@ -238,8 +232,8 @@ export function ReleaseDetailsForm({
       <Stack gap="md">
         <Group gap="md" grow align="flex-start">
           <Select
-            label="Base Branch"
-            placeholder={loadingBranches ? 'Loading branches...' : 'Select a branch'}
+            label={RELEASE_DETAILS_FORM.BASE_BRANCH_LABEL}
+            placeholder={loadingBranches ? RELEASE_DETAILS_FORM.BASE_BRANCH_PLACEHOLDER_LOADING : RELEASE_DETAILS_FORM.BASE_BRANCH_PLACEHOLDER}
             data={branches}
             value={state.baseBranch || ''}
             onChange={(val) => onChange({ ...state, baseBranch: val || '' })}
@@ -249,26 +243,26 @@ export function ReleaseDetailsForm({
             searchable
             disabled={loadingBranches}
             rightSection={loadingBranches ? <MantineLoader size="xs" /> : null}
-            description="The source branch that will be forked to create the release branch. Typically 'main' or 'master'."
+            description={RELEASE_DETAILS_FORM.BASE_BRANCH_DESCRIPTION}
           />
           <TextInput
-            label="Release Branch Name"
-            placeholder="e.g., release/v1.0.0"
+            label={RELEASE_DETAILS_FORM.RELEASE_BRANCH_LABEL}
+            placeholder={RELEASE_DETAILS_FORM.RELEASE_BRANCH_PLACEHOLDER}
             value={state.branch || ''}
             onChange={(e) => onChange({ ...state, branch: e.target.value || undefined })}
             error={errors.branch}
             required
             withAsterisk
-            description="Name for the new release branch that will be created. Use semantic versioning (e.g., release/v1.0.0)."
+            description={RELEASE_DETAILS_FORM.RELEASE_BRANCH_DESCRIPTION}
           />
         </Group>
         <Textarea
-          label="Description"
-          placeholder="What's new in this release..."
+          label={RELEASE_DETAILS_FORM.DESCRIPTION_LABEL}
+          placeholder={RELEASE_DETAILS_FORM.DESCRIPTION_PLACEHOLDER}
           value={state.description || ''}
           onChange={(e) => onChange({ ...state, description: e.target.value })}
           rows={3}
-          description="Optional description of what's included in this release. This will be visible to your team."
+          description={RELEASE_DETAILS_FORM.DESCRIPTION_DESCRIPTION}
         />
       </Stack>
 

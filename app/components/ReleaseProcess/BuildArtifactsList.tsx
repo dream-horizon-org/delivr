@@ -16,6 +16,7 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import type { BuildArtifact } from '~/types/release-process.types';
+import { Platform } from '~/types/release-process-enums';
 
 interface BuildArtifactsListProps {
   artifacts: BuildArtifact[];
@@ -49,7 +50,7 @@ export function BuildArtifactsList({
                   </Anchor>
                 ) : (
                   <Text size="xs" c="dimmed">
-                    {artifact.platform === 'IOS' && !artifact.downloadUrl && artifact.buildNumber
+                    {artifact.platform === Platform.IOS && !artifact.downloadUrl && artifact.buildNumber
                       ? `TestFlight Build #${artifact.buildNumber}`
                       : 'No download available'}
                   </Text>

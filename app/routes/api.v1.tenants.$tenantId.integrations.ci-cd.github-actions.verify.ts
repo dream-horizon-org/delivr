@@ -6,6 +6,7 @@
 import { json, type ActionFunctionArgs } from '@remix-run/node';
 import { GitHubActionsIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 import { requireUserId } from '~/.server/services/Auth';
+import { logApiError } from '~/utils/api-route-helpers';
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const userId = await requireUserId(request);
@@ -32,7 +33,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     return json(result, { status: result.verified ? 200 : 401 });
   } catch (error: any) {
-    console.error('Error verifying GitHub Actions connection:', error);
+    logApiError('[GitHubActions-Verify]', error);
     return json(
       { verified: false, message: error.message || 'Failed to verify GitHub Actions connection' },
       { status: 500 }

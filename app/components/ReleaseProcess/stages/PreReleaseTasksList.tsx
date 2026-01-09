@@ -5,6 +5,7 @@
 
 import { PRE_RELEASE_LABELS } from '~/constants/release-process-ui';
 import type { Task, BuildInfo } from '~/types/release-process.types';
+import { TaskStage } from '~/types/release-process-enums';
 import { TasksList } from '../shared/TasksList';
 
 interface PreReleaseTasksListProps {
@@ -33,6 +34,7 @@ export function PreReleaseTasksList({
       emptyMessage={PRE_RELEASE_LABELS.NO_TASKS || 'No tasks available'}
       uploadedBuilds={uploadedBuilds}
       isArchived={isArchived}
+      stage={TaskStage.PRE_RELEASE}
     />
   );
 }

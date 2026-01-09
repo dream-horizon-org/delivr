@@ -4,8 +4,7 @@
  */
 
 import type { BackendReleaseResponse } from '~/types/release-management.types';
-import { Phase, TaskStage as TaskStageEnum } from '~/types/release-process-enums';
-import type { TaskStage } from '~/types/release-process-enums';
+import { Phase, TaskStage, TaskStage as TaskStageEnum, ReleaseStatus, StageStatus } from '~/types/release-process-enums';
 
 /**
  * Determine current phase based on release status and tasks
@@ -15,11 +14,11 @@ import type { TaskStage } from '~/types/release-process-enums';
  */
 export function determineReleasePhase(release: BackendReleaseResponse): Phase {
   // If release is archived or completed, return appropriate phase
-  if (release.status === 'ARCHIVED') {
+  if (release.status === ReleaseStatus.ARCHIVED) {
     return Phase.ARCHIVED;
   }
   
-  if (release.status === 'COMPLETED') {
+  if (release.status === ReleaseStatus.COMPLETED) {
     return Phase.COMPLETED;
   }
 
@@ -33,7 +32,7 @@ export function determineReleasePhase(release: BackendReleaseResponse): Phase {
   if (release.tasks && release.tasks.length > 0) {
     // Check if any regression tasks exist
     const hasRegressionTasks = release.tasks.some(
-      (task: any) => task.taskStage === 'REGRESSION' || task.stage === 'REGRESSION'
+      (task: any) => task.taskStage === TaskStage.REGRESSION || task.stage === TaskStage.REGRESSION
     );
     
     if (hasRegressionTasks) {
@@ -42,7 +41,7 @@ export function determineReleasePhase(release: BackendReleaseResponse): Phase {
 
     // Check if any pre-release tasks exist
     const hasPreReleaseTasks = release.tasks.some(
-      (task: any) => task.taskStage === 'PRE_RELEASE' || task.stage === 'PRE_RELEASE'
+      (task: any) => task.taskStage === TaskStage.PRE_RELEASE || task.stage === TaskStage.PRE_RELEASE
     );
     
     if (hasPreReleaseTasks) {
@@ -75,11 +74,11 @@ export function getStageFromPhase(
       switch (currentActiveStage) {
         case 'PRE_KICKOFF':
           return null; // Not a stage in stepper
-        case 'KICKOFF':
+        case TaskStage.KICKOFF:
           return TaskStageEnum.KICKOFF;
-        case 'REGRESSION':
+        case TaskStage.REGRESSION:
           return TaskStageEnum.REGRESSION;
-        case 'PRE_RELEASE':
+        case TaskStage.PRE_RELEASE:
           return TaskStageEnum.PRE_RELEASE;
         case 'RELEASE_SUBMISSION':
         case 'RELEASE':
@@ -96,11 +95,11 @@ export function getStageFromPhase(
     // If currentActiveStage is available, use it
     if (currentActiveStage) {
       switch (currentActiveStage) {
-        case 'KICKOFF':
+        case TaskStage.KICKOFF:
           return TaskStageEnum.KICKOFF;
-        case 'REGRESSION':
+        case TaskStage.REGRESSION:
           return TaskStageEnum.REGRESSION;
-        case 'PRE_RELEASE':
+        case TaskStage.PRE_RELEASE:
           return TaskStageEnum.PRE_RELEASE;
         case 'RELEASE_SUBMISSION':
         case 'RELEASE':
@@ -114,16 +113,16 @@ export function getStageFromPhase(
     // If currentActiveStage is null, determine from cronJob stage statuses
     if (cronJob) {
       // Check stages in reverse order (most recent first)
-      if (cronJob.stage4Status === 'COMPLETED' || cronJob.stage4Status === 'IN_PROGRESS') {
+      if (cronJob.stage4Status === StageStatus.COMPLETED || cronJob.stage4Status === StageStatus.IN_PROGRESS) {
         return TaskStageEnum.DISTRIBUTION;
       }
-      if (cronJob.stage3Status === 'COMPLETED' || cronJob.stage3Status === 'IN_PROGRESS') {
+      if (cronJob.stage3Status === StageStatus.COMPLETED || cronJob.stage3Status === StageStatus.IN_PROGRESS) {
         return TaskStageEnum.PRE_RELEASE;
       }
-      if (cronJob.stage2Status === 'COMPLETED' || cronJob.stage2Status === 'IN_PROGRESS') {
+      if (cronJob.stage2Status === StageStatus.COMPLETED || cronJob.stage2Status === StageStatus.IN_PROGRESS) {
         return TaskStageEnum.REGRESSION;
       }
-      if (cronJob.stage1Status === 'COMPLETED' || cronJob.stage1Status === 'IN_PROGRESS') {
+      if (cronJob.stage1Status === StageStatus.COMPLETED || cronJob.stage1Status === StageStatus.IN_PROGRESS) {
         return TaskStageEnum.KICKOFF;
       }
       // All stages are PENDING - release never started, show PRE_KICKOFF
@@ -187,5 +186,38 @@ export function getReleaseVersion(release: BackendReleaseResponse): string {
   }
   
   return 'Unknown';
+}
+
+/**
+ * Check if cherry-pick-status API should be enabled
+ * Cherry-pick status should only be checked during REGRESSION and PRE_RELEASE stages
+ * 
+ * @param currentStage - Current task stage
+ * @param releaseStatus - Release status (ARCHIVED, COMPLETED, etc.)
+ * @param releasePhase - Release phase (NOT_STARTED, KICKOFF, etc.)
+ * @returns true if cherry-pick-status API should be enabled
+ */
+export function shouldEnableCherryPickStatus(
+  currentStage: TaskStage | null,
+  releaseStatus?: string,
+  releasePhase?: Phase
+): boolean {
+  // Disable if release is archived
+  if (releaseStatus === ReleaseStatus.ARCHIVED) {
+    return false;
+  }
+
+  // Disable if release hasn't started (pre-kickoff)
+  if (releasePhase === Phase.NOT_STARTED) {
+    return false;
+  }
+
+  // Disable if in KICKOFF or DISTRIBUTION stages
+  if (currentStage === TaskStageEnum.KICKOFF || currentStage === TaskStageEnum.DISTRIBUTION) {
+    return false;
+  }
+
+  // Only enable for REGRESSION and PRE_RELEASE stages
+  return currentStage === TaskStageEnum.REGRESSION || currentStage === TaskStageEnum.PRE_RELEASE;
 }
 

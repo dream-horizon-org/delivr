@@ -3,12 +3,13 @@
  * Displays test suite reset information for RESET_TEST_SUITE tasks
  */
 
-import { Group, Stack, Text, Badge } from '@mantine/core';
+import { Group, Stack, Text } from '@mantine/core';
 import { Anchor } from '@mantine/core';
 import { IconExternalLink, IconTestPipe, IconRefresh } from '@tabler/icons-react';
 import type { Task } from '~/types/release-process.types';
 import { TaskStatus } from '~/types/release-process-enums';
 import type { TestManagementTaskOutput } from '~/types/task-details.types';
+import { PlatformBadge } from '~/components/Common/AppBadge';
 
 interface ResetTestSuiteTaskDetailsProps {
   task: Task;
@@ -48,9 +49,7 @@ export function ResetTestSuiteTaskDetails({ task }: ResetTestSuiteTaskDetailsPro
             {platforms.map((platformRun, index) => (
               <Group key={index} gap="sm" justify="space-between">
                 <Group gap="xs">
-                  <Badge variant="light" size="sm">
-                    {platformRun.platform}
-                  </Badge>
+                  <PlatformBadge platform={platformRun.platform} size="sm" />
                   <Group gap={4}>
                     <IconTestPipe size={14} />
                     <Text size="sm" fw={500}>

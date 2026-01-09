@@ -14,6 +14,7 @@ import {
 } from '~/utils/authenticate';
 import { SlackIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 import type { User } from '~/.server/services/Auth/auth.interface';
+import { logApiError } from '~/utils/api-route-helpers';
 
 /**
  * GET - Fetch Slack integration for tenant
@@ -37,7 +38,7 @@ export const loader = authenticateLoaderRequest(
 
       return json(result);
     } catch (error) {
-      console.error('[Slack-Get] Error:', error);
+      logApiError('[Slack-Get]', error);
       return json(
         {
           error: error instanceof Error ? error.message : 'Failed to get Slack integration',
@@ -90,7 +91,7 @@ const createSlackIntegration = async ({ request, params, user }: ActionFunctionA
 
     return json(result, { status: result.success ? 201 : 500 });
   } catch (error) {
-    console.error('[Slack-Create] Error:', error);
+    logApiError('[Slack-Create]', error);
     return json(
       {
         success: false,
@@ -129,7 +130,7 @@ const updateSlackIntegration = async ({ request, params, user }: ActionFunctionA
 
     return json(result);
   } catch (error) {
-    console.error('[Slack-Update] Error:', error);
+    logApiError('[Slack-Update]', error);
     return json(
       {
         success: false,
@@ -158,7 +159,7 @@ const deleteSlackIntegration = async ({ params, user }: ActionFunctionArgs & { u
 
     return json(response);
   } catch (error) {
-    console.error('[Slack-Delete] Error:', error);
+    logApiError('[Slack-Delete]', error);
     return json(
       {
         success: false,

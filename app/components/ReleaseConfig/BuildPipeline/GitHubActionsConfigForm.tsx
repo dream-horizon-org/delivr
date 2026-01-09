@@ -4,13 +4,15 @@
  */
 
 import { useState, useEffect } from 'react';
-import { TextInput, Select, Stack, Button, Text, Alert, LoadingOverlay, Card, Badge, Group } from '@mantine/core';
+import { TextInput, Select, Stack, Button, Text, Alert, LoadingOverlay, Card, Group } from '@mantine/core';
 import { IconPlus, IconTrash, IconRefresh, IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import { apiPost, getApiErrorMessage } from '~/utils/api-client';
 import type { GitHubActionsConfig } from '~/types/release-config';
 import type { GitHubActionsConfigFormProps } from '~/types/release-config-props';
 import type { WorkflowParameter } from '~/.server/services/ReleaseManagement/integrations';
 import { FIELD_LABELS, PLACEHOLDERS, BUTTON_LABELS } from '~/constants/release-config-ui';
+import { BUILD_PROVIDERS } from '~/types/release-config-constants';
+import { AppBadge } from '~/components/Common/AppBadge';
 
 export function GitHubActionsConfigForm({
   config,
@@ -19,9 +21,9 @@ export function GitHubActionsConfigForm({
   tenantId,
 }: GitHubActionsConfigFormProps) {
   
-  // Manual input entry state (legacy fallback)
-  const [newInputKey, setNewInputKey] = useState('');
-  const [newInputValue, setNewInputValue] = useState('');
+  // Manual input entry state (legacy fallback) - DISABLED
+  // const [newInputKey, setNewInputKey] = useState('');
+  // const [newInputValue, setNewInputValue] = useState('');
   
   // Parameter fetching state
   const [fetchingParams, setFetchingParams] = useState(false);
@@ -41,28 +43,81 @@ export function GitHubActionsConfigForm({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availableIntegrations.length, availableIntegrations[0]?.id]);
+
+  // Restore parameterDefinitions and auto-fetch if missing
+  useEffect(() => {
+    // If parameterDefinitions exist in config, restore them
+    if (config.parameterDefinitions && Array.isArray(config.parameterDefinitions)) {
+      const restoredParams = config.parameterDefinitions.map((param: WorkflowParameter) => {
+        const hasChoices = (param as any).choices && (param as any).choices.length > 0;
+        const hasOptions = param.options && param.options.length > 0;
+        const options = hasOptions ? param.options : (hasChoices ? (param as any).choices : undefined);
+        
+        return {
+          ...param,
+          options,
+        };
+      });
+      
+      setFetchedParameters(restoredParams);
+      setParametersFetched(true);
+    } else {
+      const workflowUrl = config.workflowUrl || config.workflowPath;
+      if (workflowUrl && config.integrationId && tenantId && !parametersFetched && !fetchingParams) {
+        // Auto-fetch if we have workflowUrl and integrationId but no parameterDefinitions
+        // This handles edit mode where workflow was created with manual parameters
+        handleFetchParameters();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.parameterDefinitions, config.workflowUrl, config.workflowPath, config.integrationId]);
   
-  const handleAddInput = () => {
-    if (newInputKey && newInputValue) {
+  // Manual input handlers - DISABLED
+  // const handleAddInput = () => {
+  //   if (newInputKey && newInputValue) {
+  //     onChange({
+  //       ...config,
+  //       inputs: {
+  //         ...inputs,
+  //         [newInputKey]: newInputValue,
+  //       },
+  //     });
+  //     setNewInputKey('');
+  //     setNewInputValue('');
+  //   }
+  // };
+  
+  // Updated handleRemoveInput to work with fetched parameters
+  const handleRemoveInput = (inputName: string) => {
+    // If it's a fetched parameter, check if it's required
+    if (parametersFetched) {
+      const param = fetchedParameters.find(p => p.name === inputName);
+      if (param?.required) {
+        return; // Don't allow removing required parameters
+      }
+      
+      // Remove from fetched parameters
+      const updated = fetchedParameters.filter(p => p.name !== inputName);
+      setFetchedParameters(updated);
+      
+      // Remove from inputs object
+      const newInputs = { ...inputs };
+      delete newInputs[inputName];
+      
       onChange({
         ...config,
-        inputs: {
-          ...inputs,
-          [newInputKey]: newInputValue,
-        },
+        inputs: newInputs,
+        parameterDefinitions: updated,
+      } as any);
+    } else {
+      // Fallback for non-fetched parameters (shouldn't happen now, but keeping for safety)
+      const newInputs = { ...inputs };
+      delete newInputs[inputName];
+      onChange({
+        ...config,
+        inputs: newInputs,
       });
-      setNewInputKey('');
-      setNewInputValue('');
     }
-  };
-  
-  const handleRemoveInput = (key: string) => {
-    const newInputs = { ...inputs };
-    delete newInputs[key];
-    onChange({
-      ...config,
-      inputs: newInputs,
-    });
   };
   
   // Fetch workflow inputs from GitHub Actions
@@ -91,7 +146,7 @@ export function GitHubActionsConfigForm({
       const result = await apiPost<{ parameters: WorkflowParameter[] }>(
         `/api/v1/tenants/${tenantId}/workflows/job-parameters`,
         {
-          providerType: 'GITHUB_ACTIONS',
+          providerType: BUILD_PROVIDERS.GITHUB_ACTIONS,
           integrationId: config.integrationId,
           url: workflowUrl,
         }
@@ -225,18 +280,37 @@ export function GitHubActionsConfigForm({
             {fetchedParameters.map((param) => (
               <Card key={param.name} withBorder className="bg-gray-50">
                 <Stack gap="xs">
-                  <Group gap="xs">
-                    <Text size="sm" fw={600}>
-                      {param.name}
-                    </Text>
-                    {param.required && (
-                      <Badge size="xs" color="red">
-                        Required
-                      </Badge>
+                  <Group gap="xs" justify="space-between">
+                    <Group gap="xs">
+                      <Text size="sm" fw={600}>
+                        {param.name}
+                      </Text>
+                      {param.required && (
+                        <AppBadge
+                          type="status"
+                          value="error"
+                          title="Required"
+                          size="xs"
+                        />
+                      )}
+                      <AppBadge
+                        type="status"
+                        value="neutral"
+                        title={param.type}
+                        size="xs"
+                      />
+                    </Group>
+                    {!param.required && (
+                      <Button
+                        variant="subtle"
+                        color="red"
+                        size="xs"
+                        onClick={() => handleRemoveInput(param.name)}
+                        leftSection={<IconTrash size={14} />}
+                      >
+                        Remove
+                      </Button>
                     )}
-                    <Badge size="xs" color="gray">
-                      {param.type}
-                    </Badge>
                   </Group>
                   
                   {param.description && (
@@ -269,8 +343,8 @@ export function GitHubActionsConfigForm({
         </div>
       )}
       
-      {/* Manual Input Entry (Fallback) */}
-      {!parametersFetched && (
+      {/* Manual Input Entry (Fallback) - DISABLED */}
+      {/* {!parametersFetched && (
         <div>
           <Text size="sm" fw={500} className="mb-2">
             Workflow Inputs (Manual)
@@ -332,7 +406,7 @@ export function GitHubActionsConfigForm({
             </Button>
           </div>
         </div>
-      )}
+      )} */}
       </Stack>
     </div>
   );

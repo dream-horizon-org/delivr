@@ -21,6 +21,7 @@ import type {
   RegressionSlot,
   Task,
   BuildInfo,
+  PlatformTargetMapping,
 } from '~/types/release-process.types';
 import { RegressionCycleStatus, BuildUploadStage, Platform } from '~/types/release-process-enums';
 import { TaskType } from '~/types/release-process-enums';
@@ -127,8 +128,8 @@ export function RegressionCyclesList({
   const requiredPlatforms = useMemo(() => {
     if (!release?.platformTargetMappings) return [];
     return release.platformTargetMappings
-      .map((m) => m.platform)
-      .filter((p, i, arr) => arr.indexOf(p) === i); // Get unique platforms
+      .map((m: PlatformTargetMapping) => m.platform)
+      .filter((p: Platform, i: number, arr: Platform[]) => arr.indexOf(p) === i); // Get unique platforms
   }, [release?.platformTargetMappings]);
 
   // Widget will determine which platforms need builds internally

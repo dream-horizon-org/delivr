@@ -25,6 +25,7 @@ import { RegressionSlotCardForRelease } from './RegressionSlotCardForRelease';
 import { combineDateAndTime } from '~/utils/release-creation-converter';
 import { DEFAULT_REGRESSION_OFFSET_DAYS } from '~/constants/release-creation';
 import { validateSlot } from '~/utils/regression-slot-validation';
+import { REGRESSION_SLOTS_MANAGER } from '~/constants/release-creation-ui';
 
 interface RegressionSlotsManagerProps {
   regressionBuildSlots: RegressionBuildSlotBackend[];
@@ -37,6 +38,7 @@ interface RegressionSlotsManagerProps {
   errors?: Record<string, string>;
   isAfterKickoff?: boolean; // Whether release has already kicked off
   disableAddSlot?: boolean; // Whether to disable adding new slots (e.g., when regression is completed)
+  isEditMode?: boolean; // Whether this is edit mode (prevents auto-populating from config)
 }
 
 export function RegressionSlotsManager({
@@ -50,6 +52,7 @@ export function RegressionSlotsManager({
   errors = {},
   isAfterKickoff = false,
   disableAddSlot = false,
+  isEditMode = false,
 }: RegressionSlotsManagerProps) {
   const theme = useMantineTheme();
   const [editingSlotIndex, setEditingSlotIndex] = useState<number | null>(null);
@@ -71,7 +74,13 @@ export function RegressionSlotsManager({
   }, [targetReleaseDate, targetReleaseTime]);
   
   // One-time conversion when config has slots (only if no slots exist yet)
+  // IMPORTANT: Only auto-populate from config when creating a NEW release, not when editing
   useEffect(() => {
+    if (isEditMode) {
+      // In edit mode, don't auto-populate from config - use only what's in the release
+      return;
+    }
+    
     if (config?.releaseSchedule?.regressionSlots && kickOffDate && committedSlots.length === 0) {
       const convertedSlots: RegressionBuildSlotBackend[] = config.releaseSchedule.regressionSlots.map(slot => {
         const slotDate = new Date(kickOffISO);
@@ -92,7 +101,7 @@ export function RegressionSlotsManager({
       
       onChange(convertedSlots);
     }
-  }, [config, kickOffDate, kickOffISO]); // Only run once when config/kickoff changes
+  }, [config, kickOffDate, kickOffISO, isEditMode]); // Added isEditMode to dependencies
   
   // Handle adding a new slot (creates pending slot, doesn't add to array yet)
   const handleAddSlot = () => {
@@ -221,7 +230,7 @@ export function RegressionSlotsManager({
       >
         <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light" radius="md">
           <Text size="sm">
-            Please set kickoff date and target release date first to configure regression slots.
+            {REGRESSION_SLOTS_MANAGER.SET_DATES_FIRST}
           </Text>
         </Alert>
       </Box>
@@ -244,11 +253,11 @@ export function RegressionSlotsManager({
                 <IconClock size={18} />
               </ThemeIcon>
               <Text fw={600} size="lg">
-                Regression Build Slots
+                {REGRESSION_SLOTS_MANAGER.TITLE}
               </Text>
             </Group>
             <Text size="sm" c={theme.colors.slate[5]} ml={42}>
-              Schedule regression builds between kickoff and release dates for testing.
+              {REGRESSION_SLOTS_MANAGER.DESCRIPTION}
             </Text>
           </Box>
           <Button
@@ -257,10 +266,9 @@ export function RegressionSlotsManager({
             size="sm"
             onClick={handleAddSlot}
             color="brand"
-            disabled={!!pendingSlot || disableAddSlot} // Disable if there's a pending slot or pre-release stage is in progress
-            title={disableAddSlot ? 'Pre-release stage is in progress. Cannot add new regression slots.' : undefined}
+            disabled={!!pendingSlot}
           >
-            Add Slot
+            {REGRESSION_SLOTS_MANAGER.ADD_SLOT_BUTTON}
           </Button>
         </Group>
 
@@ -312,7 +320,7 @@ export function RegressionSlotsManager({
         {committedSlots.length === 0 && !pendingSlot && (
           <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light" radius="md">
             <Text size="sm">
-              No regression slots configured. Click "Add Slot" to schedule builds between kickoff and release.
+              {REGRESSION_SLOTS_MANAGER.NO_SLOTS_MESSAGE}
             </Text>
           </Alert>
         )}

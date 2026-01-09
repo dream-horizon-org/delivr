@@ -1,11 +1,8 @@
-import { useLoaderData } from "@remix-run/react";
-import { User } from '~/.server/services/Auth/auth.interface';
-import { AppListPage } from "~/components/Pages/components/AppListPage";
-import { authenticateLoaderRequest } from "~/utils/authenticate";
+import { redirect } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "@remix-run/node";
 
-export const loader = authenticateLoaderRequest();
+export const loader = async ({ params }: LoaderFunctionArgs) => {
+  // Redirect old route to new route for backward compatibility
+  return redirect(`/dashboard/${params.org}/ota/apps`);
+};
 
-export default function AppsList() {
-  const user = useLoaderData<User>();
-  return <AppListPage user={user} />;
-}

@@ -5,9 +5,10 @@
 
 import { Alert, Button, Stack, TextInput } from '@mantine/core';
 import { IconAlertCircle, IconCheck } from '@tabler/icons-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useVerifyTestFlight } from '~/hooks/useReleaseProcess';
 import type { BuildUploadStage } from '~/types/release-process-enums';
+import { Platform } from '~/types/release-process-enums';
 import { handleStageError } from '~/utils/stage-error-handling';
 import { showSuccessToast } from '~/utils/toast';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
@@ -17,7 +18,7 @@ interface TestFlightVerificationSectionProps {
   releaseId: string;
   stage: BuildUploadStage;
   release?: BackendReleaseResponse;
-  onUploadComplete?: () => void;
+  onUploadComplete?: (platform?: Platform) => void;
   onRefetchArtifacts: () => Promise<unknown>;
 }
 
@@ -30,29 +31,14 @@ export function TestFlightVerificationSection({
   onRefetchArtifacts,
 }: TestFlightVerificationSectionProps) {
   const [testflightBuildNumber, setTestflightBuildNumber] = useState('');
-  const [versionName, setVersionName] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const verifyTestFlightMutation = useVerifyTestFlight(tenantId, releaseId);
 
-  // Pre-fill version from release if available
-  useEffect(() => {
-    if (release?.platformTargetMappings) {
-      const iosMapping = release.platformTargetMappings.find(m => m.platform === 'IOS');
-      if (iosMapping?.version && !versionName) {
-        setVersionName(iosMapping.version);
-      }
-    }
-  }, [release?.platformTargetMappings, versionName]);
-
   const handleTestFlightVerify = useCallback(async () => {
     if (!testflightBuildNumber.trim()) {
       setValidationError('TestFlight build number is required');
-      return;
-    }
-    if (!versionName.trim()) {
-      setValidationError('Version name is required');
       return;
     }
 
@@ -63,25 +49,23 @@ export function TestFlightVerificationSection({
       await verifyTestFlightMutation.mutateAsync({
         stage,
         testflightBuildNumber: testflightBuildNumber.trim(),
-        versionName: versionName.trim(),
       });
 
       showSuccessToast({ message: 'TestFlight build verified successfully' });
       setTestflightBuildNumber('');
-      setVersionName('');
       await onRefetchArtifacts();
-      onUploadComplete?.();
+      // Pass platform to onUploadComplete so parent can track it
+      onUploadComplete?.(Platform.IOS);
     } catch (error) {
       const errorMessage = handleStageError(error, 'verify TestFlight build');
       setValidationError(errorMessage);
     } finally {
       setIsVerifying(false);
     }
-  }, [testflightBuildNumber, versionName, stage, verifyTestFlightMutation, onRefetchArtifacts, onUploadComplete]);
+  }, [testflightBuildNumber, stage, verifyTestFlightMutation, onRefetchArtifacts, onUploadComplete]);
 
   const canVerifyTestFlight =
     testflightBuildNumber.trim() &&
-    versionName.trim() &&
     !validationError &&
     !isVerifying;
 
@@ -94,19 +78,6 @@ export function TestFlightVerificationSection({
         value={testflightBuildNumber}
         onChange={(e) => {
           setTestflightBuildNumber(e.target.value);
-          setValidationError(null);
-        }}
-        disabled={isVerifying}
-        required
-      />
-
-      <TextInput
-        label="Version Name"
-        description="The version string (must match release version)"
-        placeholder="e.g., 6.5.0"
-        value={versionName}
-        onChange={(e) => {
-          setVersionName(e.target.value);
           setValidationError(null);
         }}
         disabled={isVerifying}

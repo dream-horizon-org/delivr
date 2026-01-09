@@ -3,9 +3,10 @@
  * Visual representation of a target platform with selection
  */
 
-import { Card, Checkbox, Text, Badge, Group } from '@mantine/core';
+import { Card, Checkbox, Text, Group } from '@mantine/core';
 import type { PlatformCardProps } from '~/types/release-config-props';
 import { PLATFORM_CARD_CONFIG } from '~/constants/release-config';
+import { AppBadge } from '~/components/Common/AppBadge';
 
 export function PlatformCard({ platform, selected, onToggle, disabled = false }: PlatformCardProps) {
   const config = PLATFORM_CARD_CONFIG[platform];
@@ -39,9 +40,12 @@ export function PlatformCard({ platform, selected, onToggle, disabled = false }:
             <Text fw={600} size="md">
               {config.label}
             </Text>
-            <Badge size="sm" variant="light" color="gray">
-              {config.badge}
-            </Badge>
+            <AppBadge
+              type="status"
+              value="neutral"
+              title={config.badge}
+              size="sm"
+            />
           </Group>
           
           <Text size="sm" c="dimmed">

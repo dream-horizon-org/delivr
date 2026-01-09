@@ -10,6 +10,8 @@ import { authenticateLoaderRequest, authenticateActionRequest } from '~/utils/au
 import type { User } from '~/.server/services/Auth/auth.interface';
 import { ProjectManagementIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 import type { ProjectManagementProviderType } from '~/.server/services/ReleaseManagement/integrations';
+import { logApiError } from '~/utils/api-route-helpers';
+import { INTEGRATION_TYPES } from '~/types/release-config-constants';
 
 /**
  * GET - Get PM integration for tenant (optionally filtered by providerType)
@@ -42,7 +44,7 @@ export const loader = authenticateLoaderRequest(
         integration: result.data || null,
       });
     } catch (error) {
-      console.error('[BFF-PM-Get] Error:', error);
+      logApiError('[BFF-PM-Get]', error);
       return json(
         {
           success: false,
@@ -72,7 +74,7 @@ const createPMAction = async ({
 
   try {
     const body = await request.json();
-    const providerType = (body.providerType || 'JIRA').toUpperCase() as ProjectManagementProviderType;
+    const providerType = (body.providerType || INTEGRATION_TYPES.JIRA).toUpperCase() as ProjectManagementProviderType;
 
     // Transform Jira-specific fields to generic format
     const config: any = body.config || {};
@@ -97,7 +99,7 @@ const createPMAction = async ({
 
     return json(result, { status: result.success ? 201 : 500 });
   } catch (error) {
-    console.error('[BFF-PM-Create] Error:', error);
+    logApiError('[BFF-PM-Create]', error);
     return json(
       {
         success: false,
@@ -133,7 +135,7 @@ const deletePMAction = async ({
 
     return json(result, { status: result.success ? 200 : 404 });
   } catch (error) {
-    console.error('[BFF-PM-Delete] Error:', error);
+    logApiError('[BFF-PM-Delete]', error);
     return json(
       {
         success: false,
@@ -215,7 +217,7 @@ const updatePMAction = async ({
 
     return json(result, { status: result.success ? 200 : 500 });
   } catch (error) {
-    console.error('[BFF-PM-Update] Error:', error);
+    logApiError('[BFF-PM-Update]', error);
     return json(
       {
         success: false,

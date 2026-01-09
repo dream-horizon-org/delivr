@@ -17,9 +17,8 @@ export function canEnableKickoffReminder(
   // Check if any communication integrations are connected
   const hasIntegrations = connectedCommunicationIntegrations.length > 0;
   
-  // Check if communication is enabled in config
-  const isEnabled = communicationConfig?.slack?.enabled === true || 
-                   communicationConfig?.email?.enabled === true;
+  // Check if communication is enabled in config (flat structure)
+  const isEnabled = communicationConfig?.enabled === true;
   
   return hasIntegrations && isEnabled;
 }

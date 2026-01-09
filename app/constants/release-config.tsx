@@ -52,19 +52,19 @@ export const WIZARD_STEPS: Step[] = [
   { 
     id: 'testing', 
     title: 'Test Management', 
-    description: 'Optional',
+    description: "Configure test management integrations",
     icon: (props: { size?: number; className?: string }) => <IconTestPipe size={props.size} className={props.className} />,
   },
   { 
     id: 'communication', 
     title: 'Communication', 
-    description: 'Slack & email',
+    description: 'Slack',
     icon: (props: { size?: number; className?: string }) => <IconBell size={props.size} className={props.className} />,
   },
   { 
     id: 'jira', 
-    title: 'Jira Project', 
-    description: 'Optional',
+    title: 'Project Management', 
+    description: 'Link releases to JIRA issues and track project progress',
     icon: (props: { size?: number; className?: string }) => <IconChecklist size={props.size} className={props.className} />,
   },
   { 

@@ -24,6 +24,8 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
 import { Link, useFetcher, useLoaderData, useNavigation } from '@remix-run/react';
+import { Breadcrumb } from '~/components/Common';
+import { getBreadcrumbItems } from '~/constants/breadcrumbs';
 import {
   IconAlertCircle,
   IconArrowLeft,
@@ -36,8 +38,8 @@ import { useCallback, useState } from 'react';
 import type { User } from '~/.server/services/Auth/auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import { RolloutService } from '~/.server/services/Rollout';
-import { CancelSubmissionDialog } from '~/components/Distribution/CancelSubmissionDialog';
-import { ResubmissionDialog } from '~/components/Distribution/ReSubmissionDialog';
+import { CancelSubmissionDialog } from '~/components/distribution/CancelSubmissionDialog';
+import { ResubmissionDialog } from '~/components/distribution/ReSubmissionDialog';
 import { SUBMISSION_STATUS_LABELS } from '~/constants/distribution/distribution.constants';
 import {
   Platform,
@@ -50,6 +52,7 @@ import {
   canResubmitSubmission,
   canUpdateRollout
 } from '~/utils/distribution/distribution-state.utils';
+import { formatStatus } from '~/utils/distribution/distribution-ui.utils';
 
 interface LoaderData {
   org: string;
@@ -197,10 +200,6 @@ function getStatusColor(status: string): string {
   return colors[status] ?? 'gray';
 }
 
-function formatStatus(status: string): string {
-  return status.replace(/_/g, ' ');
-}
-
 function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return '-';
   return new Date(dateString).toLocaleDateString('en-US', {
@@ -327,9 +326,16 @@ export default function SubmissionDetailPage() {
   const canRetry = canResubmitSubmission(submission.status);
   const canCancel = canCancelSubmission(submission.status, submission.platform);
 
+  // Breadcrumb items
+  const breadcrumbItems = getBreadcrumbItems('releases.submission.detail', {
+    org,
+    releaseId,
+  });
+
   if (error || !submission.id) {
     return (
       <Container size="lg" className="py-8">
+        <Breadcrumb items={breadcrumbItems} mb={16} />
         <Alert color="red" icon={<IconAlertCircle />} title="Error">
           {error || 'Submission not found'}
         </Alert>
@@ -339,6 +345,9 @@ export default function SubmissionDetailPage() {
 
   return (
     <Container size="lg" className="py-8">
+      {/* Breadcrumb */}
+      <Breadcrumb items={breadcrumbItems} mb={16} />
+      
       {/* Header */}
       <Paper shadow="sm" p="md" radius="md" withBorder className="mb-6">
         <Group justify="space-between">

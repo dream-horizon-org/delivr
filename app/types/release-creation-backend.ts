@@ -175,9 +175,9 @@ export interface PlatformTargetMappingUpdate {
 export interface UpdateReleaseBackendRequest {
   type?: ReleaseType;
   status?: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
-  branch?: string;
-  baseBranch?: string;
-  baseReleaseId?: string;
+  branch?: string | null;
+  baseBranch?: string | null;
+  baseReleaseId?: string | null;
   kickOffReminderDate?: string; // ISO date string
   kickOffDate?: string; // ISO date string
   targetReleaseDate?: string; // ISO date string

@@ -29,7 +29,7 @@ export function SubItems({ subItems, org, moduleMainRoute }: SubItemsProps) {
           if (subItem.path === `/dashboard/${org.id}/releases/`) {
             isSubItemActive =
               location.pathname.includes("/releases") &&
-              !location.pathname.includes("/releases/settings") &&
+              !location.pathname.includes("/releases/configurations") &&
               !location.pathname.includes("/releases/configure") &&
               !location.pathname.includes("/releases/workflows") &&
               location.pathname !== `/dashboard/${org.id}/releases`;

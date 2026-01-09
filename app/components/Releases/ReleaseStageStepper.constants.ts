@@ -16,6 +16,7 @@ import {
     IconTestPipe,
 } from '@tabler/icons-react';
 import type { ReleaseStage } from './ReleaseStageStepper.types';
+import { StageStatus, TaskStage } from '~/types/release-process-enums';
 
 // Icon mapping - icons are not serializable from API
 export const ICON_MAP: Record<string, Icon> = {
@@ -30,14 +31,14 @@ export const ICON_MAP: Record<string, Icon> = {
 // Full stages will be implemented later
 export const DEFAULT_STAGES: ReleaseStage[] = [
   {
-    key: 'PENDING',
+    key: StageStatus.PENDING,
     label: 'Pending',
     description: 'Prior stages complete',
     iconName: 'code',
     isNavigable: false,
   },
   {
-    key: 'PRE_RELEASE',
+    key: TaskStage.PRE_RELEASE,
     label: 'Pre-Release',
     description: 'Build preparation & PM approval',
     iconName: 'package',
@@ -45,7 +46,7 @@ export const DEFAULT_STAGES: ReleaseStage[] = [
     navigationPath: 'distribution?tab=pre-release',
   },
   {
-    key: 'DISTRIBUTION',
+    key: TaskStage.DISTRIBUTION,
     label: 'Distribution',
     description: 'Store submission & rollout',
     iconName: 'rocket',

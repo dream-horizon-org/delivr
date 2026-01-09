@@ -394,13 +394,13 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         <Text size="sm" fw={600} c={theme.colors.slate[8]} mb="sm">
           {JENKINS_LABELS.HOW_TO_GET_TOKEN}
         </Text>
-        <List size="sm" spacing="xs" type="ordered">
+        <Stack gap="xs">
           {JENKINS_LABELS.INSTRUCTIONS.map((instruction, idx) => (
-            <List.Item key={idx}>
-              <Text size="sm" c={theme.colors.slate[6]}>{instruction}</Text>
-            </List.Item>
+            <Text key={idx} size="sm" c={theme.colors.slate[6]}>
+              {idx + 1}. {instruction}
+            </Text>
           ))}
-        </List>
+        </Stack>
       </Box>
     </Stack>
   );

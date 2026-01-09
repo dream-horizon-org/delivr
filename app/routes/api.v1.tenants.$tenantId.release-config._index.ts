@@ -7,13 +7,8 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
 import { requireUserId } from '~/.server/services/Auth';
 import { ReleaseConfigService } from '~/.server/services/ReleaseConfig';
-import { prepareReleaseConfigPayload } from '~/.server/services/ReleaseConfig/release-config-payload';
 import type { ReleaseConfiguration } from '~/types/release-config';
-import {
-  transformFromPlatformTargetsArray,
-  transformToPlatformTargetsArray,
-  type PlatformTarget,
-} from '~/utils/platform-mapper';
+import { logApiError } from '~/utils/api-route-helpers';
 
 /**
  * POST - Create release configuration
@@ -38,24 +33,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
       tenantId,
       name: config.name,
       releaseType: config.releaseType,
-      targets: config.targets,
+      platformTargets: config.platformTargets?.length || 0,
     });
 
-    // Use prepareReleaseConfigPayload to handle all transformations including:
-    // - platformTargets transformation
-    // - releaseSchedule.initialVersions (object to array format)
-    // - releaseFrequency (uppercase to lowercase)
-    // - All other field transformations
-    const backendConfig = prepareReleaseConfigPayload(config, tenantId, userId);
-
-    console.log('[BFF] Transformed config:', {
-      platformTargets: backendConfig.platformTargets?.length,
-      hasReleaseSchedule: !!backendConfig.releaseSchedule,
-      initialVersionsFormat: Array.isArray(backendConfig.releaseSchedule?.initialVersions) ? 'array' : 'object',
-      releaseFrequency: backendConfig.releaseSchedule?.releaseFrequency,
-    });
-
-    const result = await ReleaseConfigService.create(backendConfig as any, tenantId, userId);
+    // Pass frontend format directly to service - transformation happens in service layer
+    const result = await ReleaseConfigService.create(config, tenantId, userId);
 
     if (!result.success) {
       console.error('[BFF] Create failed:', result.error);
@@ -65,7 +47,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     console.log('[BFF] Create successful:', result.data?.id);
     return json({ success: true, data: result.data }, { status: 201 });
   } catch (error: any) {
-    console.error('[BFF] Create error:', error);
+    logApiError('[BFF-ReleaseConfig-Create]', error);
     return json(
       { success: false, error: error.message ?? 'Internal server error' },
       { status: 500 }
@@ -94,27 +76,15 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       return json({ success: false, error: result.error }, { status: 400 });
     }
 
-    // Transform backend format (platformTargets) to UI format (targets array)
-    const transformedConfigs = result.data?.map((config: any) => {
-      if (config.platformTargets && Array.isArray(config.platformTargets)) {
-        const targets = transformFromPlatformTargetsArray(config.platformTargets);
-        const platforms = [...new Set(config.platformTargets.map((pt: PlatformTarget) => pt.platform))];
-        
-        return {
-          ...config,
-          targets,
-          platforms,
-          // Keep platformTargets for backward compatibility if needed
-        };
-      }
-      return config;
-    }) ?? [];
+    // Backend already returns platformTargets in correct format - no transformation needed
+    // UI components should read directly from platformTargets array
+    const configs = result.data ?? [];
 
-    console.log('[BFF] List successful:', transformedConfigs.length, 'configs (active:', transformedConfigs.filter((c: any) => c.isActive).length + ', archived:', transformedConfigs.filter((c: any) => !c.isActive).length + ')');
+    console.log('[BFF] List successful:', configs.length, 'configs (active:', configs.filter((c: any) => c.isActive).length + ', archived:', configs.filter((c: any) => !c.isActive).length + ')');
     
-    return json({ success: true, data: transformedConfigs }, { status: 200 });
+    return json({ success: true, data: configs }, { status: 200 });
   } catch (error: any) {
-    console.error('[BFF] List error:', error.message || error);
+    logApiError('[BFF-ReleaseConfig-List]', error);
     return json(
       { success: false, error: error.message ?? 'Internal server error' },
       { status: 500 }

@@ -12,8 +12,8 @@
  * - Project Management Status (from /project-management-run-status) - platform-wise
  */
 
-import { Card, Divider, Group, Stack, Text, Badge, Loader, Anchor, ActionIcon } from '@mantine/core';
-import { IconCheck, IconX, IconAlertCircle, IconExternalLink } from '@tabler/icons-react';
+import { Card, Divider, Group, Stack, Text, Loader, Anchor, ActionIcon, Tooltip } from '@mantine/core';
+import { IconCheck, IconX, IconAlertCircle, IconExternalLink, IconClock } from '@tabler/icons-react';
 import { 
   useCherryPickStatus, 
   useTestManagementStatus, 
@@ -21,8 +21,9 @@ import {
 } from '~/hooks/useReleaseProcess';
 import { useConfig } from '~/contexts/ConfigContext';
 import { useRelease } from '~/hooks/useRelease';
-import type { TaskStage } from '~/types/release-process-enums';
-import { TaskStage as TaskStageEnum } from '~/types/release-process-enums';
+import { TaskStage, TaskStage as TaskStageEnum, TestManagementStatus, Phase } from '~/types/release-process-enums';
+import { shouldEnableCherryPickStatus, determineReleasePhase } from '~/utils/release-process-utils';
+import { AppBadge } from '~/components/Common/AppBadge';
 
 interface IntegrationsStatusSidebarProps {
   tenantId: string;
@@ -59,8 +60,18 @@ export function IntegrationsStatusSidebar({
     releaseConfig.projectManagementConfig
   );
   
-  // Fetch cherry pick status (used in both stages - always enabled)
-  const cherryPickStatus = useCherryPickStatus(tenantId, releaseId);
+  // Determine release phase (use existing phase if available, otherwise calculate)
+  const releasePhase = release?.releasePhase || (release ? determineReleasePhase(release) : undefined);
+  
+  // Check if cherry-pick-status API should be enabled
+  const cherryPickEnabled = shouldEnableCherryPickStatus(
+    currentStage,
+    release?.status,
+    releasePhase
+  );
+  
+  // Fetch cherry pick status (only enabled for REGRESSION and PRE_RELEASE stages, not archived/pre-kickoff)
+  const cherryPickStatus = useCherryPickStatus(tenantId, releaseId, cherryPickEnabled);
   
   // Fetch test management status (Regression stage only, and only if configured)
   const testManagementStatus = useTestManagementStatus(
@@ -123,7 +134,7 @@ export function IntegrationsStatusSidebar({
         </Stack>
 
         {/* Regression Stage: Test Management Status - Only show if configured */}
-        {currentStage === 'REGRESSION' && (
+        {currentStage === TaskStage.REGRESSION && (
           <>
             <Divider />
             <Stack gap="xs">
@@ -141,7 +152,8 @@ export function IntegrationsStatusSidebar({
                 // All platforms response
                 <Stack gap="xs">
                   {testManagementStatus.data.platforms.map((platform) => {
-                    const isCompleted = platform.status === 'PASSED' || platform.status === 'COMPLETED';
+                    const isCompleted = platform.status === TestManagementStatus.PASSED || platform.status === TestManagementStatus.COMPLETED;
+                    const hasError = !!platform.error;
                     return (
                       <Group key={platform.platform} gap="xs" justify="space-between">
                         <Text size="xs" c="dimmed">
@@ -149,16 +161,27 @@ export function IntegrationsStatusSidebar({
                         </Text>
                         <Group gap="xs">
                           {isCompleted ? (
-                            <Badge color="green" size="sm">
-                              <Group gap={4}>
-                                <IconCheck size={12} />
-                                {platform.status === 'COMPLETED' ? 'Completed' : 'Passed'}
-                              </Group>
-                            </Badge>
+                            <AppBadge
+                              type="status"
+                              value="success"
+                              title={platform.status === TestManagementStatus.COMPLETED ? 'Completed' : 'Passed'}
+                              size="sm"
+                              leftSection={<IconCheck size={12} />}
+                            />
+                          ) : hasError ? (
+                            <AppBadge
+                              type="status"
+                              value="error"
+                              title="Failed"
+                              size="sm"
+                            />
                           ) : (
-                            <Badge color="red" size="sm">
-                              {platform.status || 'Pending'}
-                            </Badge>
+                            <AppBadge
+                              type="status"
+                              value="pending"
+                              title={platform.status || 'Pending'}
+                              size="sm"
+                            />
                           )}
                           {platform.runLink && (
                             <ActionIcon
@@ -182,11 +205,18 @@ export function IntegrationsStatusSidebar({
               ) : (
                 // Single platform response
                 <Group gap="xs">
-                  {(testManagementStatus.data.status === 'PASSED' || testManagementStatus.data.status === 'COMPLETED') ? (
+                  {(testManagementStatus.data.status === TestManagementStatus.PASSED || testManagementStatus.data.status === TestManagementStatus.COMPLETED) ? (
                     <>
                       <IconCheck size={16} color="green" />
                       <Text size="sm" c="green" fw={500}>
-                        {testManagementStatus.data.status === 'COMPLETED' ? 'Completed' : 'Passed'}
+                        {testManagementStatus.data.status === TestManagementStatus.COMPLETED ? 'Completed' : 'Passed'}
+                      </Text>
+                    </>
+                  ) : testManagementStatus.data.error ? (
+                    <>
+                      <IconX size={16} color="red" />
+                      <Text size="sm" c="red">
+                        Failed
                       </Text>
                     </>
                   ) : (
@@ -245,37 +275,70 @@ export function IntegrationsStatusSidebar({
                 // All platforms response
                 <Stack gap="xs">
                   {projectManagementStatus.data.platforms.map((platform) => (
-                    <Stack key={platform.platform} gap={4}>
-                      <Group gap="xs" justify="space-between">
+                    <Stack key={platform.platform} gap={6}>
+                      <Group gap="xs" justify="space-between" align="center">
                         <Text size="xs" fw={500}>
                           {platform.platform}
                         </Text>
                         {platform.isCompleted ? (
-                          <Badge color="green" size="sm">
-                            <Group gap={4}>
-                              <IconCheck size={12} />
-                              Completed
-                            </Group>
-                          </Badge>
+                          <AppBadge
+                            type="status"
+                            value="success"
+                            title="Completed"
+                            size="sm"
+                            leftSection={<IconCheck size={12} />}
+                          />
                         ) : platform.hasTicket ? (
-                          <Badge color="blue" size="sm">
-                            In Progress
-                          </Badge>
+                          <AppBadge
+                            type="status"
+                            value="info"
+                            title="In Progress"
+                            size="sm"
+                          />
                         ) : (
-                          <Badge color="gray" size="sm">
-                            No Ticket
-                          </Badge>
+                          <AppBadge
+                            type="status"
+                            value="neutral"
+                            title="No Ticket"
+                            size="sm"
+                          />
                         )}
                       </Group>
                       {platform.ticketKey && (
-                        <Text size="xs" c="dimmed">
-                          {platform.ticketKey}
-                        </Text>
-                      )}
-                      {platform.message && (
-                        <Text size="xs" c="dimmed">
-                          {platform.message}
-                        </Text>
+                        <Stack gap={4}>
+                          <Group gap={4} align="center">
+                            {platform.ticketUrl ? (
+                              <Anchor
+                                href={platform.ticketUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                size="xs"
+                                c="blue"
+                                style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                              >
+                                {platform.ticketKey}
+                                <IconExternalLink size={12} />
+                              </Anchor>
+                            ) : (
+                              <Text size="xs" c="dimmed">
+                                {platform.ticketKey}
+                              </Text>
+                            )}
+                          </Group>
+                          {!platform.isCompleted && platform.currentStatus && (
+                            <Group gap={4} align="center">
+                              <IconClock size={12} style={{ color: 'var(--mantine-color-blue-6)' }} />
+                              <Text size="xs" c="blue" fw={500}>
+                                {platform.currentStatus}
+                              </Text>
+                              {platform.completedStatus && (
+                                <Text size="xs" c="dimmed">
+                                  (needs {platform.completedStatus})
+                                </Text>
+                              )}
+                            </Group>
+                          )}
+                        </Stack>
                       )}
                     </Stack>
                   ))}
@@ -308,14 +371,40 @@ export function IntegrationsStatusSidebar({
                     )}
                   </Group>
                   {projectManagementStatus.data.ticketKey && (
-                    <Text size="xs" c="dimmed">
-                      {projectManagementStatus.data.ticketKey}
-                    </Text>
-                  )}
-                  {projectManagementStatus.data.message && (
-                    <Text size="xs" c="dimmed">
-                      {projectManagementStatus.data.message}
-                    </Text>
+                    <Stack gap={4}>
+                      <Group gap={4} align="center">
+                        {projectManagementStatus.data.ticketUrl ? (
+                          <Anchor
+                            href={projectManagementStatus.data.ticketUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            size="xs"
+                            c="blue"
+                            style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                          >
+                            {projectManagementStatus.data.ticketKey}
+                            <IconExternalLink size={12} />
+                          </Anchor>
+                        ) : (
+                          <Text size="xs" c="dimmed">
+                            {projectManagementStatus.data.ticketKey}
+                          </Text>
+                        )}
+                      </Group>
+                      {!projectManagementStatus.data.isCompleted && projectManagementStatus.data.currentStatus && (
+                        <Group gap={4} align="center">
+                          <IconClock size={12} style={{ color: 'var(--mantine-color-blue-6)' }} />
+                          <Text size="xs" c="blue" fw={500}>
+                            {projectManagementStatus.data.currentStatus}
+                          </Text>
+                          {projectManagementStatus.data.completedStatus && (
+                            <Text size="xs" c="dimmed">
+                              (needs {projectManagementStatus.data.completedStatus})
+                            </Text>
+                          )}
+                        </Group>
+                      )}
+                    </Stack>
                   )}
                 </Stack>
               )

@@ -18,8 +18,7 @@ export function createDefaultConfig(tenantId: string): Partial<ReleaseConfigurat
     name: '',
     releaseType: 'MINOR',
     isDefault: true,
-    platforms: [], // Will be derived from targets
-    targets: [], // User must select distribution targets
+    platformTargets: [], // User must select platform-target combinations
     hasManualBuildUpload: true, // Default to manual upload (false = CI/CD)
     workflows: [], // Empty - only populated if hasManualBuildUpload = false
     testManagement: undefined, // Optional - user must enable

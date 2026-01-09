@@ -25,7 +25,7 @@ export function AppListForOrg({ user }: AppListForOrgProps) {
   const _modData: AppCardProps[] =
     data?.map((item) => ({
       ...item,
-      link: route("/dashboard/:org/:app", {
+      link: route("/dashboard/:org/ota/:app", {
         org: params.org ?? "",
         app: item.id,
       }),

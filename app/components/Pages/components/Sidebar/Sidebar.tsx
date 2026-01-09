@@ -280,7 +280,7 @@ export function Sidebar({
             <AllOrgsList
               organizations={organizations}
               onSelectOrg={(orgId) =>
-                navigate(route("/dashboard/:org/apps", { org: orgId }))
+                navigate(route("/dashboard/:org/ota/apps", { org: orgId }))
               }
             />
           )}

@@ -12,6 +12,7 @@
 import { useQuery, useQueryClient } from 'react-query';
 import { useEffect, useMemo } from 'react';
 import { apiGet } from '~/utils/api-client';
+import { extractApiErrorMessage } from '~/utils/api-error-utils';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { getReleaseActiveStatus } from '~/utils/release-utils';
 import { RELEASE_ACTIVE_STATUS } from '~/constants/release-ui';
@@ -46,24 +47,22 @@ export function useReleases(
     }
   }, [shouldForceRefetch, tenantId, queryClient]);
 
-  // CRITICAL: Sync loader data with React Query cache on every navigation
-  // initialData only works on first mount, so we need to explicitly update cache
-  // when loader provides new data on subsequent navigations
+  // Sync loader data with React Query cache only if cache is empty
+  // If cache exists, refetchOnMount will handle updates
+  // This prevents overwriting optimistic updates or fresh API data with stale loader data
   useEffect(() => {
     if (options?.initialData && tenantId && !shouldForceRefetch) {
       const queryKey = QUERY_KEY(tenantId);
       const existingData = queryClient.getQueryData<ReleasesResponse>(queryKey);
       
-      // Only update if loader data is different (avoid unnecessary updates)
-      const loaderDataString = JSON.stringify(options.initialData.releases || []);
-      const existingDataString = JSON.stringify(existingData?.releases || []);
-      
-      if (loaderDataString !== existingDataString) {
-        console.log('[useReleases] Syncing loader data to React Query cache');
+      // Only sync if cache is completely empty (first load)
+      // Don't sync if cache already exists, even if it has 0 releases
+      // This prevents infinite loops when switching tabs with 0 releases
+      if (!existingData) {
         queryClient.setQueryData<ReleasesResponse>(queryKey, options.initialData);
       }
     }
-  }, [options?.initialData, tenantId, queryClient, shouldForceRefetch]);
+  }, [tenantId, queryClient, shouldForceRefetch]); // Removed options?.initialData from deps to prevent loops
 
   // Fetch all releases for tenant
   const {
@@ -88,7 +87,7 @@ export function useReleases(
       return {
         success: result.success,
         releases: result.data?.releases || [],
-        error: result.error,
+        error: result.error ? extractApiErrorMessage(result.error) : undefined,
       };
     },
     {
@@ -97,7 +96,7 @@ export function useReleases(
       staleTime: 2 * 60 * 1000, // 2 minutes - data stays fresh (releases change more frequently than configs)
       cacheTime: 10 * 60 * 1000, // 10 minutes - cache time
       refetchOnWindowFocus: true, // Refetch when user returns to tab (background refetch)
-      refetchOnMount: shouldForceRefetch ? true : false, // Force refetch if refresh param present
+      refetchOnMount: true, // Always refetch on mount to catch status changes (upcoming → active → completed)
       refetchOnReconnect: true, // Refetch when network reconnects
       retry: 1, // Retry once on failure
       // Background refetching: refetch in background when data becomes stale

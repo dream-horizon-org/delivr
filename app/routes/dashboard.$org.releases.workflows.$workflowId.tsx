@@ -18,21 +18,21 @@ import {
   ThemeIcon,
   Button,
   Skeleton,
-  Breadcrumbs,
-  Anchor,
   Group,
   useMantineTheme,
 } from '@mantine/core';
 import {
-  IconRocket,
   IconAlertCircle,
   IconArrowLeft,
   IconRefresh,
 } from '@tabler/icons-react';
+import { Breadcrumb } from '~/components/Common';
+import { getBreadcrumbItems } from '~/constants/breadcrumbs';
 import { apiGet, getApiErrorMessage } from '~/utils/api-client';
+import { extractApiErrorMessage } from '~/utils/api-error-utils';
 import { PermissionService } from '~/utils/permissions.server';
 
-export const loader = authenticateLoaderRequest(async ({ params, request, user }: LoaderFunctionArgs & { user: any }) => {
+export const loader = authenticateLoaderRequest(async ({ params, request, user }: LoaderFunctionArgs & { user: any }): Promise<ReturnType<typeof json>> => {
   const { org, workflowId } = params;
   
   if (!org) {
@@ -60,7 +60,7 @@ export const loader = authenticateLoaderRequest(async ({ params, request, user }
   try {
     const endpoint = `/api/v1/tenants/${org}/workflows/${workflowId}`;
     const url = new URL(request.url);
-    const result = await apiGet<CICDWorkflow>(
+    const result = await apiGet<{ workflow?: CICDWorkflow }>(
       `${url.protocol}//${url.host}${endpoint}`,
       {
         headers: {
@@ -79,15 +79,12 @@ export const loader = authenticateLoaderRequest(async ({ params, request, user }
       }
       
       existingWorkflow = workflow;
-     
-      } else {
-        
-        fetchError = result.error || 'Workflow not found';
-      }
-    } catch (error: any) {
-      
-      fetchError = getApiErrorMessage(error, 'Failed to load workflow');
+    } else {
+      fetchError = extractApiErrorMessage(result.error, 'Workflow not found');
     }
+  } catch (error: any) {
+    fetchError = getApiErrorMessage(error, 'Failed to load workflow');
+  }
   
   // Fetch workflows for duplicate name validation
   let workflows: CICDWorkflow[] = [];
@@ -144,9 +141,97 @@ export const action = authenticateActionRequest({
   },
 });
 
+type LoaderData = {
+  organizationId: string;
+  workflowId: string;
+  existingWorkflow: CICDWorkflow | null;
+  isEditMode: boolean;
+  fetchError: string | null;
+  workflows: CICDWorkflow[];
+};
+
+/**
+ * Workflow Edit Loading State Component
+ * Displays loading skeleton while workflow data is being fetched
+ */
+function WorkflowEditLoadingState() {
+  return (
+    <Box p={32}>
+      <Skeleton height={16} width={250} mb={24} />
+      <Box maw={800} mx="auto">
+        <Skeleton height={48} width={300} mb={16} />
+        <Skeleton height={24} width={200} mb={32} />
+        <Stack gap="md">
+          <Skeleton height={56} />
+          <Skeleton height={56} />
+          <Skeleton height={100} />
+          <Skeleton height={56} />
+        </Stack>
+      </Box>
+    </Box>
+  );
+}
+
+/**
+ * Workflow Edit Error State Component
+ * Displays error message when workflow fails to load
+ */
+interface WorkflowEditErrorStateProps {
+  error: string;
+  organizationId: string;
+  breadcrumbItems: Array<{ title: string; href?: string }>;
+}
+
+function WorkflowEditErrorState({
+  error,
+  organizationId,
+  breadcrumbItems,
+}: WorkflowEditErrorStateProps) {
+  const theme = useMantineTheme();
+
+  return (
+    <Box p={32}>
+      <Breadcrumb items={breadcrumbItems} mb={24} />
+      
+      <Center py={80}>
+        <Stack align="center" gap="lg" maw={450}>
+          <ThemeIcon size={80} radius="xl" variant="light" color="red">
+            <IconAlertCircle size={40} />
+          </ThemeIcon>
+          <Box ta="center">
+            <Text size="xl" fw={600} c={theme.colors.slate[8]} mb={8}>
+              Failed to Load Workflow
+            </Text>
+            <Text size="sm" c={theme.colors.slate[5]} mb={24}>
+              {error}
+            </Text>
+          </Box>
+          <Group gap="md">
+            <Button
+              variant="default"
+              leftSection={<IconArrowLeft size={16} />}
+              component={Link}
+              to={`/dashboard/${organizationId}/releases/workflows`}
+            >
+              Back to Workflows
+            </Button>
+            <Button
+              color="brand"
+              leftSection={<IconRefresh size={16} />}
+              onClick={() => window.location.reload()}
+            >
+              Try Again
+            </Button>
+          </Group>
+        </Stack>
+      </Center>
+    </Box>
+  );
+}
+
 export default function EditWorkflowPage() {
   const theme = useMantineTheme();
-  const { organizationId, existingWorkflow, isEditMode, fetchError, workflows } = useLoaderData<typeof loader>();
+  const { organizationId, workflowId, existingWorkflow, isEditMode, fetchError, workflows } = useLoaderData<LoaderData>();
   const navigate = useNavigate();
   const navigation = useNavigation();
   const { getConnectedIntegrations } = useConfig();
@@ -177,86 +262,24 @@ export default function EditWorkflowPage() {
   };
 
   // Breadcrumb items
-  const breadcrumbItems = [
-    { title: 'Release Management', href: `/dashboard/${organizationId}/releases` },
-    { title: 'Workflows', href: `/dashboard/${organizationId}/releases/workflows` },
-    { title: 'Edit', href: '#' },
-  ].map((item, index) => (
-    item.href === '#' ? (
-      <Text key={index} size="sm" c={theme.colors.slate[6]}>
-        {item.title}
-      </Text>
-    ) : (
-      <Anchor
-        key={index}
-        component={Link}
-        to={item.href}
-        size="sm"
-        c={theme.colors.slate[5]}
-      >
-        {item.title}
-      </Anchor>
-    )
-  ));
+  const breadcrumbItems = getBreadcrumbItems('releases.workflows.detail', {
+    org: organizationId,
+    isEditMode,
+  });
   
   // Show loading state
   if (isLoading) {
-    return (
-      <Box p={32}>
-        <Skeleton height={16} width={250} mb={24} />
-        <Box maw={800} mx="auto">
-          <Skeleton height={48} width={300} mb={16} />
-          <Skeleton height={24} width={200} mb={32} />
-          <Stack gap="md">
-            <Skeleton height={56} />
-            <Skeleton height={56} />
-            <Skeleton height={100} />
-            <Skeleton height={56} />
-          </Stack>
-        </Box>
-      </Box>
-    );
+    return <WorkflowEditLoadingState />;
   }
   
   // Show error if failed to load workflow
   if (fetchError) {
     return (
-      <Box p={32}>
-        <Breadcrumbs mb={24}>{breadcrumbItems}</Breadcrumbs>
-        
-        <Center py={80}>
-          <Stack align="center" gap="lg" maw={450}>
-            <ThemeIcon size={80} radius="xl" variant="light" color="red">
-              <IconAlertCircle size={40} />
-            </ThemeIcon>
-            <Box ta="center">
-              <Text size="xl" fw={600} c={theme.colors.slate[8]} mb={8}>
-                Failed to Load Workflow
-              </Text>
-              <Text size="sm" c={theme.colors.slate[5]} mb={24}>
-                {fetchError}
-              </Text>
-            </Box>
-            <Group gap="md">
-              <Button
-                variant="default"
-                leftSection={<IconArrowLeft size={16} />}
-                component={Link}
-                to={`/dashboard/${organizationId}/releases/workflows`}
-              >
-                Back to Workflows
-              </Button>
-              <Button
-                color="brand"
-                leftSection={<IconRefresh size={16} />}
-                onClick={() => window.location.reload()}
-              >
-                Try Again
-              </Button>
-            </Group>
-          </Stack>
-        </Center>
-      </Box>
+      <WorkflowEditErrorState
+        error={fetchError}
+        organizationId={organizationId}
+        breadcrumbItems={breadcrumbItems}
+      />
     );
   }
   
@@ -269,6 +292,7 @@ export default function EditWorkflowPage() {
         availableIntegrations={availableIntegrations}
         existingWorkflow={existingWorkflow}
         isEditMode={isEditMode}
+        workflowId={workflowId}
         workflows={workflows}
       />
     </Box>

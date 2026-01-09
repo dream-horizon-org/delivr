@@ -12,9 +12,12 @@
 
 import { json, redirect } from '@remix-run/node';
 import { useLoaderData, useNavigate } from '@remix-run/react';
-import { Container, Paper } from '@mantine/core';
+import { Container, Paper, Stack } from '@mantine/core';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { apiPost, getApiErrorMessage } from '~/utils/api-client';
+import { getResponseErrorMessage } from '~/utils/api-error-utils';
+import { Breadcrumb } from '~/components/Common';
+import { getBreadcrumbItems } from '~/constants/breadcrumbs';
 import { useConfig } from '~/contexts/ConfigContext';
 import { CreateReleaseForm } from '~/components/ReleaseCreation/CreateReleaseForm';
 import { useQueryClient } from 'react-query';
@@ -73,7 +76,8 @@ export default function CreateReleasePage() {
       // apiRequest normalizes the response: { success: true, release: {...} } becomes { success: true, data: { release: {...} } }
       // Check result.success first (from apiRequest envelope)
       if (!result.success) {
-        throw new Error(result.error || 'Failed to create release');
+        const errorMessage = getResponseErrorMessage(result, 'Failed to create release');
+        throw new Error(errorMessage);
       }
 
       // Extract release from normalized data structure
@@ -105,23 +109,38 @@ export default function CreateReleasePage() {
     navigate(`/dashboard/${org}/releases/configure?returnTo=create`);
   };
 
+  // Breadcrumb items
+  const breadcrumbItems = getBreadcrumbItems('releases.create', { org });
+
   // If no configurations exist, show banner to create one
   if (!hasConfigurations) {
-    return <NoConfigurationAlert org={org} onCreateConfig={handleCreateNewConfig} />;
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <Container size="xl">
+          <Stack gap="md">
+            <Breadcrumb items={breadcrumbItems} />
+            <NoConfigurationAlert org={org} onCreateConfig={handleCreateNewConfig} />
+          </Stack>
+        </Container>
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <Container size="xl">
-        <Paper shadow="sm" p="xl" radius="md">
-          <FormPageHeader
-            title="Create Release"
-            description="Fill in the form below to create a new release"
-            backUrl={`/dashboard/${org}/releases`}
-          />
+        <Stack gap="md">
+          <Breadcrumb items={breadcrumbItems} />
+          <Paper shadow="sm" p="xl" radius="md">
+            <FormPageHeader
+              title="Create Release"
+              description="Fill in the form below to create a new release"
+              backUrl={`/dashboard/${org}/releases`}
+            />
 
-          <CreateReleaseForm org={org} userId={userId} onSubmit={handleSubmit} />
-        </Paper>
+            <CreateReleaseForm org={org} userId={userId} onSubmit={handleSubmit} />
+          </Paper>
+        </Stack>
       </Container>
     </div>
   );

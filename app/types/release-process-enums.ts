@@ -154,3 +154,44 @@ export enum PauseType {
   TASK_FAILURE = 'TASK_FAILURE',
 }
 
+/**
+ * Workflow Status - CI/CD workflow execution status
+ * Matches backend contract: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | null
+ */
+export enum WorkflowStatus {
+  PENDING = 'PENDING',
+  RUNNING = 'RUNNING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+}
+
+/**
+ * Build Type - Type of build (manual vs CI/CD)
+ * Matches backend contract: 'MANUAL' | 'CI_CD'
+ */
+export enum BuildType {
+  MANUAL = 'MANUAL',
+  CI_CD = 'CI_CD',
+}
+
+/**
+ * Build Upload Status - Status of manual build upload
+ * Matches backend contract: 'PENDING' | 'UPLOADED' | 'FAILED'
+ */
+export enum BuildUploadStatus {
+  PENDING = 'PENDING',
+  UPLOADED = 'UPLOADED',
+  FAILED = 'FAILED',
+}
+
+/**
+ * Test Management Status - Status of test management runs
+ * Matches backend contract: 'PASSED' | 'COMPLETED' | 'FAILED' | 'PENDING'
+ */
+export enum TestManagementStatus {
+  PASSED = 'PASSED',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  PENDING = 'PENDING',
+}
+

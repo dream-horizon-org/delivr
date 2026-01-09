@@ -317,7 +317,7 @@ export function AppListPage({ user }: AppListPageProps) {
               app={app}
               onNavigate={() => {
                 navigate(
-                  route("/dashboard/:org/:app", {
+                  route("/dashboard/:org/ota/:app", {
                     org: params.org ?? "",
                     app: app.id,
                   })

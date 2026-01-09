@@ -23,13 +23,12 @@ import { BUTTON_LABELS } from '~/constants/release-process-ui';
 import { RELEASE_MESSAGES } from '~/constants/toast-messages';
 import { usePauseResumeRelease } from '~/hooks/useReleaseProcess';
 import { usePermissions } from '~/hooks/usePermissions';
-import { Phase, ReleaseStatus, PauseType } from '~/types/release-process-enums';
-import type { TaskStage } from '~/types/release-process-enums';
+import { Phase, ReleaseStatus, PauseType, TaskStage } from '~/types/release-process-enums';
 import type { MessageTypeEnum } from '~/types/release-process.types';
 import type { UpdateReleaseBackendRequest } from '~/types/release-creation-backend';
 import { apiPatch, getApiErrorMessage } from '~/utils/api-client';
-import { invalidateReleases } from '~/utils/cache-invalidation';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
+import { isReleasePaused } from '~/utils/release-utils';
 import type { OrgLayoutLoaderData } from '~/routes/dashboard.$org';
 import { ReleaseHeaderTitle, ReleaseHeaderInfo } from './shared/ReleaseHeaderInfo';
 import { ReleaseHeaderActions } from './shared/ReleaseHeaderActions';
@@ -81,10 +80,9 @@ export function ReleaseProcessHeader({
   const releaseStatus: ReleaseStatus = release.status;
   const releasePhase: Phase | undefined = release.releasePhase;
   
-  // Check if paused - use pauseType from cronJob (primary check)
-  // Backend keeps cronStatus=RUNNING and uses pauseType to control pause state
-  const pauseType = release.cronJob?.pauseType;
-  const isPaused = !!(pauseType && pauseType !== PauseType.NONE);
+  // Check if paused - use utility function which handles special cases
+  // (e.g., distribution stage with completed cron but active release)
+  const isPaused = isReleasePaused(release);
 
   // Handle update submission
   const handleUpdate = async (updateRequest: UpdateReleaseBackendRequest): Promise<void> => {
@@ -94,7 +92,32 @@ export function ReleaseProcessHeader({
         updateRequest
       );
 
-      await invalidateReleases(queryClient, org);
+      // Option 4: Optimistic update + background refetch
+      // 1. Optimistically update cache for instant UI feedback
+      if (result.data?.release) {
+        const updatedRelease = result.data.release;
+        queryClient.setQueryData<{ success: boolean; release?: BackendReleaseResponse; error?: string }>(
+          ['release', org, release.id],
+          (old) => {
+            if (!old) {
+              return { success: true, release: updatedRelease };
+            }
+            return {
+              ...old,
+              release: updatedRelease,
+            };
+          }
+        );
+      }
+
+      // 2. Background invalidation to ensure consistency with server
+      // Only invalidate current release - releases list will refetch on navigation (refetchOnMount: true)
+      queryClient.invalidateQueries(['release', org, release.id]);
+      // Invalidate all stage queries to refetch stage data
+      // This ensures stage APIs are refetched when release is modified
+      Object.values(TaskStage).forEach((stage) => {
+        queryClient.invalidateQueries(['release-process', 'stage', org, release.id, stage]);
+      });
       // Invalidate activity logs to show update action
       await queryClient.invalidateQueries(['release-process', 'activity', org, release.id]);
       showSuccessToast(RELEASE_MESSAGES.UPDATE_SUCCESS);

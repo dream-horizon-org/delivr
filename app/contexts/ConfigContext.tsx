@@ -148,7 +148,7 @@ export function ConfigProvider({
         platforms: systemMetadataBackend.releaseManagement.platforms.map(enrichPlatform),
         targets: systemMetadataBackend.releaseManagement.targets.map(enrichTarget),
         releaseTypes: systemMetadataBackend.releaseManagement.releaseTypes.map(enrichReleaseType),
-        releaseStages: systemMetadataBackend.releaseManagement.releaseStages.map(enrichReleaseStage),
+        releaseStages: systemMetadataBackend.releaseManagement.releaseStages?.map(enrichReleaseStage) || [],
         releaseStatuses: systemMetadataBackend.releaseManagement.releaseStatuses.map(enrichReleaseStatus),
         buildEnvironments: systemMetadataBackend.releaseManagement.buildEnvironments.map(enrichBuildEnvironment),
       },

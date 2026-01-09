@@ -3,7 +3,7 @@
  * Shows all details about a release configuration
  */
 
-import { Modal, Stack, Text, Card, Group, Badge, List, Divider, ScrollArea } from '@mantine/core';
+import { Modal, Stack, Text, Card, Group, List, Divider, ScrollArea } from '@mantine/core';
 import {
   IconSettings,
   IconTarget,
@@ -13,15 +13,18 @@ import {
   IconCheck,
   IconX,
   IconTicket,
-  IconBrandAndroid,
-  IconBrandApple,
-  IconDeviceMobile,
   IconCode,
   IconGitBranch,
 } from '@tabler/icons-react';
 import type { ReleaseConfiguration } from '~/types/release-config';
-import { PLATFORMS, BUILD_ENVIRONMENTS, BUILD_PROVIDERS } from '~/types/release-config-constants';
+import { BUILD_ENVIRONMENTS, BUILD_PROVIDERS, TEST_PROVIDERS, CONFIG_STATUSES } from '~/types/release-config-constants';
 import { SECTION_TITLES, FIELD_LABELS, BUILD_UPLOAD_LABELS, INFO_MESSAGES } from '~/constants/release-config-ui';
+import { getPlatformsFromPlatformTargets, getTargetsFromPlatformTargets, formatTargetPlatformName } from '~/utils/platform-utils';
+import { getPlatformIcon } from '~/utils/release-config-ui.utils';
+import { getBuildProviderLabel } from '~/utils/ui-utils';
+import { PlatformBadge, TargetBadge, AppBadge } from '~/components/Common/AppBadge';
+import { RELEASE_TYPES } from '~/types/release-config-constants';
+import { ENVIRONMENT_LABELS } from '~/constants/release-config-ui';
 
 interface ConfigurationPreviewModalProps {
   opened: boolean;
@@ -34,26 +37,7 @@ export function ConfigurationPreviewModal({
   onClose,
   config,
 }: ConfigurationPreviewModalProps) {
-  const getPlatformIcon = (platform: string) => {
-    switch (platform) {
-      case PLATFORMS.ANDROID: return <IconBrandAndroid size={16} />;
-      case PLATFORMS.IOS: return <IconBrandApple size={16} />;
-      default: return <IconDeviceMobile size={16} />;
-    }
-  };
 
-  const getProviderLabel = (provider: string): string => {
-    switch (provider) {
-      case BUILD_PROVIDERS.JENKINS:
-        return 'Jenkins';
-      case BUILD_PROVIDERS.GITHUB_ACTIONS:
-        return 'GitHub Actions';
-      case BUILD_PROVIDERS.MANUAL_UPLOAD:
-        return 'Manual Upload';
-      default:
-        return provider;
-    }
-  };
 
   return (
     <Modal
@@ -66,9 +50,12 @@ export function ConfigurationPreviewModal({
             {config.name}
           </Text>
           {config.isDefault && (
-            <Badge size="sm" variant="light" color="yellow">
-              Default
-            </Badge>
+            <AppBadge
+              type="status"
+              value="warning"
+              title="Default"
+              size="sm"
+            />
           )}
         </Group>
       }
@@ -91,9 +78,12 @@ export function ConfigurationPreviewModal({
               <Text fw={500}>{config.name || INFO_MESSAGES.NOT_SET}</Text>
               
               <Text c="dimmed">{FIELD_LABELS.RELEASE_TYPE}:</Text>
-              <Badge variant="light" size="sm">
-                {config.releaseType || INFO_MESSAGES.MINOR}
-              </Badge>
+              <AppBadge
+                type="release-type"
+                value={config.releaseType || RELEASE_TYPES.MINOR}
+                title={config.releaseType || INFO_MESSAGES.MINOR}
+                size="sm"
+              />
               
               <Text c="dimmed">{FIELD_LABELS.DEFAULT_CONFIG}:</Text>
               <Text fw={500}>{config.isDefault ? INFO_MESSAGES.YES : INFO_MESSAGES.NO}</Text>
@@ -138,17 +128,17 @@ export function ConfigurationPreviewModal({
                 Platforms:
               </Text>
               <Group gap="xs">
-                {config.platforms?.map((platform) => (
-                  <Badge
-                    key={platform}
-                    variant="light"
-                    color="blue"
-                    leftSection={getPlatformIcon(platform)}
-                    size="md"
-                  >
-                    {platform}
-                  </Badge>
-                )) || <Text size="sm" c="dimmed">None configured</Text>}
+                {config.platformTargets && config.platformTargets.length > 0 ? (
+                  getPlatformsFromPlatformTargets(config.platformTargets).map((platform) => (
+                    <PlatformBadge
+                      key={platform}
+                      platform={platform}
+                      size="md"
+                    />
+                  ))
+                ) : (
+                  <Text size="sm" c="dimmed">None configured</Text>
+                )}
               </Group>
             </div>
             
@@ -159,16 +149,17 @@ export function ConfigurationPreviewModal({
                 Target Platforms:
               </Text>
               <Group gap="xs">
-                {config.targets?.map((target) => (
-                  <Badge
-                    key={target}
-                    variant="outline"
-                    color="gray"
-                    size="sm"
-                  >
-                    {target.replace(/_/g, ' ')}
-                  </Badge>
-                )) || <Text size="sm" c="dimmed">None configured</Text>}
+                {config.platformTargets && config.platformTargets.length > 0 ? (
+                  getTargetsFromPlatformTargets(config.platformTargets).map((target) => (
+                    <TargetBadge
+                      key={target}
+                      target={target}
+                      size="sm"
+                    />
+                  ))
+                ) : (
+                  <Text size="sm" c="dimmed">None configured</Text>
+                )}
               </Group>
             </div>
           </Stack>
@@ -185,9 +176,12 @@ export function ConfigurationPreviewModal({
           
           <Stack gap="sm">
             <div className="flex items-center gap-2">
-              <Badge size="lg" variant="light" color={!config.hasManualBuildUpload ? 'grape' : 'blue'}>
-                {!config.hasManualBuildUpload ? BUILD_UPLOAD_LABELS.CI_CD : BUILD_UPLOAD_LABELS.MANUAL}
-              </Badge>
+              <AppBadge
+                type="build-type"
+                value={!config.hasManualBuildUpload ? 'CI_CD' : 'MANUAL'}
+                title={!config.hasManualBuildUpload ? BUILD_UPLOAD_LABELS.CI_CD : BUILD_UPLOAD_LABELS.MANUAL}
+                size="lg"
+              />
             </div>
             
             {!config.hasManualBuildUpload && config.ciConfig?.workflows && config.ciConfig.workflows.length > 0 && (
@@ -211,15 +205,20 @@ export function ConfigurationPreviewModal({
                       >
                         <Group gap="xs">
                           <Text size="sm" fw={500}>{pipeline.name}</Text>
-                          <Badge size="xs" variant="light">
-                            {pipeline.platform}
-                          </Badge>
-                          <Badge size="xs" variant="light" color="blue">
-                            {pipeline.environment}
-                          </Badge>
-                          <Badge size="xs" variant="outline">
-                            {getProviderLabel(pipeline.provider)}
-                          </Badge>
+                          <PlatformBadge platform={pipeline.platform} size="xs" />
+                          <AppBadge
+                            type="build-environment"
+                            value={pipeline.environment}
+                            title={ENVIRONMENT_LABELS[pipeline.environment] || pipeline.environment}
+                            size="xs"
+                          />
+                          <AppBadge
+                            type="build-provider"
+                            value={pipeline.provider}
+                            title={getBuildProviderLabel(pipeline.provider)}
+                            size="xs"
+                            variant="outline"
+                          />
                         </Group>
                       </List.Item>
                     ))}
@@ -245,10 +244,10 @@ export function ConfigurationPreviewModal({
                 <Text c="dimmed">Provider:</Text>
                 <Text fw={500}>{config.testManagementConfig.provider || 'Checkmate'}</Text>
                 
-                {config.testManagementConfig.providerConfig?.passThresholdPercent && (
+                {config.testManagementConfig.passThresholdPercent !== undefined && (
                   <>
                     <Text c="dimmed">Pass Threshold:</Text>
-                    <Text fw={500}>{config.testManagementConfig.providerConfig.passThresholdPercent}%</Text>
+                    <Text fw={500}>{config.testManagementConfig.passThresholdPercent}%</Text>
                   </>
                 )}
               </div>
@@ -273,16 +272,19 @@ export function ConfigurationPreviewModal({
                   <Text size="xs" c="dimmed" className="mb-2">
                     Platform Configurations:
                   </Text>
-                  {config.projectManagementConfig.platformConfigurations.map((pc: any, idx: number) => (
-                    <div key={idx} className="mb-2 p-2 bg-gray-50 rounded">
-                      <Text size="sm" fw={500} className="mb-1">{pc.platform}</Text>
-                      <div className="text-xs text-gray-600">
-                        {pc.projectKey && <div>Project: {pc.projectKey}</div>}
-                        {pc.issueType && <div>Issue Type: {pc.issueType}</div>}
-                        {pc.completedStatus && <div>Completed Status: {pc.completedStatus}</div>}
+                  {config.projectManagementConfig.platformConfigurations.map((pc: any, idx: number) => {
+                    const params = pc.parameters || {};
+                    return (
+                      <div key={idx} className="mb-2 p-2 bg-gray-50 rounded">
+                        <Text size="sm" fw={500} className="mb-1">{pc.platform}</Text>
+                        <div className="text-xs text-gray-600">
+                          {params.projectKey && <div>Project: {params.projectKey}</div>}
+                          {params.issueType && <div>Issue Type: {params.issueType}</div>}
+                          {params.completedStatus && <div>Completed Status: {params.completedStatus}</div>}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </Stack>
@@ -290,7 +292,7 @@ export function ConfigurationPreviewModal({
         )}
 
         {/* Communication */}
-        {config.communicationConfig?.slack?.enabled && (
+        {config.communicationConfig?.enabled && (
           <Card shadow="sm" padding="md" radius="md" withBorder>
             <Group gap="sm" className="mb-3">
               <IconBell size={20} className="text-pink-600" />
@@ -300,9 +302,9 @@ export function ConfigurationPreviewModal({
             </Group>
             
             <Stack gap="xs">
-              {config.communicationConfig.slack.channelData && (
+              {config.communicationConfig.channelData && (
                 <div className="text-sm">
-                  {Object.entries(config.communicationConfig.slack.channelData).map(([key, channels]: [string, any]) => (
+                  {Object.entries(config.communicationConfig.channelData).map(([key, channels]: [string, any]) => (
                     channels && Array.isArray(channels) && channels.length > 0 && (
                       <div key={key} className="mb-2">
                         <Text size="xs" c="dimmed" className="mb-1 capitalize">
@@ -310,9 +312,13 @@ export function ConfigurationPreviewModal({
                         </Text>
                         <Group gap="xs">
                           {channels.map((channel: any) => (
-                            <Badge key={channel.id} size="sm" variant="light">
-                              {channel.name}
-                            </Badge>
+                            <AppBadge
+                              key={channel.id}
+                              type="status"
+                              value="info"
+                              title={channel.name}
+                              size="sm"
+                            />
                           ))}
                         </Group>
                       </div>
@@ -378,13 +384,12 @@ export function ConfigurationPreviewModal({
           <Stack gap="xs">
             <div className="grid grid-cols-2 gap-2 text-sm">
               <Text c="dimmed">Status:</Text>
-              <Badge 
-                variant="light" 
-                color={config.isActive ? 'green' : 'red'}
+              <AppBadge
+                type="status"
+                value={config.isActive ? 'success' : 'error'}
+                title={config.isActive ? CONFIG_STATUSES.ACTIVE : CONFIG_STATUSES.ARCHIVED}
                 size="sm"
-              >
-                {config.isActive ? 'ACTIVE' : 'ARCHIVED'}
-              </Badge>
+              />
               
               <Text c="dimmed">Created:</Text>
               <Text fw={500} size="sm">

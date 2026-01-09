@@ -6,6 +6,7 @@ import {
   authenticateLoaderRequest,
   type AuthenticatedActionFunction,
 } from '~/utils/authenticate';
+import { logApiError } from '~/utils/api-route-helpers';
 
 /**
  * GET - Fetch SCM integration for tenant
@@ -29,7 +30,7 @@ export const loader = authenticateLoaderRequest(
 
       return json({ integration });
     } catch (error) {
-      console.error('Get SCM integration error:', error);
+      logApiError('[SCM-Get]', error);
       return json(
         {
           error: error instanceof Error ? error.message : 'Failed to get SCM integration',
@@ -93,17 +94,7 @@ const createSCMIntegration: AuthenticatedActionFunction = async ({ request, para
     console.log(`[Frontend-Create-Route] Successfully created integration:`, integration?.id);
     return json({ integration }, { status: 201 });
   } catch (error) {
-    console.error('[Frontend-Create-Route] Create SCM integration error:', error);
-    
-    const errorDetails: { message: string; stack?: string } = {
-      message: error instanceof Error ? error.message : 'Unknown error',
-    };
-    
-    if (error instanceof Error && error.stack) {
-      errorDetails.stack = error.stack;
-    }
-    
-    console.error('[Frontend-Create-Route] Error details:', errorDetails);
+    logApiError('[SCM-Create]', error);
     return json(
       {
         error: error instanceof Error ? error.message : 'Failed to create SCM integration',
@@ -139,7 +130,7 @@ const updateSCMIntegration: AuthenticatedActionFunction = async ({ request, para
 
     return json({ integration });
   } catch (error) {
-    console.error('Update SCM integration error:', error);
+    logApiError('[SCM-Update]', error);
     return json(
       {
         error: error instanceof Error ? error.message : 'Failed to update SCM integration',
@@ -190,12 +181,7 @@ const deleteSCMIntegration: AuthenticatedActionFunction = async ({ request, para
     console.log(`[Frontend-Delete-Route] Successfully deleted SCM integration`);
     return json({ success: true });
   } catch (error: any) {
-    console.error('[Frontend-Delete-Route] Delete SCM integration error:', error);
-    console.error('[Frontend-Delete-Route] Error details:', {
-      message: error?.message,
-      status: error?.status,
-      data: error?.data,
-    });
+    logApiError('[SCM-Delete]', error);
     // Propagate the actual status code from the backend (e.g., 404 for not found)
     const statusCode = error?.status || 500;
     return json(

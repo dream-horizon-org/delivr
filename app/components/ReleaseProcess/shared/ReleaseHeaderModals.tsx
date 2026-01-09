@@ -3,7 +3,10 @@
  * All modals used in the release header (Edit, Activity Logs, Slack Message, Pause Confirmation)
  */
 
-import { Button, Group, Modal, ScrollArea, Select, Stack, Text } from '@mantine/core';
+import { useEffect } from 'react';
+import { Alert, Button, Group, Modal, ScrollArea, Select, Stack, Text } from '@mantine/core';
+import { IconClock } from '@tabler/icons-react';
+import { useQueryClient } from 'react-query';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { CreateReleaseForm } from '~/components/ReleaseCreation/CreateReleaseForm';
 import { ActivityLogsDrawer } from '../ActivityLogsDrawer';
@@ -49,7 +52,16 @@ export function ReleaseHeaderModals({
   onPauseResume,
   onUpdateCallback,
 }: ReleaseHeaderModalsProps) {
+  const queryClient = useQueryClient();
   const sendNotificationMutation = useSendNotification(org, release.id);
+  
+  // Refetch release data when edit modal opens to get latest upcomingRegressions
+  useEffect(() => {
+    if (editModalOpened) {
+      // Invalidate release query to force refetch of latest data including upcomingRegressions
+      queryClient.invalidateQueries(['release', org, release.id]);
+    }
+  }, [editModalOpened, org, release.id, queryClient]);
 
   const handleSendNotification = async () => {
     if (!selectedMessageType) {
@@ -76,8 +88,8 @@ export function ReleaseHeaderModals({
       <Modal
         opened={editModalOpened}
         onClose={onEditModalClose}
-        title={BUTTON_LABELS.EDIT_RELEASE}
-        size="xl"
+        title={"Modify release"}
+        size="2xl"
         scrollAreaComponent={ScrollArea.Autosize}
       >
         <CreateReleaseForm
@@ -110,7 +122,38 @@ export function ReleaseHeaderModals({
         size="md"
       >
         <Stack gap="md">
-          <Text size="sm" c="dimmed">
+          {/* Coming Soon Banner */}
+          <Alert
+            icon={<IconClock size={16} />}
+            color="blue"
+            variant="light"
+            title="Coming Soon"
+          >
+            <Text size="sm" mb="xs" fw={500}>
+              Slack Notification Feature
+            </Text>
+            <Text size="sm" c="dimmed">
+              We're working on bringing you the ability to send custom notifications to Slack channels 
+              directly from the release process. This feature will allow you to:
+            </Text>
+            <Stack gap="xs" mt="sm">
+              <Text size="sm" c="dimmed">
+                • Send test results summaries to your team
+              </Text>
+              <Text size="sm" c="dimmed">
+                • Post pre-kickoff reminders and updates
+              </Text>
+              <Text size="sm" c="dimmed">
+                • Keep stakeholders informed about release progress
+              </Text>
+            </Stack>
+            <Text size="sm" c="dimmed" mt="sm">
+              Stay tuned for updates!
+            </Text>
+          </Alert>
+
+          {/* Original UI - Commented Out */}
+          {/* <Text size="sm" c="dimmed">
             Select a message type to send to Slack:
           </Text>
           <Select
@@ -153,6 +196,19 @@ export function ReleaseHeaderModals({
               disabled={!selectedMessageType}
             >
               Send Message
+            </Button>
+          </Group> */}
+
+          {/* Close Button */}
+          <Group justify="flex-end" mt="md">
+            <Button
+              variant="subtle"
+              onClick={() => {
+                onSlackMessageModalClose();
+                onSelectedMessageTypeChange(null);
+              }}
+            >
+              Close
             </Button>
           </Group>
         </Stack>

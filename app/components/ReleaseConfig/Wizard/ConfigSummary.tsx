@@ -8,7 +8,6 @@ import {
   Text,
   Paper,
   Group,
-  Badge,
   List,
   Box,
   ThemeIcon,
@@ -30,6 +29,8 @@ import {
   IconMail,
 } from '@tabler/icons-react';
 import type { ConfigSummaryProps } from '~/types/release-config-props';
+import { PlatformTargetBadge, AppBadge } from '~/components/Common/AppBadge';
+import { RELEASE_TYPES } from '~/types/release-config-constants';
 
 export function ConfigSummary({ config }: ConfigSummaryProps) {
   const theme = useMantineTheme();
@@ -108,18 +109,24 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
             <InfoRow
               label="Release Type"
               value={
-                <Badge variant="light" size="sm" color="brand">
-                  {config.releaseType || 'Minor'}
-                </Badge>
+                <AppBadge
+                  type="release-type"
+                  value={config.releaseType || RELEASE_TYPES.MINOR}
+                  title={config.releaseType || 'Minor'}
+                  size="sm"
+                />
               }
             />
             <InfoRow
               label="Default Config"
               value={
                 config.isDefault ? (
-                  <Badge variant="light" size="sm" color="green">
-                    Yes
-                  </Badge>
+                  <AppBadge
+                    type="status"
+                    value="success"
+                    title="Yes"
+                    size="sm"
+                  />
                 ) : (
                   <Text size="sm" c={theme.colors.slate[5]}>
                     No
@@ -146,13 +153,12 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
         {/* Build Upload */}
         <SectionCard icon={IconSettings} iconColor="green" title="Build Upload Method">
           <Stack gap="sm">
-            <Badge
+            <AppBadge
+              type="build-type"
+              value={!config.hasManualBuildUpload ? 'CI_CD' : 'MANUAL'}
+              title={!config.hasManualBuildUpload ? 'CI/CD Integration' : 'Manual Upload'}
               size="lg"
-              variant="light"
-              color={!config.hasManualBuildUpload ? 'grape' : 'blue'}
-            >
-              {!config.hasManualBuildUpload ? 'CI/CD Integration' : 'Manual Upload'}
-            </Badge>
+            />
 
             {!config.hasManualBuildUpload &&
               config.ciConfig?.workflows &&
@@ -197,12 +203,16 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
 
         {/* Target Platforms */}
         <SectionCard icon={IconTarget} iconColor="orange" title="Target Platforms">
-          {config.targets && config.targets.length > 0 ? (
+          {config.platformTargets && config.platformTargets.length > 0 ? (
             <Group gap="xs">
-              {config.targets.map((target) => (
-                <Badge key={target} variant="light" size="md" color="orange">
-                  {target.replace('_', ' ')}
-                </Badge>
+              {config.platformTargets.map((pt, index) => (
+                <PlatformTargetBadge
+                  key={`${pt.platform}-${pt.target}-${index}`}
+                  platform={pt.platform}
+                  target={pt.target}
+                  version={(pt as any).version}
+                  size="md"
+                />
               ))}
             </Group>
           ) : (
@@ -232,7 +242,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
         </SectionCard>
 
         {/* Project Management */}
-        <SectionCard icon={IconTicket} iconColor="blue" title="Project Management (JIRA)">
+        <SectionCard icon={IconTicket} iconColor="blue" title="Project Management">
           {config?.projectManagementConfig?.enabled ? (
             <Stack gap="xs">
               <Group gap="xs">
@@ -263,9 +273,12 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
               <InfoRow
                 label="Frequency"
                 value={
-                  <Badge variant="light" size="sm" color="cyan">
-                    {config.releaseSchedule.releaseFrequency}
-                  </Badge>
+                  <AppBadge
+                    type="status"
+                    value="info"
+                    title={config.releaseSchedule.releaseFrequency}
+                    size="sm"
+                  />
                 }
               />
               <InfoRow
@@ -296,7 +309,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
         <SectionCard icon={IconBell} iconColor="indigo" title="Communication">
           <Stack gap="sm">
             <Group gap="xs">
-              {config.communicationConfig?.slack?.enabled ? (
+              {config.communicationConfig?.enabled ? (
                 <>
                   <IconBrandSlack size={14} color={theme.colors.green[6]} />
                   <Text size="sm">Slack enabled</Text>
@@ -306,22 +319,6 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
                   <IconBrandSlack size={14} color={theme.colors.slate[4]} />
                   <Text size="sm" c={theme.colors.slate[5]}>
                     Slack disabled
-                  </Text>
-                </>
-              )}
-            </Group>
-
-            <Group gap="xs">
-              {config.communicationConfig?.email?.enabled ? (
-                <>
-                  <IconMail size={14} color={theme.colors.green[6]} />
-                  <Text size="sm">Email enabled</Text>
-                </>
-              ) : (
-                <>
-                  <IconMail size={14} color={theme.colors.slate[4]} />
-                  <Text size="sm" c={theme.colors.slate[5]}>
-                    Email disabled
                   </Text>
                 </>
               )}

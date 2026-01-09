@@ -11,6 +11,7 @@ import type { User } from '~/.server/services/Auth/auth.interface';
 import { ReleaseProcessService } from '~/.server/services/ReleaseProcess';
 import { getApiErrorMessage } from '~/utils/api-client';
 import type { ActivityLogsResponse } from '~/types/release-process.types';
+import { logApiError } from '~/utils/api-route-helpers';
 
 /**
  * GET /api/v1/tenants/:tenantId/releases/:releaseId/activity-logs
@@ -67,7 +68,7 @@ export const loader = authenticateLoaderRequest(
         activityLogs: [],
       });
     } catch (error: any) {
-      console.error('[BFF] Activity logs error:', error);
+      logApiError('[BFF-ActivityLogs]', error);
       const errorMessage = getApiErrorMessage(error, 'Failed to fetch activity logs');
       return json(
         { success: false, error: errorMessage },

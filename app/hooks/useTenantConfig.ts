@@ -19,7 +19,6 @@ interface TenantInfoResponse {
         enabledPlatforms: string[];
         enabledTargets: string[];
         allowedReleaseTypes: string[];
-        customSettings: any;
       };
       integrations?: any[];
     };
@@ -50,7 +49,6 @@ async function fetchTenantConfig(tenantId: string): Promise<TenantConfig | null>
       enabledPlatforms: config.enabledPlatforms,
       enabledTargets: config.enabledTargets,
       allowedReleaseTypes: config.allowedReleaseTypes,
-      customSettings: config.customSettings,
     },
   };
 }

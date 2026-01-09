@@ -12,6 +12,7 @@ import type {
   WarningSeverity,
 } from '~/types/distribution/distribution.types';
 import { DistributionStatus } from '~/types/distribution/distribution.types';
+import { DISTRIBUTION_STATUS_POLLING_INTERVAL, MAX_DISTRIBUTION_POLLING_DURATION } from '~/constants/polling-intervals';
 
 // ============================================================================
 // ROLLOUT PERCENTAGES
@@ -281,14 +282,16 @@ export const WARNING_SEVERITY_COLORS: Record<WarningSeverity, string> = {
 // ============================================================================
 
 /**
- * Status polling interval (10 seconds)
+ * Status polling interval (30 seconds)
+ * Uses shared constant from polling-intervals.ts
  */
-export const STATUS_POLLING_INTERVAL = 10000;
+export const STATUS_POLLING_INTERVAL = DISTRIBUTION_STATUS_POLLING_INTERVAL;
 
 /**
  * Maximum polling duration (5 minutes)
+ * Uses shared constant from polling-intervals.ts
  */
-export const MAX_POLLING_DURATION = 5 * 60 * 1000;
+export const MAX_POLLING_DURATION = MAX_DISTRIBUTION_POLLING_DURATION;
 
 // ============================================================================
 // UI TEXT - Form Labels and Headings

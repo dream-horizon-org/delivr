@@ -14,10 +14,8 @@ type BuildOperationResponse = {
 
 export function useVerifyState() {
   const [buildNumber, setBuildNumber] = useState('');
-  const [versionName, setVersionName] = useState('');
   const [validationErrors, setValidationErrors] = useState<{
     buildNumber?: string;
-    versionName?: string;
   }>({});
   
   const fetcher = useFetcher<BuildOperationResponse>();
@@ -27,7 +25,7 @@ export function useVerifyState() {
   const verifySuccess = fetcher.data?.success === true;
 
   const validate = useCallback((): boolean => {
-    const errors: { buildNumber?: string; versionName?: string } = {};
+    const errors: { buildNumber?: string } = {};
     
     // Validate build number
     if (!buildNumber.trim()) {
@@ -36,28 +34,18 @@ export function useVerifyState() {
       errors.buildNumber = 'Build number must be numeric';
     }
     
-    // Validate version name
-    if (!versionName.trim()) {
-      errors.versionName = 'Version name is required';
-    } else if (!VALIDATION_RULES.VERSION_NAME.PATTERN.test(versionName)) {
-      errors.versionName = `Version must match format ${VALIDATION_RULES.VERSION_NAME.EXAMPLE}`;
-    }
-    
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
-  }, [buildNumber, versionName]);
+  }, [buildNumber]);
 
   const clearForm = useCallback(() => {
     setBuildNumber('');
-    setVersionName('');
     setValidationErrors({});
   }, []);
 
   return {
     buildNumber,
     setBuildNumber,
-    versionName,
-    setVersionName,
     validationErrors,
     isVerifying,
     verifyError,

@@ -7,12 +7,23 @@ import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from
 import { useLoaderData, useNavigate, useNavigation, Link } from '@remix-run/react';
 import { useState, useEffect, useMemo } from 'react';
 import { apiGet, getApiErrorMessage } from '~/utils/api-client';
+import { Breadcrumb } from '~/components/Common';
+import { getBreadcrumbItems } from '~/constants/breadcrumbs';
 import { ConfigurationWizard } from '~/components/ReleaseConfig/Wizard/ConfigurationWizard';
 import { DraftReleaseDialog } from '~/components/ReleaseConfig/DraftReleaseDialog';
 import { loadDraftConfig, clearDraftConfig } from '~/utils/release-config-storage';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { useConfig } from '~/contexts/ConfigContext';
 import { authenticateLoaderRequest, authenticateActionRequest } from '~/utils/authenticate';
+import { CONFIG_STATUSES } from '~/types/release-config-constants';
+import { 
+  SCM_PROVIDER_IDS,
+  CICD_PROVIDER_IDS,
+  TEST_MANAGEMENT_PROVIDER_IDS,
+  PROJECT_MANAGEMENT_PROVIDER_IDS,
+  COMMUNICATION_PROVIDER_IDS,
+  APP_DISTRIBUTION_PROVIDER_IDS,
+} from '~/constants/integrations';
 import { PermissionService } from '~/utils/permissions.server';
 import {
   Box,
@@ -23,8 +34,6 @@ import {
   Button,
   Skeleton,
   Paper,
-  Breadcrumbs,
-  Anchor,
   Group,
   useMantineTheme,
 } from '@mantine/core';
@@ -34,7 +43,6 @@ import {
   IconArrowLeft,
   IconRefresh,
 } from '@tabler/icons-react';
-import { transformFromBackend } from '~/.server/services/ReleaseConfig/release-config-payload';
 
 export const loader = authenticateLoaderRequest(async ({ params, user, request }: LoaderFunctionArgs & { user: any }) => {
   const { org } = params;
@@ -78,8 +86,8 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
       );
       
       if (result.data) {
-        const currentUserId = user.user.id;
-        existingConfig = await transformFromBackend(result.data, currentUserId) as ReleaseConfiguration;
+        // Data is already transformed by ReleaseConfigService.getById - use directly
+        existingConfig = result.data as ReleaseConfiguration;
         
         // If cloning, modify the config to be a new one
         if (cloneConfigId && existingConfig) {
@@ -89,7 +97,7 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
             id: '',
             name: `${existingConfig.name} (Copy)`,
             isDefault: false,
-            status: 'DRAFT' as any,
+            status: CONFIG_STATUSES.DRAFT as any,
             createdAt: new Date().toISOString(),
           };
         }
@@ -184,22 +192,22 @@ export default function ReleasesConfigurePage() {
     
     return {
       jenkins: allConnected
-        .filter(i => i.providerId === 'jenkins')
+        .filter(i => i.providerId === CICD_PROVIDER_IDS.JENKINS)
         .map(i => ({ id: i.id, name: i.name })),
       github: allConnected
-        .filter(i => i.providerId === 'github' || i.providerId === 'scm')
+        .filter(i => i.providerId === SCM_PROVIDER_IDS.GITHUB)
         .map(i => ({ id: i.id, name: i.name })),
       githubActions: allConnected
-        .filter(i => i.providerId?.toLowerCase() === 'github_actions' || i.providerId?.toLowerCase() === 'github-actions')
+        .filter(i => i.providerId === CICD_PROVIDER_IDS.GITHUB_ACTIONS)
         .map(i => ({ id: i.id, name: i.name })),
       slack: allConnected
-        .filter(i => i.providerId === 'slack')
+        .filter(i => i.providerId === COMMUNICATION_PROVIDER_IDS.SLACK)
         .map(i => ({ id: i.id, name: i.name })),
       jira: allConnected
-        .filter(i => i.providerId === 'jira')
+        .filter(i => i.providerId === PROJECT_MANAGEMENT_PROVIDER_IDS.JIRA)
         .map(i => ({ id: i.id, name: i.name })),
       checkmate: allConnected
-        .filter(i => i.providerId === 'checkmate')
+        .filter(i => i.providerId === TEST_MANAGEMENT_PROVIDER_IDS.CHECKMATE)
         .map(i => ({
           id: i.id,
           name: i.name,
@@ -207,6 +215,12 @@ export default function ReleasesConfigurePage() {
           baseUrl: i.config?.baseUrl,
           orgId: i.config?.orgId,
         })),
+      appStore: allConnected
+        .filter(i => i.providerId === APP_DISTRIBUTION_PROVIDER_IDS.APP_STORE)
+        .map(i => ({ id: i.id, name: i.name })),
+      playStore: allConnected
+        .filter(i => i.providerId === APP_DISTRIBUTION_PROVIDER_IDS.PLAY_STORE)
+        .map(i => ({ id: i.id, name: i.name })),
     };
   }, [getConnectedIntegrations]);
   
@@ -235,7 +249,7 @@ export default function ReleasesConfigurePage() {
     if (returnTo === 'create') {
       navigate(`/dashboard/${organizationId}/releases/create?returnTo=config`);
     } else {
-      navigate(`/dashboard/${organizationId}/releases/settings?tab=configurations`);
+      navigate(`/dashboard/${organizationId}/releases/configurations`);
     }
   };
   
@@ -243,7 +257,7 @@ export default function ReleasesConfigurePage() {
     if (returnTo === 'create') {
       navigate(`/dashboard/${organizationId}/releases/create`);
     } else {
-      navigate(`/dashboard/${organizationId}/releases/settings?tab=configurations`);
+      navigate(`/dashboard/${organizationId}/releases/configurations`);
     }
   };
   
@@ -266,27 +280,11 @@ export default function ReleasesConfigurePage() {
   };
 
   // Breadcrumb items
-  const breadcrumbItems = [
-    { title: 'Release Management', href: `/dashboard/${organizationId}/releases` },
-    { title: 'Configuration', href: `/dashboard/${organizationId}/releases/settings?tab=configurations` },
-    { title: isEditMode ? 'Edit' : isCloneMode ? 'Clone' : 'New', href: '#' },
-  ].map((item, index) => (
-    item.href === '#' ? (
-      <Text key={index} size="sm" c={theme.colors.slate[6]}>
-        {item.title}
-      </Text>
-    ) : (
-      <Anchor
-        key={index}
-        component={Link}
-        to={item.href}
-        size="sm"
-        c={theme.colors.slate[5]}
-      >
-        {item.title}
-      </Anchor>
-    )
-  ));
+  const breadcrumbItems = getBreadcrumbItems('releases.configure', {
+    org: organizationId,
+    isEditMode,
+    isCloneMode,
+  });
   
   // Show loading state
   if (isLoading) {
@@ -315,7 +313,7 @@ export default function ReleasesConfigurePage() {
   if (fetchError && (isEditMode || isCloneMode)) {
     return (
       <Box p={32}>
-        <Breadcrumbs mb={24}>{breadcrumbItems}</Breadcrumbs>
+        <Breadcrumb items={breadcrumbItems} mb={24} />
         
         <Center py={80}>
           <Stack align="center" gap="lg" maw={450}>
@@ -335,7 +333,7 @@ export default function ReleasesConfigurePage() {
                 variant="default"
                 leftSection={<IconArrowLeft size={16} />}
                 component={Link}
-                to={`/dashboard/${organizationId}/releases/settings?tab=configurations`}
+                to={`/dashboard/${organizationId}/releases/configurations`}
               >
                 Back to Configurations
               </Button>

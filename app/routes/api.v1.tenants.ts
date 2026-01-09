@@ -57,14 +57,38 @@ const createOrganization: AuthenticatedActionFunction = async ({ request, user }
     console.error("Error details:", {
       message: error.message,
       response: error.response?.data,
-      status: error.response?.status
+      status: error.response?.status,
+      fullError: JSON.stringify(error.response?.data, null, 2)
     });
+    
+    // Extract error message from backend response - use backend message directly
+    let errorMessage = "Failed to create organization";
+    const statusCode = error.response?.status || 500;
+    
+    if (error.response?.data) {
+      const errorData = error.response.data;
+      
+      // Try different error message locations
+      if (typeof errorData === 'string') {
+        errorMessage = errorData;
+      } else if (errorData.error) {
+        errorMessage = typeof errorData.error === 'string' 
+          ? errorData.error 
+          : errorData.error.message || errorData.error;
+      } else if (errorData.message) {
+        errorMessage = errorData.message;
+      } else if (errorData.details) {
+        errorMessage = typeof errorData.details === 'string' 
+          ? errorData.details 
+          : errorData.details.message || errorMessage;
+      }
+    }
     
     return json(
       { 
-        error: error.response?.data?.error || error.response?.data?.message || error.message || "Failed to create organization" 
+        error: errorMessage
       },
-      { status: error.response?.status || 500 }
+      { status: statusCode }
     );
   }
 };

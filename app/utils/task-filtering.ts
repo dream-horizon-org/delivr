@@ -5,7 +5,8 @@
 
 import type { Task } from '~/types/release-process.types';
 import { TASK_STATUS_ORDER } from '~/constants/release-process-ui';
-import { TaskType } from '~/types/release-process-enums';
+import { TaskType, TaskStage } from '~/types/release-process-enums';
+import { TASK_ORDER } from '~/constants/task-order';
 
 /**
  * Filter out tasks with unknown task types
@@ -41,27 +42,49 @@ export function filterValidTaskTypes(tasks: Task[]): Task[] {
 }
 
 /**
- * Filter and sort tasks by status
- * @param tasks - Array of tasks to filter and sort
- * @param statusFilter - Optional status filter (null = all statuses)
- * @returns Filtered and sorted tasks
+ * Sort tasks by execution order (from TASK_ORDER), then by status
+ * @param tasks - Array of tasks to sort
+ * @param stage - The stage these tasks belong to
+ * @returns Tasks sorted by execution order, then by status
  */
-export function filterAndSortTasks(
+export function sortTasksByExecutionOrder(
   tasks: Task[],
-  statusFilter: string | null
+  stage: TaskStage
 ): Task[] {
-  if (!tasks || tasks.length === 0) return [];
-  
-  // Filter by status if filter is selected
-  let filtered = statusFilter 
-    ? tasks.filter((task) => task.taskStatus === statusFilter)
-    : tasks;
-  
-  // Sort by status order
-  return filtered.sort((a, b) => {
-    const orderA = TASK_STATUS_ORDER[a.taskStatus] || 99;
-    const orderB = TASK_STATUS_ORDER[b.taskStatus] || 99;
-    return orderA - orderB;
+  const order = TASK_ORDER[stage];
+  if (!order || order.length === 0) {
+    // If no order defined, fall back to status sorting
+    return [...tasks].sort((a, b) => {
+      const orderA = TASK_STATUS_ORDER[a.taskStatus] || 99;
+      const orderB = TASK_STATUS_ORDER[b.taskStatus] || 99;
+      return orderA - orderB;
+    });
+  }
+
+  return [...tasks].sort((a, b) => {
+    // First, sort by execution order
+    const orderA = order.indexOf(a.taskType);
+    const orderB = order.indexOf(b.taskType);
+
+    // If both tasks are in the order, compare by order
+    if (orderA !== -1 && orderB !== -1) {
+      // If same order position, sort by status
+      if (orderA === orderB) {
+        const statusA = TASK_STATUS_ORDER[a.taskStatus] || 99;
+        const statusB = TASK_STATUS_ORDER[b.taskStatus] || 99;
+        return statusA - statusB;
+      }
+      return orderA - orderB;
+    }
+
+    // If only one is in order, prioritize it
+    if (orderA !== -1) return -1;
+    if (orderB !== -1) return 1;
+
+    // If neither is in order, sort by status
+    const statusA = TASK_STATUS_ORDER[a.taskStatus] || 99;
+    const statusB = TASK_STATUS_ORDER[b.taskStatus] || 99;
+    return statusA - statusB;
   });
 }
 

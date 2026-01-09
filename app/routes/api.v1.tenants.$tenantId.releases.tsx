@@ -13,6 +13,7 @@ import { authenticateLoaderRequest, authenticateActionRequest } from '~/utils/au
 import type { User } from '~/.server/services/Auth/auth.interface';
 import { listReleases, createRelease } from '~/.server/services/ReleaseManagement';
 import type { CreateReleaseBackendRequest } from '~/types/release-creation-backend';
+import { logApiError } from '~/utils/api-route-helpers';
 
 /**
  * GET /api/v1/tenants/:tenantId/releases
@@ -56,7 +57,7 @@ export const loader = authenticateLoaderRequest(
       },
     });
   } catch (error: any) {
-    console.error('[BFF] List error:', error);
+    logApiError('[BFF-Releases-List]', error);
     return json(
       { success: false, error: error.message || 'Internal server error' },
       { status: 500 }
@@ -113,7 +114,7 @@ export const action = authenticateActionRequest({
         { status: 201 }
       );
     } catch (error) {
-      console.error('[Releases API] Error:', error);
+      logApiError('[BFF-Releases-Create]', error);
       return json(
         {
           success: false,

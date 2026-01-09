@@ -10,6 +10,8 @@ import { authenticateActionRequest } from '~/utils/authenticate';
 import type { User } from '~/.server/services/Auth/auth.interface';
 import { ProjectManagementIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 import type { ProjectManagementProviderType } from '~/.server/services/ReleaseManagement/integrations';
+import { logApiError } from '~/utils/api-route-helpers';
+import { INTEGRATION_TYPES } from '~/types/release-config-constants';
 
 const verifyPMCredentials = async ({
   request,
@@ -25,7 +27,7 @@ const verifyPMCredentials = async ({
   try {
     const body = await request.json();
     const url = new URL(request.url);
-    const providerType = (url.searchParams.get('providerType') || body.providerType || 'JIRA').toUpperCase() as ProjectManagementProviderType;
+    const providerType = (url.searchParams.get('providerType') || body.providerType || INTEGRATION_TYPES.JIRA).toUpperCase() as ProjectManagementProviderType;
 
     // Transform Jira-specific fields to generic format
     const config: any = body.config || {};
@@ -89,7 +91,7 @@ const verifyPMCredentials = async ({
       }, { status: 401 });
     }
   } catch (error) {
-    console.error('[BFF-PM-Verify] Error:', error);
+    logApiError('[BFF-PM-Verify]', error);
     return json(
       {
         success: false,

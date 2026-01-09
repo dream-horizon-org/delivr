@@ -4,9 +4,9 @@
  */
 
 import { memo } from 'react';
-import { Link } from '@remix-run/react';
 import { Container, Title, Text, Paper, Button, Group, Stack } from '@mantine/core';
-import { IconArrowLeft, IconRefresh } from '@tabler/icons-react';
+import { IconRefresh } from '@tabler/icons-react';
+import { BackToReleasesButton } from '~/components/Common/BackToReleasesButton';
 
 interface ReleaseNotFoundProps {
   org: string;
@@ -47,11 +47,7 @@ export const ReleaseNotFound = memo(function ReleaseNotFound({
                 Try Again
               </Button>
             )}
-            <Link to={`/dashboard/${org}/releases`}>
-              <Button leftSection={<IconArrowLeft size={16} />} variant="light">
-                Back to Releases
-              </Button>
-            </Link>
+            <BackToReleasesButton variant="light" />
           </Group>
         </Stack>
       </Paper>

@@ -12,7 +12,7 @@ import {
   IconPlayerPlay,
 } from '@tabler/icons-react';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
-import { Phase, ReleaseStatus } from '~/types/release-process-enums';
+import { Phase, ReleaseStatus, PauseType } from '~/types/release-process-enums';
 import { BUTTON_LABELS } from '~/constants/release-process-ui';
 
 interface ReleaseHeaderActionsProps {
@@ -39,6 +39,12 @@ export function ReleaseHeaderActions({
   isRefetching = false,
 }: ReleaseHeaderActionsProps) {
   const releaseStatus: ReleaseStatus = release.status;
+  const pauseType = release.cronJob?.pauseType;
+
+  const isResumeDisabled = isPaused && (
+    pauseType === PauseType.AWAITING_STAGE_TRIGGER || 
+    pauseType === PauseType.TASK_FAILURE
+  );
 
   return (
     <Group gap="sm" wrap="wrap">
@@ -62,6 +68,7 @@ export function ReleaseHeaderActions({
           color={isPaused ? 'green' : 'orange'}
           leftSection={isPaused ? <IconPlayerPlay size={16} /> : <IconPlayerPause size={16} />}
           onClick={isPaused ? onResumeClick : onPauseClick}
+          disabled={isResumeDisabled}
         >
           {isPaused ? BUTTON_LABELS.RESUME : BUTTON_LABELS.PAUSE}
         </Button>

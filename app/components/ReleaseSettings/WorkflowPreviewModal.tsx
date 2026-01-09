@@ -6,17 +6,14 @@
 import { Modal, Stack, Text, Card, Group, Badge, Divider, ScrollArea, useMantineTheme, ThemeIcon, Anchor } from '@mantine/core';
 import {
   IconRocket,
-  IconBrandAndroid,
-  IconBrandApple,
-  IconServer,
-  IconBrandGithub,
   IconLink,
   IconCalendar,
 } from '@tabler/icons-react';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
-import { PLATFORMS, BUILD_PROVIDERS } from '~/types/release-config-constants';
-import { PLATFORM_LABELS, ENVIRONMENT_LABELS, PROVIDER_LABELS } from '~/constants/release-config-ui';
+import { BUILD_PROVIDERS } from '~/types/release-config-constants';
+import { PLATFORM_LABELS, ENVIRONMENT_LABELS } from '~/constants/release-config-ui';
 import { workflowTypeToEnvironment } from '~/types/workflow-mappings';
+import { getPlatformIcon, getBuildProviderIcon, getBuildProviderLabel, formatDateTime } from '~/utils/ui-utils';
 
 interface WorkflowPreviewModalProps {
   opened: boolean;
@@ -30,41 +27,6 @@ export function WorkflowPreviewModal({
   workflow,
 }: WorkflowPreviewModalProps) {
   const theme = useMantineTheme();
-
-  const getPlatformIcon = (platform: string) => {
-    // Normalize to uppercase for comparison (backend may return lowercase)
-    const normalizedPlatform = platform?.toUpperCase();
-    switch (normalizedPlatform) {
-      case PLATFORMS.ANDROID:
-        return <IconBrandAndroid size={18} />;
-      case PLATFORMS.IOS:
-        return <IconBrandApple size={18} />;
-      default:
-        return null;
-    }
-  };
-
-  const getProviderIcon = (provider: string) => {
-    switch (provider) {
-      case BUILD_PROVIDERS.JENKINS:
-        return <IconServer size={18} />;
-      case BUILD_PROVIDERS.GITHUB_ACTIONS:
-        return <IconBrandGithub size={18} />;
-      default:
-        return <IconRocket size={18} />;
-    }
-  };
-
-  const getProviderLabel = (provider: string): string => {
-    switch (provider) {
-      case BUILD_PROVIDERS.JENKINS:
-        return PROVIDER_LABELS.JENKINS;
-      case BUILD_PROVIDERS.GITHUB_ACTIONS:
-        return PROVIDER_LABELS.GITHUB_ACTIONS;
-      default:
-        return provider;
-    }
-  };
 
   const getWorkflowTypeLabel = (workflowType: string) => {
     const environment = workflowTypeToEnvironment[workflowType];
@@ -133,7 +95,7 @@ export function WorkflowPreviewModal({
               <Badge
                 variant="light"
                 color="brand"
-                leftSection={getPlatformIcon(workflow.platform)}
+                leftSection={getPlatformIcon(workflow.platform, 18)}
                 size="md"
               >
                 {PLATFORM_LABELS[workflow.platform?.toUpperCase() as keyof typeof PLATFORM_LABELS] || workflow.platform}
@@ -164,10 +126,10 @@ export function WorkflowPreviewModal({
               <Badge
                 variant="light"
                 color={workflow.providerType === BUILD_PROVIDERS.JENKINS ? 'red' : 'gray'}
-                leftSection={getProviderIcon(workflow.providerType)}
+                leftSection={getBuildProviderIcon(workflow.providerType, 18)}
                 size="md"
               >
-                {getProviderLabel(workflow.providerType)}
+                {getBuildProviderLabel(workflow.providerType)}
               </Badge>
             </Group>
           </Stack>
@@ -208,7 +170,10 @@ export function WorkflowPreviewModal({
         </Card>
 
         {/* Parameters */}
-        {workflow.parameters && Object.keys(workflow.parameters).length > 0 && (
+        {workflow.parameters && (
+          (Array.isArray(workflow.parameters) && workflow.parameters.length > 0) ||
+          (!Array.isArray(workflow.parameters) && Object.keys(workflow.parameters).length > 0)
+        ) && (
           <Card shadow="sm" padding="md" radius="md" withBorder>
             <Group gap="sm" mb="md">
               <ThemeIcon size={24} radius="md" variant="light" color="purple">
@@ -220,26 +185,60 @@ export function WorkflowPreviewModal({
             </Group>
 
             <Stack gap="xs">
-              {Object.entries(workflow.parameters).map(([key, value]) => (
-                <Group key={key} justify="space-between">
-                  <Text size="sm" c={theme.colors.slate[5]}>
-                    {key}:
-                  </Text>
-                  <Text
-                    fw={500}
-                    size="sm"
-                    c={theme.colors.slate[9]}
-                    style={{
-                      fontFamily: 'monospace',
-                      maxWidth: '60%',
-                      wordBreak: 'break-all',
-                      textAlign: 'right',
-                    }}
-                  >
-                    {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
-                  </Text>
-                </Group>
-              ))}
+              {Array.isArray(workflow.parameters) ? (
+                // Handle array format (WorkflowParameter[])
+                workflow.parameters.map((param, index) => {
+                  const paramName = typeof param === 'object' && param !== null && 'name' in param 
+                    ? param.name 
+                    : `Parameter ${index}`;
+                  const paramValue = typeof param === 'object' && param !== null && 'defaultValue' in param
+                    ? param.defaultValue
+                    : param;
+                  
+                  return (
+                    <Group key={index} justify="space-between">
+                      <Text size="sm" c={theme.colors.slate[5]}>
+                        {paramName}
+                      </Text>
+                      <Text
+                        fw={500}
+                        size="sm"
+                        c={theme.colors.slate[9]}
+                        style={{
+                          fontFamily: 'monospace',
+                          maxWidth: '60%',
+                          wordBreak: 'break-all',
+                          textAlign: 'right',
+                        }}
+                      >
+                        {typeof paramValue === 'object' ? JSON.stringify(paramValue) : String(paramValue ?? 'N/A')}
+                      </Text>
+                    </Group>
+                  );
+                })
+              ) : (
+                // Handle object format (Record<string, any>)
+                Object.entries(workflow.parameters).map(([key, value]) => (
+                  <Group key={key} justify="space-between">
+                    <Text size="sm" c={theme.colors.slate[5]}>
+                      {key} →
+                    </Text>
+                    <Text
+                      fw={500}
+                      size="sm"
+                      c={theme.colors.slate[9]}
+                      style={{
+                        fontFamily: 'monospace',
+                        maxWidth: '60%',
+                        wordBreak: 'break-all',
+                        textAlign: 'right',
+                      }}
+                    >
+                      {typeof value === 'object' ? JSON.stringify(value) : String(value ?? 'N/A')}
+                    </Text>
+                  </Group>
+                ))
+              )}
             </Stack>
           </Card>
         )}
@@ -299,13 +298,7 @@ export function WorkflowPreviewModal({
                 Created:
               </Text>
               <Text fw={500} size="sm" c={theme.colors.slate[9]}>
-                {new Date(workflow.createdAt).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+                {formatDateTime(workflow.createdAt)}
               </Text>
             </Group>
 
@@ -316,13 +309,7 @@ export function WorkflowPreviewModal({
                 Last Updated:
               </Text>
               <Text fw={500} size="sm" c={theme.colors.slate[9]}>
-                {new Date(workflow.updatedAt).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+                {formatDateTime(workflow.updatedAt)}
               </Text>
             </Group>
           </Stack>

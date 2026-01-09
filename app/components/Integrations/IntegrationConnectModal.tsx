@@ -11,6 +11,7 @@ import {
   List,
 } from '@mantine/core';
 import { IconAlertCircle, IconCheck, IconPlug, IconSparkles } from '@tabler/icons-react';
+import { useState, useRef, useEffect } from 'react';
 import type { Integration } from '~/types/integrations';
 import { GitHubConnectionFlow } from './GitHubConnectionFlow';
 import { SlackConnectionFlow } from './SlackConnectionFlow';
@@ -44,6 +45,34 @@ export function IntegrationConnectModal({
   const theme = useMantineTheme();
   const params = useParams();
   const tenantId = params.org!;
+  const closeHandlerRef = useRef<(() => void) | null>(null);
+
+  // Check if this is an App Store/Play Store integration
+  // Using standardized INTEGRATION_IDS constants
+  const isAppDistribution = (id: string) => {
+    const normalizedId = id.toLowerCase();
+    return (
+      normalizedId === INTEGRATION_IDS.PLAY_STORE ||
+      normalizedId === INTEGRATION_IDS.APP_STORE ||
+      normalizedId === INTEGRATION_IDS.TESTFLIGHT
+    );
+  };
+
+  // Handle modal close with confirmation for App Store/Play Store
+  const handleModalClose = () => {
+    if (integration && isAppDistribution(integration.id) && closeHandlerRef.current) {
+      closeHandlerRef.current();
+    } else {
+      onClose();
+    }
+  };
+
+  // Reset close handler when modal opens/closes
+  useEffect(() => {
+    if (!opened) {
+      closeHandlerRef.current = null;
+    }
+  }, [opened]);
 
   if (!integration) return null;
 
@@ -144,6 +173,9 @@ export function IntegrationConnectModal({
               onClose();
             }}
             onCancel={onClose}
+            onRequestClose={(handler: () => void) => {
+              closeHandlerRef.current = handler;
+            }}
             isEditMode={isEditMode}
             existingData={existingData}
           />
@@ -163,6 +195,9 @@ export function IntegrationConnectModal({
               onClose();
             }}
             onCancel={onClose}
+            onRequestClose={(handler: () => void) => {
+              closeHandlerRef.current = handler;
+            }}
             isEditMode={isEditMode}
             existingData={existingData}
           />
@@ -180,6 +215,9 @@ export function IntegrationConnectModal({
               onClose();
             }}
             onCancel={onClose}
+            onRequestClose={(handler: () => void) => {
+              closeHandlerRef.current = handler;
+            }}
             isEditMode={isEditMode}
             existingData={existingData}
           />
@@ -265,7 +303,7 @@ export function IntegrationConnectModal({
   return (
     <Modal
       opened={opened}
-      onClose={onClose}
+      onClose={handleModalClose}
       centered
       radius="md"
       size="lg" // Consistent size for all dialogs

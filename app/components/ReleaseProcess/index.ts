@@ -6,7 +6,6 @@
 export { ActivityLogsContent } from './ActivityLogsContent';
 export { ActivityLogsDrawer } from './ActivityLogsDrawer';
 export { BuildArtifactsList } from './BuildArtifactsList';
-export { BuildsList } from './BuildsList';
 export { BuildTaskDetails } from './BuildTaskDetails';
 export { BuildUploadSection } from './BuildUploadSection';
 export { IntegrationsStatusSidebar } from './IntegrationsStatusSidebar';

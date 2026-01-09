@@ -20,10 +20,86 @@ const timeToMinutes = (timeString: string): number => {
 };
 
 /**
+ * Combine date and time in a specific timezone and convert to UTC
+ * @param dateStr - Date string (ISO format or YYYY-MM-DD)
+ * @param timeStr - Time string in HH:mm format
+ * @param timezone - IANA timezone string (e.g., 'Asia/Kolkata')
+ * @returns Date object in UTC
+ */
+function combineDateAndTimeInTimezone(
+  dateStr: string,
+  timeStr: string,
+  timezone: string
+): Date {
+  // Extract date part (YYYY-MM-DD)
+  const datePart = dateStr.split('T')[0];
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  
+  // We need to find the UTC time that, when displayed in the target timezone,
+  // gives us our desired local time (year-month-day hours:minutes).
+  // Strategy: Use iterative adjustment to find the correct UTC time
+  
+  // Start with a UTC date using the target values as an initial guess
+  let testUtc = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
+  
+  // Use Intl to format this UTC time in the target timezone
+  const formatter = new Intl.DateTimeFormat('en', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  
+  // Iterate to find the correct UTC time (max 3 iterations to handle DST transitions)
+  for (let i = 0; i < 3; i++) {
+    const parts = formatter.formatToParts(testUtc);
+    const tzYear = parseInt(parts.find(p => p.type === 'year')?.value || '0');
+    const tzMonth = parseInt(parts.find(p => p.type === 'month')?.value || '0');
+    const tzDay = parseInt(parts.find(p => p.type === 'day')?.value || '0');
+    const tzHour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+    const tzMinute = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
+    
+    // Check if we've found the correct time
+    if (tzYear === year && tzMonth === month && tzDay === day && 
+        tzHour === hours && tzMinute === minutes) {
+      return testUtc;
+    }
+    
+    // Calculate the difference
+    const targetTotalMinutes = hours * 60 + minutes;
+    const actualTotalMinutes = tzHour * 60 + tzMinute;
+    let diffMinutes = targetTotalMinutes - actualTotalMinutes;
+    
+    // Account for day/month/year differences
+    if (tzDay !== day || tzMonth !== month || tzYear !== year) {
+      const targetDate = new Date(Date.UTC(year, month - 1, day));
+      const actualDate = new Date(Date.UTC(tzYear, tzMonth - 1, tzDay));
+      const dayDiff = Math.floor((targetDate.getTime() - actualDate.getTime()) / (1000 * 60 * 60 * 24));
+      diffMinutes += dayDiff * 24 * 60;
+    }
+    
+    // Adjust the UTC time
+    testUtc = new Date(testUtc.getTime() + diffMinutes * 60 * 1000);
+  }
+  
+  // Return the best approximation after iterations
+  return testUtc;
+}
+
+/**
  * Validate scheduling configuration (matches backend validateScheduling)
  * Returns array of validation errors
+ * @param scheduling - The scheduling configuration to validate
+ * @param isEditMode - If true, skips future date validation for firstReleaseKickoffDate
  */
-export function validateScheduling(scheduling: SchedulingConfig): ValidationError[] {
+export function validateScheduling(
+  scheduling: SchedulingConfig,
+  isEditMode: boolean = false
+): ValidationError[] {
   const errors: ValidationError[] = [];
 
   // ========================================================================
@@ -42,13 +118,52 @@ export function validateScheduling(scheduling: SchedulingConfig): ValidationErro
       field: 'firstReleaseKickoffDate',
       message: 'First release kickoff date is required'
     });
-  }
-
-  if (!scheduling.kickoffReminderTime) {
-    errors.push({
-      field: 'kickoffReminderTime',
-      message: 'Kickoff reminder time is required'
-    });
+  } else {
+    // Validate that first release kickoff date + time is in the future
+    // Only apply this validation when creating (not editing) a config
+    if (!isEditMode) {
+      try {
+        // If we have kickoffTime and timezone, validate the full datetime
+        if (scheduling.kickoffTime && scheduling.timezone) {
+          const kickoffDateTime = combineDateAndTimeInTimezone(
+            scheduling.firstReleaseKickoffDate,
+            scheduling.kickoffTime,
+            scheduling.timezone
+          );
+          const now = new Date(); // Current UTC time
+          
+          if (kickoffDateTime <= now) {
+            errors.push({
+              field: 'firstReleaseKickoffDate',
+              message: 'First release kickoff date and time must be in the future'
+            });
+          }
+        } else {
+          // Fallback: just check if date is today or in the past (using UTC for consistency)
+          const kickoffDate = new Date(scheduling.firstReleaseKickoffDate);
+          const now = new Date();
+          const kickoffDateOnly = new Date(Date.UTC(
+            kickoffDate.getUTCFullYear(),
+            kickoffDate.getUTCMonth(),
+            kickoffDate.getUTCDate()
+          ));
+          const todayOnly = new Date(Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate()
+          ));
+          
+          if (kickoffDateOnly <= todayOnly) {
+            errors.push({
+              field: 'firstReleaseKickoffDate',
+              message: 'First release kickoff date must be in the future'
+            });
+          }
+        }
+      } catch (error) {
+        // Invalid date format - will be caught by other validations
+      }
+    }
   }
 
   if (!scheduling.kickoffTime) {
@@ -79,6 +194,14 @@ export function validateScheduling(scheduling: SchedulingConfig): ValidationErro
       field: 'kickoffReminderEnabled',
       message: 'Kickoff reminder enabled flag is required'
     });
+  } else if (scheduling.kickoffReminderEnabled === true) {
+    // Only require kickoffReminderTime if kickoffReminderEnabled is true
+    if (!scheduling.kickoffReminderTime) {
+      errors.push({
+        field: 'kickoffReminderTime',
+        message: 'Kickoff reminder time is required when kickoff reminder is enabled'
+      });
+    }
   }
 
   if (!scheduling.timezone) {
@@ -88,40 +211,44 @@ export function validateScheduling(scheduling: SchedulingConfig): ValidationErro
     });
   }
 
-  // Validate initialVersions
-  if (!scheduling.initialVersions || typeof scheduling.initialVersions !== 'object') {
+  // Validate initialVersions (array format)
+  if (!scheduling.initialVersions || !Array.isArray(scheduling.initialVersions)) {
     errors.push({
       field: 'initialVersions',
-      message: 'Initial versions object is required'
+      message: 'Initial versions array is required'
+    });
+  } else if (scheduling.initialVersions.length === 0) {
+    errors.push({
+      field: 'initialVersions',
+      message: 'At least one platform version must be specified'
     });
   } else {
-    const platforms = Object.keys(scheduling.initialVersions);
-    if (platforms.length === 0) {
-      errors.push({
-        field: 'initialVersions',
-        message: 'At least one platform version must be specified'
-      });
-    } else {
-      // Validate each platform version
-      platforms.forEach(platform => {
-        const version = scheduling.initialVersions[platform as keyof typeof scheduling.initialVersions];
-        if (!version || typeof version !== 'string' || version.trim() === '') {
+    // Validate each initial version entry
+    scheduling.initialVersions.forEach((item, index) => {
+      if (!item.platform || !item.target || !item.version) {
+        errors.push({
+          field: `initialVersions[${index}]`,
+          message: 'Each initial version must have platform, target, and version'
+        });
+      } else {
+        const version = item.version;
+        if (typeof version !== 'string' || version.trim() === '') {
           errors.push({
-            field: `initialVersions.${platform}`,
-            message: `Version for platform ${platform} must be a non-empty string`
+            field: `initialVersions[${index}].version`,
+            message: `Version must be a non-empty string`
           });
         } else {
           // Validate strict semantic version format (X.Y.Z only, no prefix/suffix)
           const versionTrimmed = version.trim();
           if (!/^\d+\.\d+\.\d+$/.test(versionTrimmed)) {
             errors.push({
-              field: `initialVersions.${platform}`,
-              message: `Invalid version format for ${platform}. Expected: 1.0.0 (no prefix or suffix)`
+              field: `initialVersions[${index}].version`,
+              message: `Invalid version format. Expected: 1.0.0 (no prefix or suffix)`
             });
           }
         }
-      });
-    }
+      }
+    });
   }
 
   // Validate workingDays
@@ -137,14 +264,22 @@ export function validateScheduling(scheduling: SchedulingConfig): ValidationErro
     });
   }
 
-  // Validate regressionSlots if present (optional field)
-  if (scheduling.regressionSlots !== undefined && scheduling.regressionSlots !== null) {
-    if (!Array.isArray(scheduling.regressionSlots)) {
-      errors.push({
-        field: 'regressionSlots',
-        message: 'Regression slots must be an array if provided'
-      });
-    }
+  // Validate regressionSlots (required, must have at least one element)
+  if (scheduling.regressionSlots === undefined || scheduling.regressionSlots === null) {
+    errors.push({
+      field: 'regressionSlots',
+      message: 'Regression slots are required'
+    });
+  } else if (!Array.isArray(scheduling.regressionSlots)) {
+    errors.push({
+      field: 'regressionSlots',
+      message: 'Regression slots must be an array'
+    });
+  } else if (scheduling.regressionSlots.length === 0) {
+    errors.push({
+      field: 'regressionSlots',
+      message: 'At least one regression slot must be specified'
+    });
   }
 
   // ========================================================================
@@ -152,8 +287,8 @@ export function validateScheduling(scheduling: SchedulingConfig): ValidationErro
   // ========================================================================
   
   if (errors.length === 0) {
-    // Rule: kickoffReminderTime should be <= kickoffTime
-    if (scheduling.kickoffReminderTime && scheduling.kickoffTime) {
+    // Rule: kickoffReminderTime should be <= kickoffTime (only validate if reminder is enabled)
+    if (scheduling.kickoffReminderEnabled === true && scheduling.kickoffReminderTime && scheduling.kickoffTime) {
       if (timeToMinutes(scheduling.kickoffReminderTime) > timeToMinutes(scheduling.kickoffTime)) {
         errors.push({
           field: 'kickoffReminderTime',

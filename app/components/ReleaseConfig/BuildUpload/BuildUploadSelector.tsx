@@ -4,12 +4,13 @@
  */
 
 import { useEffect } from 'react';
-import { Stack, Text, Paper, Radio, Group, Box, ThemeIcon, UnstyledButton, useMantineTheme, Anchor, Badge } from '@mantine/core';
-import { IconUpload, IconRocket, IconCheck, IconAlertCircle, IconPlug } from '@tabler/icons-react';
-import { Link, useParams } from '@remix-run/react';
+import { Stack, Text, Paper, Radio, Group, Box, ThemeIcon, UnstyledButton, useMantineTheme, Badge } from '@mantine/core';
+import { IconUpload, IconRocket, IconCheck } from '@tabler/icons-react';
+import { useParams } from '@remix-run/react';
 import type { BuildUploadSelectorProps } from '~/types/release-config-props';
 import { BUILD_UPLOAD_STEPS } from '~/types/release-config-constants';
 import { IntegrationCategory } from '~/types/integrations';
+import { NoIntegrationAlert } from '~/components/Common/NoIntegrationAlert';
 
 export function BuildUploadSelector({
   hasManualBuildUpload,
@@ -50,6 +51,35 @@ export function BuildUploadSelector({
 
   return (
     <Stack gap="md">
+      {/* Required Indicator Header */}
+      <Paper
+        p="md"
+        radius="md"
+        style={{
+          backgroundColor: theme.colors.blue[0],
+          border: `1px solid ${theme.colors.blue[2]}`,
+        }}
+      >
+        <Group gap="sm">
+          <ThemeIcon size={32} radius="md" variant="light" color="blue">
+            <IconUpload size={18} />
+          </ThemeIcon>
+          <Box style={{ flex: 1 }}>
+            <Group gap="xs" mb={4}>
+              <Text size="sm" fw={600} c={theme.colors.blue[8]}>
+                Build Upload Method
+              </Text>
+              <Text size="xs" c="red" fw={600}>
+                *
+              </Text>
+            </Group>
+            <Text size="xs" c={theme.colors.blue[7]}>
+              Choose how builds will be provided for releases. This selection is required.
+            </Text>
+          </Box>
+        </Group>
+      </Paper>
+
       {/* Options */}
       <Radio.Group
         value={selectedMode}
@@ -125,52 +155,14 @@ export function BuildUploadSelector({
 
                 {/* Integration Required Warning - Shown inline with CI/CD card */}
                 {isDisabled && option.value === BUILD_UPLOAD_STEPS.CI_CD && (
-                  <Paper
-                    mt="xs"
-                    p="md"
-                    radius="md"
-                    style={{
-                      backgroundColor: theme.colors.red[0],
-                      border: `1px solid ${theme.colors.red[2]}`,
-                    }}
-                  >
-                    <Group gap="sm" align="flex-start">
-                      <ThemeIcon size={28} radius="md" variant="light" color="red">
-                        <IconAlertCircle size={16} />
-                      </ThemeIcon>
-                      <Box style={{ flex: 1 }}>
-                        <Text size="sm" fw={600} c={theme.colors.red[8]} mb={4}>
-                          CI/CD Integration Required
-                        </Text>
-                        <Text size="xs" c={theme.colors.red[7]} mb="sm">
-                          Connect at least one CI/CD provider to use this option:
-                        </Text>
-                        <Group gap="xs" mb="sm">
-                          <Badge size="sm" variant="light" color="red">
-                            Jenkins
-                          </Badge>
-                          <Badge size="sm" variant="light" color="red">
-                            GitHub Actions
-                          </Badge>
-                        </Group>
-                        <Anchor
-                          component={Link}
-                          to={`/dashboard/${tenantId}/integrations?tab=${IntegrationCategory.CI_CD}`}
-                          size="sm"
-                          c={theme.colors.red[8]}
-                          fw={600}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 4,
-                          }}
-                        >
-                          <IconPlug size={14} />
-                          Connect Integration
-                        </Anchor>
-                      </Box>
-                    </Group>
-                  </Paper>
+                  <Box mt="xs">
+                    <NoIntegrationAlert
+                      category={IntegrationCategory.CI_CD}
+                      tenantId={tenantId}
+                      color="yellow"
+                      message="Connect at least one CI/CD provider (Jenkins or GitHub Actions) to use this option."
+                    />
+                  </Box>
                 )}
               </Box>
             );

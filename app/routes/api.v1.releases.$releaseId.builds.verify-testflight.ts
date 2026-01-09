@@ -26,20 +26,15 @@ const verifyTestFlight: AuthenticatedActionFunction = async ({ params, request, 
 
   try {
     const body = await request.json();
-    const { testflightNumber, versionName } = body;
+    const { testflightNumber } = body;
 
     if (!testflightNumber) {
       return createValidationError(ERROR_MESSAGES.TESTFLIGHT_BUILD_NUMBER_REQUIRED);
     }
 
-    if (!versionName) {
-      return createValidationError(ERROR_MESSAGES.VERSION_NAME_REQUIRED);
-    }
-
     const requestData = {
       releaseId,
       testflightNumber,
-      versionName,
     };
 
     const response = await DistributionService.verifyTestFlight(

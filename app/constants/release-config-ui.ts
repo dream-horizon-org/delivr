@@ -5,6 +5,8 @@
  * NO HARDCODED STRINGS IN COMPONENTS - USE THIS FILE!
  */
 
+import { BUILD_PROVIDERS } from '~/types/release-config-constants';
+
 // ============================================================================
 // Provider Display Names
 // ============================================================================
@@ -18,9 +20,9 @@ export const PROVIDER_LABELS = {
  * Get display label for any build provider (including manual upload)
  */
 export const getBuildProviderLabel = (provider: string): string => {
-  if (provider === 'JENKINS') return PROVIDER_LABELS.JENKINS;
-  if (provider === 'GITHUB_ACTIONS') return PROVIDER_LABELS.GITHUB_ACTIONS;
-  if (provider === 'MANUAL_UPLOAD') return BUILD_UPLOAD_LABELS.MANUAL;
+  if (provider === BUILD_PROVIDERS.JENKINS) return PROVIDER_LABELS.JENKINS;
+  if (provider === BUILD_PROVIDERS.GITHUB_ACTIONS) return PROVIDER_LABELS.GITHUB_ACTIONS;
+  if (provider === BUILD_PROVIDERS.MANUAL_UPLOAD) return BUILD_UPLOAD_LABELS.MANUAL;
   return provider;
 };
 
@@ -257,6 +259,7 @@ export const SECTION_DESCRIPTIONS = {
   COMMUNICATION: 'Set up communication channels for release notifications',
   SCHEDULING: 'Configure release schedules and automation',
   PROJECT_MANAGEMENT: 'Configure project management integrations',
+  BASIC_INFORMATION: 'Provide a name and description for this release configuration',
 } as const;
 
 // ============================================================================
@@ -289,6 +292,9 @@ export const FIELD_LABELS = {
   RELEASE_TYPE: 'Release Type',
   DEFAULT_CONFIG: 'Default Config',
   CONFIGURED_WORKFLOWS: 'Configured Workflows',
+  DEFAULT_BASE_BRANCH: 'Default Base Branch',
+  DESCRIPTION_OPTIONAL: 'Description (Optional)',
+  SET_AS_DEFAULT_CONFIGURATION: 'Set as Default Configuration',
 } as const;
 
 // ============================================================================
@@ -308,6 +314,10 @@ export const PLACEHOLDERS = {
   SELECT_PLATFORM: 'Select a platform',
   SELECT_ENVIRONMENT: 'Select an environment',
   SELECT_PROVIDER: 'Select a provider',
+  CONFIGURATION_NAME: 'e.g., Standard Release Configuration',
+  DESCRIPTION: 'Describe when to use this configuration and any special notes...',
+  SELECT_BRANCH: 'Select a branch',
+  LOADING_BRANCHES: 'Loading branches...',
 } as const;
 
 // ============================================================================
@@ -537,6 +547,7 @@ export const SCHEDULING_LABELS = {
   FIRST_KICKOFF_DESCRIPTION: 'The date when the first release cycle will start',
   KICKOFF_DATE_LABEL: 'Kickoff Date',
   KICKOFF_DATE_PLACEHOLDER: 'Select date',
+  FIRST_KICKOFF_DATE_DISABLED_DESCRIPTION: 'First release kickoff date cannot be changed after the release train is created. The first release has already been initialized with this date.',
   
   // Initial Versions
   INITIAL_VERSIONS_TITLE: 'Initial Release Versions',
@@ -662,6 +673,12 @@ export const WIZARD_NAV_LABELS = {
   
   // Step Indicator
   STEP_INDICATOR: (current: number, total: number) => `Step ${current} of ${total}`,
+  
+  // Cancel Confirmation Modal
+  CANCEL_CONFIRM_TITLE: 'Cancel Configuration?',
+  CANCEL_CONFIRM_MESSAGE: 'Are you sure you want to cancel? All unsaved changes will be lost.',
+  CANCEL_CONFIRM_BUTTON: 'Yes, Cancel',
+  CANCEL_CONFIRM_KEEP: 'Keep Editing',
 } as const;
 
 // ============================================================================
@@ -691,5 +708,46 @@ export const DEFAULT_SCHEDULING_CONFIG = {
   
   // Flags
   KICKOFF_REMINDER_ENABLED: true,
+} as const;
+
+// ============================================================================
+// Basic Information Form Labels
+// ============================================================================
+
+export const BASIC_INFO_LABELS = {
+  // Section
+  TITLE: SECTION_TITLES.BASIC_INFORMATION,
+  DESCRIPTION: SECTION_DESCRIPTIONS.BASIC_INFORMATION,
+  
+  // Form Fields
+  CONFIGURATION_NAME: FIELD_LABELS.CONFIGURATION_NAME,
+  CONFIGURATION_NAME_PLACEHOLDER: PLACEHOLDERS.CONFIGURATION_NAME,
+  CONFIGURATION_NAME_DESCRIPTION: 'A descriptive name to identify this configuration',
+  
+  DESCRIPTION_LABEL: FIELD_LABELS.DESCRIPTION_OPTIONAL,
+  DESCRIPTION_PLACEHOLDER: PLACEHOLDERS.DESCRIPTION,
+  DESCRIPTION_DESCRIPTION: 'Provide context about when this configuration should be used',
+  
+  RELEASE_TYPE: FIELD_LABELS.RELEASE_TYPE,
+  RELEASE_TYPE_DESCRIPTION: 'Type of releases this configuration is designed for',
+  RELEASE_TYPE_MINOR: 'Minor Release',
+  RELEASE_TYPE_HOTFIX: 'Hotfix Release',
+  RELEASE_TYPE_MAJOR: 'Major Release',
+  
+  DEFAULT_BASE_BRANCH: FIELD_LABELS.DEFAULT_BASE_BRANCH,
+  DEFAULT_BASE_BRANCH_PLACEHOLDER_LOADING: PLACEHOLDERS.LOADING_BRANCHES,
+  DEFAULT_BASE_BRANCH_PLACEHOLDER: PLACEHOLDERS.SELECT_BRANCH,
+  DEFAULT_BASE_BRANCH_DESCRIPTION: 'Default branch to fork from for releases (from SCM integration)',
+  DEFAULT_BASE_BRANCH_REQUIRED: 'Default base branch is required',
+  DEFAULT_BASE_BRANCH_NO_BRANCHES: 'No branches found. Make sure your SCM integration is configured.',
+  DEFAULT_BASE_BRANCH_NO_MATCH: 'No matching branches',
+  
+  SET_AS_DEFAULT: FIELD_LABELS.SET_AS_DEFAULT_CONFIGURATION,
+  SET_AS_DEFAULT_DESCRIPTION: 'Use this configuration for new releases by default',
+  
+  // SCM Integration Alert
+  SCM_INTEGRATION_REQUIRED: 'SCM Integration Required',
+  SCM_INTEGRATION_MESSAGE: 'Connect a Source Control Management (SCM) integration to configure release settings.',
+  GO_TO_INTEGRATIONS: 'Go to Integrations',
 } as const;
 

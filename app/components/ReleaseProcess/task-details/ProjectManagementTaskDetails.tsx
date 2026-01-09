@@ -3,12 +3,13 @@
  * Displays project management ticket information for CREATE_PROJECT_MANAGEMENT_TICKET tasks
  */
 
-import { Group, Stack, Text, Badge } from '@mantine/core';
+import { Group, Stack, Text } from '@mantine/core';
 import { Anchor } from '@mantine/core';
 import { IconExternalLink, IconTicket } from '@tabler/icons-react';
 import type { Task } from '~/types/release-process.types';
 import { TaskStatus } from '~/types/release-process-enums';
 import type { ProjectManagementTaskOutput } from '~/types/task-details.types';
+import { PlatformBadge } from '~/components/Common/AppBadge';
 
 interface ProjectManagementTaskDetailsProps {
   task: Task;
@@ -53,9 +54,7 @@ export function ProjectManagementTaskDetails({ task }: ProjectManagementTaskDeta
               return (
                 <Group key={index} gap="sm" justify="space-between">
                   <Group gap="xs">
-                    <Badge variant="light" size="sm">
-                      {platformTicket.platform}
-                    </Badge>
+                    <PlatformBadge platform={platformTicket.platform} size="sm" />
                     <Group gap={4}>
                       <IconTicket size={14} />
                       <Text size="sm" fw={500}>

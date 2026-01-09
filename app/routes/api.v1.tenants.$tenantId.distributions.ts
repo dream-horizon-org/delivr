@@ -152,6 +152,7 @@ const patchDistributionAction = async ({
     }
     
     const result = await AppDistributionService.updateStore(
+      tenantId,
       integrationId,
       body.payload,
       user.user.id

@@ -38,6 +38,7 @@ export function createServerError(message: string) {
 /**
  * Log API errors with context
  * Extracts only relevant information to avoid logging entire request/response objects
+ * Captures all critical debugging info: status, URL, method, error message, and response data
  */
 export function logApiError(context: string, error: unknown): void {
   // Handle Axios errors
@@ -48,17 +49,55 @@ export function logApiError(context: string, error: unknown): void {
       code: axiosError.code,
     };
 
+    // Add request info from config
+    if (axiosError.config) {
+      errorInfo.method = axiosError.config.method?.toUpperCase();
+      errorInfo.url = axiosError.config.url;
+      errorInfo.baseURL = axiosError.config.baseURL;
+      // Only log userId header if present (for debugging, not sensitive)
+      if (axiosError.config.headers?.userId) {
+        errorInfo.userId = axiosError.config.headers.userId;
+      }
+    }
+
     // Add response info if available
     if (axiosError.response) {
       errorInfo.status = axiosError.response.status;
       errorInfo.statusText = axiosError.response.statusText;
-      errorInfo.data = axiosError.response.data;
-      errorInfo.url = axiosError.config?.url;
-      errorInfo.method = axiosError.config?.method?.toUpperCase();
-    } else if (axiosError.config) {
-      // Request was made but no response (network error)
-      errorInfo.url = axiosError.config.url;
-      errorInfo.method = axiosError.config.method?.toUpperCase();
+      
+      // Extract response data - handle HTML error pages
+      const responseData = axiosError.response.data;
+      if (typeof responseData === 'string' && responseData.length > 500) {
+        // Truncate long HTML error pages, but keep first 500 chars for debugging
+        errorInfo.data = responseData.substring(0, 500) + '... (truncated)';
+        errorInfo.dataLength = responseData.length;
+      } else {
+        errorInfo.data = responseData;
+      }
+      
+      // Log response headers that might be useful (excluding sensitive ones)
+      if (axiosError.response.headers) {
+        const headers: Record<string, string> = {};
+        const usefulHeaders = ['content-type', 'x-powered-by', 'x-request-id'];
+        usefulHeaders.forEach(header => {
+          if (axiosError.response.headers[header]) {
+            headers[header] = axiosError.response.headers[header];
+          }
+        });
+        if (Object.keys(headers).length > 0) {
+          errorInfo.responseHeaders = headers;
+        }
+      }
+    } else if (axiosError.request) {
+      // Request was made but no response (network/timeout error)
+      errorInfo.networkError = true;
+    }
+
+    // Add stack trace if available (for debugging)
+    if (axiosError.stack) {
+      // Only include first few lines of stack to avoid verbosity
+      const stackLines = axiosError.stack.split('\n').slice(0, 5).join('\n');
+      errorInfo.stack = stackLines + (axiosError.stack.split('\n').length > 5 ? '\n...' : '');
     }
 
     console.error(`${context} Error:`, errorInfo);

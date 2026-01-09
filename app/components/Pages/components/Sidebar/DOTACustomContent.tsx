@@ -36,9 +36,9 @@ export function DOTACustomContent({
   const location = useLocation();
   const Icon = module.icon;
 
-  const appsRoute = route("/dashboard/:org/apps", { org: org.id });
-  // DOTA is active if on apps route or viewing a specific app
-  const isDOTAActive = location.pathname.includes("/apps") || !!currentAppId;
+  const appsRoute = route("/dashboard/:org/ota/apps", { org: org.id });
+  // DOTA is active if on any OTA route (apps list, app detail, create-release, release detail)
+  const isDOTAActive = location.pathname.includes(`/dashboard/${org.id}/ota/`) || !!currentAppId;
 
   return (
     <Box>

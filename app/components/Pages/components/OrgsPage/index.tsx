@@ -241,7 +241,7 @@ export function OrgsPage() {
                 key={org.id}
                 org={org}
                 onNavigate={() => {
-                  navigate(route("/dashboard/:org/apps", { org: org.id }));
+                  navigate(route("/dashboard/:org/releases", { org: org.id }));
                 }}
                 onDelete={() => {
                   setDeleteModalData({

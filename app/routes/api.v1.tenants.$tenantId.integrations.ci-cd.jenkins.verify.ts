@@ -6,6 +6,7 @@
 import { json, type ActionFunctionArgs } from '@remix-run/node';
 import { JenkinsIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 import { requireUserId } from '~/.server/services/Auth';
+import { logApiError } from '~/utils/api-route-helpers';
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const userId = await requireUserId(request);
@@ -47,7 +48,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return json(result, { status: 401 });
     }
   } catch (error: any) {
-    console.error('[Jenkins Verify] Error:', error);
+    logApiError('[Jenkins-Verify]', error);
     return json(
       { verified: false, message: error.message || 'Internal server error' },
       { status: 500 }

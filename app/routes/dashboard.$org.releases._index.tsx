@@ -22,7 +22,7 @@ import {
 import { json } from '@remix-run/node';
 import { useLoaderData, useSearchParams } from '@remix-run/react';
 import { IconAlertCircle, IconRefresh } from '@tabler/icons-react';
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { listReleases } from '~/.server/services/ReleaseManagement';
 import { PageLoader } from '~/components/Common/PageLoader';
 import { ReleasesFilter } from '~/components/Releases/ReleasesFilter';
@@ -191,12 +191,13 @@ export default function ReleasesListPage() {
       const newParams = new URLSearchParams(searchParams);
       newParams.set('tab', value);
       setSearchParams(newParams);
+      invalidateCache();
     }
   };
 
-  const handleBuildModeChange = (value: BuildModeFilter) => {
+  const handleBuildModeChange = useCallback((value: BuildModeFilter | null) => {
     const newParams = new URLSearchParams(searchParams);
-    if (value === BUILD_MODE_FILTERS.ALL) {
+    if (!value || value === BUILD_MODE_FILTERS.ALL) {
       newParams.delete('buildMode');
     } else {
       newParams.set('buildMode', value);
@@ -204,16 +205,16 @@ export default function ReleasesListPage() {
     
     // If both filters are now "ALL", switch to active tab
     const currentStage = newParams.get('stage') || STAGE_FILTERS.ALL;
-    if (value === BUILD_MODE_FILTERS.ALL && currentStage === STAGE_FILTERS.ALL) {
+    if ((!value || value === BUILD_MODE_FILTERS.ALL) && currentStage === STAGE_FILTERS.ALL) {
       newParams.set('tab', RELEASE_TABS.ACTIVE);
     }
     
     setSearchParams(newParams);
-  };
+  }, [searchParams, setSearchParams]);
 
-  const handleStageChange = (value: StageFilter) => {
+  const handleStageChange = useCallback((value: StageFilter | null) => {
     const newParams = new URLSearchParams(searchParams);
-    if (value === STAGE_FILTERS.ALL) {
+    if (!value || value === STAGE_FILTERS.ALL) {
       newParams.delete('stage');
     } else {
       newParams.set('stage', value);
@@ -221,12 +222,24 @@ export default function ReleasesListPage() {
     
     // If both filters are now "ALL", switch to active tab
     const currentBuildMode = newParams.get('buildMode') || BUILD_MODE_FILTERS.ALL;
-    if (value === STAGE_FILTERS.ALL && currentBuildMode === BUILD_MODE_FILTERS.ALL) {
+    if ((!value || value === STAGE_FILTERS.ALL) && currentBuildMode === BUILD_MODE_FILTERS.ALL) {
       newParams.set('tab', RELEASE_TABS.ACTIVE);
     }
     
     setSearchParams(newParams);
-  };
+  }, [searchParams, setSearchParams]);
+
+  const handleClearFilters = useCallback(() => {
+    const newParams = new URLSearchParams(searchParams);
+    // Keep tab param
+    const currentTab = searchParams.get('tab');
+    newParams.delete('buildMode');
+    newParams.delete('stage');
+    if (currentTab) {
+      newParams.set('tab', currentTab);
+    }
+    setSearchParams(newParams);
+  }, [searchParams, setSearchParams]);
 
   // Only show loader if we don't have initialData and are actually loading
   // With initialData from server, isLoading will be false immediately
@@ -235,7 +248,7 @@ export default function ReleasesListPage() {
   // Error state - show error UI similar to release config page
   if (error && !shouldShowLoader) {
     return (
-      <Container size="xl" className="py-8">
+      <Container size="xl" py={16}>
         <ReleasesListHeader org={org} />
         
         <Center py={80}>
@@ -264,28 +277,31 @@ export default function ReleasesListPage() {
   }
 
   return (
-    <Container size="xl" className="py-8">
+    <Container size="xl" py={16}>
       <ReleasesListHeader org={org} />
       {shouldShowLoader && <PageLoader message="Loading releases..." withContainer={false} />}
 
       {!shouldShowLoader && (
-        <ReleasesTabs
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          upcoming={filteredUpcoming}
-          active={filteredActive}
-          completed={filteredCompleted}
-          archived={filteredArchived}
-          org={org}
-          leftSection={
-            <ReleasesFilter
-              buildMode={buildMode}
-              stage={stage}
-              onBuildModeChange={handleBuildModeChange}
-              onStageChange={handleStageChange}
-            />
-          }
-        />
+        <>
+          {/* Filters - moved above tabs */}
+          <ReleasesFilter
+            buildMode={buildMode}
+            stage={stage}
+            onBuildModeChange={handleBuildModeChange}
+            onStageChange={handleStageChange}
+            onClearFilters={handleClearFilters}
+          />
+          
+          <ReleasesTabs
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            upcoming={filteredUpcoming}
+            active={filteredActive}
+            completed={filteredCompleted}
+            archived={filteredArchived}
+            org={org}
+          />
+        </>
       )}
     </Container>
   );

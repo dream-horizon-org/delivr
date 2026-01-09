@@ -186,3 +186,33 @@ export function getSuccessMessage(customMessage: string, title = 'Success') {
   };
 }
 
+// ============================================================================
+// BUILD DOWNLOAD MESSAGES
+// ============================================================================
+
+export const BUILD_DOWNLOAD_MESSAGES = {
+  DOWNLOAD_ERROR: {
+    title: 'Download Error',
+    message: 'Artifact path not available',
+  },
+  DOWNLOAD_FAILED: {
+    title: 'Download Failed',
+    message: 'Failed to download artifact',
+  },
+} as const;
+
+// ============================================================================
+// BUILD COPY MESSAGES
+// ============================================================================
+
+export const BUILD_COPY_MESSAGES = {
+  COPY_SUCCESS: {
+    title: 'Link Copied',
+    message: 'Play Store link copied to clipboard',
+  },
+  COPY_FAILED: {
+    title: 'Copy Failed',
+    message: 'Failed to copy link to clipboard',
+  },
+} as const;
+

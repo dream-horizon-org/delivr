@@ -44,51 +44,30 @@ export const validateTestManagement = (
     errors.push('Test management integration must be selected');
   }
   
-  // Check provider config exists
-  if (!testManagement.providerConfig) {
-    errors.push('Test management provider configuration is required');
+  // Check platform configurations (projectId is now platform-specific)
+  if (!testManagement.platformConfigurations || testManagement.platformConfigurations.length === 0) {
+    errors.push('At least one platform configuration is required for Test Management');
   } else {
-    const providerConfig = testManagement.providerConfig as any;
-    
-    // Validate Checkmate-specific fields
-    if (providerConfig.type === 'checkmate') {
-      // Check platform configurations (projectId is now platform-specific)
-      if (!providerConfig.platformConfigurations || providerConfig.platformConfigurations.length === 0) {
-        errors.push('At least one platform configuration is required for Checkmate');
-      } else {
-        // Validate each platform configuration has a projectId
-        providerConfig.platformConfigurations.forEach((pc: any, index: number) => {
-          const platformName = pc.platform || `Platform ${index + 1}`;
-          
-          if (!pc.platform) {
-            errors.push(`${platformName}: Platform is required`);
-          }
-          
-          // ProjectId is now platform-specific (required for each platform)
-          if (!pc.projectId || pc.projectId === 0) {
-            errors.push(`${platformName}: Checkmate project must be selected`);
-          }
-        });
+    // Validate each platform configuration has a projectId
+    testManagement.platformConfigurations.forEach((pc: any, index: number) => {
+      const platformName = pc.platform || `Platform ${index + 1}`;
+      
+      if (!pc.platform) {
+        errors.push(`${platformName}: Platform is required`);
       }
       
-      // Validate pass threshold
-      if (providerConfig.passThresholdPercent === undefined || 
-          providerConfig.passThresholdPercent < 0 || 
-          providerConfig.passThresholdPercent > 100) {
-        errors.push('Pass threshold must be between 0 and 100');
+      // ProjectId is now platform-specific (required for each platform)
+      if (!pc.projectId || pc.projectId === 0) {
+        errors.push(`${platformName}: Test Management project must be selected`);
       }
-    }
-    
-    // Validate TestRail-specific fields
-    if (providerConfig.type === 'testrail') {
-      if (!providerConfig.projectId || !providerConfig.projectId.trim()) {
-        errors.push('TestRail project ID is required');
-      }
-      
-      if (!providerConfig.suiteId || !providerConfig.suiteId.trim()) {
-        errors.push('TestRail suite ID is required');
-      }
-    }
+    });
+  }
+  
+  // Validate pass threshold
+  if (testManagement.passThresholdPercent === undefined || 
+      testManagement.passThresholdPercent < 0 || 
+      testManagement.passThresholdPercent > 100) {
+    errors.push('Pass threshold must be between 0 and 100');
   }
   
   return errors;
@@ -103,32 +82,43 @@ export const validateCommunication = (
 ): string[] => {
   const errors: string[] = [];
   
-  // If no communication config or slack disabled, it's valid (optional)
-  if (!communication?.slack?.enabled) {
+  // If no communication config or disabled, it's valid (optional)
+  if (!communication?.enabled) {
     return errors;
   }
   
-  const slackConfig = communication.slack;
-  
   // Check integration ID
-  if (!slackConfig.integrationId || !slackConfig.integrationId.trim()) {
+  if (!communication.integrationId || !communication.integrationId.trim()) {
     errors.push('Slack integration must be selected');
   }
   
   // Check channel data exists
-  if (!slackConfig.channelData) {
+  if (!communication.channelData) {
     errors.push('Slack channel configuration is required');
   } else {
-    const channelData = slackConfig.channelData;
+    const channelData = communication.channelData;
     
-    // Check if at least one channel type has channels configured
-    const hasReleaseChannels = channelData.releases && channelData.releases.length > 0;
-    const hasBuildChannels = channelData.builds && channelData.builds.length > 0;
-    const hasRegressionChannels = channelData.regression && channelData.regression.length > 0;
-    const hasCriticalChannels = channelData.critical && channelData.critical.length > 0;
+    // CRITICAL: All bucket types are mandatory - each must have at least one channel
+    const hasReleaseChannels = channelData.releases && Array.isArray(channelData.releases) && channelData.releases.length > 0;
+    const hasBuildChannels = channelData.builds && Array.isArray(channelData.builds) && channelData.builds.length > 0;
+    const hasRegressionChannels = channelData.regression && Array.isArray(channelData.regression) && channelData.regression.length > 0;
+    const hasCriticalChannels = channelData.critical && Array.isArray(channelData.critical) && channelData.critical.length > 0;
     
-    if (!hasReleaseChannels && !hasBuildChannels && !hasRegressionChannels && !hasCriticalChannels) {
-      errors.push('At least one Slack channel must be configured (releases, builds, regression, or critical)');
+    // Validate each bucket type is present and has at least one channel
+    if (!hasReleaseChannels) {
+      errors.push('At least one channel must be configured for Releases bucket');
+    }
+    
+    if (!hasBuildChannels) {
+      errors.push('At least one channel must be configured for Build bucket');
+    }
+    
+    if (!hasRegressionChannels) {
+      errors.push('At least one channel must be configured for Regression bucket');
+    }
+    
+    if (!hasCriticalChannels) {
+      errors.push('At least one channel must be configured for Critical bucket');
     }
   }
   
@@ -166,11 +156,15 @@ export const validateProjectManagement = (
         errors.push(`${platformName}: Platform is required`);
       }
       
-      if (!pc.projectKey || !pc.projectKey.trim()) {
+      const params = pc.parameters || {};
+      const projectKey = params.projectKey;
+      const completedStatus = params.completedStatus;
+      
+      if (!projectKey || typeof projectKey !== 'string' || !projectKey.trim()) {
         errors.push(`${platformName}: Project Key is required`);
       }
       
-      if (!pc.completedStatus || !pc.completedStatus.trim()) {
+      if (!completedStatus || typeof completedStatus !== 'string' || !completedStatus.trim()) {
         errors.push(`${platformName}: Completed Status is required`);
       }
     });
@@ -200,9 +194,13 @@ export const validateWorkflows = (
     return errors;
   }
   
-  // Validate required pipelines based on selected distribution targets
-  const needsAndroid = config.targets?.includes(TARGET_PLATFORMS.PLAY_STORE);
-  const needsIOS = config.targets?.includes(TARGET_PLATFORMS.APP_STORE);
+  // Validate required pipelines based on selected platform-targets
+  const needsAndroid = config.platformTargets?.some(
+    (pt) => pt.platform === PLATFORMS.ANDROID && pt.target === TARGET_PLATFORMS.PLAY_STORE
+  );
+  const needsIOS = config.platformTargets?.some(
+    (pt) => pt.platform === PLATFORMS.IOS && pt.target === TARGET_PLATFORMS.APP_STORE
+  );
   
   if (needsAndroid) {
     const hasAndroidRegression = workflows.some(
@@ -260,10 +258,13 @@ export const canProceedFromStep = (
 ): boolean => {
   switch (stepIndex) {
     case STEP_INDEX.BASIC:
-      return !!(config.name && config.name.trim() && config.baseBranch && config.baseBranch.trim());
+      // Ensure both name and baseBranch are non-empty strings
+      const hasValidName = !!(config.name && typeof config.name === 'string' && config.name.trim());
+      const hasValidBaseBranch = !!(config.baseBranch && typeof config.baseBranch === 'string' && config.baseBranch.trim());
+      return hasValidName && hasValidBaseBranch;
       
     case STEP_INDEX.PLATFORMS:
-      return !!config.targets && config.targets.length > 0;
+      return !!(config.platformTargets && config.platformTargets.length > 0);
       
     case STEP_INDEX.BUILD_UPLOAD:
       // Ensure user has explicitly selected an upload method
@@ -291,18 +292,22 @@ export const canProceedFromStep = (
       return jiraErrors.length === 0;
       
     case STEP_INDEX.SCHEDULING:
-      // CRITICAL: Cannot configure scheduling without platforms
-      if (!config.targets || config.targets.length === 0) {
-        return false; // Cannot proceed - no platforms selected
+      // CRITICAL: Cannot configure scheduling without platformTargets
+      if (!config.platformTargets || config.platformTargets.length === 0) {
+        return false; // Cannot proceed - no platform-targets selected
       }
       
+
+      // Allow clicking Continue if scheduling is enabled (validation will be checked in handleNext)
+      // This allows users to see validation errors when they click Continue
       // If user opted out of scheduling, allow proceed
       if (!config.releaseSchedule) {
         return true;
       }
-      // If user opted in, validate scheduling config
-      const schedulingErrors = validateScheduling(config.releaseSchedule);
-      return schedulingErrors.length === 0;
+      
+      // Scheduling is enabled - allow clicking Continue to see validation errors
+      // Actual validation will be checked in handleNext
+      return true;
       
     case STEP_INDEX.REVIEW:
       const validation = validateConfiguration(config);

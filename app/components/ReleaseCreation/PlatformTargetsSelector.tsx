@@ -79,8 +79,9 @@ export function PlatformTargetsSelector({
   
   // Available targets from config (or all if no config)
   const availableTargets = useMemo(() => {
-    if (config) {
-      return config.targets;
+    if (config?.platformTargets && config.platformTargets.length > 0) {
+      // Extract unique targets from platformTargets
+      return [...new Set(config.platformTargets.map((pt) => pt.target))];
     }
     // If no config, all targets are available
     return [
@@ -88,35 +89,32 @@ export function PlatformTargetsSelector({
       TARGET_PLATFORMS.PLAY_STORE,
       TARGET_PLATFORMS.APP_STORE,
     ] as TargetPlatform[];
-  }, [config]);
+  }, [config?.platformTargets]);
 
   // Filter platformTargets to only include targets that are in the config
   // This ensures state only contains valid targets from config
   useEffect(() => {
-    if (config && platformTargets.length > 0) {
-      const validTargets = config.targets || [];
-      const filtered = platformTargets.filter((pt) => validTargets.includes(pt.target));
+    if (config?.platformTargets && config.platformTargets.length > 0 && platformTargets.length > 0) {
+      const configTargets = config.platformTargets.map((pt) => pt.target);
+      const filtered = platformTargets.filter((pt) => configTargets.includes(pt.target));
       
       // Only update if there's a difference (to avoid infinite loops)
       if (filtered.length !== platformTargets.length) {
         // If all were filtered out, keep at least the first available target
-        if (filtered.length === 0 && validTargets.length > 0) {
-          const firstTarget = validTargets[0];
-          const platform = PLATFORM_TARGET_MAPPING[firstTarget];
-          if (platform) {
-            onChange([{
-              platform: platform as PlatformTargetWithVersion['platform'],
-              target: firstTarget,
-              version: defaultVersion,
-            }]);
-          }
+        if (filtered.length === 0 && configTargets.length > 0) {
+          const firstConfigPt = config.platformTargets[0];
+          onChange([{
+            platform: firstConfigPt.platform as PlatformTargetWithVersion['platform'],
+            target: firstConfigPt.target,
+            version: defaultVersion,
+          }]);
         } else if (filtered.length > 0) {
           onChange(filtered);
         }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config?.targets]);
+  }, [config?.platformTargets]);
 
   // Check if a platform-target combination is selected
   const isSelected = (target: TargetPlatform): boolean => {
@@ -124,9 +122,16 @@ export function PlatformTargetsSelector({
   };
 
   // Get version for a specific target
+  // If platformTarget exists, use its version (even if empty string - user cleared it)
+  // Only use defaultVersion if platformTarget doesn't exist yet (not selected)
   const getVersionForTarget = (target: TargetPlatform): string => {
     const pt = platformTargets.find((p) => p.target === target);
-    return pt?.version || defaultVersion;
+    if (pt) {
+      // Platform is selected - return its version (even if empty string)
+      return pt.version || '';
+    }
+    // Platform not selected yet - return defaultVersion for display
+    return defaultVersion;
   };
 
   // Handle target selection/deselection

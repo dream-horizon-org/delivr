@@ -7,8 +7,19 @@
 import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { apiGet, apiPost, apiPut, apiDelete, getApiErrorMessage, apiUpload } from '~/utils/api-client';
-import { TaskStage, Platform, BuildUploadStage } from '~/types/release-process-enums';
+import { TaskStage, Platform, BuildUploadStage, ReleaseStatus } from '~/types/release-process-enums';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { filterValidTaskTypes } from '~/utils/task-filtering';
+import {
+  RELEASE_PROCESS_STAGE_POLLING_INTERVAL,
+  ACTIVITY_LOGS_POLLING_INTERVAL,
+  RELEASE_PROCESS_STAGE_STALE_TIME,
+  RELEASE_PROCESS_STAGE_CACHE_TIME,
+  ACTIVITY_LOGS_STALE_TIME,
+  ACTIVITY_LOGS_CACHE_TIME,
+  CHERRY_PICK_STALE_TIME,
+  CHERRY_PICK_CACHE_TIME,
+} from '~/constants/polling-intervals';
 import type {
   KickoffStageResponse,
   RegressionStageResponse,
@@ -29,6 +40,20 @@ import type {
   NotificationRequest,
   SendNotificationResponse,
 } from '~/types/release-process.types';
+import type { ApiResponse } from '~/utils/api-client';
+
+/**
+ * Helper to extract error message from ApiResponse error field
+ * Supports both string and object formats: { code, message }
+ */
+function extractErrorFromResponse(response: ApiResponse<unknown>): string | undefined {
+  if (!response.error) return undefined;
+  if (typeof response.error === 'string') return response.error;
+  if (response.error && typeof response.error === 'object' && 'message' in response.error) {
+    return typeof response.error.message === 'string' ? response.error.message : undefined;
+  }
+  return undefined;
+}
 
 // Query Keys
 const QUERY_KEYS = {
@@ -77,7 +102,7 @@ export function useKickoffStage(
       console.log('[useKickoffStage] API result:', result);
 
       if (!result.success || !result.data) {
-        const errorMsg = result.error || 'Failed to fetch kickoff stage';
+        const errorMsg = extractErrorFromResponse(result) || 'Failed to fetch kickoff stage';
         console.error('[useKickoffStage] Error:', errorMsg, result);
         throw new Error(errorMsg);
       }
@@ -92,12 +117,12 @@ export function useKickoffStage(
     },
     {
       enabled: isEnabled,
-      staleTime: 2 * 60 * 1000, // 2 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
+      staleTime: RELEASE_PROCESS_STAGE_STALE_TIME,
+      cacheTime: RELEASE_PROCESS_STAGE_CACHE_TIME,
       refetchOnWindowFocus: true,
       refetchOnMount: true, // Changed to true to ensure it fetches
-      retry: 1,
-      refetchInterval: (shouldPoll && isEnabled) ? 3000 : false, // Poll every 30 seconds if shouldPoll is true
+      retry: 1, // Smart retry prevents retries on 5xx errors, which naturally stops polling
+      refetchInterval: (shouldPoll && isEnabled) ? RELEASE_PROCESS_STAGE_POLLING_INTERVAL : false,
       refetchIntervalInBackground: false, // Stop polling when tab is in background
     }
   );
@@ -132,7 +157,8 @@ export function useRegressionStage(
       console.log('[useRegressionStage] API result:', result);
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to fetch regression stage');
+        const errorMessage = extractErrorFromResponse(result) || 'Failed to fetch regression stage';
+        throw new Error(errorMessage);
       }
 
       // Filter out unknown task types
@@ -145,12 +171,12 @@ export function useRegressionStage(
     },
     {
       enabled: isEnabled,
-      staleTime: 2 * 60 * 1000,
-      cacheTime: 10 * 60 * 1000,
+      staleTime: RELEASE_PROCESS_STAGE_STALE_TIME,
+      cacheTime: RELEASE_PROCESS_STAGE_CACHE_TIME,
       refetchOnWindowFocus: true,
       refetchOnMount: true, // Changed to true to ensure it fetches
-      retry: 1,
-      refetchInterval: (shouldPoll && isEnabled) ? 3000 : false, // Poll every 30 seconds if shouldPoll is true
+      retry: 1, // Smart retry prevents retries on 5xx errors, which naturally stops polling
+      refetchInterval: (shouldPoll && isEnabled) ? RELEASE_PROCESS_STAGE_POLLING_INTERVAL : false,
       refetchIntervalInBackground: false, // Stop polling when tab is in background
     }
   );
@@ -178,7 +204,8 @@ export function usePreReleaseStage(
       );
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to fetch pre-release stage');
+        const errorMessage = extractErrorFromResponse(result) || 'Failed to fetch pre-release stage';
+        throw new Error(errorMessage);
       }
 
       // Filter out unknown task types
@@ -191,12 +218,12 @@ export function usePreReleaseStage(
     },
     {
       enabled: isEnabled,
-      staleTime: 2 * 60 * 1000,
-      cacheTime: 10 * 60 * 1000,
+      staleTime: RELEASE_PROCESS_STAGE_STALE_TIME,
+      cacheTime: RELEASE_PROCESS_STAGE_CACHE_TIME,
       refetchOnWindowFocus: true,
       refetchOnMount: false,
-      retry: 1,
-      refetchInterval: (shouldPoll && isEnabled) ? 3000 : false, // Poll every 30 seconds if shouldPoll is true
+      retry: 1, // Smart retry prevents retries on 5xx errors, which naturally stops polling
+      refetchInterval: (shouldPoll && isEnabled) ? RELEASE_PROCESS_STAGE_POLLING_INTERVAL : false,
       refetchIntervalInBackground: false, // Stop polling when tab is in background
     }
   );
@@ -224,7 +251,8 @@ export function useRetryTask(tenantId?: string, releaseId?: string) {
       );
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to retry task');
+        const errorMessage = extractErrorFromResponse(result) || 'Failed to retry task';
+        throw new Error(errorMessage);
       }
 
       // Contract expects { success: true, message, data: {...} }
@@ -238,8 +266,8 @@ export function useRetryTask(tenantId?: string, releaseId?: string) {
           Object.values(TaskStage).forEach((stage) => {
             queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, stage));
           });
-          // Invalidate releases list to reflect task status changes
-          queryClient.invalidateQueries(['releases', tenantId]);
+          // Invalidate current release to reflect task status changes
+          queryClient.invalidateQueries(['release', tenantId, releaseId]);
           // Invalidate activity logs to show retry action
           queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
         }
@@ -282,7 +310,8 @@ export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
       );
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || 'Upload failed');
+        const errorMessage = extractErrorFromResponse(result) || 'Upload failed';
+        throw new Error(errorMessage);
       }
 
       // Backend returns { success: true, data: {...} }
@@ -299,13 +328,13 @@ export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
         if (tenantId && releaseId) {
           let stageToInvalidate: TaskStage;
           switch (variables.stage) {
-            case 'PRE_REGRESSION':
+            case BuildUploadStage.PRE_REGRESSION:
               stageToInvalidate = TaskStage.KICKOFF;
               break;
-            case 'REGRESSION':
+            case BuildUploadStage.REGRESSION:
               stageToInvalidate = TaskStage.REGRESSION;
               break;
-            case 'PRE_RELEASE':
+            case BuildUploadStage.PRE_RELEASE:
               stageToInvalidate = TaskStage.PRE_RELEASE;
               break;
             default:
@@ -330,9 +359,9 @@ export function useVerifyTestFlight(tenantId?: string, releaseId?: string) {
   return useMutation<
     BuildUploadResponse,
     Error,
-    { stage: BuildUploadStage; testflightBuildNumber: string; versionName: string }
+    { stage: BuildUploadStage; testflightBuildNumber: string }
   >(
-    async ({ stage, testflightBuildNumber, versionName }) => {
+    async ({ stage, testflightBuildNumber }) => {
       if (!tenantId || !releaseId) {
         throw new Error('tenantId and releaseId are required');
       }
@@ -341,12 +370,12 @@ export function useVerifyTestFlight(tenantId?: string, releaseId?: string) {
         `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/${stage}/builds/ios/verify-testflight`,
         {
           testflightBuildNumber,
-          versionName,
         }
       );
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to verify TestFlight build');
+        const errorMessage = extractErrorFromResponse(result) || 'Failed to verify TestFlight build';
+        throw new Error(errorMessage);
       }
 
       // Backend returns { success: true, data: {...} }
@@ -363,13 +392,13 @@ export function useVerifyTestFlight(tenantId?: string, releaseId?: string) {
         if (tenantId && releaseId) {
           let stageToInvalidate: TaskStage;
           switch (variables.stage) {
-            case 'PRE_REGRESSION':
+            case BuildUploadStage.PRE_REGRESSION:
               stageToInvalidate = TaskStage.KICKOFF;
               break;
-            case 'REGRESSION':
+            case BuildUploadStage.REGRESSION:
               stageToInvalidate = TaskStage.REGRESSION;
               break;
-            case 'PRE_RELEASE':
+            case BuildUploadStage.PRE_RELEASE:
               stageToInvalidate = TaskStage.PRE_RELEASE;
               break;
             default:
@@ -413,17 +442,18 @@ export function useTestManagementStatus(
       );
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to fetch test management status');
+        const errorMessage = extractErrorFromResponse(result) || 'Failed to fetch test management status';
+        throw new Error(errorMessage);
       }
 
       return result.data;
     },
     {
       enabled: enabled && !!tenantId && !!releaseId, // NEW: Use enabled parameter
-      staleTime: 30 * 1000, // 30 seconds
-      cacheTime: 2 * 60 * 1000, // 2 minutes
-      refetchInterval: enabled ? 30 * 1000 : false, // NEW: Only poll if enabled
-      retry: 1,
+      staleTime: ACTIVITY_LOGS_STALE_TIME,
+      cacheTime: ACTIVITY_LOGS_CACHE_TIME,
+      retry: 1, // Smart retry prevents retries on 5xx errors, which naturally stops polling
+      refetchInterval: enabled ? ACTIVITY_LOGS_POLLING_INTERVAL : false,
     }
   );
 }
@@ -451,17 +481,18 @@ export function useProjectManagementStatus(
       );
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to fetch project management status');
+        const errorMessage = extractErrorFromResponse(result) || 'Failed to fetch project management status';
+        throw new Error(errorMessage);
       }
 
       return result.data;
     },
     {
       enabled: enabled && !!tenantId && !!releaseId, // NEW: Use enabled parameter
-      staleTime: 30 * 1000,
-      cacheTime: 2 * 60 * 1000,
-      refetchInterval: enabled ? 30 * 1000 : false, // NEW: Only poll if enabled
-      retry: 1,
+      staleTime: ACTIVITY_LOGS_STALE_TIME,
+      cacheTime: ACTIVITY_LOGS_CACHE_TIME,
+      retry: 1, // Smart retry prevents retries on 5xx errors, which naturally stops polling
+      refetchInterval: enabled ? ACTIVITY_LOGS_POLLING_INTERVAL : false,
     }
   );
 }
@@ -469,8 +500,16 @@ export function useProjectManagementStatus(
 /**
  * Get cherry pick status
  * Backend contract: GET /check-cherry-pick-status
+ * 
+ * @param tenantId - Tenant ID
+ * @param releaseId - Release ID
+ * @param enabled - Whether the query should be enabled (default: true)
  */
-export function useCherryPickStatus(tenantId?: string, releaseId?: string) {
+export function useCherryPickStatus(
+  tenantId?: string, 
+  releaseId?: string,
+  enabled: boolean = true
+) {
   return useQuery<CherryPickStatusResponse, Error>(
     QUERY_KEYS.cherryPickStatus(tenantId || '', releaseId || ''),
     async () => {
@@ -483,17 +522,18 @@ export function useCherryPickStatus(tenantId?: string, releaseId?: string) {
       );
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to fetch cherry pick status');
+        const errorMessage = extractErrorFromResponse(result) || 'Failed to fetch cherry pick status';
+        throw new Error(errorMessage);
       }
 
       return result.data;
     },
     {
-      enabled: !!tenantId && !!releaseId,
-      staleTime: 30 * 1000,
-      cacheTime: 2 * 60 * 1000,
-      refetchInterval: 30 * 1000,
-      retry: 1,
+      enabled: enabled && !!tenantId && !!releaseId,
+      staleTime: CHERRY_PICK_STALE_TIME,
+      cacheTime: CHERRY_PICK_CACHE_TIME,
+      retry: 1, // Smart retry prevents retries on 5xx errors, which naturally stops polling
+      refetchInterval: ACTIVITY_LOGS_POLLING_INTERVAL,
     }
   );
 }
@@ -532,8 +572,6 @@ export function useApproveRegression(tenantId?: string, releaseId?: string) {
           queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.PRE_RELEASE));
           // Invalidate release query so phase gets recalculated and navigation happens
           queryClient.invalidateQueries(['release', tenantId, releaseId]);
-          // Invalidate releases list to reflect stage transition
-          queryClient.invalidateQueries(['releases', tenantId]);
           // Invalidate activity logs to show approval action
           queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
         }
@@ -561,7 +599,8 @@ export function useCompletePreReleaseStage(tenantId?: string, releaseId?: string
       );
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to complete pre-release stage');
+        const errorMessage = extractErrorFromResponse(result) || 'Failed to complete pre-release stage';
+        throw new Error(errorMessage);
       }
 
       return result.data;
@@ -573,8 +612,6 @@ export function useCompletePreReleaseStage(tenantId?: string, releaseId?: string
           queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.DISTRIBUTION));
           // Invalidate release query so phase gets recalculated and navigation happens
           queryClient.invalidateQueries(['release', tenantId, releaseId]);
-          // Invalidate releases list to reflect stage completion
-          queryClient.invalidateQueries(['releases', tenantId]);
           // Invalidate activity logs to show completion action
           queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
         }
@@ -604,15 +641,16 @@ export function useNotifications(tenantId?: string, releaseId?: string) {
       );
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to fetch notifications');
+        const errorMessage = extractErrorFromResponse(result) || 'Failed to fetch notifications';
+        throw new Error(errorMessage);
       }
 
       return result.data;
     },
     {
       enabled: !!tenantId && !!releaseId,
-      staleTime: 1 * 60 * 1000, // 1 minute
-      cacheTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: CHERRY_PICK_STALE_TIME,
+      cacheTime: CHERRY_PICK_CACHE_TIME,
       refetchOnWindowFocus: false,
       retry: 1,
     }
@@ -638,7 +676,8 @@ export function useSendNotification(tenantId?: string, releaseId?: string) {
       );
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to send notification');
+        const errorMessage = extractErrorFromResponse(result) || 'Failed to send notification';
+        throw new Error(errorMessage);
       }
 
       return result.data;
@@ -676,15 +715,16 @@ export function useActivityLogs(tenantId?: string, releaseId?: string) {
       );
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to fetch activity logs');
+        const errorMessage = extractErrorFromResponse(result) || 'Failed to fetch activity logs';
+        throw new Error(errorMessage);
       }
 
       return result.data;
     },
     {
       enabled: !!tenantId && !!releaseId,
-      staleTime: 1 * 60 * 1000, // 1 minute
-      cacheTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: CHERRY_PICK_STALE_TIME,
+      cacheTime: CHERRY_PICK_CACHE_TIME,
       refetchOnWindowFocus: false,
       retry: 1,
     }
@@ -721,7 +761,8 @@ export function useBuildArtifacts(
       const result = await apiGet<ListBuildArtifactsResponse>(endpoint);
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to fetch build artifacts');
+        const errorMessage = extractErrorFromResponse(result) || 'Failed to fetch build artifacts';
+        throw new Error(errorMessage);
       }
 
       // apiGet returns { success: true, data: T }
@@ -745,8 +786,8 @@ export function useBuildArtifacts(
     },
     {
       enabled: !!tenantId && !!releaseId,
-      staleTime: 30 * 1000, // 30 seconds
-      cacheTime: 2 * 60 * 1000, // 2 minutes
+      staleTime: ACTIVITY_LOGS_STALE_TIME,
+      cacheTime: ACTIVITY_LOGS_CACHE_TIME,
       refetchOnWindowFocus: true,
       retry: 1,
     }
@@ -771,7 +812,8 @@ export function useDownloadBuildArtifact() {
       const result = await apiGet<{ url: string; expiresAt: string }>(endpoint);
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to fetch download URL');
+        const errorMessage = extractErrorFromResponse(result) || 'Failed to fetch download URL';
+        throw new Error(errorMessage);
       }
 
       // result.data is already { url, expiresAt }
@@ -826,7 +868,8 @@ export function usePauseResumeRelease(tenantId?: string, releaseId?: string) {
       );
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || `Failed to ${action} release`);
+        const errorMessage = extractErrorFromResponse(result) || `Failed to ${action} release`;
+        throw new Error(errorMessage);
       }
 
       return result.data;
@@ -834,7 +877,6 @@ export function usePauseResumeRelease(tenantId?: string, releaseId?: string) {
     {
       onSuccess: () => {
         // Invalidate release queries to refresh data
-        queryClient.invalidateQueries(['releases', tenantId]);
         queryClient.invalidateQueries(['release', tenantId, releaseId]);
         queryClient.invalidateQueries(['release-process', 'stage', tenantId, releaseId]);
         // Invalidate activity logs to show pause/resume action
@@ -873,21 +915,36 @@ export function useArchiveRelease(tenantId?: string, releaseId?: string) {
       );
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to archive release');
+        const errorMessage = extractErrorFromResponse(result) || 'Failed to archive release';
+        throw new Error(errorMessage);
       }
 
       return result.data;
     },
     {
       onSuccess: () => {
-        // Invalidate release queries to refresh data
+        if (!tenantId || !releaseId) return;
+        
+        // Optimistically update releases list to mark release as ARCHIVED
+        queryClient.setQueryData<{ success: boolean; releases?: BackendReleaseResponse[]; error?: string }>(
+          ['releases', tenantId],
+          (old) => {
+            if (!old?.releases) {
+              return old || { success: false, releases: [] };
+            }
+            return {
+              ...old,
+              releases: old.releases.map((release) =>
+                release.id === releaseId
+                  ? { ...release, status: ReleaseStatus.ARCHIVED }
+                  : release
+              ),
+            };
+          }
+        );
+        
+        // Invalidate releases list query to trigger refetch and update tab counts
         queryClient.invalidateQueries(['releases', tenantId]);
-        queryClient.invalidateQueries(['release', tenantId, releaseId]);
-        queryClient.invalidateQueries(['release-process', 'stage', tenantId, releaseId]);
-        // Invalidate activity logs to show archive action
-        if (tenantId && releaseId) {
-          queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
-        }
       },
     }
   );

@@ -3,19 +3,14 @@
  * Displays a single build pipeline configuration
  */
 
-import { Card, Badge, Button, Text, Group, ActionIcon, Tooltip } from '@mantine/core';
+import { Card, Button, Text, Group, ActionIcon, Tooltip } from '@mantine/core';
 import { IconEdit, IconTrash, IconCheck, IconX, IconAlertCircle } from '@tabler/icons-react';
 import type { Workflow, BuildEnvironment, Platform } from '~/types/release-config';
 import type { PipelineCardProps } from '~/types/release-config-props';
 import { BUILD_ENVIRONMENTS, BUILD_PROVIDERS, PLATFORMS } from '~/types/release-config-constants';
 import { ENVIRONMENT_LABELS, PLATFORM_LABELS, BUTTON_LABELS, STATUS_LABELS } from '~/constants/release-config-ui';
-
-const environmentColors: Record<BuildEnvironment, string> = {
-  [BUILD_ENVIRONMENTS.PRE_REGRESSION]: 'blue',
-  [BUILD_ENVIRONMENTS.REGRESSION]: 'green',
-  [BUILD_ENVIRONMENTS.TESTFLIGHT]: 'orange',
-  [BUILD_ENVIRONMENTS.AAB_BUILD]: 'teal',
-};
+import { PlatformBadge, AppBadge } from '~/components/Common/AppBadge';
+import { getBuildProviderLabel } from '~/constants/release-config-ui';
 
 export function PipelineCard({ pipeline, onEdit, onDelete }: PipelineCardProps) {
   const providerLabel = pipeline.provider.replace('_', ' ');
@@ -36,40 +31,53 @@ export function PipelineCard({ pipeline, onEdit, onDelete }: PipelineCardProps) 
             </Text>
             
             {pipeline.enabled ? (
-              <Badge size="xs" color="green" variant="filled">
-                <IconCheck size={12} className="inline mr-1" />
-                Enabled
-              </Badge>
+              <AppBadge
+                type="status"
+                value="success"
+                title="Enabled"
+                size="xs"
+                variant="filled"
+                leftSection={<IconCheck size={12} />}
+              />
             ) : (
-              <Badge size="xs" color="gray" variant="outline">
-                <IconX size={12} className="inline mr-1" />
-                Disabled
-              </Badge>
+              <AppBadge
+                type="status"
+                value="neutral"
+                title="Disabled"
+                size="xs"
+                variant="outline"
+                leftSection={<IconX size={12} />}
+              />
             )}
           </div>
           
           <Group gap="xs" className="mb-2">
-            <Badge size="sm" variant="light">
-              {PLATFORM_LABELS[pipeline.platform]}
-            </Badge>
+            <PlatformBadge platform={pipeline.platform} size="sm" />
             
-            <Badge 
-              size="sm" 
-              variant="light" 
-              color={environmentColors[pipeline.environment]}
-            >
-              {ENVIRONMENT_LABELS[pipeline.environment]}
-            </Badge>
+            <AppBadge
+              type="build-environment"
+              value={pipeline.environment}
+              title={ENVIRONMENT_LABELS[pipeline.environment]}
+              size="sm"
+            />
             
             {pipeline.environment === BUILD_ENVIRONMENTS.AAB_BUILD && (
-              <Badge size="sm" variant="outline" color="gray">
-                .aab
-              </Badge>
+              <AppBadge
+                type="status"
+                value="neutral"
+                title=".aab"
+                size="sm"
+                variant="outline"
+              />
             )}
             
-            <Badge size="sm" variant="outline" color="gray">
-              {providerLabel}
-            </Badge>
+            <AppBadge
+              type="build-provider"
+              value={pipeline.provider}
+              title={getBuildProviderLabel(pipeline.provider)}
+              size="sm"
+              variant="outline"
+            />
           </Group>
         </div>
         

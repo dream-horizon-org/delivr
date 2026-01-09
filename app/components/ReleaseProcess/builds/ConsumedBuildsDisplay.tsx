@@ -5,13 +5,13 @@
  * Shows CI/CD job links, download links, TestFlight links, etc.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Anchor,
-  Badge,
   Button,
   Group,
   Loader,
+  Paper,
   Stack,
   Text,
 } from '@mantine/core';
@@ -19,13 +19,23 @@ import {
   IconBrandApple,
   IconDownload,
   IconExternalLink,
-  IconFile,
   IconX,
+  IconClock,
+  IconCopy,
+  IconCheck,
 } from '@tabler/icons-react';
 import type { BuildInfo, BuildTaskOutput } from '~/types/release-process.types';
-import { Platform, TaskStatus } from '~/types/release-process-enums';
+import { Platform, TaskStatus, WorkflowStatus, BuildUploadStatus, BuildType } from '~/types/release-process-enums';
 import { useDownloadBuildArtifact } from '~/hooks/useReleaseProcess';
-import { showErrorToast } from '~/utils/toast';
+import { showErrorToast, showSuccessToast } from '~/utils/toast';
+import { BUILD_DISPLAY_LABELS } from '~/constants/release-process-ui';
+import { BUILD_DOWNLOAD_MESSAGES, BUILD_COPY_MESSAGES } from '~/constants/toast-messages';
+import { PlatformBadge, AppBadge } from '~/components/Common/AppBadge';
+import { TARGET_PLATFORM_LABELS } from '~/constants/release-config-ui';
+
+// ============================================================================
+// Types & Interfaces
+// ============================================================================
 
 interface ConsumedBuildsDisplayProps {
   builds: BuildInfo[]; // From task.builds (consumed builds)
@@ -36,6 +46,537 @@ interface ConsumedBuildsDisplayProps {
   expectedPlatforms?: Platform[]; // For CI/CD mode (show all platforms even if no builds)
 }
 
+interface BuildDisplayItemProps {
+  build: BuildInfo;
+  taskStatus: TaskStatus;
+  isPostRegression: boolean;
+  isKickoffRegression: boolean;
+  getTestFlightLink: (testflightNumber: string | null) => string | null;
+  jobUrl?: string; // CI/CD job URL for this platform
+}
+
+interface PlatformStatusItemProps {
+  platform: Platform;
+  taskStatus?: TaskStatus;
+  isPostRegression: boolean;
+  isKickoffRegression: boolean;
+  getTestFlightLink: (testflightNumber: string | null) => string | null;
+  jobUrl?: string; // CI/CD job URL for this platform
+}
+
+function getTestFlightLink(testflightNumber: string | null): string | null {
+  if (!testflightNumber) return null;
+  return `https://appstoreconnect.apple.com/testflight/builds/${testflightNumber}`;
+}
+
+
+
+interface BuildBadgesProps {
+  platform?: Platform;
+  storeType?: string | null;
+  buildType?: string | null;
+  isCICD: boolean;
+  isRunning: boolean;
+  isFailed: boolean;
+  artifactVersionName?: string | null;
+  buildNumber?: string | null;
+}
+
+function BuildBadges({ 
+  platform, 
+  storeType, 
+  buildType, 
+  isCICD, 
+  isRunning, 
+  isFailed,
+  artifactVersionName,
+  buildNumber,
+}: BuildBadgesProps) {
+  // Get store type label
+  const storeTypeLabel = storeType 
+    ? TARGET_PLATFORM_LABELS[storeType as keyof typeof TARGET_PLATFORM_LABELS] || storeType
+    : null;
+  
+  // Get build type label
+  const buildTypeLabel = buildType === BuildType.MANUAL 
+    ? 'Manual'
+    : buildType === BuildType.CI_CD
+    ? 'CI/CD'
+    : buildType;
+
+  return (
+    <Group justify="space-between" align="center" gap="md" wrap="wrap">
+      {/* Left side: Badges */}
+      <Group gap="xs" wrap="wrap">
+        {platform && (
+          <PlatformBadge platform={platform} size="sm" />
+        )}
+        {storeType && storeTypeLabel && (
+          <AppBadge 
+            type="store-type" 
+            value={storeType} 
+            title={storeTypeLabel}
+            size="sm"
+          />
+        )}
+        {buildType && buildTypeLabel && (
+          <AppBadge 
+            type="build-type" 
+            value={buildType} 
+            title={buildTypeLabel}
+            size="sm"
+          />
+        )}
+        {/* CI/CD Status Badge */}
+        {isCICD && isRunning && (
+          <AppBadge 
+            type="cicd-status" 
+            value="running" 
+            title={BUILD_DISPLAY_LABELS.RUNNING}
+            size="sm"
+            leftSection={<Loader size={12} />}
+          />
+        )}
+        {isCICD && isFailed && (
+          <AppBadge 
+            type="cicd-status" 
+            value="failed" 
+            title={BUILD_DISPLAY_LABELS.FAILED}
+            size="sm"
+            leftSection={<IconX size={12} />}
+          />
+        )}
+      </Group>
+      
+      {/* Right side: Metadata */}
+      <Group gap="md" wrap="wrap">
+        {artifactVersionName && (
+          <Text size="xs" c="dimmed">
+            {BUILD_DISPLAY_LABELS.VERSION_LABEL}: {artifactVersionName}
+          </Text>
+        )}
+        {buildNumber && (
+          <Text size="xs" c="dimmed">
+            {BUILD_DISPLAY_LABELS.BUILD_LABEL}: {buildNumber}
+          </Text>
+        )}
+      </Group>
+    </Group>
+  );
+}
+
+interface PlatformStatusBadgesProps {
+  platform: Platform;
+  isRunningWithJob: boolean;
+  isQueued: boolean;
+  isFailed: boolean;
+}
+
+function PlatformStatusBadges({ platform, isRunningWithJob, isQueued, isFailed }: PlatformStatusBadgesProps) {
+  return (
+    <Group gap="xs" wrap="wrap">
+      <PlatformBadge platform={platform} size="sm" />
+      {isRunningWithJob && (
+        <AppBadge 
+          type="cicd-status" 
+          value="running" 
+          title={BUILD_DISPLAY_LABELS.RUNNING}
+          size="sm"
+          leftSection={<Loader size={12} />}
+        />
+      )}
+      {isQueued && (
+        <AppBadge 
+          type="cicd-status" 
+          value="queued" 
+          title={BUILD_DISPLAY_LABELS.QUEUED}
+          size="sm"
+          leftSection={<IconClock size={12} />}
+        />
+      )}
+      {isFailed && (
+        <AppBadge 
+          type="cicd-status" 
+          value="failed" 
+          title={BUILD_DISPLAY_LABELS.FAILED}
+          size="sm"
+          leftSection={<IconX size={12} />}
+        />
+      )}
+    </Group>
+  );
+}
+
+// ============================================================================
+// Sub-Components: Links & Actions
+// ============================================================================
+
+interface PreReleaseLinksProps {
+  build: BuildInfo;
+  getTestFlightLink: (testflightNumber: string | null) => string | null;
+}
+
+function PreReleaseLinks({ build, getTestFlightLink }: PreReleaseLinksProps) {
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const handleCopyInternalTrackLink = async () => {
+    if (!build.internalTrackLink) return;
+    
+    try {
+      await navigator.clipboard.writeText(build.internalTrackLink);
+      setCopiedLink(true);
+      showSuccessToast(BUILD_COPY_MESSAGES.COPY_SUCCESS);
+      // Reset copied state after 2 seconds
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch (error) {
+      showErrorToast(BUILD_COPY_MESSAGES.COPY_FAILED);
+    }
+  };
+
+  return (
+    <>
+      {/* iOS TestFlight Link */}
+      {build.platform === Platform.IOS && build.testflightNumber && (
+        <Group gap={4}>
+          <IconBrandApple size={14} />
+          <Text size="sm">{BUILD_DISPLAY_LABELS.TESTFLIGHT_BUILD}{build.testflightNumber}</Text>
+        </Group>
+      )}
+      
+      {/* Android Internal Track Link - Copy Button */}
+      {build.platform === Platform.ANDROID && build.internalTrackLink && (
+        <Button
+          onClick={handleCopyInternalTrackLink}
+          variant="light"
+          size="xs"
+          rightSection={copiedLink ? <IconCheck size={14} /> : <IconCopy size={14} />}
+          color={copiedLink ? 'green' : undefined}
+        >
+          {copiedLink ? BUILD_DISPLAY_LABELS.COPIED : BUILD_DISPLAY_LABELS.COPY_PLAY_STORE_LINK}
+        </Button>
+      )}
+    </>
+  );
+}
+
+interface KickoffRegressionLinksProps {
+  jobUrl?: string;
+  taskStatus: TaskStatus;
+  build: BuildInfo;
+  onDownload: () => void;
+  isDownloading: boolean;
+}
+
+function KickoffRegressionLinks({ 
+  jobUrl, 
+  taskStatus, 
+  build, 
+  onDownload, 
+  isDownloading 
+}: KickoffRegressionLinksProps) {
+  const shouldShowJobLink = jobUrl && (
+    taskStatus === TaskStatus.IN_PROGRESS ||
+    taskStatus === TaskStatus.AWAITING_CALLBACK ||
+    taskStatus === TaskStatus.COMPLETED ||
+    taskStatus === TaskStatus.FAILED
+  );
+
+  return (
+    <Group justify="space-between" align="center" gap="md" wrap="wrap" style={{ width: '100%' }}>
+      {/* CI/CD Job Link */}
+      {build.artifactPath && (
+        <Button
+          size="xs"
+          variant="light"
+          leftSection={<IconDownload size={14} />}
+          onClick={onDownload}
+          loading={isDownloading}
+          disabled={isDownloading}
+        >
+          {BUILD_DISPLAY_LABELS.DOWNLOAD_ARTIFACT}
+        </Button>
+      )}
+      {shouldShowJobLink && (
+        <Anchor 
+          href={jobUrl} 
+          target="_blank" 
+          size="sm" 
+          c="blue"
+        >
+          <Group gap={4}>
+            <IconExternalLink size={14} />
+            <Text size="sm">{BUILD_DISPLAY_LABELS.VIEW_CI_CD_JOB}</Text>
+          </Group>
+        </Anchor>
+      )}
+      {/* Download Artifact Button */}
+
+    </Group>
+  );
+}
+
+interface PreReleaseJobLinkProps {
+  jobUrl?: string;
+  taskStatus: TaskStatus;
+}
+
+function PreReleaseJobLink({ jobUrl, taskStatus }: PreReleaseJobLinkProps) {
+  const shouldShow = jobUrl && (
+    taskStatus === TaskStatus.IN_PROGRESS ||
+    taskStatus === TaskStatus.AWAITING_CALLBACK ||
+    taskStatus === TaskStatus.COMPLETED ||
+    taskStatus === TaskStatus.FAILED
+  );
+
+  if (!shouldShow) return null;
+
+  return (
+    <Anchor 
+      href={jobUrl} 
+      target="_blank" 
+      size="sm" 
+      c="blue"
+    >
+      <Group gap={4}>
+        <IconExternalLink size={14} />
+        <Text size="sm">{BUILD_DISPLAY_LABELS.VIEW_CI_CD_JOB}</Text>
+      </Group>
+    </Anchor>
+  );
+}
+
+// ============================================================================
+// Sub-Components: Warnings & Metadata
+// ============================================================================
+
+interface BuildWarningsProps {
+  build: BuildInfo;
+  taskStatus: TaskStatus;
+}
+
+function BuildWarnings({ build, taskStatus }: BuildWarningsProps) {
+  if (taskStatus !== TaskStatus.COMPLETED) {
+    return null;
+  }
+
+  return (
+    <>
+      {build.platform === Platform.IOS && !build.testflightNumber && (
+        <Text size="xs" c="red">
+          {BUILD_DISPLAY_LABELS.TESTFLIGHT_BUILD_NUMBER_MISSING}
+        </Text>
+      )}
+      {build.platform === Platform.ANDROID && !build.internalTrackLink && (
+        <Text size="xs" c="red">
+          {BUILD_DISPLAY_LABELS.PLAY_STORE_LINK_MISSING}
+        </Text>
+      )}
+    </>
+  );
+}
+
+interface BuildMetadataProps {
+  artifactVersionName?: string | null;
+  buildNumber?: string | null;
+}
+
+function BuildMetadata({ artifactVersionName, buildNumber }: BuildMetadataProps) {
+  return (
+    <Group gap="md">
+      {artifactVersionName && (
+        <Text size="xs" c="dimmed">
+          Version: {artifactVersionName}
+        </Text>
+      )}
+      {buildNumber && (
+        <Text size="xs" c="dimmed">
+          Build: {buildNumber}
+        </Text>
+      )}
+    </Group>
+  );
+}
+
+// ============================================================================
+// Main Components
+// ============================================================================
+
+/**
+ * BuildDisplayItem - Displays a single build with all its information
+ */
+function BuildDisplayItem({
+  build,
+  taskStatus,
+  isPostRegression,
+  isKickoffRegression,
+  getTestFlightLink,
+  jobUrl,
+}: BuildDisplayItemProps) {
+  const downloadMutation = useDownloadBuildArtifact();
+
+  // Determine build status for CI/CD builds
+  const isCICD = build.buildType === BuildType.CI_CD;
+  const isRunning = build.workflowStatus === WorkflowStatus.RUNNING;
+  const buildFailed = build.workflowStatus === WorkflowStatus.FAILED || build.buildUploadStatus === BuildUploadStatus.FAILED;
+  const taskFailed = taskStatus === TaskStatus.FAILED;
+  const hasArtifact = !!build.artifactPath;
+  const hasTestFlightLink = build.platform === Platform.IOS && build.testflightNumber;
+  const hasInternalTrackLink = build.platform === Platform.ANDROID && build.internalTrackLink;
+  
+  // If task failed but build has artifact link, show it normally
+  // If task failed and build has no artifact link, show as failed
+  const shouldShowAsFailed = taskFailed && !hasArtifact && !hasTestFlightLink && !hasInternalTrackLink;
+  const isFailed = buildFailed || shouldShowAsFailed;
+
+  // Use build.ciRunId as fallback for jobUrl if not provided from buildOutput
+  const effectiveJobUrl = jobUrl || build.ciRunId || undefined;
+
+  const handleDownload = async () => {
+    if (!build.artifactPath || !build.tenantId) {
+      showErrorToast(BUILD_DOWNLOAD_MESSAGES.DOWNLOAD_ERROR);
+      return;
+    }
+
+    try {
+      await downloadMutation.mutateAsync({
+        tenantId: build.tenantId,
+        buildId: build.id,
+      });
+    } catch (error) {
+      showErrorToast({ 
+        ...BUILD_DOWNLOAD_MESSAGES.DOWNLOAD_FAILED,
+        message: error instanceof Error ? error.message : BUILD_DOWNLOAD_MESSAGES.DOWNLOAD_FAILED.message
+      });
+    }
+  };
+
+  return (
+    <Paper p="sm" 
+           style={{ 
+             border: '1px solid var(--mantine-color-gray-3)', 
+             borderRadius: '4px',
+             backgroundColor: isFailed ? 'var(--mantine-color-red-0)' : undefined,
+           }}>
+      <Stack gap="sm">
+        {/* Badges and Metadata Row - Top (space-between with wrap) */}
+        <BuildBadges
+          platform={build.platform}
+          storeType={build.storeType}
+          buildType={build.buildType}
+          isCICD={isCICD}
+          isRunning={isRunning}
+          isFailed={isFailed}
+          artifactVersionName={build.artifactVersionName}
+          buildNumber={build.buildNumber}
+        />
+        
+        {/* Links and Actions Row - Middle */}
+        <Group gap="md" wrap="wrap" style={{ width: '100%' }}>
+          {/* For Pre-Release: Show TestFlight or Internal Track links */}
+          {isPostRegression && (
+            <PreReleaseLinks build={build} getTestFlightLink={getTestFlightLink} />
+          )}
+          
+          {/* For Kickoff/Regression: Show download links and CI/CD job links */}
+          {isKickoffRegression && (
+            <KickoffRegressionLinks
+              jobUrl={effectiveJobUrl}
+              taskStatus={taskStatus}
+              build={build}
+              onDownload={handleDownload}
+              isDownloading={downloadMutation.isLoading}
+            />
+          )}
+          
+          {/* For Pre-Release: Show CI/CD job links if available */}
+          {isPostRegression && (
+            <PreReleaseJobLink jobUrl={effectiveJobUrl} taskStatus={taskStatus} />
+          )}
+          
+        </Group>
+        
+        {/* Warnings */}
+        {isPostRegression && (
+          <BuildWarnings build={build} taskStatus={taskStatus} />
+        )}
+      </Stack>
+    </Paper>
+  );
+}
+
+/**
+ * PlatformStatusItem - Shows platform status when no build exists yet (CI/CD mode)
+ * Displays "Running", "Queued", or "Failed" based on task status
+ */
+function PlatformStatusItem({
+  platform,
+  taskStatus,
+  jobUrl,
+}: PlatformStatusItemProps) {
+  const isFailed = taskStatus === TaskStatus.FAILED;
+  const isRunning = taskStatus === TaskStatus.IN_PROGRESS || taskStatus === TaskStatus.AWAITING_CALLBACK;
+  
+  // Determine if we should show Running (has jobUrl) or Queued (no jobUrl)
+  const isQueued = isRunning && !jobUrl;
+  const isRunningWithJob = isRunning && !!jobUrl;
+  
+  // Show CI/CD job link if available and task is in a state that allows it
+  const shouldShowJobLink = jobUrl && (
+    taskStatus === TaskStatus.IN_PROGRESS ||
+    taskStatus === TaskStatus.AWAITING_CALLBACK ||
+    taskStatus === TaskStatus.COMPLETED ||
+    taskStatus === TaskStatus.FAILED
+  );
+
+  return (
+    <Paper p="sm" 
+           style={{ 
+             border: '1px solid var(--mantine-color-gray-3)', 
+             borderRadius: '4px',
+             backgroundColor: isFailed ? 'var(--mantine-color-red-0)' : undefined,
+           }}>
+      <Stack gap="sm">
+        {/* Badges Row - Top */}
+        <PlatformStatusBadges
+          platform={platform}
+          isRunningWithJob={isRunningWithJob}
+          isQueued={isQueued}
+          isFailed={isFailed}
+        />
+        
+        {/* Status text and CI/CD Job Link on same row with space-between */}
+        <Group justify="space-between" align="center" gap="md" wrap="wrap">
+          <Text size="sm" c={isFailed ? 'red' : 'dimmed'}>
+            {isFailed ? BUILD_DISPLAY_LABELS.BUILD_FAILED : isQueued ? BUILD_DISPLAY_LABELS.BUILD_QUEUED : BUILD_DISPLAY_LABELS.BUILD_IN_PROGRESS}
+          </Text>
+          {/* CI/CD Job Link - Show in the card */}
+          {shouldShowJobLink && (
+            <Anchor 
+              href={jobUrl} 
+              target="_blank" 
+              size="sm" 
+              c="blue"
+            >
+              <Group gap={4}>
+                <IconExternalLink size={14} />
+                <Text size="sm">{BUILD_DISPLAY_LABELS.VIEW_CI_CD_JOB}</Text>
+              </Group>
+            </Anchor>
+          )}
+        </Group>
+      </Stack>
+    </Paper>
+  );
+}
+
+// ============================================================================
+// Main Exported Component
+// ============================================================================
+
+/**
+ * ConsumedBuildsDisplay - Main component that displays all consumed builds
+ * Groups builds by platform and handles both manual and CI/CD modes
+ */
 export function ConsumedBuildsDisplay({
   builds,
   taskStatus,
@@ -44,12 +585,6 @@ export function ConsumedBuildsDisplay({
   buildOutput,
   expectedPlatforms,
 }: ConsumedBuildsDisplayProps) {
-  // Helper to generate TestFlight link
-  const getTestFlightLink = (testflightNumber: string | null): string | null => {
-    if (!testflightNumber) return null;
-    return `https://appstoreconnect.apple.com/testflight/builds/${testflightNumber}`;
-  };
-
   // Group builds by platform for better display
   const buildsByPlatform = useMemo(() => {
     const grouped: Record<string, BuildInfo[]> = {};
@@ -77,7 +612,7 @@ export function ConsumedBuildsDisplay({
   return (
     <Stack gap="xs">
       <Text size="xs" c="dimmed" fw={500}>
-        Builds
+        {BUILD_DISPLAY_LABELS.SECTION_TITLE}
       </Text>
       <Stack gap="xs">
         {platformsToShow.map((platform) => {
@@ -104,12 +639,9 @@ export function ConsumedBuildsDisplay({
           // Show builds for this platform
           return (
             <Stack key={platform} gap="xs">
-              <Badge size="sm" variant="light" style={{ alignSelf: 'flex-start' }}>
-                {platform}
-              </Badge>
               {platformBuilds.map((build) => {
-                // Find job URL for this platform from buildOutput
-                const platformJobUrl = buildOutput?.platforms?.find(p => p.platform === build.platform)?.jobUrl;
+                // Find job URL for this platform from buildOutput, fallback to build.ciRunId
+                const platformJobUrl = buildOutput?.platforms?.find(p => p.platform === build.platform)?.jobUrl || build.ciRunId || undefined;
                 return (
                   <BuildDisplayItem
                     key={build.id}
@@ -129,298 +661,3 @@ export function ConsumedBuildsDisplay({
     </Stack>
   );
 }
-
-interface BuildDisplayItemProps {
-  build: BuildInfo;
-  taskStatus: TaskStatus;
-  isPostRegression: boolean;
-  isKickoffRegression: boolean;
-  getTestFlightLink: (testflightNumber: string | null) => string | null;
-  jobUrl?: string; // CI/CD job URL for this platform
-}
-
-function BuildDisplayItem({
-  build,
-  taskStatus,
-  isPostRegression,
-  isKickoffRegression,
-  getTestFlightLink,
-  jobUrl,
-}: BuildDisplayItemProps) {
-  const downloadMutation = useDownloadBuildArtifact();
-
-  // Determine build status for CI/CD builds
-  const isCICD = build.buildType === 'CI_CD';
-  const isRunning = build.workflowStatus === 'RUNNING';
-  const buildFailed = build.workflowStatus === 'FAILED' || build.buildUploadStatus === 'FAILED';
-  const taskFailed = taskStatus === TaskStatus.FAILED;
-  const hasArtifact = !!build.artifactPath;
-  const hasTestFlightLink = build.platform === Platform.IOS && build.testflightNumber;
-  const hasInternalTrackLink = build.platform === Platform.ANDROID && build.internalTrackLink;
-  
-  // If task failed but build has artifact link, show it normally
-  // If task failed and build has no artifact link, show as failed
-  const shouldShowAsFailed = taskFailed && !hasArtifact && !hasTestFlightLink && !hasInternalTrackLink;
-  const isFailed = buildFailed || shouldShowAsFailed;
-
-  const handleDownload = async () => {
-    if (!build.artifactPath || !build.tenantId) {
-      showErrorToast({ title: 'Download Error', message: 'Artifact path not available' });
-      return;
-    }
-
-    try {
-      await downloadMutation.mutateAsync({
-        tenantId: build.tenantId,
-        buildId: build.id,
-      });
-    } catch (error) {
-      showErrorToast({ 
-        title: 'Download Failed', 
-        message: error instanceof Error ? error.message : 'Failed to download artifact' 
-      });
-    }
-  };
-
-  return (
-    <Group justify="space-between" align="flex-start" p="sm" 
-           style={{ 
-             border: '1px solid var(--mantine-color-gray-3)', 
-             borderRadius: '4px',
-             backgroundColor: isFailed ? 'var(--mantine-color-red-0)' : undefined,
-           }}>
-      <Group gap="xs" style={{ flex: 1 }}>
-        <IconFile size={16} />
-        <Stack gap="xs" style={{ flex: 1 }}>
-          <Group gap="xs">
-            {build.storeType && (
-              <Badge size="sm" variant="light" color="blue">
-                {build.storeType}
-              </Badge>
-            )}
-            {build.buildType && (
-              <Badge size="sm" variant="light" color="gray">
-                {build.buildType}
-              </Badge>
-            )}
-            {/* CI/CD Status Badge */}
-            {isCICD && isRunning && (
-              <Badge size="sm" variant="light" color="blue" leftSection={<Loader size={12} />}>
-                Running
-              </Badge>
-            )}
-            {isCICD && isFailed && (
-              <Badge size="sm" variant="light" color="red" leftSection={<IconX size={12} />}>
-                Failed
-              </Badge>
-            )}
-          </Group>
-          
-          {/* For Pre-Release: Show TestFlight or Internal Track links */}
-          {isPostRegression && (
-            <Stack gap="xs">
-              {/* iOS TestFlight Link */}
-              {build.platform === Platform.IOS && build.testflightNumber && (
-                <Group gap="xs">
-                  <IconBrandApple size={14} />
-                  <Anchor 
-                    href={getTestFlightLink(build.testflightNumber) || '#'} 
-                    target="_blank" 
-                    size="sm" 
-                    c="blue"
-                  >
-                    TestFlight Build #{build.testflightNumber}
-                  </Anchor>
-                </Group>
-              )}
-              {/* Show warning if TestFlight build is missing testflightNumber */}
-              {build.platform === Platform.IOS && !build.testflightNumber && taskStatus === TaskStatus.COMPLETED && (
-                <Text size="xs" c="red">
-                  TestFlight build number missing
-                </Text>
-              )}
-              
-              {/* Android Internal Track Link */}
-              {build.platform === Platform.ANDROID && build.internalTrackLink && (
-                <Group gap="xs">
-                  <IconExternalLink size={14} />
-                  <Anchor 
-                    href={build.internalTrackLink} 
-                    target="_blank" 
-                    size="sm" 
-                    c="blue"
-                  >
-                    Play Store Internal Track
-                  </Anchor>
-                </Group>
-              )}
-              {/* Show warning if AAB build is missing internalTrackLink */}
-              {build.platform === Platform.ANDROID && !build.internalTrackLink && taskStatus === TaskStatus.COMPLETED && (
-                <Text size="xs" c="red">
-                  Play Store link missing
-                </Text>
-              )}
-            </Stack>
-          )}
-          
-          {/* For Kickoff/Regression: Show download links and CI/CD job links */}
-          {isKickoffRegression && (
-            <Stack gap="xs">
-              {/* CI/CD Job Link - Show when task is running or completed and has URL */}
-              {jobUrl && (
-                taskStatus === TaskStatus.IN_PROGRESS ||
-                taskStatus === TaskStatus.AWAITING_CALLBACK ||
-                taskStatus === TaskStatus.COMPLETED ||
-                taskStatus === TaskStatus.FAILED
-              ) && (
-                <Anchor 
-                  href={jobUrl} 
-                  target="_blank" 
-                  size="sm" 
-                  c="blue"
-                >
-                  <Group gap={4}>
-                    <IconExternalLink size={14} />
-                    <Text size="sm">View CI/CD Job</Text>
-                  </Group>
-                </Anchor>
-              )}
-              {build.artifactPath && (
-                <Button
-                  size="xs"
-                  variant="light"
-                  leftSection={<IconDownload size={14} />}
-                  onClick={handleDownload}
-                  loading={downloadMutation.isLoading}
-                  disabled={downloadMutation.isLoading}
-                >
-                  Download Artifact
-                </Button>
-              )}
-            </Stack>
-          )}
-          
-          {/* For Pre-Release: Show CI/CD job links if available */}
-          {isPostRegression && jobUrl && (
-            taskStatus === TaskStatus.IN_PROGRESS ||
-            taskStatus === TaskStatus.AWAITING_CALLBACK ||
-            taskStatus === TaskStatus.COMPLETED ||
-            taskStatus === TaskStatus.FAILED
-          ) && (
-            <Stack gap="xs">
-              <Anchor 
-                href={jobUrl} 
-                target="_blank" 
-                size="sm" 
-                c="blue"
-              >
-                <Group gap={4}>
-                  <IconExternalLink size={14} />
-                  <Text size="sm">View CI/CD Job</Text>
-                </Group>
-              </Anchor>
-            </Stack>
-          )}
-          
-          {/* Build metadata */}
-          <Group gap="xs">
-            {build.artifactVersionName && (
-              <Text size="xs" c="dimmed">
-                Version: {build.artifactVersionName}
-              </Text>
-            )}
-            {build.buildNumber && (
-              <Text size="xs" c="dimmed">
-                Build: {build.buildNumber}
-              </Text>
-            )}
-          </Group>
-        </Stack>
-      </Group>
-    </Group>
-  );
-}
-
-interface PlatformStatusItemProps {
-  platform: Platform;
-  taskStatus?: TaskStatus;
-  isPostRegression: boolean;
-  isKickoffRegression: boolean;
-  getTestFlightLink: (testflightNumber: string | null) => string | null;
-  jobUrl?: string; // CI/CD job URL for this platform
-}
-
-/**
- * PlatformStatusItem - Shows platform status when no build exists yet (CI/CD mode)
- * Displays "Running" or "Failed" based on task status
- */
-function PlatformStatusItem({
-  platform,
-  taskStatus,
-  isPostRegression,
-  isKickoffRegression,
-  getTestFlightLink,
-  jobUrl,
-}: PlatformStatusItemProps) {
-  const isFailed = taskStatus === TaskStatus.FAILED;
-  const isRunning = taskStatus === TaskStatus.IN_PROGRESS || taskStatus === TaskStatus.AWAITING_CALLBACK;
-  
-  // Show CI/CD job link if available and task is in a state that allows it
-  const shouldShowJobLink = jobUrl && (
-    taskStatus === TaskStatus.IN_PROGRESS ||
-    taskStatus === TaskStatus.AWAITING_CALLBACK ||
-    taskStatus === TaskStatus.COMPLETED ||
-    taskStatus === TaskStatus.FAILED
-  );
-
-  return (
-    <Group justify="space-between" align="flex-start" p="sm" 
-           style={{ 
-             border: '1px solid var(--mantine-color-gray-3)', 
-             borderRadius: '4px',
-             backgroundColor: isFailed ? 'var(--mantine-color-red-0)' : undefined,
-           }}>
-      <Group gap="xs" style={{ flex: 1 }}>
-        <IconFile size={16} />
-        <Stack gap="xs" style={{ flex: 1 }}>
-          <Group gap="xs">
-            <Badge size="sm" variant="light" style={{ alignSelf: 'flex-start' }}>
-              {platform}
-            </Badge>
-            {isRunning && (
-              <Badge size="sm" variant="light" color="blue" leftSection={<Loader size={12} />}>
-                Running
-              </Badge>
-            )}
-            {isFailed && (
-              <Badge size="sm" variant="light" color="red" leftSection={<IconX size={12} />}>
-                Failed
-              </Badge>
-            )}
-          </Group>
-          {/* Status text and CI/CD Job Link on same row with space-between */}
-          <Group justify="space-between" align="center" gap="md">
-            <Text size="sm" c={isFailed ? 'red' : 'dimmed'}>
-              {isFailed ? 'Build failed' : 'Build in progress...'}
-            </Text>
-            {/* CI/CD Job Link - Show in the card */}
-            {shouldShowJobLink && (
-              <Anchor 
-                href={jobUrl} 
-                target="_blank" 
-                size="sm" 
-                c="blue"
-              >
-                <Group gap={4}>
-                  <IconExternalLink size={14} />
-                  <Text size="sm">View CI/CD Job</Text>
-                </Group>
-              </Anchor>
-            )}
-          </Group>
-        </Stack>
-      </Group>
-    </Group>
-  );
-}
-

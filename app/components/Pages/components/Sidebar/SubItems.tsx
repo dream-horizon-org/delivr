@@ -32,12 +32,22 @@ export function SubItems({ subItems, org, moduleMainRoute }: SubItemsProps) {
           if (subItem.path === `/dashboard/${org.id}/releases/`) {
             isSubItemActive =
               location.pathname.includes("/releases") &&
-              !location.pathname.includes("/releases/settings") &&
+              !location.pathname.includes("/releases/configurations") &&
               !location.pathname.includes("/releases/configure") &&
               !location.pathname.includes("/releases/workflows") &&
               location.pathname !== `/dashboard/${org.id}/releases`;
           }
-          // For other routes (like settings, integrations), use startsWith
+          // For Configurations: active on /releases/configurations and /releases/configure
+          else if (subItem.path === `/dashboard/${org.id}/releases/configurations`) {
+            isSubItemActive = 
+              location.pathname.startsWith(`/dashboard/${org.id}/releases/configurations`) ||
+              location.pathname.startsWith(`/dashboard/${org.id}/releases/configure`);
+          }
+          // For Workflows: active on /releases/workflows and /releases/workflows/new
+          else if (subItem.path === `/dashboard/${org.id}/releases/workflows`) {
+            isSubItemActive = location.pathname.startsWith(subItem.path);
+          }
+          // For other routes (like distributions, integrations), use startsWith
           else {
             isSubItemActive = location.pathname.startsWith(subItem.path);
           }
