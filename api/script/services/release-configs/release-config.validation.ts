@@ -314,3 +314,189 @@ const timeStringToMinutes = (timeString: string): number => {
   const [hours, minutes] = timeString.split(':').map(Number);
   return hours * 60 + minutes;
 };
+
+// ============================================================================
+// UPDATE VALIDATION (Partial - only validates fields that are present)
+// ============================================================================
+
+/**
+ * Validate scheduling for UPDATE - Only validates fields that are present
+ * Used for partial updates like archive (isActive: false) where not all fields are sent
+ */
+export const validateSchedulingForUpdate = (scheduling: Partial<ReleaseSchedule>): FieldValidationError[] => {
+  const errors: FieldValidationError[] = [];
+
+  // Only validate releaseFrequency if present
+  if ('releaseFrequency' in scheduling && scheduling.releaseFrequency !== undefined) {
+    if (!isValidReleaseFrequency(scheduling.releaseFrequency)) {
+      errors.push({
+        field: 'scheduling.releaseFrequency',
+        message: `Release frequency "${scheduling.releaseFrequency}" is not valid. Must be one of: ${RELEASE_FREQUENCIES.join(', ')}`
+      });
+    }
+  }
+
+  // Only validate isActive if present (must be boolean)
+  if ('isActive' in scheduling && scheduling.isActive !== undefined && scheduling.isActive !== null) {
+    if (typeof scheduling.isActive !== 'boolean') {
+      errors.push({
+        field: 'scheduling.isActive',
+        message: 'isActive must be a boolean'
+      });
+    }
+  }
+
+  // Only validate targetReleaseDateOffsetFromKickoff if present
+  if ('targetReleaseDateOffsetFromKickoff' in scheduling && scheduling.targetReleaseDateOffsetFromKickoff !== undefined) {
+    if (scheduling.targetReleaseDateOffsetFromKickoff < 0) {
+      errors.push({
+        field: 'scheduling.targetReleaseDateOffsetFromKickoff',
+        message: 'Target release date offset from kickoff must be greater than or equal to 0'
+      });
+    }
+  }
+
+  // Only validate workingDays if present
+  if ('workingDays' in scheduling && scheduling.workingDays !== undefined) {
+    if (!Array.isArray(scheduling.workingDays)) {
+      errors.push({
+        field: 'scheduling.workingDays',
+        message: 'Working days must be an array'
+      });
+    } else if (scheduling.workingDays.length === 0) {
+      errors.push({
+        field: 'scheduling.workingDays',
+        message: 'At least one working day must be specified'
+      });
+    } else {
+      scheduling.workingDays.forEach((day, index) => {
+        if (day < 0 || day > 6) {
+          errors.push({
+            field: `scheduling.workingDays[${index}]`,
+            message: 'Working day must be between 0 (Sunday) and 6 (Saturday)'
+          });
+        }
+      });
+    }
+  }
+
+  // Only validate initialVersions if present
+  if ('initialVersions' in scheduling && scheduling.initialVersions !== undefined) {
+    if (!Array.isArray(scheduling.initialVersions)) {
+      errors.push({
+        field: 'scheduling.initialVersions',
+        message: 'Initial versions must be an array'
+      });
+    } else if (scheduling.initialVersions.length === 0) {
+      errors.push({
+        field: 'scheduling.initialVersions',
+        message: 'At least one initial version must be specified'
+      });
+    } else {
+      scheduling.initialVersions.forEach((entry, index) => {
+        if (!entry.platform || typeof entry.platform !== 'string' || entry.platform.trim() === '') {
+          errors.push({
+            field: `scheduling.initialVersions[${index}].platform`,
+            message: `Platform at index ${index} must be a non-empty string`
+          });
+        }
+        if (!entry.target || typeof entry.target !== 'string' || entry.target.trim() === '') {
+          errors.push({
+            field: `scheduling.initialVersions[${index}].target`,
+            message: `Target at index ${index} must be a non-empty string`
+          });
+        }
+        if (!entry.version || typeof entry.version !== 'string' || entry.version.trim() === '') {
+          errors.push({
+            field: `scheduling.initialVersions[${index}].version`,
+            message: `Version at index ${index} must be a non-empty string`
+          });
+        } else if (!isValidVersion(entry.version)) {
+          errors.push({
+            field: `scheduling.initialVersions[${index}].version`,
+            message: `Version "${entry.version}" at index ${index} is not a valid semver format (e.g., 1.0.0)`
+          });
+        }
+      });
+    }
+  }
+
+  // Only validate regressionSlots if present
+  if ('regressionSlots' in scheduling && scheduling.regressionSlots !== undefined) {
+    if (!Array.isArray(scheduling.regressionSlots)) {
+      errors.push({
+        field: 'scheduling.regressionSlots',
+        message: 'Regression slots must be an array'
+      });
+    } else if (scheduling.regressionSlots.length === 0) {
+      errors.push({
+        field: 'scheduling.regressionSlots',
+        message: 'At least one regression slot must be specified'
+      });
+    } else {
+      // Validate slot structure if slots are provided
+      scheduling.regressionSlots.forEach((slot, index) => {
+        const slotErrors = validateRegressionSlotForUpdate(slot, index);
+        errors.push(...slotErrors);
+      });
+    }
+  }
+
+  // Cross-field validation: kickoff times (only if BOTH are present in update)
+  if ('kickoffReminderTime' in scheduling && 'kickoffTime' in scheduling) {
+    if (scheduling.kickoffReminderTime && scheduling.kickoffTime) {
+      if (timeStringToMinutes(scheduling.kickoffReminderTime) > timeStringToMinutes(scheduling.kickoffTime)) {
+        errors.push({
+          field: 'scheduling.kickoffReminderTime',
+          message: 'Kickoff reminder time must be less than or equal to kickoff time'
+        });
+      }
+    }
+  }
+
+  return errors;
+};
+
+/**
+ * Validate regression slot for UPDATE - validates structure without requiring all fields
+ */
+const validateRegressionSlotForUpdate = (
+  slot: RegressionSlot,
+  index: number
+): FieldValidationError[] => {
+  const errors: FieldValidationError[] = [];
+  const fieldPrefix = `scheduling.regressionSlots[${index}]`;
+
+  // Validate config structure if present
+  if (slot.config) {
+    if (slot.config.regressionBuilds !== undefined && typeof slot.config.regressionBuilds !== 'boolean') {
+      errors.push({
+        field: `${fieldPrefix}.config.regressionBuilds`,
+        message: 'Regression builds must be a boolean'
+      });
+    }
+
+    if (slot.config.postReleaseNotes !== undefined && typeof slot.config.postReleaseNotes !== 'boolean') {
+      errors.push({
+        field: `${fieldPrefix}.config.postReleaseNotes`,
+        message: 'Post release notes must be a boolean'
+      });
+    }
+
+    if (slot.config.automationBuilds !== undefined && typeof slot.config.automationBuilds !== 'boolean') {
+      errors.push({
+        field: `${fieldPrefix}.config.automationBuilds`,
+        message: 'Automation builds must be a boolean'
+      });
+    }
+
+    if (slot.config.automationRuns !== undefined && typeof slot.config.automationRuns !== 'boolean') {
+      errors.push({
+        field: `${fieldPrefix}.config.automationRuns`,
+        message: 'Automation runs must be a boolean'
+      });
+    }
+  }
+
+  return errors;
+};

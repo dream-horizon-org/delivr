@@ -19,7 +19,7 @@ import type {
   ReleaseSchedule,
   CreateReleaseScheduleDto
 } from '~types/release-schedules';
-import { validateScheduling } from './release-config.validation';
+import { validateScheduling, validateSchedulingForUpdate } from './release-config.validation';
 import { IntegrationConfigMapper } from './integration-config.mapper';
 import {
   TARGET_TO_STORE_TYPE,
@@ -293,12 +293,13 @@ export class ReleaseConfigService {
     }
 
     // Validate Release Schedule (only if object with data is provided)
+    // Use validateSchedulingForUpdate for partial updates (e.g., archive with only isActive: false)
     if ('releaseSchedule' in updateData) {
       const scheduleData = updateData.releaseSchedule;
       const shouldValidate = scheduleData !== null && scheduleData !== undefined;
       
       if (shouldValidate) {
-        const schedulingErrors = validateScheduling(scheduleData);
+        const schedulingErrors = validateSchedulingForUpdate(scheduleData);
         if (schedulingErrors.length > 0) {
           validationResults.push({
             integration: 'releaseSchedule',
