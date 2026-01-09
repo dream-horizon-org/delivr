@@ -104,8 +104,7 @@ export default function Dashboard() {
     return (
       <Flex h="100vh" direction="column" bg={theme.colors?.slate?.[0] || '#f8fafc'} align="center" justify="center" p={32}>
         <Box style={{ maxWidth: 600, width: '100%' }}>
-          {/* <AuthErrorFallback message={ 'Failed to load organizations' } /> */}
-          Hi
+          <AuthErrorFallback message={ 'Failed to load organizations' } />
         </Box>
       </Flex>
     );
@@ -117,8 +116,7 @@ export default function Dashboard() {
       <SimpleTermsGuard>
         <Flex h="100vh" direction="column" bg={theme.colors?.slate?.[0] || '#f8fafc'} align="center" justify="center" p={32}>
           <Box style={{ maxWidth: 600, width: '100%' }}>
-            {/* <AuthErrorFallback message={authError.message} /> */}
-            Hi
+            <AuthErrorFallback message={authError.message} />
           </Box>
         </Flex>
       </SimpleTermsGuard>
@@ -128,7 +126,8 @@ export default function Dashboard() {
   // Handle both /dashboard and /dashboard/ (with or without trailing slash)
   const isMainDashboard = location.pathname === "/dashboard" || location.pathname === "/dashboard/";
   const isGettingStarted = location.pathname === "/dashboard/getting-started";
-  const showSidebar = orgs.length > 0 && !isMainDashboard && !isGettingStarted;
+  const isTokensPage = location.pathname === "/dashboard/tokens";
+  const showSidebar = orgs.length > 0 && !isMainDashboard && !isGettingStarted && !isTokensPage;
   
   // Theme colors
   const borderColor = theme.colors?.slate?.[2] || '#e2e8f0';

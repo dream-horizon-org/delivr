@@ -11,12 +11,14 @@ import {
 } from "@mantine/core";
 import { IconChevronRight } from "@tabler/icons-react";
 import { useState } from "react";
-import { useNavigate, useLocation } from "@remix-run/react";
+import { useNavigate, useLocation, useRouteLoaderData } from "@remix-run/react";
 import { route } from "routes-gen";
 import type { SidebarProps, Organization } from "./types";
-import { getNavigationModules, getOrganizationRoutes } from "./navigation-data";
+import { getNavigationModules, getOrganizationRoutes, type SubItem } from "./navigation-data";
 import { Module } from "./Module";
-import { SubItem } from "./SubItem";
+import { SubItem as SubItemComponent } from "./SubItem";
+import { usePermissions } from "~/hooks/usePermissions";
+import type { OrgLayoutLoaderData } from "~/routes/dashboard.$org";
 
 // All organizations list (when on dashboard home)
 function AllOrgsList({
@@ -124,8 +126,26 @@ function OrgSidebar({
   };
 
   const modules = getNavigationModules(org);
-  const orgRoutes = getOrganizationRoutes(org);
+  const allOrgRoutes = getOrganizationRoutes(org);
   const initials = org.orgName.substring(0, 2).toUpperCase();
+
+  // Get user data and check permissions to filter visible routes
+  const orgLayoutData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
+  const userId = orgLayoutData?.user?.user?.id || '';
+  const { isOwner, isEditor } = usePermissions(org.id, userId);
+
+  // Filter orgRoutes based on permissions (same logic as SubItem component)
+  const visibleOrgRoutes = allOrgRoutes.filter((route: SubItem) => {
+    // Hide owner-only items if not owner
+    if (route.isOwnerOnly && !isOwner && !org.isAdmin) {
+      return false;
+    }
+    // Hide editor-only items if not editor
+    if (route.isEditorOnly && !isEditor && !org.isAdmin) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <Box>
@@ -207,37 +227,42 @@ function OrgSidebar({
             />
           ))}
 
-          <Divider my={16} color={theme.colors.slate[2]} />
+          {/* Only show Project section if there are visible routes */}
+          {visibleOrgRoutes.length > 0 && (
+            <>
+              <Divider my={16} color={theme.colors.slate[2]} />
 
-          {/* Project Section */}
-          <Text
-            size="11px"
-            fw={600}
-            tt="uppercase"
-            style={{
-              letterSpacing: "0.06em",
-              marginBottom: 10,
-              paddingLeft: 4,
-              color: theme.colors.slate[4],
-            }}
-          >
-            Project
-          </Text>
+              {/* Project Section */}
+              <Text
+                size="11px"
+                fw={600}
+                tt="uppercase"
+                style={{
+                  letterSpacing: "0.06em",
+                  marginBottom: 10,
+                  paddingLeft: 4,
+                  color: theme.colors.slate[4],
+                }}
+              >
+                Project
+              </Text>
 
-          {/* Render Project Routes */}
-          {orgRoutes.map((orgRoute) => {
-            const isRouteActive = location.pathname.startsWith(orgRoute.path);
+              {/* Render Project Routes */}
+              {visibleOrgRoutes.map((orgRoute) => {
+                const isRouteActive = location.pathname.startsWith(orgRoute.path);
 
-            return (
-              <Box key={orgRoute.path} mb={4}>
-                <SubItem
-                  subItem={orgRoute}
-                  org={org}
-                  isActive={isRouteActive}
-                />
-              </Box>
-            );
-          })}
+                return (
+                  <Box key={orgRoute.path} mb={4}>
+                    <SubItemComponent
+                      subItem={orgRoute}
+                      org={org}
+                      isActive={isRouteActive}
+                    />
+                  </Box>
+                );
+              })}
+            </>
+          )}
         </Stack>
       </Box>
     </Box>
