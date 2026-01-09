@@ -1,15 +1,16 @@
 /**
  * Remix API Route: Rollout Control
  * 
- * PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout?platform=<ANDROID|IOS>         - Update rollout percentage
- * PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout/pause?platform=<ANDROID|IOS>   - Pause rollout (both platforms)
- * PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout/resume?platform=<ANDROID|IOS>  - Resume rollout (both platforms)
+ * PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout?platform=<ANDROID|IOS>         - Update rollout percentage
+ * PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/pause?platform=<ANDROID|IOS>   - Pause rollout (both platforms)
+ * PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/resume?platform=<ANDROID|IOS>  - Resume rollout (both platforms)
  * 
  * IMPORTANT: Backend requires `platform` query parameter to identify which table to update
  * (android_submission_builds or ios_submission_builds)
  * 
  * Path Parameters:
  * - tenantId: Tenant/Organization ID (required)
+ * - releaseId: Release ID (required for ownership validation)
  * - submissionId: Submission ID (required)
  * 
  * Platform-specific behavior:
@@ -45,6 +46,7 @@ import { authenticateActionRequest, AuthenticatedActionFunction } from '~/utils/
  * 
  * Query Parameters:
  * - platform: ANDROID | IOS (required - for backend table identification)
+ * - releaseId: Release ID (required - for ownership validation)
  * 
  * ✅ Correct iOS Behavior:
  * ┌───────────────┬───────────┬──────────────┬────────────┐
@@ -65,13 +67,18 @@ import { authenticateActionRequest, AuthenticatedActionFunction } from '~/utils/
  * See: platform-rules.ts, LIVE_STATE_VERIFICATION.md
  */
 const updateRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { tenantId, submissionId } = params;
+  const { tenantId, releaseId, submissionId } = params;
   const url = new URL(request.url);
   const platform = url.searchParams.get('platform');
 
   // Validate tenantId
   if (!tenantId) {
     return createValidationError(ERROR_MESSAGES.TENANT_ID_REQUIRED);
+  }
+
+  // Validate releaseId
+  if (!releaseId) {
+    return createValidationError(ERROR_MESSAGES.RELEASE_ID_REQUIRED);
   }
 
   // Validate submissionId
@@ -105,8 +112,9 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
       return createValidationError(ERROR_MESSAGES.PERCENTAGE_OUT_OF_RANGE);
     }
 
-    const requestData = { rolloutPercentage };
-    const response = await DistributionService.updateRollout(tenantId, submissionId, requestData, platform as Platform);
+    // Backend expects 'rolloutPercent' (without 'age'), so transform the field name
+    const requestData = { rolloutPercent: rolloutPercentage };
+    const response = await DistributionService.updateRollout(tenantId, releaseId, submissionId, requestData as any, platform as Platform);
 
     return json(response.data);
   } catch (error) {
@@ -124,6 +132,7 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
  * 
  * Query Parameters:
  * - platform: ANDROID | IOS (required)
+ * - releaseId: Release ID (required - for ownership validation)
  * 
  * Request body:
  * - reason: string (required)
@@ -133,13 +142,18 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
  * - iOS: LIVE → PAUSED (displayed as "Rollout Paused", phased release only)
  */
 const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { tenantId, submissionId } = params;
+  const { tenantId, releaseId, submissionId } = params;
   const url = new URL(request.url);
   const platform = url.searchParams.get('platform');
 
   // Validate tenantId
   if (!tenantId) {
     return createValidationError(ERROR_MESSAGES.TENANT_ID_REQUIRED);
+  }
+
+  // Validate releaseId
+  if (!releaseId) {
+    return createValidationError(ERROR_MESSAGES.RELEASE_ID_REQUIRED);
   }
 
   // Validate submissionId
@@ -170,7 +184,7 @@ const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user
     }
 
     const requestData = { reason };
-    const response = await DistributionService.pauseRollout(tenantId, submissionId, requestData, platform);
+    const response = await DistributionService.pauseRollout(tenantId, releaseId, submissionId, requestData, platform);
 
     return json(response.data);
   } catch (error) {
@@ -188,6 +202,7 @@ const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user
  * 
  * Query Parameters:
  * - platform: ANDROID | IOS (required)
+ * - releaseId: Release ID (required - for ownership validation)
  * 
  * No request body required.
  * 
@@ -196,13 +211,18 @@ const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user
  * - iOS: PAUSED → LIVE
  */
 const resumeRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { tenantId, submissionId } = params;
+  const { tenantId, releaseId, submissionId } = params;
   const url = new URL(request.url);
   const platform = url.searchParams.get('platform');
 
   // Validate tenantId
   if (!tenantId) {
     return createValidationError(ERROR_MESSAGES.TENANT_ID_REQUIRED);
+  }
+
+  // Validate releaseId
+  if (!releaseId) {
+    return createValidationError(ERROR_MESSAGES.RELEASE_ID_REQUIRED);
   }
 
   // Validate submissionId
@@ -225,7 +245,7 @@ const resumeRollout: AuthenticatedActionFunction = async ({ params, request, use
   }
 
   try {
-    const response = await DistributionService.resumeRollout(tenantId, submissionId, platform);
+    const response = await DistributionService.resumeRollout(tenantId, releaseId, submissionId, platform);
     return json(response.data);
   } catch (error) {
     logApiError(LOG_CONTEXT.RESUME_ROLLOUT_API, error);

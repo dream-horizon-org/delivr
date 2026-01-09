@@ -105,6 +105,9 @@ const uploadHandler: import('@remix-run/node').UploadHandler = async ({ data, fi
  * - tenantId: Tenant/Organization ID (required)
  * - distributionId: Distribution ID (required)
  * 
+ * Query Parameters:
+ * - releaseId: Release ID (required - for ownership validation)
+ * 
  * Request Body (Android - multipart/form-data):
  * - platform: "ANDROID"
  * - version: "2.7.1"
@@ -123,11 +126,16 @@ const uploadHandler: import('@remix-run/node').UploadHandler = async ({ data, fi
  * - releaseNotes: "..."
  */
 const createResubmission: AuthenticatedActionFunction = async ({ params, request }) => {
-  const { tenantId, distributionId } = params;
+  const { tenantId, releaseId, distributionId } = params;
 
   // Validate tenantId
   if (!tenantId) {
     return createValidationError(ERROR_MESSAGES.TENANT_ID_REQUIRED);
+  }
+
+  // Validate releaseId
+  if (!releaseId) {
+    return createValidationError(ERROR_MESSAGES.RELEASE_ID_REQUIRED);
   }
 
   // Validate distributionId
@@ -211,6 +219,7 @@ const createResubmission: AuthenticatedActionFunction = async ({ params, request
 
       const response = await DistributionService.createResubmission(
         tenantId,
+        releaseId,
         distributionId,
         serviceFormData
       );
@@ -278,6 +287,7 @@ const createResubmission: AuthenticatedActionFunction = async ({ params, request
 
       const response = await DistributionService.createResubmission(
         tenantId,
+        releaseId,
         distributionId,
         iosRequest
       );

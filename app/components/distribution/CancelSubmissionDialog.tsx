@@ -50,6 +50,7 @@ export type CancelSubmissionDialogProps = {
   opened: boolean;
   onClose: () => void;
   tenantId: string;
+  releaseId: string;
   submissionId: string;
   platform: string;
   version: string;
@@ -66,6 +67,7 @@ export function CancelSubmissionDialog({
   opened,
   onClose,
   tenantId,
+  releaseId,
   submissionId,
   platform,
   version,
@@ -104,11 +106,11 @@ export function CancelSubmissionDialog({
     };
 
     fetcher.submit(JSON.stringify(payload), {
-      method: 'delete',
-      action: API_ROUTES.cancelSubmission(tenantId, submissionId, platform),
+      method: 'patch',
+      action: API_ROUTES.cancelSubmission(tenantId, releaseId, submissionId, platform),
       encType: 'application/json',
     });
-  }, [tenantId, submissionId, platform, reason, fetcher]);
+  }, [tenantId, releaseId, submissionId, platform, reason, fetcher]);
 
   const handleClose = useCallback(() => {
     setReason('');

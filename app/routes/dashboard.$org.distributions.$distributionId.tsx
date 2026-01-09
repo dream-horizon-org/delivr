@@ -19,24 +19,23 @@ import {
 } from '@mantine/core';
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
 import { Link, useFetcher, useLoaderData, useNavigate, useNavigation, useRevalidator } from '@remix-run/react';
-import { Breadcrumb } from '~/components/Common';
-import { getBreadcrumbItems } from '~/constants/breadcrumbs';
 import { IconArrowLeft, IconBrandAndroid, IconBrandApple, IconExternalLink, IconRefresh } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '~/.server/services/Auth/auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
-import { RolloutService } from '~/.server/services/Rollout';
-import { ActivityHistoryLog } from '~/components/distribution/ActivityHistoryLog';
-import { CancelSubmissionDialog } from '~/components/distribution/CancelSubmissionDialog';
-import { ErrorState, StaleDataWarning } from '~/components/distribution/ErrorRecovery';
-import { LatestSubmissionCard } from '~/components/distribution/LatestSubmissionCard';
-import { PauseRolloutDialog } from '~/components/distribution/PauseRolloutDialog';
-import { PromoteAndroidSubmissionDialog } from '~/components/distribution/PromoteAndroidSubmissionDialog';
-import { PromoteIOSSubmissionDialog } from '~/components/distribution/PromoteIOSSubmissionDialog';
-import { ResubmissionDialog } from '~/components/distribution/ReSubmissionDialog';
-import { ResumeRolloutDialog } from '~/components/distribution/ResumeRolloutDialog';
-import { SubmissionHistoryTimeline } from '~/components/distribution/SubmissionHistoryTimeline';
-import { UpdateRolloutDialog } from '~/components/distribution/UpdateRolloutDialog';
+import { Breadcrumb } from '~/components/Common';
+import { ActivityHistoryLog } from '~/components/Distribution/ActivityHistoryLog';
+import { CancelSubmissionDialog } from '~/components/Distribution/CancelSubmissionDialog';
+import { ErrorState, StaleDataWarning } from '~/components/Distribution/ErrorRecovery';
+import { LatestSubmissionCard } from '~/components/Distribution/LatestSubmissionCard';
+import { PauseRolloutDialog } from '~/components/Distribution/PauseRolloutDialog';
+import { PromoteAndroidSubmissionDialog } from '~/components/Distribution/PromoteAndroidSubmissionDialog';
+import { PromoteIOSSubmissionDialog } from '~/components/Distribution/PromoteIOSSubmissionDialog';
+import { ResubmissionDialog } from '~/components/Distribution/ReSubmissionDialog';
+import { ResumeRolloutDialog } from '~/components/Distribution/ResumeRolloutDialog';
+import { SubmissionHistoryTimeline } from '~/components/Distribution/SubmissionHistoryTimeline';
+import { UpdateRolloutDialog } from '~/components/Distribution/UpdateRolloutDialog';
+import { getBreadcrumbItems } from '~/constants/breadcrumbs';
 import {
   DISTRIBUTION_MANAGEMENT_UI,
   DISTRIBUTION_STATUS_COLORS,
@@ -105,7 +104,12 @@ export const action = authenticateLoaderRequest(
     const formData = await request.formData();
     const intent = formData.get('intent') as string;
     const submissionId = formData.get('submissionId') as string;
+    const releaseId = formData.get('releaseId') as string;
     const platform = formData.get('platform') as Platform;
+
+    if (!releaseId) {
+      return json({ success: false, error: 'Release ID is required' }, { status: 400 });
+    }
 
     try {
       switch (intent) {
@@ -147,24 +151,24 @@ export const action = authenticateLoaderRequest(
             };
           }
 
-          await DistributionService.submitSubmission(org!, submissionId, submitRequest, platform);
+          await DistributionService.submitSubmission(org!, releaseId, submissionId, submitRequest, platform);
           return json({ success: true });
         }
 
         case 'pauseRollout': {
           const reason = formData.get('reason') as string;
-          await RolloutService.pauseRollout(submissionId, { reason }, platform);
+          await DistributionService.pauseRollout(org!, releaseId, submissionId, { reason: reason || '' }, platform);
           return json({ success: true });
         }
 
         case 'resumeRollout': {
-          await RolloutService.resumeRollout(submissionId, platform);
+          await DistributionService.resumeRollout(org!, releaseId, submissionId, platform);
           return json({ success: true });
         }
 
         case 'updateRollout': {
           const rolloutPercentage = parseFloat(formData.get('rolloutPercentage') as string);
-          await RolloutService.updateRollout(submissionId, { rolloutPercentage }, platform);
+          await DistributionService.updateRollout(org!, releaseId, submissionId, { rolloutPercent: rolloutPercentage } as any, platform);
           return json({ success: true });
         }
 
@@ -205,6 +209,9 @@ export default function DistributionDetailPage() {
   
   // Track when we need to close dialog after revalidation
   const [shouldCloseAfterRevalidation, setShouldCloseAfterRevalidation] = useState(false);
+  
+  // Track last processed fetcher data to prevent duplicate toasts
+  const lastProcessedFetcherData = useRef<any>(null);
 
   // Dialog handlers
   const handleOpenPauseDialog = useCallback((submission: Submission) => {
@@ -242,6 +249,7 @@ export default function DistributionDetailPage() {
     setIsUpdateRolloutDialogOpen(false);
     setIsResubmitDialogOpen(false);
     setSelectedSubmission(null);
+    // DON'T reset lastProcessedFetcherData here - it would cause toast to show again on close
   }, []);
 
   // Close specific dialog after action completes (without clearing selectedSubmission)
@@ -271,6 +279,13 @@ export default function DistributionDetailPage() {
     }
   }, [shouldCloseAfterRevalidation, revalidator.state, handleCloseDialogs]);
 
+  // Reset the processed fetcher data when a new action starts
+  useEffect(() => {
+    if (fetcher.state === 'submitting') {
+      lastProcessedFetcherData.current = null;
+    }
+  }, [fetcher.state]);
+
   // Action handlers - Call API via fetcher
   const handlePause = useCallback((reason?: string) => {
     if (!selectedSubmission) return;
@@ -278,13 +293,14 @@ export default function DistributionDetailPage() {
     const formData = new FormData();
     formData.append('intent', 'pauseRollout');
     formData.append('submissionId', selectedSubmission.id);
+    formData.append('releaseId', distribution.releaseId);
     formData.append('platform', selectedSubmission.platform);
     if (reason) {
       formData.append('reason', reason);
     }
     
     fetcher.submit(formData, { method: 'post' });
-  }, [selectedSubmission, fetcher]);
+  }, [selectedSubmission, distribution.releaseId, fetcher]);
 
   const handleResume = useCallback(() => {
     if (!selectedSubmission) return;
@@ -292,10 +308,11 @@ export default function DistributionDetailPage() {
     const formData = new FormData();
     formData.append('intent', 'resumeRollout');
     formData.append('submissionId', selectedSubmission.id);
+    formData.append('releaseId', distribution.releaseId);
     formData.append('platform', selectedSubmission.platform);
     
     fetcher.submit(formData, { method: 'post' });
-  }, [selectedSubmission, fetcher]);
+  }, [selectedSubmission, distribution.releaseId, fetcher]);
 
 
   const handleUpdateRolloutSubmit = useCallback((rolloutPercentage: number) => {
@@ -304,11 +321,12 @@ export default function DistributionDetailPage() {
     const formData = new FormData();
     formData.append('intent', 'updateRollout');
     formData.append('submissionId', selectedSubmission.id);
+    formData.append('releaseId', distribution.releaseId);
     formData.append('platform', selectedSubmission.platform);
     formData.append('rolloutPercentage', rolloutPercentage.toString());
     
     fetcher.submit(formData, { method: 'post' });
-  }, [selectedSubmission, fetcher]);
+  }, [selectedSubmission, distribution.releaseId, fetcher]);
 
   // Helper: Revalidate data and then close dialogs
   const revalidateAndCloseSpecific = useCallback((dialogType: 'pause' | 'resume' | 'updateRollout' | 'cancel') => {
@@ -350,6 +368,14 @@ export default function DistributionDetailPage() {
   // Watch fetcher state and trigger revalidation when API calls complete
   useEffect(() => {
     if (fetcher.state === 'idle' && fetcher.data) {
+      // Skip if we've already processed this exact fetcher.data (prevents duplicate toasts)
+      if (lastProcessedFetcherData.current === fetcher.data) {
+        return;
+      }
+      
+      // Mark this fetcher.data as processed
+      lastProcessedFetcherData.current = fetcher.data;
+      
       const response = fetcher.data as { success: boolean; error?: string };
       
       if (response.success === true) {
@@ -433,14 +459,19 @@ export default function DistributionDetailPage() {
     [iosSubmissions]
   );
 
-  // Get historical submissions (not active)
+  // Get historical submissions (all submissions sorted by creation date, newest first)
+  // Include ALL submissions to show complete submission history
   const historicalAndroidSubmissions = useMemo(
-    () => androidSubmissions.filter((s) => !s.isActive),
+    () => [...androidSubmissions].sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    ),
     [androidSubmissions]
   );
 
   const historicalIOSSubmissions = useMemo(
-    () => iosSubmissions.filter((s) => !s.isActive),
+    () => [...iosSubmissions].sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    ),
     [iosSubmissions]
   );
 
@@ -888,6 +919,7 @@ export default function DistributionDetailPage() {
               opened={isPromoteAndroidDialogOpen}
               onClose={handleCloseDialogs}
               submission={selectedSubmission as any}
+              releaseId={distribution.releaseId}
               onPromoteComplete={handlePromoteComplete}
             />
           )}
@@ -898,6 +930,7 @@ export default function DistributionDetailPage() {
               opened={isPromoteIOSDialogOpen}
               onClose={handleCloseDialogs}
               submission={selectedSubmission as any}
+              releaseId={distribution.releaseId}
               onPromoteComplete={handlePromoteComplete}
             />
           )}
@@ -931,6 +964,7 @@ export default function DistributionDetailPage() {
             platform={selectedSubmission.platform}
             version={selectedSubmission.version}
             currentStatus={selectedSubmission.status}
+            releaseId={distribution.releaseId}
             onCancelComplete={handleCancelComplete}
           />
 
@@ -956,6 +990,7 @@ export default function DistributionDetailPage() {
               opened={isResubmitDialogOpen}
               onClose={handleCloseDialogs}
               tenantId={org}
+              releaseId={distribution.releaseId}
               distributionId={distribution.id}
               previousSubmission={selectedSubmission}
               onResubmitComplete={handleResubmitComplete}

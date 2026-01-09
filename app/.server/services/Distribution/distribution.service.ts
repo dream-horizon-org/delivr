@@ -275,13 +275,14 @@ class Distribution {
    * Submit an existing PENDING submission (first-time submission)
    * Updates submission details and changes status from PENDING to IN_REVIEW
    * @param tenantId - Tenant ID for authorization
+   * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param request - Submission details
    * @param platform - Required for backend to identify which table to query (android_submission_builds or ios_submission_builds)
    */
-  async submitSubmission(tenantId: string, submissionId: string, request: SubmitSubmissionRequest, platform: Platform) {
+  async submitSubmission(tenantId: string, releaseId: string, submissionId: string, request: SubmitSubmissionRequest, platform: Platform) {
     return this.__client.put<SubmitSubmissionRequest, AxiosResponse<SubmissionResponse>>(
-      `/api/v1/tenants/${tenantId}/submissions/${submissionId}/submit?platform=${platform}`,
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/submit?platform=${platform}`,
       request
     );
   }
@@ -292,11 +293,13 @@ class Distribution {
    * For Android: Handles multipart/form-data with AAB upload
    * For iOS: Handles application/json with TestFlight build number
    * @param tenantId - Tenant ID for authorization
+   * @param releaseId - Release ID for ownership validation
    * @param distributionId - Distribution ID
    * @param request - Request data (FormData for Android, JSON for iOS)
    */
   async createResubmission(
     tenantId: string,
+    releaseId: string,
     distributionId: string,
     request: CreateResubmissionRequest | FormData
   ) {
@@ -304,7 +307,7 @@ class Distribution {
       CreateResubmissionRequest | FormData,
       AxiosResponse<SubmissionResponse>
     >(
-      `/api/v1/tenants/${tenantId}/distributions/${distributionId}/submissions`,
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/distributions/${distributionId}/submissions`,
       request,
       {
         headers:
@@ -322,14 +325,15 @@ class Distribution {
   /**
    * Cancel a submission (IN_REVIEW, APPROVED, etc.)
    * @param tenantId - Tenant ID for authorization
+   * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param request - Cancel request with reason
    * @param platform - Required for backend to identify which table to update (android_submission_builds or ios_submission_builds)
    */
-  async cancelSubmission(tenantId: string, submissionId: string, request: { reason?: string }, platform: Platform) {
-    return this.__client.delete<{ reason: string }, SubmissionResponse>(
-      `/api/v1/tenants/${tenantId}/submissions/${submissionId}/cancel?platform=${platform}`,
-      { data: request }
+  async cancelSubmission(tenantId: string, releaseId: string, submissionId: string, request: { reason?: string }, platform: Platform) {
+    return this.__client.patch<{ reason: string }, SubmissionResponse>(
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/cancel?platform=${platform}`,
+      request
     );
   }
 
@@ -357,13 +361,14 @@ class Distribution {
   /**
    * Update rollout percentage
    * @param tenantId - Tenant ID for authorization
+   * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param request - Rollout update request
    * @param platform - Required for backend to identify which table to update (android_submission_builds or ios_submission_builds)
    */
-  async updateRollout(tenantId: string, submissionId: string, request: UpdateRolloutRequest, platform: Platform) {
+  async updateRollout(tenantId: string, releaseId: string, submissionId: string, request: UpdateRolloutRequest, platform: Platform) {
     return this.__client.patch<UpdateRolloutRequest, RolloutUpdateResponse>(
-      `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout?platform=${platform}`,
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/rollout?platform=${platform}`,
       request
     );
   }
@@ -371,13 +376,14 @@ class Distribution {
   /**
    * Pause rollout (iOS only)
    * @param tenantId - Tenant ID for authorization
+   * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param request - Pause request with reason
    * @param platform - Must be "IOS" (Android does not support pause)
    */
-  async pauseRollout(tenantId: string, submissionId: string, request: PauseRolloutRequest, platform: Platform) {
-    return this.__client.post<PauseRolloutRequest, RolloutUpdateResponse>(
-      `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout/pause?platform=${platform}`,
+  async pauseRollout(tenantId: string, releaseId: string, submissionId: string, request: PauseRolloutRequest, platform: Platform) {
+    return this.__client.patch<PauseRolloutRequest, RolloutUpdateResponse>(
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/rollout/pause?platform=${platform}`,
       request
     );
   }
@@ -385,12 +391,13 @@ class Distribution {
   /**
    * Resume rollout (iOS only)
    * @param tenantId - Tenant ID for authorization
+   * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param platform - Must be "IOS" (Android does not support resume)
    */
-  async resumeRollout(tenantId: string, submissionId: string, platform: Platform) {
-    return this.__client.post<null, RolloutUpdateResponse>(
-      `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout/resume?platform=${platform}`
+  async resumeRollout(tenantId: string, releaseId: string, submissionId: string, platform: Platform) {
+    return this.__client.patch<null, RolloutUpdateResponse>(
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/rollout/resume?platform=${platform}`
     );
   }
 
