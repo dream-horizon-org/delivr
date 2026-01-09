@@ -11,14 +11,11 @@ import {
   Paper,
   Checkbox,
   Group,
-  Badge,
   Collapse,
   Box,
   ThemeIcon,
   UnstyledButton,
   useMantineTheme,
-  Alert,
-  Button,
 } from '@mantine/core';
 import {
   IconChevronDown,
@@ -26,10 +23,8 @@ import {
   IconBrandAndroid,
   IconBrandApple,
   IconTarget,
-  IconPlug,
-  IconExternalLink,
 } from '@tabler/icons-react';
-import { Link, useParams } from '@remix-run/react';
+import { useParams } from '@remix-run/react';
 import type { TargetPlatform, Platform } from '~/types/release-config';
 import type { PlatformSelectorProps } from '~/types/release-config-props';
 import { PLATFORM_CONFIGS } from '~/constants/release-config';
@@ -37,6 +32,8 @@ import { PLATFORMS, TARGET_PLATFORMS } from '~/types/release-config-constants';
 import { useConfig } from '~/contexts/ConfigContext';
 import { INTEGRATION_IDS } from '~/constants/integration-ui';
 import { IntegrationCategory } from '~/types/integrations';
+import { AppBadge } from '~/components/Common/AppBadge';
+import { NoIntegrationAlert } from '~/components/Common/NoIntegrationAlert';
 
 // Map target platforms to their integration provider IDs
 const TARGET_TO_INTEGRATION_MAP: Record<TargetPlatform, string> = {
@@ -196,6 +193,35 @@ export function PlatformSelector({ platformTargets, onChange }: PlatformSelector
 
   return (
     <Stack gap="md">
+      {/* Required Indicator Header */}
+      <Paper
+        p="md"
+        radius="md"
+        style={{
+          backgroundColor: theme.colors.blue[0],
+          border: `1px solid ${theme.colors.blue[2]}`,
+        }}
+      >
+        <Group gap="sm">
+          <ThemeIcon size={32} radius="md" variant="light" color="blue">
+            <IconTarget size={18} />
+          </ThemeIcon>
+          <Box style={{ flex: 1 }}>
+            <Group gap="xs" mb={4}>
+              <Text size="sm" fw={600} c={theme.colors.blue[8]}>
+                Platform Selection
+              </Text>
+              <Text size="xs" c="red" fw={600}>
+                *
+              </Text>
+            </Group>
+            <Text size="xs" c={theme.colors.blue[7]}>
+              Select at least one platform and distribution target. This is required to proceed.
+            </Text>
+          </Box>
+        </Group>
+      </Paper>
+
       {/* Platform Cards */}
       {PLATFORM_CONFIGS.map((platform) => {
         const isExpanded = expandedPlatforms.has(platform.id);
@@ -277,9 +303,12 @@ export function PlatformSelector({ platformTargets, onChange }: PlatformSelector
 
                   {/* Disabled Badge */}
                   {platformDisabled && (
-                    <Badge color="red" variant="light" size="sm">
-                      Integration Required
-                    </Badge>
+                    <AppBadge
+                      type="status"
+                      value="error"
+                      title="Integration Required"
+                      size="sm"
+                    />
                   )}
                 </Group>
               </Group>
@@ -287,31 +316,17 @@ export function PlatformSelector({ platformTargets, onChange }: PlatformSelector
 
             {/* Missing Integration Message */}
             {platformDisabled && missingIntegrations.length > 0 && (
-              <Alert
-                icon={<IconPlug size={16} />}
-                color="orange"
-                variant="light"
-                mt="md"
-                title="Integration Required"
-              >
-                <Stack gap="xs">
-                  <Text size="sm">
-                    {missingIntegrations.length === 1
+              <Box mt="md" onClick={(e) => e.stopPropagation()}>
+                <NoIntegrationAlert
+                  category={IntegrationCategory.APP_DISTRIBUTION}
+                  color="yellow"
+                  message={
+                    missingIntegrations.length === 1
                       ? `Connect ${missingIntegrations[0].target} integration to enable this platform.`
-                      : `Connect ${missingIntegrations.map((m) => m.target).join(' or ')} integration(s) to enable this platform.`}
-                  </Text>
-                  <Button
-                    component={Link}
-                    to={`/dashboard/${params.org}/integrations?tab=${IntegrationCategory.APP_DISTRIBUTION}`}
-                    variant="light"
-                    size="xs"
-                    leftSection={<IconExternalLink size={14} />}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Go to Integrations
-                  </Button>
-                </Stack>
-              </Alert>
+                      : `Connect ${missingIntegrations.map((m) => m.target).join(' or ')} integration(s) to enable this platform.`
+                  }
+                />
+              </Box>
             )}
 
             {/* Distribution Targets */}

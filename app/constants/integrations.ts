@@ -23,6 +23,56 @@ export const SCM_TYPES = {
   BITBUCKET: 'BITBUCKET',
 } as const;
 
+// SCM Provider IDs (lowercase - as they appear in connected integrations)
+// These are the providerId values used in the frontend after backend transformation
+// Backend transforms: scmType.toLowerCase() -> 'github', 'gitlab', 'bitbucket'
+export const SCM_PROVIDER_IDS = {
+  GITHUB: 'github',
+  GITLAB: 'gitlab',
+  BITBUCKET: 'bitbucket',
+} as const;
+
+// CI/CD Provider IDs (lowercase - as they appear in connected integrations)
+// Backend transforms: providerType.toLowerCase() -> 'jenkins', 'github_actions'
+export const CICD_PROVIDER_IDS = {
+  JENKINS: 'jenkins',
+  GITHUB_ACTIONS: 'github_actions',
+} as const;
+
+// Test Management Provider IDs (lowercase - as they appear in connected integrations)
+// Backend transforms: providerType.toLowerCase() -> 'checkmate', 'testrail', 'xray', 'zephyr'
+export const TEST_MANAGEMENT_PROVIDER_IDS = {
+  CHECKMATE: 'checkmate',
+  TESTRAIL: 'testrail',
+  XRAY: 'xray',
+  ZEPHYR: 'zephyr',
+} as const;
+
+// Project Management Provider IDs (lowercase - as they appear in connected integrations)
+// Backend transforms: providerType.toLowerCase() -> 'jira'
+export const PROJECT_MANAGEMENT_PROVIDER_IDS = {
+  JIRA: 'jira',
+} as const;
+
+// Communication Provider IDs (lowercase - as they appear in connected integrations)
+// Backend uses: PROVIDER_ID.SLACK -> 'slack'
+export const COMMUNICATION_PROVIDER_IDS = {
+  SLACK: 'slack',
+} as const;
+
+// App Distribution Provider IDs (lowercase - as they appear in connected integrations)
+// Backend transforms: storeType.toLowerCase() -> 'app_store', 'play_store'
+export const APP_DISTRIBUTION_PROVIDER_IDS = {
+  APP_STORE: 'app_store',
+  PLAY_STORE: 'play_store',
+} as const;
+
+// SCM API Endpoints
+export const SCM_API_ENDPOINTS = {
+  BRANCHES: (tenantId: string) => `/api/v1/tenants/${tenantId}/integrations/scm/branches`,
+  BASE: (tenantId: string) => `/api/v1/tenants/${tenantId}/integrations/scm`,
+} as const;
+
 export const TARGET_PLATFORM_TYPES = {
   APP_STORE: 'APP_STORE',
   PLAY_STORE: 'PLAY_STORE',

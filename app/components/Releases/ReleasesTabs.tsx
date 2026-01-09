@@ -3,8 +3,9 @@
  * Tab navigation and panels for releases list
  */
 
-import { memo, useMemo, type ReactNode } from 'react';
-import { Tabs, Group, Box } from '@mantine/core';
+import { memo, useMemo } from 'react';
+import { Tabs } from '@mantine/core';
+import { StandardizedTabs, type TabConfig } from '~/components/Common/StandardizedTabs';
 import { RELEASE_TAB_CONFIGS } from '~/constants/release-tabs';
 import { ReleasesTabPanel } from './ReleasesTabPanel';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
@@ -17,7 +18,6 @@ interface ReleasesTabsProps {
   completed: BackendReleaseResponse[];
   archived: BackendReleaseResponse[];
   org: string;
-  rightSection?: ReactNode;
 }
 
 export const ReleasesTabs = memo(function ReleasesTabs({
@@ -28,7 +28,6 @@ export const ReleasesTabs = memo(function ReleasesTabs({
   completed,
   archived,
   org,
-  rightSection,
 }: ReleasesTabsProps) {
   const tabDataMap = useMemo(
     () => ({
@@ -40,43 +39,26 @@ export const ReleasesTabs = memo(function ReleasesTabs({
     [upcoming, active, completed, archived]
   );
 
+  const tabs: TabConfig[] = useMemo(() => 
+    RELEASE_TAB_CONFIGS.map((tabConfig) => {
+      const releases = tabDataMap[tabConfig.value];
+      return {
+        value: tabConfig.value,
+        label: tabConfig.label,
+        icon: tabConfig.icon,
+        count: releases.length,
+      };
+    }),
+    [tabDataMap]
+  );
+
   return (
-    <Tabs value={activeTab} onChange={onTabChange}>
-      <Group justify="space-between" align="center" mb="md" wrap="wrap" gap="md" >
-        <Box style={{ flex: '1 1 auto', minWidth: 0, overflow: 'hidden' }}>
-          <Box
-            style={{
-              overflowX: 'auto',
-              overflowY: 'hidden',
-              scrollbarWidth: 'thin',
-              width: 'max-content',
-            }}
-          >
-            <Tabs.List style={{ flexWrap: 'nowrap', minWidth: 'max-content' }}>
-              {RELEASE_TAB_CONFIGS.map((tabConfig) => {
-                const releases = tabDataMap[tabConfig.value];
-                const Icon = tabConfig.icon;
-
-                return (
-                  <Tabs.Tab
-                    key={tabConfig.value}
-                    value={tabConfig.value}
-                    leftSection={<Icon size={16} />}
-                  >
-                    {tabConfig.label} ({releases.length})
-                  </Tabs.Tab>
-                );
-              })}
-            </Tabs.List>
-          </Box>
-        </Box>
-        {rightSection && (
-          <Box style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center' }}>
-            {rightSection}
-          </Box>
-        )}
-      </Group>
-
+    <StandardizedTabs
+      activeTab={activeTab}
+      onTabChange={onTabChange}
+      tabs={tabs}
+      tabFontSize="sm"
+    >
       {RELEASE_TAB_CONFIGS.map((tabConfig) => {
         const releases = tabDataMap[tabConfig.value];
 
@@ -90,7 +72,7 @@ export const ReleasesTabs = memo(function ReleasesTabs({
           </Tabs.Panel>
         );
       })}
-    </Tabs>
+    </StandardizedTabs>
   );
 });
 

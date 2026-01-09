@@ -22,6 +22,7 @@ import {
 import { formatReleaseDateTime } from '~/utils/release-process-date';
 import { PlatformIcon } from '~/components/Releases/PlatformIcon';
 import { isReleasePaused } from '~/utils/release-utils';
+import { PlatformTargetBadge } from '~/components/Common/AppBadge';
 
 interface PlatformTargetMapping {
   platform: string;
@@ -125,18 +126,13 @@ export function ReleaseHeaderTitle({ release }: ReleaseHeaderTitleProps) {
             : null;
 
           return (
-            <Badge 
-              key={idx} 
-              size="md" 
-              variant="light" 
-              color="brand"
-              leftSection={<PlatformIcon platform={mapping.platform} size={16} />}
-            >
-              <span style={{ marginRight: '4px' }}>{formattedTarget}</span>
-              {formattedVersion && (
-                <span style={{ fontWeight: 600, opacity: 0.9 }}>{formattedVersion}</span>
-              )}
-            </Badge>
+            <PlatformTargetBadge
+              key={idx}
+              platform={mapping.platform}
+              target={mapping.target}
+              version={formattedVersion}
+              size="md"
+            />
           );
         })}
         

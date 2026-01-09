@@ -6,16 +6,17 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   Box,
+  Container,
   Paper,
   Text,
-  Badge,
-  Title,
   Group,
   Stack,
   useMantineTheme,
 } from '@mantine/core';
 import { Breadcrumb } from '~/components/Common';
+import { PageHeader } from '~/components/Common/PageHeader';
 import { getBreadcrumbItems } from '~/constants/breadcrumbs';
+import { CONFIGURATION_PAGE_HEADER } from '~/constants/page-headers';
 import { IconSettings, IconEdit, IconCopy } from '@tabler/icons-react';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { useConfig } from '~/contexts/ConfigContext';
@@ -42,6 +43,7 @@ import { CommunicationConfig } from '../Communication/CommunicationConfig';
 import { BUILD_UPLOAD_STEPS, CONFIG_STATUSES } from '~/types/release-config-constants';
 import type { ConfigurationWizardProps } from '~/types/release-config-props';
 import { getPlatformsFromPlatformTargets, getTargetsFromPlatformTargets } from '~/utils/platform-utils';
+import { AppBadge } from '~/components/Common/AppBadge';
 
 export function ConfigurationWizard({
   tenantId,
@@ -252,6 +254,7 @@ export function ConfigurationWizard({
             onChange={setConfig}
             tenantId={tenantId}
             showValidation={attemptedSteps.has(STEP_INDEX.BASIC)}
+            hasScmIntegration={availableIntegrations.github.length > 0}
           />
         );
         
@@ -349,46 +352,38 @@ export function ConfigurationWizard({
   };
   
   return (
-    <Box p={32}>
+    <Container size="xl" py={16}>
       {/* Header */}
-      <Box mb={24}>
-        <Breadcrumb items={breadcrumbItems} mb={16} />
-        
-        <Group justify="space-between" align="flex-start">
-          <Box>
-            <Group gap="md" mb={4}>
-              <Title order={2} fw={700} c={theme.colors.slate[9]}>
-                {isEditMode ? 'Edit Configuration' : 'Create Configuration'}
-              </Title>
-              {isEditMode && (
-                <Badge 
-                  size="lg" 
-                  variant="light" 
-                  color="blue"
-                  leftSection={<IconEdit size={14} />}
-                >
-                  Editing: {config.name || 'Configuration'}
-                </Badge>
-              )}
-              {!isEditMode && isDraftRestored && (
-                <Badge 
-                  size="lg" 
-                  variant="light" 
-                  color="green"
-                  leftSection={<IconCopy size={14} />}
-                >
-                  Resuming Draft
-                </Badge>
-              )}
-            </Group>
-            <Text size="md" c={theme.colors.slate[5]} maw={600}>
-              {isEditMode 
-                ? 'Update your release configuration settings.' 
-                : 'Set up a new release configuration to standardize your release process.'}
-            </Text>
-          </Box>
-        </Group>
-      </Box>
+      <Breadcrumb items={breadcrumbItems} mb={16} />
+      <PageHeader
+        title={isEditMode ? CONFIGURATION_PAGE_HEADER.TITLE_EDIT : CONFIGURATION_PAGE_HEADER.TITLE_CREATE}
+        description={isEditMode ? CONFIGURATION_PAGE_HEADER.DESCRIPTION_EDIT : CONFIGURATION_PAGE_HEADER.DESCRIPTION_CREATE}
+        icon={IconSettings}
+        descriptionMaxWidth={600}
+        mb={24}
+        rightSection={
+          <Group gap="sm">
+            {isEditMode && (
+              <AppBadge
+                type="status"
+                value="info"
+                title={`Editing: ${config.name || 'Configuration'}`}
+                size="lg"
+                leftSection={<IconEdit size={14} />}
+              />
+            )}
+            {!isEditMode && isDraftRestored && (
+              <AppBadge
+                type="status"
+                value="success"
+                title="Resuming Draft"
+                size="lg"
+                leftSection={<IconCopy size={14} />}
+              />
+            )}
+          </Group>
+        }
+      />
 
       {/* Wizard Content */}
       <Group align="flex-start" gap="lg" wrap="nowrap">
@@ -433,14 +428,9 @@ export function ConfigurationWizard({
           <Paper p="xl" radius="md" shadow="sm" withBorder>
             {/* Step Header */}
             <Box mb={24} pb={16} style={{ borderBottom: `1px solid ${theme.colors.slate[2]}` }}>
-              <Group gap="sm" mb={8}>
-                <Text size="xs" fw={600} c={theme.colors.brand[6]} tt="uppercase">
-                  Step {currentStep + 1} of {WIZARD_STEPS.length}
-                </Text>
-              </Group>
-              <Title order={3} fw={600} c={theme.colors.slate[9]}>
+              <Text size="lg" fw={600} c={theme.colors.slate[9]}>
                 {currentStepData?.title}
-              </Title>
+              </Text>
               {currentStepData?.description && (
                 <Text size="sm" c={theme.colors.slate[5]} mt={4}>
                   {currentStepData.description}
@@ -470,6 +460,6 @@ export function ConfigurationWizard({
           </Paper>
         </Box>
       </Group>
-    </Box>
+    </Container>
   );
 }

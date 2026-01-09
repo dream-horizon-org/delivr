@@ -5,6 +5,7 @@
  */
 
 import { DistributionStatus, RolloutDisplayStatus, SubmissionStatus } from '~/types/distribution/distribution.types';
+import { PLATFORMS } from '~/types/release-config-constants';
 
 /**
  * Get color for distribution or submission status
@@ -106,7 +107,7 @@ export function formatStatus(status: string | undefined | null): string {
  * Get platform color (Android green, iOS blue)
  */
 export function getPlatformColor(platform: string): string {
-  return platform === 'ANDROID' ? 'green' : 'blue';
+  return platform === PLATFORMS.ANDROID ? 'green' : 'blue';
 }
 
 /**
@@ -131,6 +132,6 @@ export function getRolloutStatus(
  * Get platform rollout label
  */
 export function getPlatformRolloutLabel(platform: string): string {
-  return platform === 'ANDROID' ? 'Staged Rollout' : 'Phased Release';
+  return platform === PLATFORMS.ANDROID ? 'Staged Rollout' : 'Phased Release';
 }
 

@@ -13,13 +13,14 @@
  * This preview shows what will actually be sent to the backend, not config defaults.
  */
 
-import { Card, Text, Stack, Group, Badge, Divider } from '@mantine/core';
+import { Card, Text, Stack, Group, Divider } from '@mantine/core';
 import { IconCheck, IconX, IconCalendar, IconSettings } from '@tabler/icons-react';
 import type { ReleaseCreationState, CronConfig } from '~/types/release-creation-backend';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { PLATFORM_LABELS, TARGET_PLATFORM_LABELS } from '~/constants/release-config-ui';
 import { PLATFORMS, TARGET_PLATFORMS, RELEASE_TYPES } from '~/types/release-config-constants';
 import { RELEASE_REVIEW_SUMMARY } from '~/constants/release-creation-ui';
+import { PlatformTargetBadge, AppBadge } from '~/components/Common/AppBadge';
 
 interface ReleaseReviewSummaryProps {
   config?: ReleaseConfiguration; // Configuration template (for reference only)
@@ -136,9 +137,12 @@ export function ReleaseReviewSummary({
             <Text size="xs" c="dimmed">
               {RELEASE_REVIEW_SUMMARY.RELEASE_TYPE}
             </Text>
-            <Badge variant="light" size="sm">
-              {state.type || RELEASE_TYPES.MINOR}
-            </Badge>
+            <AppBadge
+              type="release-type"
+              value={state.type || RELEASE_TYPES.MINOR}
+              title={state.type || RELEASE_TYPES.MINOR}
+              size="sm"
+            />
           </div>
 
           <div>
@@ -156,20 +160,13 @@ export function ReleaseReviewSummary({
               {/* Show actual platform targets selected in the form (state.platformTargets) */}
               {state.platformTargets && state.platformTargets.length > 0 ? (
                 state.platformTargets.map((pt, index) => (
-                  <Badge key={`${pt.platform}-${pt.target}-${index}`} size="xs">
-                    {pt.platform === PLATFORMS.ANDROID
-                      ? PLATFORM_LABELS.ANDROID
-                      : pt.platform === PLATFORMS.IOS
-                      ? PLATFORM_LABELS.IOS
-                      : PLATFORM_LABELS.WEB}{' '}
-                    →{' '}
-                    {pt.target === TARGET_PLATFORMS.PLAY_STORE
-                      ? TARGET_PLATFORM_LABELS.PLAY_STORE
-                      : pt.target === TARGET_PLATFORMS.APP_STORE
-                      ? TARGET_PLATFORM_LABELS.APP_STORE
-                      : TARGET_PLATFORM_LABELS.WEB}{' '}
-                    ({pt.version})
-                  </Badge>
+                  <PlatformTargetBadge
+                    key={`${pt.platform}-${pt.target}-${index}`}
+                    platform={pt.platform}
+                    target={pt.target}
+                    version={pt.version}
+                    size="xs"
+                  />
                 ))
               ) : (
                 <Text size="xs" c="dimmed">
@@ -227,9 +224,11 @@ export function ReleaseReviewSummary({
             </Text>
             {state.regressionBuildSlots && state.regressionBuildSlots.length > 0 ? (
               <div className="space-y-2">
-                <Badge variant="light" color="green">
-                  {RELEASE_REVIEW_SUMMARY.SCHEDULED(state.regressionBuildSlots.length)}
-                </Badge>
+                <AppBadge
+                  type="status"
+                  value="success"
+                  title={RELEASE_REVIEW_SUMMARY.SCHEDULED(state.regressionBuildSlots.length)}
+                />
                 <div className="mt-2 space-y-1">
                   {state.regressionBuildSlots.map((slot, index) => (
                     <div key={index} className="text-xs bg-gray-50 p-2 rounded">
@@ -244,9 +243,11 @@ export function ReleaseReviewSummary({
                 </div>
               </div>
             ) : (
-              <Badge variant="light" color="orange">
-                {RELEASE_REVIEW_SUMMARY.MANUAL_UPLOAD}
-              </Badge>
+              <AppBadge
+                type="status"
+                value="warning"
+                title={RELEASE_REVIEW_SUMMARY.MANUAL_UPLOAD}
+              />
             )}
           </div>
         </div>

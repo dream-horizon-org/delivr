@@ -15,6 +15,7 @@ import type {
   UpdateReleaseState,
 } from '~/types/release-creation-backend';
 import type { TargetPlatform, Platform } from '~/types/release-config';
+import { PLATFORMS, TARGET_PLATFORMS } from '~/types/release-config-constants';
 
 // ============================================================================
 // Date Conversion Utilities
@@ -199,23 +200,23 @@ export function convertConfigTargetsToPlatformTargets(
   const platformTargets: PlatformTargetWithVersion[] = [];
 
   targets.forEach((target) => {
-    if (target === 'WEB') {
+    if (target === TARGET_PLATFORMS.WEB) {
       platformTargets.push({
-        platform: 'WEB',
-        target: 'WEB',
-        version: versions.ANDROID || '1.0.0', // Default version if not specified
+        platform: TARGET_PLATFORMS.WEB as any, // WEB is a target, not a platform, but used here for compatibility
+        target: TARGET_PLATFORMS.WEB,
+        version: versions[PLATFORMS.ANDROID] || '1.0.0', // Default version if not specified
       });
-    } else if (target === 'PLAY_STORE') {
+    } else if (target === TARGET_PLATFORMS.PLAY_STORE) {
       platformTargets.push({
-        platform: 'ANDROID',
-        target: 'PLAY_STORE',
-        version: versions.ANDROID || '1.0.0',
+        platform: PLATFORMS.ANDROID,
+        target: TARGET_PLATFORMS.PLAY_STORE,
+        version: versions[PLATFORMS.ANDROID] || '1.0.0',
       });
-    } else if (target === 'APP_STORE') {
+    } else if (target === TARGET_PLATFORMS.APP_STORE) {
       platformTargets.push({
-        platform: 'IOS',
-        target: 'APP_STORE',
-        version: versions.IOS || '1.0.0',
+        platform: PLATFORMS.IOS,
+        target: TARGET_PLATFORMS.APP_STORE,
+        version: versions[PLATFORMS.IOS] || '1.0.0',
       });
     }
   });
@@ -237,27 +238,27 @@ export function convertPlatformTargetsToConfig(
 } {
   const targets: TargetPlatform[] = [];
   const versions: Record<Platform, string> = {
-    ANDROID: '1.0.0',
-    IOS: '1.0.0',
+    [PLATFORMS.ANDROID]: '1.0.0',
+    [PLATFORMS.IOS]: '1.0.0',
   };
 
   platformTargets.forEach((pt) => {
-    if (pt.target === 'WEB') {
-      if (!targets.includes('WEB')) {
-        targets.push('WEB');
+    if (pt.target === TARGET_PLATFORMS.WEB) {
+      if (!targets.includes(TARGET_PLATFORMS.WEB)) {
+        targets.push(TARGET_PLATFORMS.WEB);
       }
       // Use ANDROID version for WEB (or could use a separate WEB version)
-      versions.ANDROID = pt.version;
-    } else if (pt.target === 'PLAY_STORE') {
-      if (!targets.includes('PLAY_STORE')) {
-        targets.push('PLAY_STORE');
+      versions[PLATFORMS.ANDROID] = pt.version;
+    } else if (pt.target === TARGET_PLATFORMS.PLAY_STORE) {
+      if (!targets.includes(TARGET_PLATFORMS.PLAY_STORE)) {
+        targets.push(TARGET_PLATFORMS.PLAY_STORE);
       }
-      versions.ANDROID = pt.version;
-    } else if (pt.target === 'APP_STORE') {
-      if (!targets.includes('APP_STORE')) {
-        targets.push('APP_STORE');
+      versions[PLATFORMS.ANDROID] = pt.version;
+    } else if (pt.target === TARGET_PLATFORMS.APP_STORE) {
+      if (!targets.includes(TARGET_PLATFORMS.APP_STORE)) {
+        targets.push(TARGET_PLATFORMS.APP_STORE);
       }
-      versions.IOS = pt.version;
+      versions[PLATFORMS.IOS] = pt.version;
     }
   });
 

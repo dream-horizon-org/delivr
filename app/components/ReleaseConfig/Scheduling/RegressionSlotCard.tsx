@@ -13,7 +13,6 @@ import {
   Paper,
   Group,
   Text,
-  Badge,
   ActionIcon,
   Stack,
   TextInput,
@@ -27,6 +26,7 @@ import { IconEdit, IconTrash, IconCheck } from '@tabler/icons-react';
 import type { RegressionSlot } from '~/types/release-config';
 import type { RegressionSlotCardProps } from '~/types/release-config-props';
 import { timeToMinutes, normalizeTime } from '~/utils/time-utils';
+import { AppBadge } from '~/components/Common/AppBadge';
 
 /**
  * Regression Slot Card Component
@@ -162,9 +162,13 @@ export function RegressionSlotCard({
         <Group justify="space-between" align="flex-start">
           <Box style={{ flex: 1 }}>
             <Group gap="xs" align="center" mb={4}>
-              <Badge size="sm" variant="light" color="grape">
-                Slot {index + 1}
-              </Badge>
+              <AppBadge
+                type="status"
+                value="info"
+                title={`Slot ${index + 1}`}
+                size="sm"
+                color="grape"
+              />
               {slot.name && (
                 <Text size="sm" fw={500}>
                   {slot.name}
@@ -175,9 +179,13 @@ export function RegressionSlotCard({
               Day {slot.regressionSlotOffsetFromKickoff} at {slot.time}
             </Text>
             {slot.config.regressionBuilds && (
-              <Badge size="xs" variant="light" color="brand" mt={4}>
-                Regression Builds Enabled
-              </Badge>
+              <AppBadge
+                type="status"
+                value="info"
+                title="Regression Builds Enabled"
+                size="xs"
+                mt={4}
+              />
             )}
           </Box>
           <Group gap="xs">

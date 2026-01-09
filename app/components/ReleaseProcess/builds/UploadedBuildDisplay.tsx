@@ -7,10 +7,12 @@
  * - Shows TestFlight number and "Verified" status instead of download link
  */
 
-import { Anchor, Badge, Button, Group, Stack, Text } from '@mantine/core';
+import { Anchor, Button, Group, Stack, Text } from '@mantine/core';
 import { IconBrandApple, IconCheck, IconExternalLink, IconFile, IconPencil } from '@tabler/icons-react';
 import type { BuildInfo } from '~/types/release-process.types';
 import { Platform } from '~/types/release-process-enums';
+import { AppBadge } from '~/components/Common/AppBadge';
+import { BuildType } from '~/types/release-process-enums';
 
 interface UploadedBuildDisplayProps {
   build: BuildInfo;
@@ -40,14 +42,20 @@ export function UploadedBuildDisplay({
         <Stack gap="xs" style={{ flex: 1 }}>
           <Group gap="xs">
             {build.storeType && (
-              <Badge size="sm" variant="light" color="blue">
-                {build.storeType}
-              </Badge>
+              <AppBadge
+                type="store-type"
+                value={build.storeType}
+                title={build.storeType}
+                size="sm"
+              />
             )}
             {build.buildType && (
-              <Badge size="sm" variant="light" color="gray">
-                {build.buildType}
-              </Badge>
+              <AppBadge
+                type="build-type"
+                value={build.buildType}
+                title={build.buildType}
+                size="sm"
+              />
             )}
           </Group>
           

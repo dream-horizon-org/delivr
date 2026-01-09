@@ -4,8 +4,7 @@
  */
 
 import type { BackendReleaseResponse } from '~/types/release-management.types';
-import { Phase, TaskStage as TaskStageEnum, ReleaseStatus, StageStatus } from '~/types/release-process-enums';
-import type { TaskStage } from '~/types/release-process-enums';
+import { Phase, TaskStage, TaskStage as TaskStageEnum, ReleaseStatus, StageStatus } from '~/types/release-process-enums';
 
 /**
  * Determine current phase based on release status and tasks
@@ -33,7 +32,7 @@ export function determineReleasePhase(release: BackendReleaseResponse): Phase {
   if (release.tasks && release.tasks.length > 0) {
     // Check if any regression tasks exist
     const hasRegressionTasks = release.tasks.some(
-      (task: any) => task.taskStage === 'REGRESSION' || task.stage === 'REGRESSION'
+      (task: any) => task.taskStage === TaskStage.REGRESSION || task.stage === TaskStage.REGRESSION
     );
     
     if (hasRegressionTasks) {
@@ -42,7 +41,7 @@ export function determineReleasePhase(release: BackendReleaseResponse): Phase {
 
     // Check if any pre-release tasks exist
     const hasPreReleaseTasks = release.tasks.some(
-      (task: any) => task.taskStage === 'PRE_RELEASE' || task.stage === 'PRE_RELEASE'
+      (task: any) => task.taskStage === TaskStage.PRE_RELEASE || task.stage === TaskStage.PRE_RELEASE
     );
     
     if (hasPreReleaseTasks) {
@@ -75,11 +74,11 @@ export function getStageFromPhase(
       switch (currentActiveStage) {
         case 'PRE_KICKOFF':
           return null; // Not a stage in stepper
-        case 'KICKOFF':
+        case TaskStage.KICKOFF:
           return TaskStageEnum.KICKOFF;
-        case 'REGRESSION':
+        case TaskStage.REGRESSION:
           return TaskStageEnum.REGRESSION;
-        case 'PRE_RELEASE':
+        case TaskStage.PRE_RELEASE:
           return TaskStageEnum.PRE_RELEASE;
         case 'RELEASE_SUBMISSION':
         case 'RELEASE':
@@ -96,11 +95,11 @@ export function getStageFromPhase(
     // If currentActiveStage is available, use it
     if (currentActiveStage) {
       switch (currentActiveStage) {
-        case 'KICKOFF':
+        case TaskStage.KICKOFF:
           return TaskStageEnum.KICKOFF;
-        case 'REGRESSION':
+        case TaskStage.REGRESSION:
           return TaskStageEnum.REGRESSION;
-        case 'PRE_RELEASE':
+        case TaskStage.PRE_RELEASE:
           return TaskStageEnum.PRE_RELEASE;
         case 'RELEASE_SUBMISSION':
         case 'RELEASE':

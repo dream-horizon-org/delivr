@@ -24,6 +24,8 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
 import { Link, useFetcher, useLoaderData, useNavigation } from '@remix-run/react';
+import { Breadcrumb } from '~/components/Common';
+import { getBreadcrumbItems } from '~/constants/breadcrumbs';
 import {
   IconAlertCircle,
   IconArrowLeft,
@@ -35,10 +37,9 @@ import {
 import { useCallback, useState } from 'react';
 import type { User } from '~/.server/services/Auth/auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
-import { Breadcrumb } from '~/components/Common';
-import { CancelSubmissionDialog } from '~/components/Distribution/CancelSubmissionDialog';
-import { ResubmissionDialog } from '~/components/Distribution/ReSubmissionDialog';
-import { getBreadcrumbItems } from '~/constants/breadcrumbs';
+import { RolloutService } from '~/.server/services/Rollout';
+import { CancelSubmissionDialog } from '~/components/distribution/CancelSubmissionDialog';
+import { ResubmissionDialog } from '~/components/distribution/ReSubmissionDialog';
 import { SUBMISSION_STATUS_LABELS } from '~/constants/distribution/distribution.constants';
 import {
   Platform,
@@ -105,9 +106,9 @@ export const loader = authenticateLoaderRequest(
 
 // Actions
 const updateRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { org, submissionId } = params;
-  if (!org || !submissionId) {
-    return json({ error: 'Organization and Submission ID required' }, { status: 400 });
+  const { submissionId } = params;
+  if (!submissionId) {
+    return json({ error: 'Submission ID required' }, { status: 400 });
   }
 
   const formData = await request.formData();
@@ -119,7 +120,7 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
   }
 
   try {
-    await DistributionService.updateRollout(org, submissionId, { rolloutPercentage }, platform);
+    await RolloutService.updateRollout(submissionId, { rolloutPercentage }, platform);
     return json({ success: true });
   } catch (error) {
     return json({ error: 'Failed to update rollout' }, { status: 500 });
@@ -127,9 +128,9 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
 };
 
 const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { org, submissionId } = params;
-  if (!org || !submissionId) {
-    return json({ error: 'Organization and Submission ID required' }, { status: 400 });
+  const { submissionId } = params;
+  if (!submissionId) {
+    return json({ error: 'Submission ID required' }, { status: 400 });
   }
 
   const formData = await request.formData();
@@ -141,7 +142,7 @@ const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user
   }
 
   try {
-    await DistributionService.pauseRollout(org, submissionId, { reason: reason || '' }, platform);
+    await RolloutService.pauseRollout(submissionId, reason ? { reason } : undefined, platform);
     return json({ success: true });
   } catch (error) {
     return json({ error: 'Failed to pause rollout' }, { status: 500 });
@@ -149,9 +150,9 @@ const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user
 };
 
 const resumeRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { org, submissionId } = params;
-  if (!org || !submissionId) {
-    return json({ error: 'Organization and Submission ID required' }, { status: 400 });
+  const { submissionId } = params;
+  if (!submissionId) {
+    return json({ error: 'Submission ID required' }, { status: 400 });
   }
 
   const formData = await request.formData();
@@ -162,7 +163,7 @@ const resumeRollout: AuthenticatedActionFunction = async ({ params, request, use
   }
 
   try {
-    await DistributionService.resumeRollout(org, submissionId, platform);
+    await RolloutService.resumeRollout(submissionId, platform);
     return json({ success: true });
   } catch (error) {
     return json({ error: 'Failed to resume rollout' }, { status: 500 });

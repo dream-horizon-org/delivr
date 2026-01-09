@@ -54,7 +54,7 @@ export function getNavigationModules(org: Organization): ModuleConfig[] {
         {
           label: "Configurations",
           icon: IconAdjustmentsHorizontal,
-          path: `/dashboard/${org.id}/releases/settings`,
+          path: `/dashboard/${org.id}/releases/configurations`,
           prefetch: "intent",
           isEditorOnly: true,
         },

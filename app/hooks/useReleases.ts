@@ -55,12 +55,14 @@ export function useReleases(
       const queryKey = QUERY_KEY(tenantId);
       const existingData = queryClient.getQueryData<ReleasesResponse>(queryKey);
       
-      // Only sync if cache is empty (first load)
-      if (!existingData || !existingData.releases || existingData.releases.length === 0) {
+      // Only sync if cache is completely empty (first load)
+      // Don't sync if cache already exists, even if it has 0 releases
+      // This prevents infinite loops when switching tabs with 0 releases
+      if (!existingData) {
         queryClient.setQueryData<ReleasesResponse>(queryKey, options.initialData);
       }
     }
-  }, [options?.initialData, tenantId, queryClient, shouldForceRefetch]);
+  }, [tenantId, queryClient, shouldForceRefetch]); // Removed options?.initialData from deps to prevent loops
 
   // Fetch all releases for tenant
   const {

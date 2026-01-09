@@ -15,7 +15,6 @@ import {
   Switch,
   Button,
   ActionIcon,
-  Badge,
   Divider,
 } from '@mantine/core';
 import { IconInfoCircle, IconPlus, IconTrash, IconEdit, IconCalendar, IconAlertCircle } from '@tabler/icons-react';
@@ -34,12 +33,13 @@ import { TimezonePicker } from './TimezonePicker';
 import { RegressionSlotCard } from './RegressionSlotCard';
 import { PLATFORM_METADATA } from '~/constants/release-config';
 import { validateScheduling, formatValidationErrors } from './scheduling-validation';
-import { SCHEDULING_LABELS, ICON_SIZES } from '~/constants/release-config-ui';
+import { SCHEDULING_LABELS, ICON_SIZES, TARGET_PLATFORM_LABELS } from '~/constants/release-config-ui';
 import { timeToMinutes } from '~/utils/time-utils';
 import { useConfig } from '~/contexts/ConfigContext';
 import { canEnableKickoffReminder } from '~/utils/communication-helpers';
 import type { CommunicationConfig } from '~/types/release-config';
 import { IntegrationCategory } from '~/types/integrations';
+import { PlatformTargetBadge } from '~/components/Common/AppBadge';
 export function SchedulingConfig({ 
   config, 
   onChange, 
@@ -198,9 +198,11 @@ export function SchedulingConfig({
                     key={`${pt.platform}-${pt.target}`}
                     label={
                       <Group gap="xs" wrap="nowrap" style={{ display: 'inline-flex' }}>
-                        <Badge color={metadata.color} size="sm" variant="filled">
-                          {metadata.label}
-                        </Badge>
+                        <PlatformTargetBadge
+                          platform={pt.platform}
+                          target={pt.target}
+                          size="sm"
+                        />
                         <Text size="sm" component="span" style={{ whiteSpace: 'nowrap' }}>
                           {SCHEDULING_LABELS.INITIAL_VERSION_LABEL}
                         </Text>
@@ -235,7 +237,7 @@ export function SchedulingConfig({
                       });
                     }}
                     required
-                    description={SCHEDULING_LABELS.SEMANTIC_VERSION_DESCRIPTION.replace('{platform}', metadata.label)}
+                    description={SCHEDULING_LABELS.SEMANTIC_VERSION_DESCRIPTION.replace('{platform}', TARGET_PLATFORM_LABELS[pt.target as keyof typeof TARGET_PLATFORM_LABELS] || pt.target)}
                   />
                 );
               })}

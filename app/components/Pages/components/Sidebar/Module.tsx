@@ -41,7 +41,7 @@ export function Module({
       if (subItem.path === `/dashboard/${org.id}/releases/`) {
         if (
           location.pathname.includes("/releases") &&
-          !location.pathname.includes("/releases/settings") &&
+          !location.pathname.includes("/releases/configurations") &&
           !location.pathname.includes("/releases/configure") &&
           !location.pathname.includes("/releases/workflows") &&
           location.pathname !== `/dashboard/${org.id}/releases`
@@ -49,10 +49,10 @@ export function Module({
           return true;
         }
       }
-      // For Configurations: active on /releases/settings and /releases/configure
-      else if (subItem.path === `/dashboard/${org.id}/releases/settings`) {
+      // For Configurations: active on /releases/configurations and /releases/configure
+      else if (subItem.path === `/dashboard/${org.id}/releases/configurations`) {
         if (
-          location.pathname.startsWith(`/dashboard/${org.id}/releases/settings`) ||
+          location.pathname.startsWith(`/dashboard/${org.id}/releases/configurations`) ||
           location.pathname.startsWith(`/dashboard/${org.id}/releases/configure`)
         ) {
           return true;

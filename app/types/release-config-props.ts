@@ -54,6 +54,8 @@ export interface ConfigurationWizardProps {
     slack: Array<{ id: string; name: string; displayName?: string }>;
     jira: Array<{ id: string; name: string; displayName?: string }>;
     checkmate: Array<{ id: string; name: string; workspaceId?: string; displayName?: string }>;
+    appStore: Array<{ id: string; name: string; displayName?: string }>; // App Store Connect
+    playStore: Array<{ id: string; name: string; displayName?: string }>; // Google Play Store
   };
   existingConfig?: ReleaseConfiguration | null;
   isEditMode?: boolean;
@@ -88,6 +90,7 @@ export interface BasicInfoFormProps {
   onChange: (config: Partial<ReleaseConfiguration>) => void;
   tenantId: string;
   showValidation?: boolean;
+  hasScmIntegration?: boolean;
 }
 
 export interface ConfigSummaryProps {

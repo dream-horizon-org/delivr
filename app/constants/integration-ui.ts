@@ -148,7 +148,7 @@ export const INTEGRATION_DISPLAY_NAMES: Record<string, string> = {
 // ============================================================================
 
 export const INTEGRATION_CATEGORY_LABELS: Record<string, string> = {
-  SOURCE_CONTROL: 'Source Control',
+  SOURCE_CONTROL: 'SCM',
   COMMUNICATION: 'Communication',
   CI_CD: 'CI/CD',
   TEST_MANAGEMENT: 'Test Management',

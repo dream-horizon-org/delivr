@@ -6,12 +6,13 @@
  */
 
 import { useState } from 'react';
-import { Box, Text, Group, Badge, Stack, Button, Select, ActionIcon, useMantineTheme } from '@mantine/core';
+import { Box, Text, Group, Stack, Button, Select, ActionIcon, useMantineTheme } from '@mantine/core';
 import { IconSettings, IconPlus, IconEye } from '@tabler/icons-react';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { ConfigurationPreviewModal } from '~/components/ReleaseSettings/ConfigurationPreviewModal';
 import { PLATFORM_LABELS, TARGET_PLATFORM_LABELS } from '~/constants/release-config-ui';
-import { PLATFORMS } from '~/types/release-config-constants';
+import { PLATFORMS, RELEASE_TYPES } from '~/types/release-config-constants';
+import { AppBadge } from '~/components/Common/AppBadge';
 
 interface ConfigurationSelectorProps {
   configurations: ReleaseConfiguration[];
@@ -134,18 +135,28 @@ export function ConfigurationSelector({
                 </Text>
 
                 {selectedConfig.isDefault && (
-                  <Badge size="sm" variant="light" color="green">
-                    Default
-                  </Badge>
+                  <AppBadge
+                    type="status"
+                    value="success"
+                    title="Default"
+                    size="sm"
+                  />
                 )}
 
-                <Badge size="sm" variant="outline" color="gray">
-                  {selectedConfig.releaseType}
-                </Badge>
+                <AppBadge
+                  type="release-type"
+                  value={selectedConfig.releaseType || RELEASE_TYPES.MINOR}
+                  title={selectedConfig.releaseType || RELEASE_TYPES.MINOR}
+                  size="sm"
+                  variant="outline"
+                />
 
-                <Badge size="sm" variant="light" color="blue">
-                  {getBuildTypeLabel(selectedConfig)}
-                </Badge>
+                <AppBadge
+                  type="build-type"
+                  value={selectedConfig.hasManualBuildUpload ? 'MANUAL' : 'CI_CD'}
+                  title={getBuildTypeLabel(selectedConfig)}
+                  size="sm"
+                />
               </Group>
 
               {selectedConfig.description && (

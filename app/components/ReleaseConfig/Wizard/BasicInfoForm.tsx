@@ -17,6 +17,8 @@ import {
   Box,
   useMantineTheme,
   Loader,
+  Alert,
+  Button,
 } from '@mantine/core';
 import {
   IconSettings,
@@ -29,8 +31,12 @@ import { apiGet } from '~/utils/api-client';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import type { BasicInfoFormProps } from '~/types/release-config-props';
 import { RELEASE_TYPES } from '~/types/release-config-constants';
+import { IntegrationCategory } from '~/types/integrations';
+import { SCM_API_ENDPOINTS } from '~/constants/integrations';
+import { BASIC_INFO_LABELS } from '~/constants/release-config-ui';
+import { NoIntegrationAlert } from '~/components/Common/NoIntegrationAlert';
 
-export function BasicInfoForm({ config, onChange, tenantId, showValidation = false }: BasicInfoFormProps) {
+export function BasicInfoForm({ config, onChange, tenantId, showValidation = false, hasScmIntegration = false }: BasicInfoFormProps) {
   const theme = useMantineTheme();
   const [branches, setBranches] = useState<Array<{ value: string; label: string }>>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
@@ -39,7 +45,7 @@ export function BasicInfoForm({ config, onChange, tenantId, showValidation = fal
   const getBaseBranchError = (): string | undefined => {
     if (!showValidation) return undefined;
     if (!config.baseBranch || !config.baseBranch.trim()) {
-      return 'Default base branch is required';
+      return BASIC_INFO_LABELS.DEFAULT_BASE_BRANCH_REQUIRED;
     }
     return undefined;
   };
@@ -55,53 +61,88 @@ export function BasicInfoForm({ config, onChange, tenantId, showValidation = fal
     configRef.current = config;
   }, [config]);
 
-  // Fetch branches from SCM integration
+  // Fetch branches from SCM integration (only if integration exists)
   useEffect(() => {
     const fetchBranches = async () => {
+      if (!tenantId || !hasScmIntegration) return;
+      
       setLoadingBranches(true);
       try {
-        const result = await apiGet<{ branches: any[]; defaultBranch?: string }>(
-          `/api/v1/tenants/${tenantId}/integrations/scm/branches`
+        const branchesResult = await apiGet<{ branches: any[]; defaultBranch?: string }>(
+          SCM_API_ENDPOINTS.BRANCHES(tenantId)
         );
         
-        if (result.success && result.data?.branches) {
-          const branchOptions = result.data.branches.map((branch: any) => ({
+        if (branchesResult.success && branchesResult.data?.branches) {
+          const branchOptions = branchesResult.data.branches.map((branch: any) => ({
             value: branch.name,
             label: branch.default ? `${branch.name} (default)` : branch.name,
           }));
           setBranches(branchOptions);
           
-          // Find the actual default branch from the branches array (not the stored defaultBranch)
-          const actualDefaultBranch = result.data.branches.find((branch: any) => branch.default)?.name;
+          // Find the actual default branch from the branches array
+          const actualDefaultBranch = branchesResult.data.branches.find((branch: any) => branch.default)?.name;
           
           // Auto-set default branch ONLY if:
           // 1. We found an actual default branch from the repository
           // 2. We haven't auto-filled before (prevents overwriting user input)
           // 3. Config doesn't already have a baseBranch set (check current ref value)
           if (actualDefaultBranch && !hasAutoFilledBranchRef.current) {
-            // Use the ref to get the most current config value
             const currentConfig = configRef.current;
             if (!currentConfig.baseBranch) {
               hasAutoFilledBranchRef.current = true;
-              // Use the current config from ref to avoid stale closure
               onChange({ ...currentConfig, baseBranch: actualDefaultBranch });
             }
           }
         }
       } catch (error) {
-        // Silently fail - SCM may not be configured
+        // Failed to fetch branches
+        console.error('Failed to fetch branches:', error);
       } finally {
         setLoadingBranches(false);
       }
     };
 
-    if (tenantId) {
-      fetchBranches();
-    }
-    // Only run once when tenantId changes
+    fetchBranches();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId]);
+  }, [tenantId, hasScmIntegration]);
 
+  // Show SCM integration alert if no integration exists
+  if (!hasScmIntegration) {
+    return (
+      <Stack gap="lg">
+        <Paper
+          p="md"
+          radius="md"
+          style={{
+            backgroundColor: theme.colors.brand[0],
+            border: `1px solid ${theme.colors.brand[2]}`,
+          }}
+        >
+          <Group gap="sm">
+            <ThemeIcon size={36} radius="md" variant="light" color="brand">
+              <IconSettings size={20} />
+            </ThemeIcon>
+            <Box>
+              <Text size="sm" fw={600} c={theme.colors.brand[8]}>
+                {BASIC_INFO_LABELS.TITLE}
+              </Text>
+              <Text size="xs" c={theme.colors.brand[6]}>
+                {BASIC_INFO_LABELS.DESCRIPTION}
+              </Text>
+            </Box>
+          </Group>
+        </Paper>
+
+        <NoIntegrationAlert
+          category={IntegrationCategory.SOURCE_CONTROL}
+          tenantId={tenantId}
+          color="yellow"
+        />
+      </Stack>
+    );
+  }
+
+  // Show all form fields if SCM integration exists
   return (
     <Stack gap="lg">
       {/* Info Header */}
@@ -119,10 +160,10 @@ export function BasicInfoForm({ config, onChange, tenantId, showValidation = fal
           </ThemeIcon>
           <Box>
             <Text size="sm" fw={600} c={theme.colors.brand[8]}>
-              Basic Information
+              {BASIC_INFO_LABELS.TITLE}
             </Text>
             <Text size="xs" c={theme.colors.brand[6]}>
-              Provide a name and description for this release configuration
+              {BASIC_INFO_LABELS.DESCRIPTION}
             </Text>
           </Box>
         </Group>
@@ -132,37 +173,37 @@ export function BasicInfoForm({ config, onChange, tenantId, showValidation = fal
       <Stack gap="md">
         {/* Configuration Name */}
         <TextInput
-          label="Configuration Name"
-          placeholder="e.g., Standard Release Configuration"
+          label={BASIC_INFO_LABELS.CONFIGURATION_NAME}
+          placeholder={BASIC_INFO_LABELS.CONFIGURATION_NAME_PLACEHOLDER}
           value={config.name}
           onChange={(e) => onChange({ ...config, name: e.target.value })}
           required
           withAsterisk
-          description="A descriptive name to identify this configuration"
+          description={BASIC_INFO_LABELS.CONFIGURATION_NAME_DESCRIPTION}
           size="sm"
           leftSection={<IconFileDescription size={14} />}
         />
         
         {/* Description */}
         <Textarea
-          label="Description (Optional)"
-          placeholder="Describe when to use this configuration and any special notes..."
+          label={BASIC_INFO_LABELS.DESCRIPTION_LABEL}
+          placeholder={BASIC_INFO_LABELS.DESCRIPTION_PLACEHOLDER}
           value={config.description || ''}
           onChange={(e) => onChange({ ...config, description: e.target.value })}
           minRows={3}
           autosize
           maxRows={5}
-          description="Provide context about when this configuration should be used"
+          description={BASIC_INFO_LABELS.DESCRIPTION_DESCRIPTION}
           size="sm"
         />
         
         {/* Release Type */}
         <Select
-          label="Release Type"
+          label={BASIC_INFO_LABELS.RELEASE_TYPE}
           data={[
-            { value: RELEASE_TYPES.MINOR, label: 'Minor Release' },
-            { value: RELEASE_TYPES.HOTFIX, label: 'Hotfix Release' },
-            { value: RELEASE_TYPES.MAJOR, label: 'Major Release' },
+            { value: RELEASE_TYPES.MINOR, label: BASIC_INFO_LABELS.RELEASE_TYPE_MINOR },
+            { value: RELEASE_TYPES.HOTFIX, label: BASIC_INFO_LABELS.RELEASE_TYPE_HOTFIX },
+            { value: RELEASE_TYPES.MAJOR, label: BASIC_INFO_LABELS.RELEASE_TYPE_MAJOR },
           ]}
           value={config.releaseType || RELEASE_TYPES.MINOR}
           onChange={(val) => {
@@ -172,7 +213,7 @@ export function BasicInfoForm({ config, onChange, tenantId, showValidation = fal
           required
           withAsterisk
           clearable={false}
-          description="Type of releases this configuration is designed for"
+          description={BASIC_INFO_LABELS.RELEASE_TYPE_DESCRIPTION}
           size="sm"
           leftSection={<IconTag size={14} />}
           allowDeselect={false}
@@ -180,8 +221,8 @@ export function BasicInfoForm({ config, onChange, tenantId, showValidation = fal
 
         {/* Base Branch */}
         <Select
-          label="Default Base Branch"
-          placeholder={loadingBranches ? 'Loading branches...' : 'Select a branch'}
+          label={BASIC_INFO_LABELS.DEFAULT_BASE_BRANCH}
+          placeholder={loadingBranches ? BASIC_INFO_LABELS.DEFAULT_BASE_BRANCH_PLACEHOLDER_LOADING : BASIC_INFO_LABELS.DEFAULT_BASE_BRANCH_PLACEHOLDER}
           data={branches}
           value={config.baseBranch || ''}
           onChange={(val) => {
@@ -195,14 +236,14 @@ export function BasicInfoForm({ config, onChange, tenantId, showValidation = fal
           error={getBaseBranchError()}
           disabled={loadingBranches}
           rightSection={loadingBranches ? <Loader size="xs" /> : null}
-          description="Default branch to fork from for releases (from SCM integration)"
+          description={BASIC_INFO_LABELS.DEFAULT_BASE_BRANCH_DESCRIPTION}
           size="sm"
           leftSection={<IconGitBranch size={14} />}
           allowDeselect={false}
           nothingFoundMessage={
             branches.length === 0 && !loadingBranches 
-              ? "No branches found. Make sure your SCM integration is configured." 
-              : "No matching branches"
+              ? BASIC_INFO_LABELS.DEFAULT_BASE_BRANCH_NO_BRANCHES
+              : BASIC_INFO_LABELS.DEFAULT_BASE_BRANCH_NO_MATCH
           }
         />
         
@@ -222,10 +263,10 @@ export function BasicInfoForm({ config, onChange, tenantId, showValidation = fal
               </ThemeIcon>
               <Box>
                 <Text size="sm" fw={500} c={theme.colors.slate[8]}>
-                  Set as Default Configuration
+                  {BASIC_INFO_LABELS.SET_AS_DEFAULT}
                 </Text>
                 <Text size="xs" c={theme.colors.slate[5]}>
-                  Use this configuration for new releases by default
+                  {BASIC_INFO_LABELS.SET_AS_DEFAULT_DESCRIPTION}
                 </Text>
               </Box>
             </Group>

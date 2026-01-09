@@ -5,20 +5,21 @@
  * Receives ALL expected platforms - determines internally which have builds and which need uploads
  */
 
-import { Badge, Card, Stack, Text, Group, Loader, Alert } from '@mantine/core';
+import { Card, Stack, Text, Group, Loader, Alert } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useMemo, useState, useEffect } from 'react';
 import { useRouteLoaderData } from '@remix-run/react';
 import { useRelease } from '~/hooks/useRelease';
 import { useBuildArtifacts } from '~/hooks/useReleaseProcess';
 import { usePermissions } from '~/hooks/usePermissions';
-import { BuildUploadStage, Platform, TaskType } from '~/types/release-process-enums';
+import { BuildUploadStage, Platform, TaskType, TaskStage } from '~/types/release-process-enums';
 import type { BuildInfo } from '~/types/release-process.types';
 import type { OrgLayoutLoaderData } from '~/routes/dashboard.$org';
 import { ChangeBuildHeader } from './builds/ChangeBuildHeader';
 import { FileUploadSection } from './builds/FileUploadSection';
 import { TestFlightVerificationSection } from './builds/TestFlightVerificationSection';
 import { UploadedBuildDisplay } from './builds/UploadedBuildDisplay';
+import { PlatformBadge } from '~/components/Common/AppBadge';
 
 interface ManualBuildUploadWidgetProps {
   tenantId: string;
@@ -64,11 +65,11 @@ export function ManualBuildUploadWidget({
   const buildStage = useMemo(() => {
     switch (stage) {
       case BuildUploadStage.PRE_REGRESSION:
-        return 'KICKOFF';
+        return TaskStage.KICKOFF;
       case BuildUploadStage.REGRESSION:
-        return 'REGRESSION';
+        return TaskStage.REGRESSION;
       case BuildUploadStage.PRE_RELEASE:
-        return 'PRE_RELEASE';
+        return TaskStage.PRE_RELEASE;
       default:
         return undefined;
     }
@@ -202,9 +203,7 @@ export function ManualBuildUploadWidget({
           return (
             <Stack key={platform} gap="sm">
               {/* Platform Badge */}
-              <Badge size="sm" variant="light" style={{ alignSelf: 'flex-start' }}>
-                {platform}
-              </Badge>
+              <PlatformBadge platform={platform} size="sm" />
 
               {/* Show loading state if recently uploaded */}
               {isLoading && (

@@ -3,11 +3,14 @@
  * Displays preview information for a selected workflow
  */
 
-import { Card, Stack, Group, Badge, Text } from '@mantine/core';
+import { Card, Stack, Group, Text } from '@mantine/core';
 import { IconServer, IconBrandGithub } from '@tabler/icons-react';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
 import { BUILD_PROVIDERS } from '~/types/release-config-constants';
 import { workflowTypeToEnvironment } from '~/types/workflow-mappings';
+import { PlatformBadge, AppBadge } from '~/components/Common/AppBadge';
+import { getBuildProviderLabel } from '~/constants/release-config-ui';
+import { ENVIRONMENT_LABELS } from '~/constants/release-config-ui';
 
 interface WorkflowPreviewCardProps {
   workflow: CICDWorkflow;
@@ -162,15 +165,19 @@ export function WorkflowPreviewCard({ workflow }: WorkflowPreviewCardProps) {
         </Group>
 
         <Group gap="xs">
-          <Badge size="sm" color={isJenkins ? 'red' : 'dark'}>
-            {workflow.providerType.replace('_', ' ')}
-          </Badge>
-          <Badge size="sm" color="blue">
-            {workflow.platform}
-          </Badge>
-          <Badge size="sm" color="grape">
-            {environment}
-          </Badge>
+          <AppBadge
+            type="build-provider"
+            value={workflow.providerType}
+            title={getBuildProviderLabel(workflow.providerType)}
+            size="sm"
+          />
+          <PlatformBadge platform={workflow.platform} size="sm" />
+          <AppBadge
+            type="build-environment"
+            value={environment}
+            title={ENVIRONMENT_LABELS[environment as keyof typeof ENVIRONMENT_LABELS] || environment}
+            size="sm"
+          />
         </Group>
 
         <div className="bg-white rounded p-2 border border-gray-200">

@@ -4,4 +4,6 @@ export { PageLoader } from './PageLoader';
 export { PageError } from './PageError';
 export { Breadcrumb } from './Breadcrumb';
 export type { BreadcrumbItem } from './Breadcrumb';
+export { AppBadge, PlatformBadge, TargetBadge, PlatformTargetBadge } from './AppBadge';
+export type { AppBadgeProps } from './AppBadge';
 

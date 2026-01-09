@@ -7,7 +7,7 @@
  */
 
 import type { TargetPlatform, Platform } from '~/types/release-config';
-import { PLATFORMS } from '~/types/release-config-constants';
+import { PLATFORMS, TARGET_PLATFORMS } from '~/types/release-config-constants';
 
 /**
  * Backend TestPlatform enum (matches backend API contract)
@@ -99,7 +99,7 @@ export function getTestPlatformsForTargets(selectedTargets: TargetPlatform[]): B
  */
 export function getPlatformForTarget(target: TargetPlatform): Platform {
   // WEB doesn't have a mobile platform, use ANDROID as fallback
-  if (target === 'WEB') {
+  if (target === TARGET_PLATFORMS.WEB) {
     return PLATFORMS.ANDROID;
   }
   const testPlatform = targetToTestPlatform(target);
@@ -139,7 +139,7 @@ export function groupTargetsByPlatform(selectedTargets: TargetPlatform[]): Parti
 
   selectedTargets.forEach(target => {
     // Skip WEB target as it doesn't map to mobile platforms
-    if (target === 'WEB') return;
+    if (target === TARGET_PLATFORMS.WEB) return;
     
     const platform = getPlatformForTarget(target);
     if (!grouped[platform]) {

@@ -14,7 +14,6 @@ import {
   Paper,
   Group,
   Text,
-  Badge,
   ActionIcon,
   Stack,
   Button,
@@ -29,6 +28,7 @@ import { IconEdit, IconTrash, IconCheck, IconX } from '@tabler/icons-react';
 import type { RegressionBuildSlotBackend } from '~/types/release-creation-backend';
 import { validateSlot } from '~/utils/regression-slot-validation';
 import { REGRESSION_SLOT_CARD } from '~/constants/release-creation-ui';
+import { AppBadge } from '~/components/Common/AppBadge';
 
 interface RegressionSlotCardForReleaseProps {
   slot: RegressionBuildSlotBackend;
@@ -128,13 +128,20 @@ export function RegressionSlotCardForRelease({
         <Group justify="space-between" align="flex-start">
           <Box style={{ flex: 1 }}>
             <Group gap="xs" align="center" mb={4}>
-              <Badge size="sm" variant="light" color="grape">
-                {index === -1 ? REGRESSION_SLOT_CARD.NEW_SLOT : REGRESSION_SLOT_CARD.SLOT_NUMBER(index)}
-              </Badge>
+              <AppBadge
+                type="status"
+                value="info"
+                title={index === -1 ? REGRESSION_SLOT_CARD.NEW_SLOT : REGRESSION_SLOT_CARD.SLOT_NUMBER(index)}
+                size="sm"
+                color="grape"
+              />
               {isPastSlot && isAfterKickoff && (
-                <Badge size="sm" variant="light" color="orange">
-                  {REGRESSION_SLOT_CARD.PAST_SLOT}
-                </Badge>
+                <AppBadge
+                  type="status"
+                  value="warning"
+                  title={REGRESSION_SLOT_CARD.PAST_SLOT}
+                  size="sm"
+                />
               )}
             </Group>
             <Text size="sm" fw={500} mb={4}>
@@ -148,9 +155,13 @@ export function RegressionSlotCardForRelease({
               })}
             </Text>
             {localSlot.config.regressionBuilds && (
-              <Badge size="xs" variant="light" color="brand" mt={4}>
-                {REGRESSION_SLOT_CARD.REGRESSION_BUILDS_ENABLED}
-              </Badge>
+              <AppBadge
+                type="status"
+                value="info"
+                title={REGRESSION_SLOT_CARD.REGRESSION_BUILDS_ENABLED}
+                size="xs"
+                mt={4}
+              />
             )}
             {isPastSlot && isAfterKickoff && (
               <Alert icon={<IconX size={14} />} color="orange" variant="light" mt="xs">

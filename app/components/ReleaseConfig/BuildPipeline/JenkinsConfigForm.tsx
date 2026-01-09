@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { TextInput, Select, Stack, Button, Text, Group, Alert, LoadingOverlay, Card, Badge } from '@mantine/core';
+import { TextInput, Select, Stack, Button, Text, Group, Alert, LoadingOverlay, Card } from '@mantine/core';
 import { IconPlus, IconTrash, IconRefresh, IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import { apiPost, getApiErrorMessage } from '~/utils/api-client';
 import type { JenkinsConfig } from '~/types/release-config';
@@ -12,6 +12,7 @@ import type { JenkinsConfigFormProps } from '~/types/release-config-props';
 import type { WorkflowParameter } from '~/.server/services/ReleaseManagement/integrations';
 import { FIELD_LABELS, PLACEHOLDERS, BUTTON_LABELS } from '~/constants/release-config-ui';
 import { BUILD_PROVIDERS } from '~/types/release-config-constants';
+import { AppBadge } from '~/components/Common/AppBadge';
 
 export function JenkinsConfigForm({
   config,
@@ -273,13 +274,19 @@ export function JenkinsConfigForm({
                         {param.name}
                       </Text>
                       {param.required && (
-                        <Badge size="xs" color="red">
-                          Required
-                        </Badge>
+                        <AppBadge
+                          type="status"
+                          value="error"
+                          title="Required"
+                          size="xs"
+                        />
                       )}
-                      <Badge size="xs" color="gray">
-                        {param.type}
-                      </Badge>
+                      <AppBadge
+                        type="status"
+                        value="neutral"
+                        title={param.type}
+                        size="xs"
+                      />
                     </Group>
                     {!param.required && (
                       <Button

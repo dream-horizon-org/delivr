@@ -10,7 +10,7 @@ export function NoIntegrationsAlert() {
   return (
     <Alert
       icon={<IconInfoCircle size={18} />}
-      color="red"
+      color="yellow"
       variant="light"
       title="No CI/CD Integrations Connected"
     >

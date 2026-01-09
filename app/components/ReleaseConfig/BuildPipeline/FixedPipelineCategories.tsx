@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Stack, Card, Text, Button, Badge, Group, LoadingOverlay } from '@mantine/core';
+import { Stack, Card, Text, Button, Group, LoadingOverlay } from '@mantine/core';
 import { IconPlus, IconPencil, IconTrash, IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import { apiGet } from '~/utils/api-client';
 import type { Workflow } from '~/types/release-config';
@@ -26,6 +26,7 @@ import {
   FIELD_LABELS,
 } from '~/constants/release-config-ui';
 import { getBuildProviderLabel } from '~/utils/ui-utils';
+import { TargetBadge, AppBadge } from '~/components/Common/AppBadge';
 
 export function FixedPipelineCategories({
   pipelines,
@@ -174,12 +175,20 @@ export function FixedPipelineCategories({
         </Text>
         
         <Group gap="sm" className="mb-4">
-          <Badge color={needsAndroid ? BADGE_COLORS.INFO : BADGE_COLORS.NEUTRAL} variant="light">
-            {needsAndroid ? `✓ ${TARGET_PLATFORM_LABELS.PLAY_STORE}` : TARGET_PLATFORM_LABELS.PLAY_STORE}: {androidCategories.length} pipelines
-          </Badge>
-          <Badge color={needsIOS ? BADGE_COLORS.INFO : BADGE_COLORS.NEUTRAL} variant="light">
-            {needsIOS ? `✓ ${TARGET_PLATFORM_LABELS.APP_STORE}` : TARGET_PLATFORM_LABELS.APP_STORE}: {iosCategories.length} pipelines
-          </Badge>
+          <AppBadge
+            type="target"
+            value="PLAY_STORE"
+            title={`${needsAndroid ? '✓ ' : ''}${TARGET_PLATFORM_LABELS.PLAY_STORE}: ${androidCategories.length} pipelines`}
+            size="sm"
+            color={needsAndroid ? 'blue' : 'gray'}
+          />
+          <AppBadge
+            type="target"
+            value="APP_STORE"
+            title={`${needsIOS ? '✓ ' : ''}${TARGET_PLATFORM_LABELS.APP_STORE}: ${iosCategories.length} pipelines`}
+            size="sm"
+            color={needsIOS ? 'blue' : 'gray'}
+          />
         </Group>
 
         {showValidation && missingRequired.length > 0 && (
@@ -222,24 +231,30 @@ export function FixedPipelineCategories({
                       {category.label}
                     </Text>
                     {category.environment === BUILD_ENVIRONMENTS.AAB_BUILD && (
-                      <Badge size="sm" variant="outline" color="gray">
-                        .aab
-                      </Badge>
+                      <AppBadge
+                        type="status"
+                        value="neutral"
+                        title=".aab"
+                        size="sm"
+                        variant="outline"
+                      />
                     )}
                     {category.required && (
-                      <Badge color={BADGE_COLORS.ERROR} size="sm" variant="light">
-                        {STATUS_LABELS.REQUIRED}
-                      </Badge>
+                      <AppBadge
+                        type="status"
+                        value="error"
+                        title={STATUS_LABELS.REQUIRED}
+                        size="sm"
+                      />
                     )}
                     {isConfigured && (
-                      <Badge 
-                        color={BADGE_COLORS.SUCCESS} 
-                        size="sm" 
-                        variant="light"
+                      <AppBadge
+                        type="status"
+                        value="success"
+                        title={STATUS_LABELS.CONFIGURED}
+                        size="sm"
                         leftSection={<IconCheck size={12} />}
-                      >
-                        {STATUS_LABELS.CONFIGURED}
-                      </Badge>
+                      />
                     )}
                   </Group>
                   
@@ -262,9 +277,12 @@ export function FixedPipelineCategories({
                         </div>
                         <div>
                           <Text size="xs" c="dimmed">{FIELD_LABELS.STATUS}</Text>
-                          <Badge color={pipeline.enabled ? BADGE_COLORS.SUCCESS : BADGE_COLORS.NEUTRAL} size="sm">
-                            {pipeline.enabled ? STATUS_LABELS.ENABLED : STATUS_LABELS.DISABLED}
-                          </Badge>
+                          <AppBadge
+                            type="status"
+                            value={pipeline.enabled ? 'success' : 'neutral'}
+                            title={pipeline.enabled ? STATUS_LABELS.ENABLED : STATUS_LABELS.DISABLED}
+                            size="sm"
+                          />
                         </div>
                         {pipeline.provider === BUILD_PROVIDERS.JENKINS && (
                           <div>

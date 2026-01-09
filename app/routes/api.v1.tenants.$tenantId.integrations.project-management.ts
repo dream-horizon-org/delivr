@@ -11,6 +11,7 @@ import type { User } from '~/.server/services/Auth/auth.interface';
 import { ProjectManagementIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 import type { ProjectManagementProviderType } from '~/.server/services/ReleaseManagement/integrations';
 import { logApiError } from '~/utils/api-route-helpers';
+import { INTEGRATION_TYPES } from '~/types/release-config-constants';
 
 /**
  * GET - Get PM integration for tenant (optionally filtered by providerType)
@@ -73,7 +74,7 @@ const createPMAction = async ({
 
   try {
     const body = await request.json();
-    const providerType = (body.providerType || 'JIRA').toUpperCase() as ProjectManagementProviderType;
+    const providerType = (body.providerType || INTEGRATION_TYPES.JIRA).toUpperCase() as ProjectManagementProviderType;
 
     // Transform Jira-specific fields to generic format
     const config: any = body.config || {};

@@ -8,6 +8,7 @@
 import type { ReleaseCreationState, ValidationResult } from '~/types/release-creation-backend';
 import { combineDateAndTime } from './release-creation-converter';
 import { RELEASE_ACTIVE_STATUS } from '~/constants/release-ui';
+import { PLATFORMS, TARGET_PLATFORMS } from '~/types/release-config-constants';
 
 /**
  * Validate release creation state
@@ -43,12 +44,14 @@ export function validateReleaseCreationState(
         errors[`platformTargets[${index}]`] = 'Platform, target, and version are required';
       } else {
         // Validate platform
-        if (!['ANDROID', 'IOS', 'WEB'].includes(pt.platform)) {
+        const validPlatforms = [PLATFORMS.ANDROID, PLATFORMS.IOS, TARGET_PLATFORMS.WEB];
+        if (!validPlatforms.includes(pt.platform as any)) {
           errors[`platformTargets[${index}].platform`] = `Invalid platform: ${pt.platform}`;
         }
 
         // Validate target
-        if (!['PLAY_STORE', 'APP_STORE', 'WEB'].includes(pt.target)) {
+        const validTargets = [TARGET_PLATFORMS.PLAY_STORE, TARGET_PLATFORMS.APP_STORE, TARGET_PLATFORMS.WEB];
+        if (!validTargets.includes(pt.target as any)) {
           errors[`platformTargets[${index}].target`] = `Invalid target: ${pt.target}`;
         }
 
@@ -63,13 +66,13 @@ export function validateReleaseCreationState(
         }
 
         // Validate platform-target combinations
-        if (pt.platform === 'ANDROID' && pt.target !== 'PLAY_STORE') {
+        if (pt.platform === PLATFORMS.ANDROID && pt.target !== TARGET_PLATFORMS.PLAY_STORE) {
           errors[`platformTargets[${index}]`] = 'ANDROID platform must target PLAY_STORE';
         }
-        if (pt.platform === 'IOS' && pt.target !== 'APP_STORE') {
+        if (pt.platform === PLATFORMS.IOS && pt.target !== TARGET_PLATFORMS.APP_STORE) {
           errors[`platformTargets[${index}]`] = 'IOS platform must target APP_STORE';
         }
-        if (pt.platform === 'WEB' && pt.target !== 'WEB') {
+        if (pt.platform === TARGET_PLATFORMS.WEB && pt.target !== TARGET_PLATFORMS.WEB) {
           errors[`platformTargets[${index}]`] = 'WEB platform must target WEB';
         }
       }

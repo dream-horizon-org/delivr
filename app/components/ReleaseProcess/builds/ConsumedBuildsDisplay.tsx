@@ -8,7 +8,6 @@
 import { useMemo, useState } from 'react';
 import {
   Anchor,
-  Badge,
   Button,
   Group,
   Loader,
@@ -31,6 +30,8 @@ import { useDownloadBuildArtifact } from '~/hooks/useReleaseProcess';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
 import { BUILD_DISPLAY_LABELS } from '~/constants/release-process-ui';
 import { BUILD_DOWNLOAD_MESSAGES, BUILD_COPY_MESSAGES } from '~/constants/toast-messages';
+import { PlatformBadge, AppBadge } from '~/components/Common/AppBadge';
+import { TARGET_PLATFORM_LABELS } from '~/constants/release-config-ui';
 
 // ============================================================================
 // Types & Interfaces
@@ -91,35 +92,59 @@ function BuildBadges({
   artifactVersionName,
   buildNumber,
 }: BuildBadgesProps) {
+  // Get store type label
+  const storeTypeLabel = storeType 
+    ? TARGET_PLATFORM_LABELS[storeType as keyof typeof TARGET_PLATFORM_LABELS] || storeType
+    : null;
+  
+  // Get build type label
+  const buildTypeLabel = buildType === BuildType.MANUAL 
+    ? 'Manual'
+    : buildType === BuildType.CI_CD
+    ? 'CI/CD'
+    : buildType;
+
   return (
     <Group justify="space-between" align="center" gap="md" wrap="wrap">
       {/* Left side: Badges */}
       <Group gap="xs" wrap="wrap">
         {platform && (
-          <Badge size="sm" variant="light" style={{ alignSelf: 'flex-start' }}>
-            {platform}
-          </Badge>
+          <PlatformBadge platform={platform} size="sm" />
         )}
-        {storeType && (
-          <Badge size="sm" variant="light" color="blue">
-            {storeType}
-          </Badge>
+        {storeType && storeTypeLabel && (
+          <AppBadge 
+            type="store-type" 
+            value={storeType} 
+            title={storeTypeLabel}
+            size="sm"
+          />
         )}
-        {buildType && (
-          <Badge size="sm" variant="light" color="gray">
-            {buildType}
-          </Badge>
+        {buildType && buildTypeLabel && (
+          <AppBadge 
+            type="build-type" 
+            value={buildType} 
+            title={buildTypeLabel}
+            size="sm"
+          />
         )}
         {/* CI/CD Status Badge */}
         {isCICD && isRunning && (
-          <Badge size="sm" variant="light" color="blue" leftSection={<Loader size={12} />}>
-            {BUILD_DISPLAY_LABELS.RUNNING}
-          </Badge>
+          <AppBadge 
+            type="cicd-status" 
+            value="running" 
+            title={BUILD_DISPLAY_LABELS.RUNNING}
+            size="sm"
+            leftSection={<Loader size={12} />}
+          />
         )}
         {isCICD && isFailed && (
-          <Badge size="sm" variant="light" color="red" leftSection={<IconX size={12} />}>
-            {BUILD_DISPLAY_LABELS.FAILED}
-          </Badge>
+          <AppBadge 
+            type="cicd-status" 
+            value="failed" 
+            title={BUILD_DISPLAY_LABELS.FAILED}
+            size="sm"
+            leftSection={<IconX size={12} />}
+          />
         )}
       </Group>
       
@@ -150,23 +175,33 @@ interface PlatformStatusBadgesProps {
 function PlatformStatusBadges({ platform, isRunningWithJob, isQueued, isFailed }: PlatformStatusBadgesProps) {
   return (
     <Group gap="xs" wrap="wrap">
-      <Badge size="sm" variant="light" style={{ alignSelf: 'flex-start' }}>
-        {platform}
-      </Badge>
+      <PlatformBadge platform={platform} size="sm" />
       {isRunningWithJob && (
-        <Badge size="sm" variant="light" color="blue" leftSection={<Loader size={12} />}>
-          {BUILD_DISPLAY_LABELS.RUNNING}
-        </Badge>
+        <AppBadge 
+          type="cicd-status" 
+          value="running" 
+          title={BUILD_DISPLAY_LABELS.RUNNING}
+          size="sm"
+          leftSection={<Loader size={12} />}
+        />
       )}
       {isQueued && (
-        <Badge size="sm" variant="light" color="gray" leftSection={<IconClock size={12} />}>
-          {BUILD_DISPLAY_LABELS.QUEUED}
-        </Badge>
+        <AppBadge 
+          type="cicd-status" 
+          value="queued" 
+          title={BUILD_DISPLAY_LABELS.QUEUED}
+          size="sm"
+          leftSection={<IconClock size={12} />}
+        />
       )}
       {isFailed && (
-        <Badge size="sm" variant="light" color="red" leftSection={<IconX size={12} />}>
-          {BUILD_DISPLAY_LABELS.FAILED}
-        </Badge>
+        <AppBadge 
+          type="cicd-status" 
+          value="failed" 
+          title={BUILD_DISPLAY_LABELS.FAILED}
+          size="sm"
+          leftSection={<IconX size={12} />}
+        />
       )}
     </Group>
   );

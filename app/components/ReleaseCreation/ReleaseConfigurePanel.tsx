@@ -3,11 +3,12 @@
  * Simplified configuration with only 2 boolean toggles
  */
 
-import { Stack, Text, Card, Switch, Alert, Group, Badge } from '@mantine/core';
+import { Stack, Text, Card, Switch, Alert, Group } from '@mantine/core';
 import { IconSettings, IconTestPipe, IconInfoCircle } from '@tabler/icons-react';
 import type { CronConfig } from '~/types/release-creation-backend';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
+import { AppBadge } from '~/components/Common/AppBadge';
 
 interface ReleaseConfigurePanelProps {
   config?: ReleaseConfiguration; // The selected configuration
@@ -118,9 +119,12 @@ export function ReleaseConfigurePanel({
             <Text fw={600} size="sm">
               Pre-Regression Builds
             </Text>
-            <Badge size="xs" variant="light">
-              Available in Config
-            </Badge>
+            <AppBadge
+              type="status"
+              value="info"
+              title="Available in Config"
+              size="xs"
+            />
           </Group>
 
           <Switch
@@ -165,9 +169,12 @@ export function ReleaseConfigurePanel({
             <Text fw={600} size="sm">
               Test Management (Checkmate)
             </Text>
-            <Badge size="xs" variant="light" color="green">
-              Available in Config
-            </Badge>
+            <AppBadge
+              type="status"
+              value="success"
+              title="Available in Config"
+              size="xs"
+            />
           </Group>
 
           <Switch

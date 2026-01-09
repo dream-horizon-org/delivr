@@ -3,7 +3,7 @@ import { useParams, useRouteLoaderData, useSearchParams } from '@remix-run/react
 import { useQueryClient } from 'react-query';
 import { 
   Box, 
-  Title, 
+  Container,
   Text, 
   Tabs, 
   Group, 
@@ -16,7 +16,9 @@ import {
   Center,
   Paper,
 } from '@mantine/core';
+import { StandardizedTabs, type TabConfig } from '~/components/Common/StandardizedTabs';
 import { Breadcrumb } from '~/components/Common';
+import { PageHeader } from '~/components/Common/PageHeader';
 import { getBreadcrumbItems } from '~/constants/breadcrumbs';
 import { 
   IconPlug, 
@@ -41,15 +43,16 @@ import { INTEGRATION_MESSAGES } from '~/constants/toast-messages';
 import { showSuccessToast, showInfoToast } from '~/utils/toast';
 import { usePermissions } from '~/hooks/usePermissions';
 import type { OrgLayoutLoaderData } from '~/routes/dashboard.$org';
+import { INTEGRATIONS_PAGE_HEADER } from '~/constants/page-headers';
 
 // Category icons mapping
-const CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  SOURCE_CONTROL: <IconBrandGithub size={18} />,
-  COMMUNICATION: <IconBrandSlack size={18} />,
-  CI_CD: <IconRocket size={18} />,
-  TEST_MANAGEMENT: <IconTestPipe size={18} />,
-  PROJECT_MANAGEMENT: <IconLayoutKanban size={18} />,
-  APP_DISTRIBUTION: <IconApps size={18} />,
+const CATEGORY_ICONS: Record<string, React.ComponentType<any>> = {
+  SOURCE_CONTROL: IconBrandGithub,
+  COMMUNICATION: IconBrandSlack,
+  CI_CD: IconRocket,
+  TEST_MANAGEMENT: IconTestPipe,
+  PROJECT_MANAGEMENT: IconLayoutKanban,
+  APP_DISTRIBUTION: IconApps,
 };
 
 // Category descriptions
@@ -237,7 +240,7 @@ export default function IntegrationsPage() {
   // Loading state
   if (isLoading) {
     return (
-      <Box>
+      <Container size="xl" py={16}>
         {/* Header skeleton */}
         <Box mb={32}>
           <Skeleton height={36} width={200} mb={8} />
@@ -257,7 +260,7 @@ export default function IntegrationsPage() {
             <Skeleton key={i} height={200} radius="md" />
           ))}
         </SimpleGrid>
-      </Box>
+      </Container>
     );
   }
 
@@ -266,16 +269,14 @@ export default function IntegrationsPage() {
 
   if (hasNoIntegrations) {
     return (
-      <Box>
+      <Container size="xl" py={16}>
         <Breadcrumb items={breadcrumbItems} mb={16} />
-        <Box mb={32}>
-          <Title order={2} fw={700} c={theme.colors.slate[9]} mb={4}>
-            Integrations
-          </Title>
-          <Text size="md" c={theme.colors.slate[5]}>
-            Connect external services to enhance your release management workflow
-          </Text>
-        </Box>
+        <PageHeader
+          title={INTEGRATIONS_PAGE_HEADER.TITLE}
+          description={INTEGRATIONS_PAGE_HEADER.DESCRIPTION}
+          icon={IconPlug}
+          descriptionMaxWidth={600}
+        />
 
         <Center py={80}>
           <Stack align="center" gap="md">
@@ -291,89 +292,44 @@ export default function IntegrationsPage() {
             </Text>
           </Stack>
         </Center>
-      </Box>
+      </Container>
     );
   }
 
   return (
-    <Box>
+    <Container size="xl" py={16}>
       {/* Breadcrumb */}
       <Breadcrumb items={breadcrumbItems} mb={16} />
       
       {/* Header Section */}
-      <Box mb={32}>
-        <Group justify="space-between" align="flex-start">
-          <Box>
-            <Group gap="md" mb={4}>
-              <Title order={2} fw={700} c={theme.colors.slate[9]}>
-                Integrations
-              </Title>
-
-            </Group>
-            <Text size="md" c={theme.colors.slate[5]} maw={600}>
-              Connect external services to enhance your release management workflow.
-            </Text>
-          </Box>
-        </Group>
-      </Box>
+      <PageHeader
+        title={INTEGRATIONS_PAGE_HEADER.TITLE}
+        description={INTEGRATIONS_PAGE_HEADER.DESCRIPTION}
+        icon={IconPlug}
+        descriptionMaxWidth={600}
+      />
 
       {/* Tabs Navigation */}
-      <Tabs 
-        value={validTab}
-        onChange={handleTabChange}
-        variant="default"
-        color="brand"
-        classNames={{
-          root: 'integrations-tabs-root',
-          list: 'integrations-tabs-list',
-          tab: 'integrations-tab',
-        }}
-        styles={{
-          list: {
-            borderBottom: `1px solid ${theme.colors.slate[2]}`,
-          },
-          tab: {
-            fontWeight: 500,
-            color: theme.colors.slate[6],
-            transition: 'color 150ms ease, border-color 150ms ease',
-          },
-        }}
-      >
-        <style>{`
-          .integrations-tab[data-active] {
-            color: ${theme.colors.brand[6]} !important;
-            border-bottom-color: ${theme.colors.brand[5]} !important;
-          }
-          .integrations-tab:hover {
-            background-color: ${theme.colors.slate[0]};
-          }
-        `}</style>
-        <Tabs.List>
-          {Object.keys(integrationsByCategory).map((category) => {
+      <StandardizedTabs
+        activeTab={validTab}
+        onTabChange={handleTabChange}
+        tabs={useMemo(() => 
+          Object.keys(integrationsByCategory).map((category) => {
             const categoryIntegrations = integrationsByCategory[category as IntegrationCategory] ?? [];
             const connectedInCategory = categoryIntegrations.filter(
               i => i.status === IntegrationStatus.CONNECTED
             ).length;
 
-            return (
-              <Tabs.Tab 
-                key={category} 
-                value={category}
-                leftSection={CATEGORY_ICONS[category]}
-                rightSection={
-                  connectedInCategory > 0 ? (
-                    <Badge size="xs" variant="filled" color="brand" radius="xl">
-                      {connectedInCategory}
-                    </Badge>
-                  ) : null
-                }
-              >
-                {INTEGRATION_CATEGORY_LABELS[category] ?? category}
-              </Tabs.Tab>
-            );
-          })}
-        </Tabs.List>
-
+            return {
+              value: category,
+              label: INTEGRATION_CATEGORY_LABELS[category] ?? category,
+              icon: CATEGORY_ICONS[category],
+              count: connectedInCategory > 0 ? connectedInCategory : undefined,
+            };
+          }),
+          [integrationsByCategory]
+        )}
+      >
         {Object.entries(integrationsByCategory).map(([category, integrations]) => (
           <Tabs.Panel key={category} value={category}>
             {/* Category Description */}
@@ -393,7 +349,10 @@ export default function IntegrationsPage() {
                   variant="light" 
                   color="brand"
                 >
-                  {CATEGORY_ICONS[category]}
+                  {(() => {
+                    const IconComponent = CATEGORY_ICONS[category];
+                    return IconComponent ? <IconComponent size={18} /> : null;
+                  })()}
                 </ThemeIcon>
                 <Box>
                   <Text size="sm" fw={600} c={theme.colors.slate[8]}>
@@ -419,7 +378,7 @@ export default function IntegrationsPage() {
             </SimpleGrid>
           </Tabs.Panel>
         ))}
-      </Tabs>
+      </StandardizedTabs>
 
       {/* Modals */}
       <IntegrationDetailModal
@@ -439,7 +398,7 @@ export default function IntegrationsPage() {
         isEditMode={!!editingIntegration}
         existingData={editingIntegration?.config}
       />
-    </Box>
+    </Container>
   );
 }
 

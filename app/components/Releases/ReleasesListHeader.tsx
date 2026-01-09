@@ -5,10 +5,12 @@
 
 import { memo } from 'react';
 import { Link, useRouteLoaderData } from '@remix-run/react';
-import { Title, Text, Group, Button } from '@mantine/core';
+import { Button } from '@mantine/core';
 import { IconRocket } from '@tabler/icons-react';
 import { usePermissions } from '~/hooks/usePermissions';
 import type { OrgLayoutLoaderData } from '~/routes/dashboard.$org';
+import { RELEASES_PAGE_HEADER } from '~/constants/page-headers';
+import { PageHeader } from '~/components/Common/PageHeader';
 
 interface ReleasesListHeaderProps {
   org: string;
@@ -23,23 +25,18 @@ export const ReleasesListHeader = memo(function ReleasesListHeader({
   const { isEditor } = usePermissions(org, userId);
 
   return (
-    <div className="mb-8">
-      <Group justify="space-between" align="flex-start">
-        <div>
-          <Title order={1} className="mb-2">
-            Releases
-          </Title>
-          <Text size="md" c="dimmed">
-            Manage and track your release pipeline
-          </Text>
-        </div>
-        {org && isEditor && (
+    <PageHeader
+      title={RELEASES_PAGE_HEADER.TITLE}
+      description={RELEASES_PAGE_HEADER.DESCRIPTION}
+      icon={IconRocket}
+      rightSection={
+        org && isEditor ? (
           <Link to={`/dashboard/${org}/releases/create`}>
             <Button leftSection={<IconRocket size={16} />}>Create Release</Button>
           </Link>
-        )}
-      </Group>
-    </div>
+        ) : undefined
+      }
+    />
   );
 });
 

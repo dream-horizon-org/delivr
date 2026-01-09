@@ -45,12 +45,6 @@ export function ReleaseFrequencySelector({
             {selectedOption.description}
           </Text>
         )}
-        
-        <div className="bg-blue-50 p-3 rounded-lg">
-          <Text size="sm" fw={500} className="text-blue-900">
-            {SCHEDULING_LABELS.ESTIMATED_DAYS}: {selectedOption?.days || 0}
-          </Text>
-        </div>
       </Stack>
     </Card>
   );

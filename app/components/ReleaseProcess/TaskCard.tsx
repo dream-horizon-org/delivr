@@ -6,7 +6,6 @@
 
 import {
   Accordion,
-  Badge,
   Button,
   Group,
   Paper,
@@ -29,6 +28,7 @@ import {
 } from '~/constants/release-process-ui';
 import { TaskStatus, TaskType } from '~/types/release-process-enums';
 import type { BuildInfo, Task } from '~/types/release-process.types';
+import { AppBadge } from '~/components/Common/AppBadge';
 import { BuildTaskDetails } from './BuildTaskDetails';
 import {
   CreateFinalReleaseNotesTaskDetails,
@@ -220,14 +220,14 @@ export function TaskCard({
                   {typeLabel}
                 </Text>
                 <Group gap="xs">
-                  <Badge
-                    color={statusColor}
-                    variant="light"
+                  <AppBadge
+                    type="status"
+                    value={statusColor === 'green' ? 'success' : statusColor === 'red' ? 'error' : statusColor === 'yellow' ? 'warning' : 'info'}
+                    title={statusLabel}
                     size="sm"
+                    color={statusColor}
                     style={{ fontSize: '0.7rem' }}
-                  >
-                    {statusLabel}
-                  </Badge>
+                  />
                   {task.updatedAt && (
                     <Text size="xs" c="dimmed">
                       Updated {formatTimeAgo(task.updatedAt)}

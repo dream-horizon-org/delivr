@@ -3,7 +3,7 @@
  * Modern, clean card design with improved information hierarchy
  */
 
-import { Badge, Box, Card, Group, Stack, Text, useMantineTheme, Divider, Menu, Modal, Button } from '@mantine/core';
+import { Box, Card, Group, Stack, Text, useMantineTheme, Divider, Menu, Modal, Button } from '@mantine/core';
 import { Link, useSearchParams } from '@remix-run/react';
 import { 
   IconCalendar, 
@@ -32,6 +32,7 @@ import { RELEASE_TYPES } from '~/types/release-config-constants';
 import { ConfigurationPreviewModal } from '~/components/ReleaseSettings/ConfigurationPreviewModal';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
 import { getApiErrorMessage } from '~/utils/api-client';
+import { PlatformTargetBadge, AppBadge } from '~/components/Common/AppBadge';
 
 /**
  * Release Card Component - Modern Clean Design
@@ -176,55 +177,58 @@ export const ReleaseCard = memo(function ReleaseCard({
                 
                 {/* Release Type and Status Badges - Combined with Active Status */}
                 <Group gap="xs" wrap="wrap">
-                  <Badge
+                  <AppBadge
+                    type="release-type"
+                    value={release.type}
+                    title={release.type.toLowerCase()}
                     size="sm"
-                    variant="light"
-                    color={getReleaseTypeColor(release.type)}
-                    style={{ textTransform: 'capitalize' }}
-                  >
-                    {release.type.toLowerCase()}
-                  </Badge>
+                  />
                   
-                  {phase && (
-                    <Badge
+                  {/* Status badge - always show for archived, otherwise show if status exists and not paused */}
+                  {status && (status === ReleaseStatus.ARCHIVED || !isPaused) && (
+                    <AppBadge
+                      type="status"
+                      value={getReleaseStatusColor(status) === 'green' ? 'success' : getReleaseStatusColor(status) === 'red' ? 'error' : getReleaseStatusColor(status) === 'yellow' ? 'warning' : 'info'}
+                      title={getReleaseStatusLabel(status)}
                       size="sm"
-                      variant="light"
-                      color={getPhaseColor(phase)}
-                    >
-                      {getPhaseLabel(phase)}
-                    </Badge>
-                  )}
-                  
-                  {status && !isPaused && (
-                    <Badge
-                      size="sm"
-                      variant="light"
                       color={getReleaseStatusColor(status)}
-                    >
-                      {getReleaseStatusLabel(status)}
-                    </Badge>
+                    />
                   )}
 
-                  {/* Show active status combined with paused if applicable */}
-                  {isPaused ? (
-                    <Badge
-                      size="sm"
-                      variant="light"
-                      color="orange"
-                      leftSection={<IconPlayerPause size={12} />}
-                    >
-                      Paused
-                    </Badge>
-                  ) : activeStatus && activeStatus !== ReleaseStatus.COMPLETED ? (
-                    <Badge
-                      size="sm"
-                      variant="light"
-                      color={activeStatusColor}
-                      style={{ textTransform: 'capitalize' }}
-                    >
-                      {activeStatus}
-                    </Badge>
-                  ) : null}
+                  {/* Only show phase, paused, and active status badges if NOT archived */}
+                  {status !== ReleaseStatus.ARCHIVED && (
+                    <>
+                      {phase && (
+                        <AppBadge
+                          type="status"
+                          value={getPhaseColor(phase) === 'green' ? 'success' : getPhaseColor(phase) === 'red' ? 'error' : getPhaseColor(phase) === 'yellow' ? 'warning' : 'info'}
+                          title={getPhaseLabel(phase)}
+                          size="sm"
+                          color={getPhaseColor(phase)}
+                        />
+                      )}
+
+                      {/* Show active status combined with paused if applicable */}
+                      {isPaused ? (
+                        <AppBadge
+                          type="status"
+                          value="warning"
+                          title="Paused"
+                          size="sm"
+                          leftSection={<IconPlayerPause size={12} />}
+                        />
+                      ) : activeStatus && activeStatus !== ReleaseStatus.COMPLETED ? (
+                        <AppBadge
+                          type="status"
+                          value={activeStatusColor === 'green' ? 'success' : activeStatusColor === 'red' ? 'error' : activeStatusColor === 'yellow' ? 'warning' : 'info'}
+                          title={activeStatus}
+                          size="sm"
+                          color={activeStatusColor}
+                          style={{ textTransform: 'capitalize' }}
+                        />
+                      ) : null}
+                    </>
+                  )}
                 </Group>
               </Stack>
 
@@ -304,17 +308,13 @@ export const ReleaseCard = memo(function ReleaseCard({
                 <Box>
                   <Group gap="xs" wrap="wrap">
                     {release.platformTargetMappings.map((mapping: any, idx: number) => (
-                      <Badge
+                      <PlatformTargetBadge
                         key={idx}
+                        platform={mapping.platform}
+                        target={mapping.target}
+                        version={mapping.version}
                         size="md"
-                        variant="light"
-                        color="brand"
-                        leftSection={<PlatformIcon platform={mapping.platform} size={14} />}
-                        style={{ textTransform: 'none' }}
-                      >
-                        {mapping.platform} → {mapping.target}
-                        {mapping.version && ` (${mapping.version})`}
-                      </Badge>
+                      />
                     ))}
                   </Group>
                 </Box>
@@ -387,32 +387,29 @@ export const ReleaseCard = memo(function ReleaseCard({
                 
                 {/* Show pilot info if available, otherwise show created by */}
                 {release.releasePilot ? (
-                  <Badge
+                  <AppBadge
+                    type="status"
+                    value="info"
+                    title={`Pilot: ${release.releasePilot.name || release.releasePilot.email}`}
                     size="sm"
-                    variant="light"
-                    color="brand"
                     style={{ textTransform: 'none' }}
-                  >
-                    Pilot: {release.releasePilot.name || release.releasePilot.email}
-                  </Badge>
+                  />
                 ) : release.releasePilotAccountId ? (
-                  <Badge
+                  <AppBadge
+                    type="status"
+                    value="info"
+                    title="Pilot: Unknown"
                     size="sm"
-                    variant="light"
-                    color="brand"
                     style={{ textTransform: 'none' }}
-                  >
-                    Pilot: Unknown
-                  </Badge>
+                  />
                 ) : release.createdBy ? (
-                  <Badge
+                  <AppBadge
+                    type="status"
+                    value="info"
+                    title="Created by: Unknown"
                     size="sm"
-                    variant="light"
-                    color="brand"
                     style={{ textTransform: 'none' }}
-                  >
-                    Created by: Unknown
-                  </Badge>
+                  />
                 ) : null}
               </Group>
             </Stack>

@@ -328,13 +328,13 @@ export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
         if (tenantId && releaseId) {
           let stageToInvalidate: TaskStage;
           switch (variables.stage) {
-            case 'PRE_REGRESSION':
+            case BuildUploadStage.PRE_REGRESSION:
               stageToInvalidate = TaskStage.KICKOFF;
               break;
-            case 'REGRESSION':
+            case BuildUploadStage.REGRESSION:
               stageToInvalidate = TaskStage.REGRESSION;
               break;
-            case 'PRE_RELEASE':
+            case BuildUploadStage.PRE_RELEASE:
               stageToInvalidate = TaskStage.PRE_RELEASE;
               break;
             default:
@@ -392,13 +392,13 @@ export function useVerifyTestFlight(tenantId?: string, releaseId?: string) {
         if (tenantId && releaseId) {
           let stageToInvalidate: TaskStage;
           switch (variables.stage) {
-            case 'PRE_REGRESSION':
+            case BuildUploadStage.PRE_REGRESSION:
               stageToInvalidate = TaskStage.KICKOFF;
               break;
-            case 'REGRESSION':
+            case BuildUploadStage.REGRESSION:
               stageToInvalidate = TaskStage.REGRESSION;
               break;
-            case 'PRE_RELEASE':
+            case BuildUploadStage.PRE_RELEASE:
               stageToInvalidate = TaskStage.PRE_RELEASE;
               break;
             default:

@@ -16,7 +16,6 @@ import {
   Text,
   Group,
   Box,
-  Badge,
   Loader as MantineLoader,
 } from '@mantine/core';
 import { apiGet } from '~/utils/api-client';
@@ -26,6 +25,7 @@ import { RELEASE_TYPES as RELEASE_TYPE_CONSTANTS, TARGET_PLATFORMS, PLATFORMS } 
 import { PlatformTargetsSelector } from './PlatformTargetsSelector';
 import { convertConfigTargetsToPlatformTargets } from '~/utils/release-creation-converter';
 import { RELEASE_DETAILS_FORM } from '~/constants/release-creation-ui';
+import { AppBadge } from '~/components/Common/AppBadge';
 
 interface ReleaseDetailsFormProps {
   state: Partial<ReleaseCreationState>;
@@ -211,11 +211,16 @@ export function ReleaseDetailsForm({
             {RELEASE_DETAILS_FORM.TITLE}
           </Text>
           {state.type && (
-            <Badge size="lg" variant="light" color="blue">
-              {state.type === RELEASE_TYPE_CONSTANTS.MAJOR && RELEASE_DETAILS_FORM.MAJOR_RELEASE}
-              {state.type === RELEASE_TYPE_CONSTANTS.MINOR && RELEASE_DETAILS_FORM.MINOR_RELEASE}
-              {state.type === RELEASE_TYPE_CONSTANTS.HOTFIX && RELEASE_DETAILS_FORM.HOTFIX}
-            </Badge>
+            <AppBadge
+              type="release-type"
+              value={state.type}
+              title={
+                state.type === RELEASE_TYPE_CONSTANTS.MAJOR ? RELEASE_DETAILS_FORM.MAJOR_RELEASE :
+                state.type === RELEASE_TYPE_CONSTANTS.MINOR ? RELEASE_DETAILS_FORM.MINOR_RELEASE :
+                RELEASE_DETAILS_FORM.HOTFIX
+              }
+              size="lg"
+            />
           )}
         </Group>
         <Text size="sm" c="dimmed">

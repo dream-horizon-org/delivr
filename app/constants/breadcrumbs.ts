@@ -13,7 +13,7 @@ export type BreadcrumbKey =
   | 'releases.list'
   | 'releases.detail'
   | 'releases.create'
-  | 'releases.settings'
+  | 'releases.configurations'
   | 'releases.configure'
   | 'releases.workflows.list'
   | 'releases.workflows.detail'
@@ -63,7 +63,7 @@ export function getBreadcrumbItems(
         { title: 'Create Release' },
       ];
 
-    case 'releases.settings':
+    case 'releases.configurations':
       return [
         { title: 'Release Management', href: `/dashboard/${org}/releases` },
         { title: 'Configurations' },
@@ -72,7 +72,7 @@ export function getBreadcrumbItems(
     case 'releases.configure':
       return [
         { title: 'Release Management', href: `/dashboard/${org}/releases` },
-        { title: 'Configuration', href: `/dashboard/${org}/releases/settings?tab=configurations` },
+        { title: 'Configuration', href: `/dashboard/${org}/releases/configurations` },
         { title: isEditMode ? 'Edit' : isCloneMode ? 'Clone' : 'New' },
       ];
 

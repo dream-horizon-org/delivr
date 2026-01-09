@@ -17,11 +17,8 @@ import {
   Center,
   Loader,
 } from '@mantine/core';
-import {
-  IconAlertCircle,
-  IconPlug,
-} from '@tabler/icons-react';
-import { Link, useParams } from '@remix-run/react';
+import { useParams } from '@remix-run/react';
+import { IconAlertCircle } from '@tabler/icons-react';
 import type { JiraProjectConfig, Platform, JiraPlatformConfig } from '~/types/release-config';
 import type { JiraProjectStepProps } from '~/types/release-config-props';
 import { PLATFORMS } from '~/types/release-config-constants';
@@ -30,6 +27,7 @@ import { DEFAULT_PROJECT_MANAGEMENT_CONFIG } from '~/constants/release-config';
 import { JiraPlatformConfigCard } from './JiraPlatformConfigCard';
 import { createDefaultPlatformConfigs } from '~/utils/jira-config-transformer';
 import { apiGet, getApiErrorMessage } from '~/utils/api-client';
+import { NoIntegrationAlert } from '~/components/Common/NoIntegrationAlert';
 
 export function JiraProjectStep({
   config = DEFAULT_PROJECT_MANAGEMENT_CONFIG as JiraProjectConfig,
@@ -151,7 +149,7 @@ export function JiraProjectStep({
       >
         <Box>
           <Text size="sm" fw={600} c={theme.colors.blue[8]} mb={2}>
-            JIRA Project Management
+            Project Management
           </Text>
           <Text size="xs" c={theme.colors.blue[7]}>
             Optional: Link releases to JIRA issues and track project progress
@@ -164,10 +162,10 @@ export function JiraProjectStep({
         <Group justify="space-between" align="flex-start">
           <Box>
             <Text fw={600} size="md" c={theme.colors.slate[8]} mb={4}>
-              Enable JIRA Integration
+              Enable tracking For your your projects and issues.
             </Text>
             <Text size="sm" c={theme.colors.slate[5]}>
-              Connect JIRA to track releases and link builds to issues
+              Connect JIRA or similar Project Management tool to track releases and link builds to issues
             </Text>
           </Box>
           <Switch
@@ -207,57 +205,25 @@ export function JiraProjectStep({
               {/* Integration Selector */}
               <Paper p="lg" radius="md" withBorder>
                 <Stack gap="md">
-                  <Select
-                    label="JIRA Integration"
-                    placeholder="Select a JIRA integration"
-                    description="Choose the JIRA integration to use for this configuration"
-                    data={integrationOptions}
-                    value={config.integrationId || null}
-                    onChange={handleIntegrationChange}
-                    required
-                    searchable
-                    size="sm"
-                  />
-
-                  {/* No integrations warning */}
-                  {integrationOptions.length === 0 && (
-                    <Paper
-                      p="md"
-                      radius="md"
-                      style={{
-                        backgroundColor: theme.colors.red[0],
-                        border: `1px solid ${theme.colors.red[2]}`,
-                      }}
-                    >
-                      <Group gap="sm" align="flex-start">
-                        <ThemeIcon size={28} radius="md" variant="light" color="red">
-                          <IconAlertCircle size={16} />
-                        </ThemeIcon>
-                        <Box style={{ flex: 1 }}>
-                          <Text size="sm" fw={600} c={theme.colors.red[8]} mb={4}>
-                            No JIRA Integrations Available
-                          </Text>
-                          <Text size="xs" c={theme.colors.red[7]} mb="sm">
-                            Connect a JIRA integration to use project management features.
-                          </Text>
-                          <Text
-                            component={Link}
-                            to={`/dashboard/${orgId}/integrations?tab=${IntegrationCategory.PROJECT_MANAGEMENT}`}
-                            size="xs"
-                            c={theme.colors.red[8]}
-                            fw={600}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4,
-                            }}
-                          >
-                            <IconPlug size={14} />
-                            Connect JIRA
-                          </Text>
-                        </Box>
-                      </Group>
-                    </Paper>
+                  {integrationOptions.length > 0 ? (
+                    <Select
+                      label="Integration"
+                      placeholder="Select a JIRA integration"
+                      description="Choose the integration to use for this configuration"
+                      data={integrationOptions}
+                      value={config.integrationId || null}
+                      onChange={handleIntegrationChange}
+                      required
+                      withAsterisk
+                      searchable
+                      size="sm"
+                    />
+                  ) : (
+                    <NoIntegrationAlert
+                      category={IntegrationCategory.PROJECT_MANAGEMENT}
+                      tenantId={orgId}
+                      color="yellow"
+                    />
                   )}
 
                   {config.integrationId && (
@@ -359,27 +325,6 @@ export function JiraProjectStep({
             </>
           )}
         </Stack>
-      )}
-
-      {/* Disabled State */}
-      {!isEnabled && (
-        <Paper
-          p="md"
-          radius="md"
-          style={{
-            backgroundColor: theme.colors.slate[0],
-            border: `1px solid ${theme.colors.slate[2]}`,
-          }}
-        >
-          <Group gap="sm">
-            <ThemeIcon size={28} radius="md" variant="light" color="gray">
-              <IconAlertCircle size={16} />
-            </ThemeIcon>
-            <Text size="sm" c={theme.colors.slate[6]}>
-              JIRA integration is disabled. You can still create releases without JIRA tracking.
-            </Text>
-          </Group>
-        </Paper>
       )}
     </Stack>
   );

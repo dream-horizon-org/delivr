@@ -53,6 +53,14 @@ export interface GitHubActionsConfig {
   workflowPath?: string; // Optional - kept for backward compatibility
   branch?: string; // Optional - extracted from workflowUrl if not provided
   inputs: Record<string, string>; // Workflow inputs
+  parameterDefinitions?: Array<{
+    name: string;
+    type: string;
+    description?: string;
+    defaultValue?: unknown;
+    options?: string[];
+    required?: boolean;
+  }>; // Workflow parameter definitions fetched from GitHub Actions
 }
 
 export interface ManualUploadConfig {

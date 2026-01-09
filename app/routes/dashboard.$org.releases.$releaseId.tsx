@@ -190,19 +190,19 @@ export default function ReleaseDetailsPage() {
       return null;
     }
 
-    if (stageToRender === 'KICKOFF') {
+    if (stageToRender === TaskStage.KICKOFF) {
       return <KickoffStage tenantId={org} releaseId={releaseId} />;
     }
 
-    if (stageToRender === 'REGRESSION') {
+    if (stageToRender === TaskStage.REGRESSION) {
       return <RegressionStage tenantId={org} releaseId={releaseId} />;
     }
 
-    if (stageToRender === 'PRE_RELEASE') {
+    if (stageToRender === TaskStage.PRE_RELEASE) {
       return <PreReleaseStage tenantId={org} releaseId={releaseId} />;
     }
 
-    if (stageToRender === 'DISTRIBUTION') {
+    if (stageToRender === TaskStage.DISTRIBUTION) {
       return <DistributionStage tenantId={org} releaseId={releaseId} />;
     }
 

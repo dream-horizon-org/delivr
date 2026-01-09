@@ -40,7 +40,7 @@ export function Module({
       if (subItem.path === `/dashboard/${org.id}/releases/`) {
         if (
           location.pathname.includes("/releases") &&
-          !location.pathname.includes("/releases/settings") &&
+          !location.pathname.includes("/releases/configurations") &&
           !location.pathname.includes("/releases/configure") &&
           !location.pathname.includes("/releases/workflows") &&
           location.pathname !== `/dashboard/${org.id}/releases`

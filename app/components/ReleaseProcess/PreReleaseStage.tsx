@@ -4,7 +4,7 @@
  * Similar to KickoffStage but with enhanced TaskCards for build, approval, and promotion tasks
  */
 
-import { Stack, Group, Text, Badge, Alert } from '@mantine/core';
+import { Stack, Group, Text, Alert } from '@mantine/core';
 import { IconCheck, IconX, IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useRouteLoaderData } from '@remix-run/react';
@@ -23,6 +23,7 @@ import { StageErrorBoundary } from './shared/StageErrorBoundary';
 import { PreReleaseTasksList } from './stages/PreReleaseTasksList';
 import { StageApprovalSection, type ApprovalRequirement } from './shared/StageApprovalSection';
 import { ApprovalConfirmationModal } from './shared/ApprovalConfirmationModal';
+import { AppBadge } from '~/components/Common/AppBadge';
 
 interface PreReleaseStageProps {
   tenantId: string;
@@ -263,11 +264,26 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
                         {platform.platform}
                       </Text>
                       {platform.isCompleted ? (
-                        <Badge color="green" size="sm">Completed</Badge>
+                        <AppBadge
+                          type="status"
+                          value="success"
+                          title="Completed"
+                          size="sm"
+                        />
                       ) : platform.hasTicket ? (
-                        <Badge color="blue" size="sm">In Progress</Badge>
+                        <AppBadge
+                          type="status"
+                          value="info"
+                          title="In Progress"
+                          size="sm"
+                        />
                       ) : (
-                        <Badge color="gray" size="sm">No Ticket</Badge>
+                        <AppBadge
+                          type="status"
+                          value="neutral"
+                          title="No Ticket"
+                          size="sm"
+                        />
                       )}
                       {platform.ticketKey && (
                         <Text size="xs" c="dimmed" ml="xs">

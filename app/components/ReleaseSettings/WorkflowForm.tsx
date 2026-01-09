@@ -5,10 +5,13 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Breadcrumb } from '~/components/Common';
+import { PageHeader } from '~/components/Common/PageHeader';
 import { getBreadcrumbItems } from '~/constants/breadcrumbs';
+import { WORKFLOW_FORM_HEADER } from '~/constants/page-headers';
 import {
   Box,
   Card,
+  Container,
   Stack,
   Text,
   TextInput,
@@ -18,7 +21,6 @@ import {
   Alert,
   Divider,
   useMantineTheme,
-  ThemeIcon,
   Paper,
 } from '@mantine/core';
 import {
@@ -409,35 +411,25 @@ export function WorkflowForm({
   });
 
   return (
-    <Box p={32}>
+    <Container size="xl" py={16}>
       {/* Breadcrumbs */}
       <Breadcrumb items={breadcrumbItems} mb={24} />
 
       {/* Header */}
-      <Group justify="space-between" align="flex-start" mb={32}>
-        <Box>
-          <Group gap="sm" mb={8}>
-            <ThemeIcon size={36} radius="md" variant="light" color="brand">
-              <IconRocket size={20} />
-            </ThemeIcon>
-            <Text size="xl" fw={700} c={theme.colors.slate[9]}>
-              {isEditMode ? 'Edit Workflow' : 'Create Workflow'}
-            </Text>
-          </Group>
-          <Text size="sm" c={theme.colors.slate[5]}>
-            {isEditMode 
-              ? 'Update your CI/CD workflow configuration'
-              : 'Configure a new CI/CD workflow for Jenkins or GitHub Actions'}
-          </Text>
-        </Box>
-        <Button
-          variant="default"
-          leftSection={<IconArrowLeft size={16} />}
-          onClick={onCancel}
-        >
-          Cancel
-        </Button>
-      </Group>
+      <PageHeader
+        title={isEditMode ? WORKFLOW_FORM_HEADER.TITLE_EDIT : WORKFLOW_FORM_HEADER.TITLE_CREATE}
+        description={isEditMode ? WORKFLOW_FORM_HEADER.DESCRIPTION_EDIT : WORKFLOW_FORM_HEADER.DESCRIPTION_CREATE}
+        icon={IconRocket}
+        rightSection={
+          <Button
+            variant="default"
+            leftSection={<IconArrowLeft size={16} />}
+            onClick={onCancel}
+          >
+            Cancel
+          </Button>
+        }
+      />
 
       {/* Form Card */}
       <Card shadow="sm" padding="xl" radius="md" withBorder maw={800} mx="auto">
@@ -617,7 +609,7 @@ export function WorkflowForm({
           </Group>
         </Stack>
       </Card>
-    </Box>
+    </Container>
   );
 }
 

@@ -4,11 +4,12 @@
  */
 
 import { useMemo } from 'react';
-import { Card, Text, Badge, Group, ActionIcon, Tooltip, Button } from '@mantine/core';
+import { Card, Text, Group, ActionIcon, Tooltip, Button } from '@mantine/core';
 import { IconEdit, IconTrash, IconPlus, IconClock } from '@tabler/icons-react';
 import type { RegressionSlotTimelineProps } from '~/types/release-config-props';
 import { ICON_SIZES } from '~/constants/release-config-ui';
 import { sortRegressionSlots, getSlotActivityLabels } from '~/utils/regression-slot';
+import { AppBadge } from '~/components/Common/AppBadge';
 
 export function RegressionSlotTimeline({
   slots,
@@ -80,20 +81,32 @@ export function RegressionSlotTimeline({
                         <Text fw={600} size="sm">
                           {slot.name}
                         </Text>
-                        <Badge size="xs" variant="light" color="blue">
-                          Day {slot.regressionSlotOffsetFromKickoff}
-                        </Badge>
-                        <Badge size="xs" variant="outline" color="gray">
-                          {slot.time}
-                        </Badge>
+                        <AppBadge
+                          type="status"
+                          value="info"
+                          title={`Day ${slot.regressionSlotOffsetFromKickoff}`}
+                          size="xs"
+                        />
+                        <AppBadge
+                          type="status"
+                          value="neutral"
+                          title={slot.time}
+                          size="xs"
+                          variant="outline"
+                        />
                       </Group>
                       
                       {activities.length > 0 && (
                         <Group gap={4}>
                           {activities.map((activity) => (
-                            <Badge key={activity} size="xs" variant="dot" color="green">
-                              {activity}
-                            </Badge>
+                            <AppBadge
+                              key={activity}
+                              type="status"
+                              value="success"
+                              title={activity}
+                              size="xs"
+                              variant="dot"
+                            />
                           ))}
                         </Group>
                       )}

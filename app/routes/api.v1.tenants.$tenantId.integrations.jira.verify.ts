@@ -9,6 +9,7 @@ import { authenticateActionRequest } from '~/utils/authenticate';
 import type { User } from '~/.server/services/Auth/auth.interface';
 import { ProjectManagementIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 import { logApiError } from '~/utils/api-route-helpers';
+import { INTEGRATION_TYPES } from '~/types/release-config-constants';
 
 const verifyJiraCredentials = async ({
   request,
@@ -53,7 +54,7 @@ const verifyJiraCredentials = async ({
     const result = await ProjectManagementIntegrationService.verifyCredentials(
       {
         tenantId: tenantId,
-        providerType: 'JIRA',
+        providerType: INTEGRATION_TYPES.JIRA,
         config,
       },
       user.user.id

@@ -7,7 +7,6 @@ import { useState } from 'react';
 import {
   Card,
   Text,
-  Badge,
   Group,
   ActionIcon,
   Tooltip,
@@ -42,6 +41,7 @@ import {
 } from '~/utils/release-config-ui.utils';
 import { formatRelativeTimeCompact } from '~/utils/time-utils';
 import { ConfigurationPreviewModal } from './ConfigurationPreviewModal';
+import { AppBadge, PlatformBadge, TargetBadge } from '~/components/Common/AppBadge';
 
 // ============================================================================
 // Sub-Components
@@ -200,36 +200,56 @@ function ConfigurationCardHeader({
       }}
     >
       <Group justify="space-between" align="flex-start">
-        <Box style={{ flex: 1 }}>
-          <Group gap="xs" mb="xs">
-            <Text fw={600} size="md" c={theme.colors.slate[9]}>
-              {config.name}
-            </Text>
-            {config.isDefault && (
+        <Box style={{ flex: 1, minWidth: 0 }}>
+          <Group gap="xs" mb="xs" wrap="nowrap">
+          {config.isDefault && (
               <Tooltip label="Default Configuration">
                 <ThemeIcon size={20} radius="xl" variant="light" color="yellow">
                   <IconStarFilled size={12} />
                 </ThemeIcon>
               </Tooltip>
             )}
+            <Text 
+              fw={600} 
+              size="md" 
+              c={theme.colors.slate[9]}
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                lineHeight: 1.5,
+                
+              }}
+            >
+              {config.name}
+            </Text>
+            
           </Group>
 
           <Group gap="xs">
-            <Badge size="sm" variant="light" color={statusDisplay.color}>
-              {statusDisplay.label}
-            </Badge>
-            <Badge size="sm" variant="light" color={releaseTypeColor}>
-              {config.releaseType}
-            </Badge>
+            <AppBadge
+              type="status"
+              value={statusDisplay.color === 'green' ? 'success' : statusDisplay.color === 'red' ? 'error' : statusDisplay.color === 'yellow' ? 'warning' : 'info'}
+              title={statusDisplay.label}
+              size="sm"
+              color={statusDisplay.color}
+            />
+            <AppBadge
+              type="release-type"
+              value={config.releaseType}
+              title={config.releaseType}
+              size="sm"
+              color={releaseTypeColor}
+            />
             {config.releaseSchedule && (
-              <Badge 
-                size="sm" 
-                variant="light" 
+              <AppBadge
+                type="status"
+                value="info"
+                title="Release Train"
+                size="sm"
                 color="indigo"
                 leftSection={<IconTrain size={12} />}
-              >
-                Release Train
-              </Badge>
+              />
             )}
           </Group>
         </Box>
@@ -286,17 +306,13 @@ function PlatformsAndTargetsSection({
           Platforms:
         </Text>
         <Group gap="xs">
-                    {getPlatformsFromPlatformTargets(platformTargets).map((platform) => (
-                      <Badge
-                        key={platform}
-                        variant="light"
-                        color="brand"
-                        leftSection={getPlatformIcon(platform, 16)}
-                        size="sm"
-                      >
-                        {platform}
-                      </Badge>
-                    ))}
+          {getPlatformsFromPlatformTargets(platformTargets).map((platform) => (
+            <PlatformBadge
+              key={platform}
+              platform={platform}
+              size="sm"
+            />
+          ))}
         </Group>
       </Box>
       
@@ -306,9 +322,11 @@ function PlatformsAndTargetsSection({
         </Text>
         <Group gap="xs">
           {getTargetsFromPlatformTargets(platformTargets).map((target) => (
-            <Badge key={target} variant="outline" color="gray" size="sm">
-              {formatTargetPlatformName(target)}
-            </Badge>
+            <TargetBadge
+              key={target}
+              target={target}
+              size="sm"
+            />
           ))}
         </Group>
       </Box>
@@ -405,6 +423,9 @@ function ConfigurationCardFooter({
       style={{ 
         borderTop: `1px solid ${theme.colors.slate[2]}`,
         marginTop: 'auto',
+        height: '32px',
+        display: 'flex',
+        alignItems: 'center',
       }}
     >
       <Text size="xs" c={theme.colors.slate[5]}>
@@ -433,11 +454,7 @@ function ConfigurationCardContent({
       }}
     >
       <Stack gap="md" style={{ flex: 1 }}>
-        {config.description && (
-          <Text size="sm" c={theme.colors.slate[6]} lineClamp={2}>
-            {config.description}
-          </Text>
-        )}
+        
 
         <Box>
           <PlatformsAndTargetsSection

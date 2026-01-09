@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { TextInput, Select, Stack, Button, Text, Alert, LoadingOverlay, Card, Badge, Group } from '@mantine/core';
+import { TextInput, Select, Stack, Button, Text, Alert, LoadingOverlay, Card, Group } from '@mantine/core';
 import { IconPlus, IconTrash, IconRefresh, IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import { apiPost, getApiErrorMessage } from '~/utils/api-client';
 import type { GitHubActionsConfig } from '~/types/release-config';
@@ -12,6 +12,7 @@ import type { GitHubActionsConfigFormProps } from '~/types/release-config-props'
 import type { WorkflowParameter } from '~/.server/services/ReleaseManagement/integrations';
 import { FIELD_LABELS, PLACEHOLDERS, BUTTON_LABELS } from '~/constants/release-config-ui';
 import { BUILD_PROVIDERS } from '~/types/release-config-constants';
+import { AppBadge } from '~/components/Common/AppBadge';
 
 export function GitHubActionsConfigForm({
   config,
@@ -47,7 +48,7 @@ export function GitHubActionsConfigForm({
   useEffect(() => {
     // If parameterDefinitions exist in config, restore them
     if (config.parameterDefinitions && Array.isArray(config.parameterDefinitions)) {
-      const restoredParams = config.parameterDefinitions.map((param) => {
+      const restoredParams = config.parameterDefinitions.map((param: WorkflowParameter) => {
         const hasChoices = (param as any).choices && (param as any).choices.length > 0;
         const hasOptions = param.options && param.options.length > 0;
         const options = hasOptions ? param.options : (hasChoices ? (param as any).choices : undefined);
@@ -285,13 +286,19 @@ export function GitHubActionsConfigForm({
                         {param.name}
                       </Text>
                       {param.required && (
-                        <Badge size="xs" color="red">
-                          Required
-                        </Badge>
+                        <AppBadge
+                          type="status"
+                          value="error"
+                          title="Required"
+                          size="xs"
+                        />
                       )}
-                      <Badge size="xs" color="gray">
-                        {param.type}
-                      </Badge>
+                      <AppBadge
+                        type="status"
+                        value="neutral"
+                        title={param.type}
+                        size="xs"
+                      />
                     </Group>
                     {!param.required && (
                       <Button

@@ -6,7 +6,6 @@
 
 import {
   Accordion,
-  Badge,
   Card,
   Group,
   Paper,
@@ -27,6 +26,7 @@ import { RegressionCycleStatus, TaskStage } from '~/types/release-process-enums'
 import { formatReleaseDateTime } from '~/utils/release-process-date';
 import { sortTasksByExecutionOrder } from '~/utils/task-filtering';
 import { TaskCard } from './TaskCard';
+import { AppBadge } from '~/components/Common/AppBadge';
 
 interface RegressionCycleCardProps {
   cycle: RegressionCycle;
@@ -132,9 +132,12 @@ export function RegressionCycleCard({
               {cycle.cycleTag || `Cycle ${cycle.id.slice(0, 8)}`}
             </Text>
             {cycle.isLatest && (
-              <Badge size="sm" color="blue" variant="light">
-                Latest
-              </Badge>
+              <AppBadge
+                type="status"
+                value="info"
+                title="Latest"
+                size="sm"
+              />
             )}
           </Group>
           <Group gap="md">
@@ -151,12 +154,13 @@ export function RegressionCycleCard({
             )}
           </Group>
         </Stack>
-        <Badge
+        <AppBadge
+          type="status"
+          value={statusColor === 'green' ? 'success' : statusColor === 'red' ? 'error' : statusColor === 'yellow' ? 'warning' : 'info'}
+          title={statusLabel}
           color={statusColor}
           leftSection={<ThemeIcon size={16} variant="transparent" color={statusColor}>{getStatusIcon()}</ThemeIcon>}
-        >
-          {statusLabel}
-        </Badge>
+        />
       </Group>
 
       {tasksContent}
@@ -204,9 +208,12 @@ export function RegressionCycleCard({
                   {cycle.cycleTag || `Cycle ${cycle.id.slice(0, 8)}`}
                 </Text>
                 {cycle.isLatest && (
-                  <Badge size="xs" color="blue" variant="light">
-                    Latest
-                  </Badge>
+                  <AppBadge
+                    type="status"
+                    value="info"
+                    title="Latest"
+                    size="xs"
+                  />
                 )}
               </Group>
               <Group gap="sm">
@@ -221,12 +228,13 @@ export function RegressionCycleCard({
                     Completed: {completedDateTime}
                   </Text>
                 )}
-                <Badge
+                <AppBadge
+                  type="status"
+                  value={statusColor === 'green' ? 'success' : statusColor === 'red' ? 'error' : statusColor === 'yellow' ? 'warning' : 'info'}
+                  title={statusLabel}
                   color={statusColor}
                   leftSection={<ThemeIcon size={16} variant="transparent" color={statusColor}>{getStatusIcon()}</ThemeIcon>}
-                >
-                  {statusLabel}
-                </Badge>
+                />
                 <IconChevronDown
                   size={16}
                   style={{

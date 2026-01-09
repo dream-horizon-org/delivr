@@ -5,6 +5,7 @@
 
 import type { Integration } from '~/contexts/TenantContext';
 import type { PlayStorePayload, AppStorePayload } from '~/types/distribution/app-distribution';
+import { INTEGRATION_TYPES } from '~/types/release-config-constants';
 
 export interface AvailableIntegrations {
   jenkins: Array<{ id: string; name: string }>;
@@ -31,23 +32,23 @@ export function transformIntegrationsForUI(
 
   return {
     jenkins: connected
-      .filter(i => i.type === 'JENKINS')
+      .filter(i => i.type === INTEGRATION_TYPES.JENKINS)
       .map(i => ({ id: i.id, name: i.name })),
     
     github: connected
-      .filter(i => i.type === 'GITHUB')
+      .filter(i => i.type === INTEGRATION_TYPES.GITHUB)
       .map(i => ({ id: i.id, name: i.name })),
     
     slack: connected
-      .filter(i => i.type === 'SLACK')
+      .filter(i => i.type === INTEGRATION_TYPES.SLACK)
       .map(i => ({ id: i.id, name: i.name })),
     
     jira: connected
-      .filter(i => i.type === 'JIRA')
+      .filter(i => i.type === INTEGRATION_TYPES.JIRA)
       .map(i => ({ id: i.id, name: i.name })),
     
     checkmate: connected
-      .filter(i => i.type === 'CHECKMATE')
+      .filter(i => i.type === INTEGRATION_TYPES.CHECKMATE)
       .map(i => ({
         id: i.id,
         name: i.name,

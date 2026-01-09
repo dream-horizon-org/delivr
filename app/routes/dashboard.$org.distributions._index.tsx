@@ -19,20 +19,21 @@ import {
   Stack,
   Table,
   Text,
-  Title,
   Tooltip
 } from '@mantine/core';
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
 import { useLoaderData, useNavigate, useNavigation, useRevalidator, useSearchParams } from '@remix-run/react';
-import { IconFilter, IconFilterOff } from '@tabler/icons-react';
+import { IconFilter, IconFilterOff, IconSend } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import type { User } from '~/.server/services/Auth/auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
-import { DistributionListRow } from '~/components/Distribution/DistributionListRow';
-import { DistributionStatsCard } from '~/components/Distribution/DistributionStatsCard';
-import { EmptyDistributions } from '~/components/Distribution/EmptyDistributions';
-import { ErrorState, StaleDataWarning } from '~/components/Distribution/ErrorRecovery';
-import { SubmitToStoresForm } from '~/components/Distribution/SubmitToStoresForm';
+import { DistributionListRow } from '~/components/distribution/DistributionListRow';
+import { DistributionStatsCard } from '~/components/distribution/DistributionStatsCard';
+import { EmptyDistributions } from '~/components/distribution/EmptyDistributions';
+import { ErrorState, StaleDataWarning } from '~/components/distribution/ErrorRecovery';
+import { SubmitToStoresForm } from '~/components/distribution/SubmitToStoresForm';
+import { PageHeader } from '~/components/Common/PageHeader';
+import { BackToReleasesButton } from '~/components/Common/BackToReleasesButton';
 import {
   DISTRIBUTION_STATUS_FILTER_OPTIONS,
   DISTRIBUTIONS_LIST_LAYOUT,
@@ -262,19 +263,20 @@ export default function DistributionsListPage() {
   );
 
   return (
-    <Container size="xl" className="py-8">
+    <Container size="xl" py={16}>
       {/* Header */}
-      <Paper shadow="sm" p="md" radius="md" withBorder className="mb-6">
-        <Group justify="space-between" align="center">
-          <div>
-            <Title order={2}>{DISTRIBUTIONS_LIST_UI.PAGE_TITLE}</Title>
-            <Text size="sm" c="dimmed">
-              {DISTRIBUTIONS_LIST_UI.PAGE_SUBTITLE}
-            </Text>
-          </div>
-          {isLoading && <Loader size="sm" color="blue" />}
-        </Group>
-      </Paper>
+      <PageHeader
+        title={DISTRIBUTIONS_LIST_UI.PAGE_TITLE}
+        description={DISTRIBUTIONS_LIST_UI.PAGE_SUBTITLE}
+        icon={IconSend}
+        mb={24}
+        rightSection={
+          <Group gap="md">
+            {isLoading && <Loader size="sm" color="blue" />}
+            <BackToReleasesButton />
+          </Group>
+        }
+      />
 
       {/* Filters */}
       <Paper shadow="sm" p="md" radius="md" withBorder className="mb-6">
