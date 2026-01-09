@@ -151,8 +151,13 @@ export function mapAppStoreFormData(existingData?: any): Partial<AppStorePayload
  * Validate Play Store form data
  * Checks that all required fields are present
  * Note: client_email and private_key are only required for new connections
+ * If any credential changes in edit mode, all 3 credentials become mandatory
  */
-export function validatePlayStoreData(data: Partial<PlayStorePayload>, isEditMode: boolean = false): boolean {
+export function validatePlayStoreData(
+  data: Partial<PlayStorePayload>, 
+  isEditMode: boolean = false,
+  hasCredentialChanged: boolean = false
+): boolean {
   const baseFieldsValid = !!(
     data.displayName &&
     data.appIdentifier &&
@@ -160,15 +165,24 @@ export function validatePlayStoreData(data: Partial<PlayStorePayload>, isEditMod
   );
   
   // In edit mode, credentials are optional (can keep existing ones)
+  // UNLESS any credential has changed, then all 3 become mandatory
   if (isEditMode) {
+    if (hasCredentialChanged) {
+      // If any credential changed, require all 3
+      return baseFieldsValid && !!(
+        data.serviceAccountJson?.client_email?.trim() &&
+        data.serviceAccountJson?.project_id?.trim() &&
+        data.serviceAccountJson?.private_key?.trim()
+      );
+    }
     return baseFieldsValid;
   }
   
   // In create mode, require all fields including credentials
   return baseFieldsValid && !!(
-    data.serviceAccountJson?.client_email &&
-    data.serviceAccountJson?.project_id &&
-    data.serviceAccountJson?.private_key
+    data.serviceAccountJson?.client_email?.trim() &&
+    data.serviceAccountJson?.project_id?.trim() &&
+    data.serviceAccountJson?.private_key?.trim()
   );
 }
 
@@ -176,8 +190,13 @@ export function validatePlayStoreData(data: Partial<PlayStorePayload>, isEditMod
  * Validate App Store form data
  * Checks that all required fields are present
  * Note: privateKeyPem is only required for new connections
+ * If any credential changes in edit mode, all 3 credentials become mandatory
  */
-export function validateAppStoreData(data: Partial<AppStorePayload>, isEditMode: boolean = false): boolean {
+export function validateAppStoreData(
+  data: Partial<AppStorePayload>, 
+  isEditMode: boolean = false,
+  hasCredentialChanged: boolean = false
+): boolean {
   const baseFieldsValid = !!(
     data.displayName &&
     data.targetAppId &&
@@ -185,13 +204,26 @@ export function validateAppStoreData(data: Partial<AppStorePayload>, isEditMode:
     data.teamName 
   );
   
-  // In edit mode, privateKeyPem is optional (can keep existing one)
+  // In edit mode, credentials are optional (can keep existing ones)
+  // UNLESS any credential has changed, then all 3 become mandatory
   if (isEditMode) {
+    if (hasCredentialChanged) {
+      // If any credential changed, require all 3
+      return baseFieldsValid && !!(
+        data.issuerId?.trim() &&
+        data.keyId?.trim() &&
+        data.privateKeyPem?.trim()
+      );
+    }
     return baseFieldsValid;
   }
   
-  // In create mode, require all fields including privateKeyPem
-  return baseFieldsValid && !!data.privateKeyPem && !!data.issuerId && !!data.keyId;
+  // In create mode, require all fields including credentials
+  return baseFieldsValid && !!(
+    data.issuerId?.trim() &&
+    data.keyId?.trim() &&
+    data.privateKeyPem?.trim()
+  );
 }
 
 /**

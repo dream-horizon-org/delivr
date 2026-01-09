@@ -32,6 +32,7 @@ import { encrypt, isEncryptionConfigured } from '~/utils/encryption';
 import { TARGET_PLATFORMS } from '~/types/release-config-constants';
 import { DEBUG_LABELS } from '~/constants/integration-ui';
 import { ConfirmationModal } from '~/components/Common/ConfirmationModal';
+import { ConnectionAlert } from './shared/ConnectionAlert';
 import { 
   mapPlayStoreFormData, 
   mapAppStoreFormData,
@@ -143,11 +144,53 @@ export function AppDistributionConnectionFlow({
     return !deepEqual(currentData, initialDataRef.current);
   }, [playStoreData, appStoreData, storeType]);
 
+  // Check if any Play Store credential has changed
+  const hasPlayStoreCredentialChanged = useMemo((): boolean => {
+    if (!isEditMode || storeType !== TARGET_PLATFORMS.PLAY_STORE) return false;
+    const initial = initialDataRef.current as Partial<PlayStorePayload>;
+    const current = playStoreData;
+    
+    const initialProjectId = initial.serviceAccountJson?.project_id || '';
+    const initialClientEmail = initial.serviceAccountJson?.client_email || '';
+    const initialPrivateKey = initial.serviceAccountJson?.private_key || '';
+    
+    const currentProjectId = current.serviceAccountJson?.project_id || '';
+    const currentClientEmail = current.serviceAccountJson?.client_email || '';
+    const currentPrivateKey = current.serviceAccountJson?.private_key || '';
+    
+    return !!(
+      (currentProjectId.trim() && currentProjectId !== initialProjectId) ||
+      (currentClientEmail.trim() && currentClientEmail !== initialClientEmail) ||
+      (currentPrivateKey.trim() && currentPrivateKey !== initialPrivateKey)
+    );
+  }, [isEditMode, storeType, playStoreData]);
+
+  // Check if any App Store credential has changed
+  const hasAppStoreCredentialChanged = useMemo((): boolean => {
+    if (!isEditMode || storeType !== TARGET_PLATFORMS.APP_STORE) return false;
+    const initial = initialDataRef.current as Partial<AppStorePayload>;
+    const current = appStoreData;
+    
+    const initialIssuerId = initial.issuerId || '';
+    const initialKeyId = initial.keyId || '';
+    const initialPrivateKeyPem = initial.privateKeyPem || '';
+    
+    const currentIssuerId = current.issuerId || '';
+    const currentKeyId = current.keyId || '';
+    const currentPrivateKeyPem = current.privateKeyPem || '';
+    
+    return !!(
+      (currentIssuerId.trim() && currentIssuerId !== initialIssuerId) ||
+      (currentKeyId.trim() && currentKeyId !== initialKeyId) ||
+      (currentPrivateKeyPem.trim() && currentPrivateKeyPem !== initialPrivateKeyPem)
+    );
+  }, [isEditMode, storeType, appStoreData]);
+
   // Validation functions
   const isFormValid =
     storeType === TARGET_PLATFORMS.PLAY_STORE
-      ? validatePlayStoreData(playStoreData, isEditMode)
-      : validateAppStoreData(appStoreData, isEditMode);
+      ? validatePlayStoreData(playStoreData, isEditMode, hasPlayStoreCredentialChanged)
+      : validateAppStoreData(appStoreData, isEditMode, hasAppStoreCredentialChanged);
 
   // Handle cancel with confirmation
   const handleCancelClick = () => {
@@ -415,9 +458,15 @@ export function AppDistributionConnectionFlow({
 
       <Divider label="Service Account Credentials" labelPosition="center" />
 
+      {isEditMode && hasPlayStoreCredentialChanged && (
+        <ConnectionAlert color="yellow" title="Credentials Changed">
+          <Text size="sm">You've changed one or more credentials. All three credentials (Project ID, Client Email, and Private Key) are now required.</Text>
+        </ConnectionAlert>
+      )}
+
       <TextInput
-        label={isEditMode ? "Project ID (leave blank to keep existing)" : "Project ID"}
-        placeholder={isEditMode ? "Leave blank to keep existing" : "Enter your project ID"}
+        label={isEditMode && !hasPlayStoreCredentialChanged ? "Project ID (leave blank to keep existing)" : "Project ID"}
+        placeholder={isEditMode && !hasPlayStoreCredentialChanged ? "Leave blank to keep existing" : "Enter your project ID"}
         value={playStoreData.serviceAccountJson?.project_id}
         onChange={(e) =>
           setPlayStoreData({
@@ -428,17 +477,21 @@ export function AppDistributionConnectionFlow({
             },
           })
         }
-        required={!isEditMode} 
+        required={!isEditMode || !!hasPlayStoreCredentialChanged} 
         size="sm"
         disabled={isVerified}
         description={
-          isEditMode ?  'Only provide a new project ID if you want to update it':''
+          isEditMode 
+            ? hasPlayStoreCredentialChanged 
+              ? ''
+              : 'Only provide a new project ID if you want to update it'
+            : ''
         }
       />
 
       <TextInput
-        label={isEditMode ? "Client Email (leave blank to keep existing)" : "Client Email"}
-        placeholder={isEditMode ? "Leave blank to keep existing" : "Enter your service account email"}
+        label={isEditMode && !hasPlayStoreCredentialChanged ? "Client Email (leave blank to keep existing)" : "Client Email"}
+        placeholder={isEditMode && !hasPlayStoreCredentialChanged ? "Leave blank to keep existing" : "Enter your service account email"}
         value={playStoreData.serviceAccountJson?.client_email}
         onChange={(e) =>
           setPlayStoreData({
@@ -449,16 +502,20 @@ export function AppDistributionConnectionFlow({
             },
           })
         }
-        required={!isEditMode} 
+        required={!isEditMode || !!hasPlayStoreCredentialChanged} 
         size="sm"
         disabled={isVerified}
         description={
-          isEditMode ?  'Only provide a new client email if you want to update it':''
+          isEditMode 
+            ? hasPlayStoreCredentialChanged 
+              ? ''
+              : 'Only provide a new client email if you want to update it'
+            : ''
         }
       />
 
       <Textarea
-        label={isEditMode ? "Private Key (leave blank to keep existing)" : "Private Key"}
+        label={isEditMode && !hasPlayStoreCredentialChanged ? "Private Key (leave blank to keep existing)" : "Private Key"}
         placeholder={`-----BEGIN PRIVATE KEY-----\\n.......\\n-----END PRIVATE KEY-----`}
         value={playStoreData.serviceAccountJson?.private_key}
         onChange={(e) =>
@@ -470,13 +527,15 @@ export function AppDistributionConnectionFlow({
             },
           })
         }
-        required={!isEditMode} 
+        required={!isEditMode || !!hasPlayStoreCredentialChanged} 
         minRows={4}
         size="sm"
         disabled={isVerified}
         description={
           isEditMode 
-            ? 'Only provide a new private key if you want to update it'
+            ? hasPlayStoreCredentialChanged
+              ? 'Paste the complete private key from your .pem file, including the BEGIN and END markers'
+              : 'Only provide a new private key if you want to update it'
             : 'Paste the complete private key from your .pem file, including the BEGIN and END markers'
         }
       />
@@ -535,50 +594,66 @@ export function AppDistributionConnectionFlow({
 
       <Divider label="App Store Connect API Credentials" labelPosition="center" />
 
+      {isEditMode && hasAppStoreCredentialChanged && (
+        <ConnectionAlert color="yellow" title="Credentials Changed">
+          <Text size="sm">You've changed one or more credentials. All three credentials (Issuer ID, Key ID, and Private Key) are now required.</Text>
+        </ConnectionAlert>
+      )}
+
       <TextInput
-        label={isEditMode ? "Issuer ID (leave blank to keep existing)" : "Issuer ID"}
-        placeholder={isEditMode ? "Leave blank to keep existing" : "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}
+        label={isEditMode && !hasAppStoreCredentialChanged ? "Issuer ID (leave blank to keep existing)" : "Issuer ID"}
+        placeholder={isEditMode && !hasAppStoreCredentialChanged ? "Leave blank to keep existing" : "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}
         value={appStoreData.issuerId}
         onChange={(e) =>
           setAppStoreData({ ...appStoreData, issuerId: e.target.value })
         }
-        required={!isEditMode} 
+        required={!isEditMode || !!hasAppStoreCredentialChanged} 
         size="sm"
         disabled={isVerified}
         description={
-          isEditMode ?  'Only provide a new issuer ID if you want to update it':''
+          isEditMode 
+            ? hasAppStoreCredentialChanged 
+              ? ''
+              : 'Only provide a new issuer ID if you want to update it'
+            : ''
         }
       />
 
       <TextInput
-        label={isEditMode ? "Key ID (leave blank to keep existing)" : "Key ID"}
-        placeholder={isEditMode ? "Leave blank to keep existing" : "XXXXXXXXXX"}
+        label={isEditMode && !hasAppStoreCredentialChanged ? "Key ID (leave blank to keep existing)" : "Key ID"}
+        placeholder={isEditMode && !hasAppStoreCredentialChanged ? "Leave blank to keep existing" : "XXXXXXXXXX"}
         value={appStoreData.keyId}
         onChange={(e) =>
           setAppStoreData({ ...appStoreData, keyId: e.target.value })
         }
-        required={!isEditMode} 
+        required={!isEditMode || !!hasAppStoreCredentialChanged} 
         size="sm"
         disabled={isVerified}
         description={
-          isEditMode ?  'Only provide a new key ID if you want to update it':''
+          isEditMode 
+            ? hasAppStoreCredentialChanged 
+              ? ''
+              : 'Only provide a new key ID if you want to update it'
+            : ''
         }
       />
 
       <Textarea
-        label={isEditMode ? "Private Key (PEM) (leave blank to keep existing)" : "Private Key (PEM)"}
+        label={isEditMode && !hasAppStoreCredentialChanged ? "Private Key (PEM) (leave blank to keep existing)" : "Private Key (PEM)"}
         placeholder={`-----BEGIN PRIVATE KEY-----\\n.......\\n-----END PRIVATE KEY-----`}
         value={appStoreData.privateKeyPem}
         onChange={(e) =>
           setAppStoreData({ ...appStoreData, privateKeyPem: e.target.value })
         }
-        required={!isEditMode} 
+        required={!isEditMode || !!hasAppStoreCredentialChanged} 
         minRows={4}
         size="sm"
         disabled={isVerified}
         description={
           isEditMode 
-            ? 'Only provide a new private key if you want to update it'
+            ? hasAppStoreCredentialChanged
+              ? 'Paste the complete private key from your .p8 file, including the BEGIN and END markers'
+              : 'Only provide a new private key if you want to update it'
             : 'Paste the complete private key from your .p8 file, including the BEGIN and END markers'
         }
       />
