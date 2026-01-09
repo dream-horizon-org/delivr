@@ -332,3 +332,16 @@ export const TEST_MANAGEMENT_PROVIDER_OPTIONS = [
   { value: 'zephyr', label: 'Zephyr (Coming Soon)', disabled: true },
 ] as const;
 
+// =============================================================================
+// RELEASE CONFIG OPERATION TYPES
+// =============================================================================
+
+/**
+ * Operation types for release configuration updates
+ * Used to distinguish between archive, unarchive, and regular update operations
+ */
+export const RELEASE_CONFIG_OPERATION_TYPES = {
+  ARCHIVE: 'archive',
+  UNARCHIVE: 'unarchive',
+} as const;
+

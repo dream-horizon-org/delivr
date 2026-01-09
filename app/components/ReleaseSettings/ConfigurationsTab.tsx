@@ -39,6 +39,7 @@ import { RELEASE_CONFIG_MESSAGES, getErrorMessage } from '~/constants/toast-mess
 import { extractApiErrorMessage } from '~/utils/api-error-utils';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { CONFIG_STATUS, RELEASE_TYPE } from '~/constants/release-config-ui';
+import { RELEASE_CONFIG_OPERATION_TYPES } from '~/constants/release-config';
 import { exportConfig } from '~/utils/release-config-storage';
 import { generateStorageKey } from '~/hooks/useDraftStorage';
 import { useConfig } from '~/contexts/ConfigContext';
@@ -173,6 +174,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
     try {
       // Build archive payload
       const archivePayload: any = {
+        type: RELEASE_CONFIG_OPERATION_TYPES.ARCHIVE,
         isActive: false,
         status: CONFIG_STATUS.ARCHIVED,
       };
@@ -228,6 +230,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
       
       // Build unarchive payload
       const unarchivePayload: any = {
+        type: RELEASE_CONFIG_OPERATION_TYPES.UNARCHIVE,
         isActive: true,
         status: CONFIG_STATUS.ACTIVE,
       };

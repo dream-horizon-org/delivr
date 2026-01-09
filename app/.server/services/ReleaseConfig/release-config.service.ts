@@ -250,6 +250,112 @@ export class ReleaseConfigService {
   }
 
   /**
+   * Archive a release configuration
+   * Sends payload as-is from frontend without transformation
+   */
+  static async archive(
+    configId: string,
+    payload: any,
+    tenantId: string,
+    userId: string
+  ): Promise<{ success: boolean; data?: Partial<ReleaseConfiguration>; error?: string }> {
+    try {
+      console.log('[ReleaseConfigService] Archive request - configId:', configId, 'payload:', payload);
+
+      const url = `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/release-configs/${configId}`;
+      console.log('[ReleaseConfigService] PUT to:', url);
+      
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'userid': userId,
+        },
+        body: JSON.stringify(payload), // Send payload as-is, no transformation
+      });
+
+      const result = await response.json();
+      console.log('[ReleaseConfigService] Archive response status:', response.status);
+      console.log('[ReleaseConfigService] Archive result:', JSON.stringify(result, null, 2));
+
+      if (!response.ok) {
+        console.error('[ReleaseConfigService] Archive failed:', result);
+        return {
+          success: false,
+          error: result.error || 'Failed to archive release configuration',
+        };
+      }
+
+      const transformedData = await transformFromBackend(result.data, userId);
+      console.log('[ReleaseConfigService] Archive successful! Name:', result.data?.name, 'isActive:', result.data?.isActive);
+
+      return {
+        success: true,
+        data: transformedData,
+      };
+    } catch (error: any) {
+      console.error('[ReleaseConfigService] Archive error:', error);
+      return {
+        success: false,
+        error: error.message || 'Internal server error',
+      };
+    }
+  }
+
+  /**
+   * Unarchive a release configuration
+   * Sends payload as-is from frontend without transformation
+   */
+  static async unarchive(
+    configId: string,
+    payload: any,
+    tenantId: string,
+    userId: string
+  ): Promise<{ success: boolean; data?: Partial<ReleaseConfiguration>; error?: string }> {
+    try {
+      console.log('[ReleaseConfigService] Unarchive request - configId:', configId, 'payload:', payload);
+
+      const url = `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/release-configs/${configId}`;
+      console.log('[ReleaseConfigService] PUT to:', url);
+      
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'userid': userId,
+        },
+        body: JSON.stringify(payload), // Send payload as-is, no transformation
+      });
+
+      const result = await response.json();
+      console.log('[ReleaseConfigService] Unarchive response status:', response.status);
+      console.log('[ReleaseConfigService] Unarchive result:', JSON.stringify(result, null, 2));
+
+      if (!response.ok) {
+        console.error('[ReleaseConfigService] Unarchive failed:', result);
+        return {
+          success: false,
+          error: result.error || 'Failed to unarchive release configuration',
+        };
+      }
+
+      const transformedData = await transformFromBackend(result.data, userId);
+      console.log('[ReleaseConfigService] Unarchive successful! Name:', result.data?.name, 'isActive:', result.data?.isActive);
+
+      return {
+        success: true,
+        data: transformedData,
+      };
+    } catch (error: any) {
+      console.error('[ReleaseConfigService] Unarchive error:', error);
+      return {
+        success: false,
+        error: error.message || 'Internal server error',
+      };
+    }
+  }
+
+  /**
    * Delete a release configuration
    */
   static async delete(

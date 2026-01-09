@@ -7,6 +7,7 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from '@remix-run/react';
 import { CONFIG_STATUSES } from '~/types/release-config-constants';
 import { CONFIG_STATUS } from '~/constants/release-config-ui';
+import { RELEASE_CONFIG_OPERATION_TYPES } from '~/constants/release-config';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { apiDelete, apiPut, getApiErrorMessage } from '~/utils/api-client';
 import { showErrorToast, showInfoToast, showSuccessToast } from '~/utils/toast';
@@ -87,6 +88,7 @@ export function useConfigurationsActions({
     
     try {
       const archivePayload: any = {
+        type: RELEASE_CONFIG_OPERATION_TYPES.ARCHIVE,
         isActive: false,
         status: CONFIG_STATUS.ARCHIVED,
       };
@@ -139,6 +141,7 @@ export function useConfigurationsActions({
       const config = configurations.find((c) => c.id === unarchiveModal.configId);
       
       const unarchivePayload: any = {
+        type: RELEASE_CONFIG_OPERATION_TYPES.UNARCHIVE,
         isActive: true,
         status: CONFIG_STATUS.ACTIVE,
       };

@@ -10,6 +10,7 @@ import { requireUserId } from '~/.server/services/Auth';
 import { ReleaseConfigService } from '~/.server/services/ReleaseConfig';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { logApiError } from '~/utils/api-route-helpers';
+import { RELEASE_CONFIG_OPERATION_TYPES } from '~/constants/release-config';
 
 /**
  * GET - Get specific release configuration
@@ -69,7 +70,29 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
       console.log('[BFF] Updating release config:', configId, Object.keys(updates));
 
-      const result = await ReleaseConfigService.update(configId, updates, tenantId, userId);
+      // Detect archive/unarchive operations based on type field
+      const operationType = (updates as any).type;
+      const isArchive = operationType === RELEASE_CONFIG_OPERATION_TYPES.ARCHIVE;
+      const isUnarchive = operationType === RELEASE_CONFIG_OPERATION_TYPES.UNARCHIVE;
+
+      let result;
+      if (isArchive) {
+        // Archive operation - send payload as-is without transformation
+        // Remove type field before sending to backend
+        const { type, ...archivePayload } = updates as any;
+        console.log('[BFF] Detected archive operation, calling archive method');
+        result = await ReleaseConfigService.archive(configId, archivePayload, tenantId, userId);
+      } else if (isUnarchive) {
+        // Unarchive operation - send payload as-is without transformation
+        // Remove type field before sending to backend
+        const { type, ...unarchivePayload } = updates as any;
+        console.log('[BFF] Detected unarchive operation, calling unarchive method');
+        result = await ReleaseConfigService.unarchive(configId, unarchivePayload, tenantId, userId);
+      } else {
+        // Regular update - use existing update method with transformation
+        console.log('[BFF] Regular update operation, calling update method');
+        result = await ReleaseConfigService.update(configId, updates, tenantId, userId);
+      }
 
       if (!result.success) {
         console.error('[BFF] Update failed:', result.error);
