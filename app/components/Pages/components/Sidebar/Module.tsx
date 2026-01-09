@@ -43,8 +43,7 @@ export function Module({
           location.pathname.includes("/releases") &&
           !location.pathname.includes("/releases/configurations") &&
           !location.pathname.includes("/releases/configure") &&
-          !location.pathname.includes("/releases/workflows") &&
-          location.pathname !== `/dashboard/${org.id}/releases`
+          !location.pathname.includes("/releases/workflows") 
         ) {
           return true;
         }
