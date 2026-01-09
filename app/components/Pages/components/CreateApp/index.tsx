@@ -147,7 +147,7 @@ export function CreateAppForm({ onSuccess }: CreateAppFormProps = {}) {
             }
             return mutate(
               {
-                name: form.getValues().appName,
+                name: form.getValues().appName.trim(),
                 ...owner,
               },
               {
