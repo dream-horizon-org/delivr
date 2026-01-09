@@ -248,6 +248,7 @@ export const ReleaseCard = memo(function ReleaseCard({
                       fw={500}
                       c="brand"
                       className="hover:underline"
+                      span
                     >
                       <Group gap={4}>
                         <IconSettings size={14} />

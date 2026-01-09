@@ -13,6 +13,8 @@ import { CodepushService } from '~/.server/services/Codepush';
 import { STORE_TYPES, ALLOWED_PLATFORMS } from '~/types/distribution/app-distribution';
 import type { SystemMetadataBackend } from '~/types/system-metadata';
 import { AuthErrorFallback } from '~/components/Auth/AuthErrorFallback';
+import { OfflineBanner } from '~/components/Common/OfflineBanner';
+import { useOfflineStatus } from '~/hooks/useOfflineStatus';
 import { i } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
 
 export const loader = authenticateLoaderRequest(async ({ user, request }) => {
@@ -96,12 +98,14 @@ export default function Dashboard() {
   const params = useParams();
   const location = useLocation();
   const { data: orgs = [], isLoading: orgsLoading, isError: hasOrgsError, error: orgsError } = useGetOrgList();
+  const { shouldShowBanner } = useOfflineStatus();
   if (hasOrgsError) {
     console.error('[Dashboard] Error loading organizations:', orgsError);
     return (
       <Flex h="100vh" direction="column" bg={theme.colors?.slate?.[0] || '#f8fafc'} align="center" justify="center" p={32}>
         <Box style={{ maxWidth: 600, width: '100%' }}>
-          <AuthErrorFallback message={ 'Failed to load organizations' } />
+          {/* <AuthErrorFallback message={ 'Failed to load organizations' } /> */}
+          Hi
         </Box>
       </Flex>
     );
@@ -113,7 +117,8 @@ export default function Dashboard() {
       <SimpleTermsGuard>
         <Flex h="100vh" direction="column" bg={theme.colors?.slate?.[0] || '#f8fafc'} align="center" justify="center" p={32}>
           <Box style={{ maxWidth: 600, width: '100%' }}>
-            <AuthErrorFallback message={authError.message} />
+            {/* <AuthErrorFallback message={authError.message} /> */}
+            Hi
           </Box>
         </Flex>
       </SimpleTermsGuard>
@@ -159,6 +164,9 @@ export default function Dashboard() {
         </Flex>
       ) : (
         <Flex h="100vh" direction="column" bg={bgColor}>
+          {/* Offline Banner - Above Header */}
+          <OfflineBanner show={shouldShowBanner} />
+          
           {/* Header */}
           <Box
             bg="white"

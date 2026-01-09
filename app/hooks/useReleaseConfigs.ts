@@ -26,14 +26,10 @@ export function useReleaseConfigs(tenantId?: string) {
         return { success: false, data: [] };
       }
       
-      console.log('[useReleaseConfigs] Fetching configs for tenant:', tenantId);
-      
       try {
         const result = await apiGet<ReleaseConfiguration[]>(
           `/api/v1/tenants/${tenantId}/release-config`
         );
-        
-        console.log('[useReleaseConfigs] Received', result.data?.length || 0, 'configs', result.success ? 'successfully' : 'with error');
         
         if (result.error) {
           console.warn('[useReleaseConfigs] API Error (non-critical for distributions):', result.error);
@@ -62,7 +58,6 @@ export function useReleaseConfigs(tenantId?: string) {
   // Invalidate cache (call after create/update/delete)
   const invalidateCache = () => {
     if (tenantId) {
-      console.log('[useReleaseConfigs] Invalidating cache for tenant:', tenantId);
       queryClient.invalidateQueries(QUERY_KEY(tenantId));
     }
   };

@@ -42,7 +42,6 @@ export function useReleases(
   // If refresh param is present, invalidate immediately to force refetch
   useEffect(() => {
     if (shouldForceRefetch && tenantId) {
-      console.log('[useReleases] Refresh parameter detected, invalidating cache...');
       queryClient.invalidateQueries(QUERY_KEY(tenantId));
     }
   }, [shouldForceRefetch, tenantId, queryClient]);
@@ -81,8 +80,6 @@ export function useReleases(
       const result = await apiGet<{ success: boolean; releases?: BackendReleaseResponse[]; error?: string }>(
         `/api/v1/tenants/${tenantId}/releases${includeTasks}`
       );
-      console.log('[useReleases] API GET:', `/api/v1/tenants/${tenantId}/releases${includeTasks}`);
-      console.log('[useReleases] Result:', result);
       
       return {
         success: result.success,
@@ -108,7 +105,6 @@ export function useReleases(
   // Invalidate cache (call after create/update/delete)
   const invalidateCache = () => {
     if (tenantId) {
-      console.log('[useReleases] Invalidating cache for tenant:', tenantId);
       queryClient.invalidateQueries(QUERY_KEY(tenantId));
     }
   };
@@ -179,8 +175,6 @@ export function useReleases(
     const active: BackendReleaseResponse[] = [];
     const completed: BackendReleaseResponse[] = [];
     const archived: BackendReleaseResponse[] = [];
-    
-    console.log('[useReleases] Categorizing releases by UI active status:', releases);
 
     releases.forEach((release) => {
       const activeStatus = getReleaseActiveStatus(release);
