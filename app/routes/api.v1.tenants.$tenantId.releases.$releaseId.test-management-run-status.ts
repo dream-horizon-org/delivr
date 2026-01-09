@@ -18,7 +18,7 @@ import {
   logApiError,
   validateRequired,
 } from '~/utils/api-route-helpers';
-import type { Platform } from '~/types/release-process-enums';
+import { Platform } from '~/types/release-process-enums';
 
 /**
  * GET - Get test management run status
@@ -39,7 +39,7 @@ export const loader = authenticateLoaderRequest(
     // Extract platform query parameter if provided
     const url = new URL(request.url);
     const platformParam = url.searchParams.get('platform');
-    const platform = platformParam && ['ANDROID', 'IOS', 'WEB'].includes(platformParam)
+    const platform = platformParam && Object.values(Platform).includes(platformParam as Platform)
       ? (platformParam as Platform)
       : undefined;
 

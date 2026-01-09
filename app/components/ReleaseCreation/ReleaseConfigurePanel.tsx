@@ -196,12 +196,16 @@ export function ReleaseConfigurePanel({
             <Alert color="green" variant="light" className="mt-3">
               <Text size="xs">
                 ✓ Automation runs will be automatically triggered for this release.
-                {config.testManagementConfig?.enabled && config.testManagementConfig.provider === 'checkmate' && (
+                {config.testManagementConfig?.enabled && 
+                 config.testManagementConfig.provider === 'checkmate' &&
+                 config.testManagementConfig.platformConfigurations &&
+                 config.testManagementConfig.platformConfigurations.length > 0 && (
                   <>
-                    {' '}Project:{' '}
-                    {config.testManagementConfig.providerConfig &&
-                      'projectId' in config.testManagementConfig.providerConfig &&
-                      config.testManagementConfig.providerConfig.projectId}
+                    {' '}Projects:{' '}
+                    {config.testManagementConfig.platformConfigurations
+                      .map((pc: any) => pc.projectId)
+                      .filter((id: any) => id)
+                      .join(', ')}
                   </>
                 )}
               </Text>

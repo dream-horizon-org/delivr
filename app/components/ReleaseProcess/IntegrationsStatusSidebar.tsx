@@ -21,8 +21,8 @@ import {
 } from '~/hooks/useReleaseProcess';
 import { useConfig } from '~/contexts/ConfigContext';
 import { useRelease } from '~/hooks/useRelease';
-import type { TaskStage } from '~/types/release-process-enums';
-import { TaskStage as TaskStageEnum } from '~/types/release-process-enums';
+import { TaskStage, TaskStage as TaskStageEnum, TestManagementStatus, Phase } from '~/types/release-process-enums';
+import { shouldEnableCherryPickStatus, determineReleasePhase } from '~/utils/release-process-utils';
 
 interface IntegrationsStatusSidebarProps {
   tenantId: string;
@@ -59,8 +59,18 @@ export function IntegrationsStatusSidebar({
     releaseConfig.projectManagementConfig
   );
   
-  // Fetch cherry pick status (used in both stages - always enabled)
-  const cherryPickStatus = useCherryPickStatus(tenantId, releaseId);
+  // Determine release phase (use existing phase if available, otherwise calculate)
+  const releasePhase = release?.releasePhase || (release ? determineReleasePhase(release) : undefined);
+  
+  // Check if cherry-pick-status API should be enabled
+  const cherryPickEnabled = shouldEnableCherryPickStatus(
+    currentStage,
+    release?.status,
+    releasePhase
+  );
+  
+  // Fetch cherry pick status (only enabled for REGRESSION and PRE_RELEASE stages, not archived/pre-kickoff)
+  const cherryPickStatus = useCherryPickStatus(tenantId, releaseId, cherryPickEnabled);
   
   // Fetch test management status (Regression stage only, and only if configured)
   const testManagementStatus = useTestManagementStatus(
@@ -123,7 +133,7 @@ export function IntegrationsStatusSidebar({
         </Stack>
 
         {/* Regression Stage: Test Management Status - Only show if configured */}
-        {currentStage === 'REGRESSION' && (
+        {currentStage === TaskStage.REGRESSION && (
           <>
             <Divider />
             <Stack gap="xs">
@@ -141,7 +151,8 @@ export function IntegrationsStatusSidebar({
                 // All platforms response
                 <Stack gap="xs">
                   {testManagementStatus.data.platforms.map((platform) => {
-                    const isCompleted = platform.status === 'PASSED' || platform.status === 'COMPLETED';
+                    const isCompleted = platform.status === TestManagementStatus.PASSED || platform.status === TestManagementStatus.COMPLETED;
+                    const hasError = !!platform.error;
                     return (
                       <Group key={platform.platform} gap="xs" justify="space-between">
                         <Text size="xs" c="dimmed">
@@ -152,8 +163,12 @@ export function IntegrationsStatusSidebar({
                             <Badge color="green" size="sm">
                               <Group gap={4}>
                                 <IconCheck size={12} />
-                                {platform.status === 'COMPLETED' ? 'Completed' : 'Passed'}
+                                {platform.status === TestManagementStatus.COMPLETED ? 'Completed' : 'Passed'}
                               </Group>
+                            </Badge>
+                          ) : hasError ? (
+                            <Badge color="red" size="sm">
+                              Failed
                             </Badge>
                           ) : (
                             <Badge color="red" size="sm">
@@ -182,11 +197,18 @@ export function IntegrationsStatusSidebar({
               ) : (
                 // Single platform response
                 <Group gap="xs">
-                  {(testManagementStatus.data.status === 'PASSED' || testManagementStatus.data.status === 'COMPLETED') ? (
+                  {(testManagementStatus.data.status === TestManagementStatus.PASSED || testManagementStatus.data.status === TestManagementStatus.COMPLETED) ? (
                     <>
                       <IconCheck size={16} color="green" />
                       <Text size="sm" c="green" fw={500}>
-                        {testManagementStatus.data.status === 'COMPLETED' ? 'Completed' : 'Passed'}
+                        {testManagementStatus.data.status === TestManagementStatus.COMPLETED ? 'Completed' : 'Passed'}
+                      </Text>
+                    </>
+                  ) : testManagementStatus.data.error ? (
+                    <>
+                      <IconX size={16} color="red" />
+                      <Text size="sm" c="red">
+                        Failed
                       </Text>
                     </>
                   ) : (
@@ -268,9 +290,25 @@ export function IntegrationsStatusSidebar({
                         )}
                       </Group>
                       {platform.ticketKey && (
-                        <Text size="xs" c="dimmed">
-                          {platform.ticketKey}
-                        </Text>
+                        <Group gap={4}>
+                          {platform.ticketUrl ? (
+                            <Anchor
+                              href={platform.ticketUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              size="xs"
+                              c="blue"
+                              style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                            >
+                              {platform.ticketKey}
+                              <IconExternalLink size={12} />
+                            </Anchor>
+                          ) : (
+                            <Text size="xs" c="dimmed">
+                              {platform.ticketKey}
+                            </Text>
+                          )}
+                        </Group>
                       )}
                       {platform.message && (
                         <Text size="xs" c="dimmed">
@@ -308,9 +346,25 @@ export function IntegrationsStatusSidebar({
                     )}
                   </Group>
                   {projectManagementStatus.data.ticketKey && (
-                    <Text size="xs" c="dimmed">
-                      {projectManagementStatus.data.ticketKey}
-                    </Text>
+                    <Group gap={4}>
+                      {projectManagementStatus.data.ticketUrl ? (
+                        <Anchor
+                          href={projectManagementStatus.data.ticketUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          size="xs"
+                          c="blue"
+                          style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                        >
+                          {projectManagementStatus.data.ticketKey}
+                          <IconExternalLink size={12} />
+                        </Anchor>
+                      ) : (
+                        <Text size="xs" c="dimmed">
+                          {projectManagementStatus.data.ticketKey}
+                        </Text>
+                      )}
+                    </Group>
                   )}
                   {projectManagementStatus.data.message && (
                     <Text size="xs" c="dimmed">

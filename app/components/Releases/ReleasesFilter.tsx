@@ -22,7 +22,7 @@ export const ReleasesFilter = memo(function ReleasesFilter({
   onStageChange,
 }: ReleasesFilterProps) {
   return (
-    <Group gap="md">
+    <Group gap="md" wrap="wrap">
       <Select
         label="Build Mode"
         placeholder="Select build mode"
@@ -30,7 +30,7 @@ export const ReleasesFilter = memo(function ReleasesFilter({
         value={buildMode}
         onChange={(value) => onBuildModeChange(value as BuildModeFilter)}
         clearable={false}
-        style={{ minWidth: 150 }}
+        style={{ minWidth: 150, flex: '1 1 auto' }}
       />
       <Select
         label="Stage"
@@ -39,7 +39,7 @@ export const ReleasesFilter = memo(function ReleasesFilter({
         value={stage}
         onChange={(value) => onStageChange(value as StageFilter)}
         clearable={false}
-        style={{ minWidth: 180 }}
+        style={{ minWidth: 180, flex: '1 1 auto' }}
       />
     </Group>
   );

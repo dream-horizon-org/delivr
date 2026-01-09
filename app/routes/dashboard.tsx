@@ -13,6 +13,7 @@ import { CodepushService } from '~/.server/services/Codepush';
 import { STORE_TYPES, ALLOWED_PLATFORMS } from '~/types/distribution/app-distribution';
 import type { SystemMetadataBackend } from '~/types/system-metadata';
 import { AuthErrorFallback } from '~/components/Auth/AuthErrorFallback';
+import { i } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
 
 export const loader = authenticateLoaderRequest(async ({ user, request }) => {
   try {
@@ -30,6 +31,26 @@ export const loader = authenticateLoaderRequest(async ({ user, request }) => {
         allowedPlatforms: ALLOWED_PLATFORMS,
       },
     };
+    
+    // Log success with metadata summary
+    const metadata = enrichedData.releaseManagement;
+    console.log('[Dashboard] System metadata loaded successfully:', {
+      integrations: {
+        SOURCE_CONTROL: metadata.integrations.SOURCE_CONTROL.length,
+        COMMUNICATION: metadata.integrations.COMMUNICATION.length,
+        CI_CD: metadata.integrations.CI_CD.length,
+        TEST_MANAGEMENT: metadata.integrations.TEST_MANAGEMENT.length,
+        PROJECT_MANAGEMENT: metadata.integrations.PROJECT_MANAGEMENT.length,
+        APP_DISTRIBUTION: metadata.integrations.APP_DISTRIBUTION.length,
+      },
+      platforms: metadata.platforms.length,
+      targets: metadata.targets.length,
+      releaseTypes: metadata.releaseTypes.length,
+      releaseStages: metadata.releaseStages?.length || 0,
+      releaseStatuses: metadata.releaseStatuses.length,
+      buildEnvironments: metadata.buildEnvironments.length,
+      systemVersion: enrichedData.system?.version,
+    });
     
     return json({
       user,
@@ -74,7 +95,17 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const params = useParams();
   const location = useLocation();
-  const { data: orgs = [], isLoading: orgsLoading } = useGetOrgList();
+  const { data: orgs = [], isLoading: orgsLoading, isError: hasOrgsError, error: orgsError } = useGetOrgList();
+  if (hasOrgsError) {
+    console.error('[Dashboard] Error loading organizations:', orgsError);
+    return (
+      <Flex h="100vh" direction="column" bg={theme.colors?.slate?.[0] || '#f8fafc'} align="center" justify="center" p={32}>
+        <Box style={{ maxWidth: 600, width: '100%' }}>
+          <AuthErrorFallback message={ 'Failed to load organizations' } />
+        </Box>
+      </Flex>
+    );
+  }
   
   // Show auth error if present
   if (authError) {
@@ -171,7 +202,7 @@ export default function Dashboard() {
                   size="sm"
                   fw={500}
                   c="dimmed"
-                  onClick={() => window.open('https://dota.dreamsportslabs.com/', '_blank')}
+                  onClick={() => window.open('https://delivr.live/', '_blank')}
                   style={{ 
                     cursor: 'pointer',
                     transition: 'color 0.15s ease',
@@ -192,7 +223,7 @@ export default function Dashboard() {
                     background: borderColor,
                   }}
                 />
-                <HeaderUserButton user={user} />
+                {user?.user && <HeaderUserButton user={user} />}
               </Group>
             </Flex>
           </Box>
@@ -204,7 +235,7 @@ export default function Dashboard() {
                 organizations={orgs}
                 currentOrgId={params.org}
                 currentAppId={params.app}
-                userEmail={user.user.email}
+                userEmail={user?.user?.email || ''}
               />
             )}
             <Box 

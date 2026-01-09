@@ -22,10 +22,11 @@ import {
   IconPlug,
 } from '@tabler/icons-react';
 import { Link, useParams } from '@remix-run/react';
-import type { TestManagementConfig, CheckmateSettings } from '~/types/release-config';
+import type { TestManagementConfig } from '~/types/release-config';
 import type { TestManagementSelectorProps } from '~/types/release-config-props';
 import { CheckmateConfigFormEnhanced } from './CheckmateConfigFormEnhanced';
 import { IntegrationCategory } from '~/types/integrations';
+import { TEST_PROVIDERS } from '~/types/release-config-constants';
 
 export function TestManagementSelector({
   config,
@@ -47,31 +48,21 @@ export function TestManagementSelector({
 
       onChange({
         enabled: true,
-        provider: 'checkmate',
+        provider: TEST_PROVIDERS.CHECKMATE,
         integrationId: integrationId,
-        projectId: '',
-        providerConfig: {
-          type: 'checkmate',
-          integrationId: integrationId,
-          projectId: 0,
-          platformConfigurations: [],
-          autoCreateRuns: false,
-          passThresholdPercent: 100,
-          filterType: 'AND',
-        },
+        platformConfigurations: [],
+        autoCreateRuns: false,
+        passThresholdPercent: 100,
+        filterType: 'AND',
       });
     } else {
       onChange(undefined);
     }
   };
 
-  const handleProviderConfigChange = (updatedProviderConfig: CheckmateSettings) => {
+  const handleConfigChange = (updatedConfig: TestManagementConfig) => {
     if (!config) return;
-    onChange({
-      ...config,
-      providerConfig: updatedProviderConfig,
-      integrationId: updatedProviderConfig.integrationId,
-    });
+    onChange(updatedConfig);
   };
 
   return (
@@ -174,11 +165,12 @@ export function TestManagementSelector({
                     Configuration
                   </Text>
                   <CheckmateConfigFormEnhanced
-                    config={(config.providerConfig || {}) as Partial<CheckmateSettings>}
-                    onChange={handleProviderConfigChange}
+                    config={config}
+                    onChange={handleConfigChange}
                     availableIntegrations={availableIntegrations.checkmate}
                     selectedTargets={selectedTargets}
                     integrationId={connection.id}
+                    tenantId={tenantId}
                   />
                 </Box>
               </>

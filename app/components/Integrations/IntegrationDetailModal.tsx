@@ -26,7 +26,7 @@ import type { IntegrationDetails } from '~/types/integrations';
 import { IntegrationIcon } from './IntegrationIcon';
 import { DISCONNECT_CONFIG, INTEGRATION_STATUS_VALUES } from '~/constants/integrations';
 import { ConfirmationModal } from '../Common/ConfirmationModal';
-import { apiDelete, getApiErrorMessage, ApiError } from '~/utils/api-client';
+import { apiDelete, getApiErrorMessage } from '~/utils/api-client';
 import { showErrorToast, showSuccessToast, showWarningToast, showInfoToast } from '~/utils/toast';
 import { INTEGRATION_MESSAGES, getErrorMessage } from '~/constants/toast-messages';
 import { DEBUG_LABELS, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
@@ -98,22 +98,14 @@ export function IntegrationDetailModal({
       onClose();
       onDisconnectComplete();
     } catch (error) {
-      // Handle 404 errors gracefully - the integration doesn't exist in the backend
-      // This can happen when tenant config is out of sync with the actual integrations table
-      if (error instanceof ApiError && error.status === 404) {
-        console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} Integration not found in backend (404) - treating as already disconnected`);
-        showInfoToast({
-          title: 'Integration Already Removed',
-          message: `${integrationName} was not found in the database. Refreshing your integrations list.`,
-        });
-        setShowConfirmDisconnect(false);
-        onClose();
-        onDisconnectComplete(); // Still refresh the cache to sync UI with backend
-        return;
-      }
-      
-      const message = getApiErrorMessage(error, `Failed to disconnect ${integrationName}`);
+      // Show backend error message if available, otherwise show generic message
+      const message = getApiErrorMessage(error, `Integration disconnect failed, please refresh and try again.`);
       showErrorToast(getErrorMessage(message, INTEGRATION_MESSAGES.DISCONNECT_ERROR(integrationName).title));
+      
+      // Still refresh the cache to sync UI with backend
+      setShowConfirmDisconnect(false);
+      onClose();
+      onDisconnectComplete();
     } finally {
       setIsDisconnecting(false);
     }
@@ -310,7 +302,7 @@ export function IntegrationDetailModal({
         opened={opened}
         onClose={onClose}
         centered
-        size="md"
+        size="lg"
         radius="md"
         title={
           <Group gap="md">

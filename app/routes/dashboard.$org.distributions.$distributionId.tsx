@@ -23,7 +23,7 @@ import { IconArrowLeft, IconBrandAndroid, IconBrandApple, IconExternalLink, Icon
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { User } from '~/.server/services/Auth/auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
-import { RolloutService } from '~/.server/services/Rollout';
+import { Breadcrumb } from '~/components/Common';
 import { ActivityHistoryLog } from '~/components/Distribution/ActivityHistoryLog';
 import { CancelSubmissionDialog } from '~/components/Distribution/CancelSubmissionDialog';
 import { ErrorState, StaleDataWarning } from '~/components/Distribution/ErrorRecovery';
@@ -35,6 +35,7 @@ import { ResubmissionDialog } from '~/components/Distribution/ReSubmissionDialog
 import { ResumeRolloutDialog } from '~/components/Distribution/ResumeRolloutDialog';
 import { SubmissionHistoryTimeline } from '~/components/Distribution/SubmissionHistoryTimeline';
 import { UpdateRolloutDialog } from '~/components/Distribution/UpdateRolloutDialog';
+import { getBreadcrumbItems } from '~/constants/breadcrumbs';
 import {
   DISTRIBUTION_MANAGEMENT_UI,
   DISTRIBUTION_STATUS_COLORS,
@@ -151,18 +152,18 @@ export const action = authenticateLoaderRequest(
 
         case 'pauseRollout': {
           const reason = formData.get('reason') as string;
-          await RolloutService.pauseRollout(submissionId, { reason }, platform);
+          await DistributionService.pauseRollout(org!, submissionId, { reason: reason || '' }, platform);
           return json({ success: true });
         }
 
         case 'resumeRollout': {
-          await RolloutService.resumeRollout(submissionId, platform);
+          await DistributionService.resumeRollout(org!, submissionId, platform);
           return json({ success: true });
         }
 
         case 'updateRollout': {
           const rolloutPercentage = parseFloat(formData.get('rolloutPercentage') as string);
-          await RolloutService.updateRollout(submissionId, { rolloutPercentage }, platform);
+          await DistributionService.updateRollout(org!, submissionId, { rolloutPercentage }, platform);
           return json({ success: true });
         }
 
@@ -526,9 +527,16 @@ export default function DistributionDetailPage() {
     }
   }, [latestIOSSubmission, handleOpenCancelDialog]);
 
+  // Breadcrumb items
+  const breadcrumbItems = getBreadcrumbItems('distributions.detail', {
+    org,
+    distributionBranch: distribution.branch,
+  });
+
   if (error || !distribution.id) {
     return (
       <Container size="lg" className="py-8">
+        <Breadcrumb items={breadcrumbItems} mb={16} />
         {/* Back Button - Navigate back to preserve page state */}
         <Group mb="lg">
           <Button
@@ -553,6 +561,9 @@ export default function DistributionDetailPage() {
 
   return (
     <Container size="lg" className="py-8">
+      {/* Breadcrumb */}
+      <Breadcrumb items={breadcrumbItems} mb={16} />
+      
       {/* Stale Data Warning */}
       {staleInfo?.shouldRefresh && (
         <StaleDataWarning

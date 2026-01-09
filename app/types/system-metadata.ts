@@ -152,7 +152,7 @@ export interface SystemMetadataBackend {
     platforms: PlatformOptionBackend[];
     targets: TargetOptionBackend[];
     releaseTypes: ReleaseTypeOptionBackend[];
-    releaseStages: ReleaseStageOptionBackend[];
+    releaseStages?: ReleaseStageOptionBackend[]; // Optional - removed from backend (process stages, not config metadata)
     releaseStatuses: ReleaseStatusOptionBackend[];
     buildEnvironments: BuildEnvironmentOptionBackend[];
   };
@@ -187,7 +187,7 @@ export interface SystemMetadata {
     platforms: PlatformOption[];
     targets: TargetOption[];
     releaseTypes: ReleaseTypeOption[];
-    releaseStages: ReleaseStageOption[];
+    releaseStages?: ReleaseStageOption[]; // Optional - removed from backend (process stages, not config metadata)
     releaseStatuses: ReleaseStatusOption[];
     buildEnvironments: BuildEnvironmentOption[];
   };
@@ -226,9 +226,6 @@ export interface TenantConfig {
     
     // Allowed release types for this tenant
     allowedReleaseTypes: string[];
-    
-    // Custom settings
-    customSettings: Record<string, any>;
   };
 }
 

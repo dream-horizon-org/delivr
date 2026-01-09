@@ -10,13 +10,6 @@ import type { PipelineCardProps } from '~/types/release-config-props';
 import { BUILD_ENVIRONMENTS, BUILD_PROVIDERS, PLATFORMS } from '~/types/release-config-constants';
 import { ENVIRONMENT_LABELS, PLATFORM_LABELS, BUTTON_LABELS, STATUS_LABELS } from '~/constants/release-config-ui';
 
-const environmentColors: Record<BuildEnvironment, string> = {
-  [BUILD_ENVIRONMENTS.PRE_REGRESSION]: 'blue',
-  [BUILD_ENVIRONMENTS.REGRESSION]: 'green',
-  [BUILD_ENVIRONMENTS.TESTFLIGHT]: 'orange',
-  [BUILD_ENVIRONMENTS.AAB_BUILD]: 'teal',
-};
-
 export function PipelineCard({ pipeline, onEdit, onDelete }: PipelineCardProps) {
   const providerLabel = pipeline.provider.replace('_', ' ');
   
@@ -49,14 +42,14 @@ export function PipelineCard({ pipeline, onEdit, onDelete }: PipelineCardProps) 
           </div>
           
           <Group gap="xs" className="mb-2">
-            <Badge size="sm" variant="light">
+            <Badge size="sm" variant="light" color="brand">
               {PLATFORM_LABELS[pipeline.platform]}
             </Badge>
             
             <Badge 
               size="sm" 
               variant="light" 
-              color={environmentColors[pipeline.environment]}
+              color="blue"
             >
               {ENVIRONMENT_LABELS[pipeline.environment]}
             </Badge>

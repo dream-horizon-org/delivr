@@ -1,4 +1,5 @@
 import { apiGet } from "~/utils/api-client";
+import { extractApiErrorMessage } from "~/utils/api-error-utils";
 import { route } from "routes-gen";
 import { TenantsResponse } from "~/.server/services/Codepush/types";
 import { TenantRole } from "~/constants/permissions";
@@ -17,7 +18,8 @@ export const getOrgList = async (): Promise<Organization[]> => {
   );
   
   if (!result.success || !result.data) {
-    throw new Error(result.error || 'Failed to fetch organizations');
+    const errorMessage = extractApiErrorMessage(result.error, 'Failed to fetch organizations');
+    throw new Error(errorMessage);
   }
   
   return result.data.organisations.map((item) => {

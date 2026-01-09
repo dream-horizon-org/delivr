@@ -359,7 +359,7 @@ export function RegressionSlotCard({
         >
           <Switch
             label="Enable Regression Builds"
-            description="Trigger regression builds in this slot. When enabled, automated regression tests will run at the scheduled time."
+            description="Trigger regression builds in this slot."
             checked={slot.config.regressionBuilds}
             onChange={(e) =>
               onUpdate({

@@ -9,6 +9,7 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
 import { JenkinsIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 import { requireUserId } from '~/.server/services/Auth';
+import { logApiError } from '~/utils/api-route-helpers';
 
 /**
  * GET - Retrieve Jenkins integration
@@ -30,7 +31,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       return json(result, { status: 404 });
     }
   } catch (error: any) {
-    console.error('[Jenkins Get] Error:', error);
+    logApiError('[Jenkins-Get]', error);
     return json(
       { success: false, error: error.message || 'Internal server error' },
       { status: 500 }
@@ -128,7 +129,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     return json({ success: false, error: 'Method not allowed' }, { status: 405 });
   } catch (error: any) {
-    console.error(`[Jenkins ${request.method}] Error:`, error);
+    logApiError(`[Jenkins-${request.method}]`, error);
     return json(
       { success: false, error: error.message || 'Internal server error' },
       { status: 500 }

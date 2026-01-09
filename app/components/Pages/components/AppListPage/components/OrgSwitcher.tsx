@@ -112,7 +112,7 @@ export function OrgSwitcher({
                   >
                     <UnstyledButton
                       onClick={() => {
-                        navigate(route("/dashboard/:org/apps", { org: org.id }));
+                        navigate(route("/dashboard/:org/ota/apps", { org: org.id }));
                       }}
                       style={{
                         width: "56px",
@@ -163,7 +163,7 @@ export function OrgSwitcher({
                 <UnstyledButton
                   key={org.id}
                   onClick={() => {
-                    navigate(route("/dashboard/:org/apps", { org: org.id }));
+                    navigate(route("/dashboard/:org/releases", { org: org.id }));
                   }}
                   style={{
                     width: "100%",

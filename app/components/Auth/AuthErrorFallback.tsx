@@ -1,6 +1,7 @@
 import { Alert, Button, Stack, Text } from '@mantine/core';
 import { IconAlertCircle, IconRefresh, IconLogout } from '@tabler/icons-react';
 import { useNavigate } from '@remix-run/react';
+import { useState } from 'react';
 
 interface AuthErrorFallbackProps {
   message: string;
@@ -8,8 +9,12 @@ interface AuthErrorFallbackProps {
 
 export function AuthErrorFallback({ message }: AuthErrorFallbackProps) {
   const navigate = useNavigate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const handleLogout = async () => {
+    setIsLoggingOut(true);
+    
     // Clear all cookies client-side (including analytics)
     const clearAllCookies = () => {
       const hostname = window.location.hostname;
@@ -105,6 +110,7 @@ export function AuthErrorFallback({ message }: AuthErrorFallbackProps) {
   };
 
   const handleRetry = () => {
+    setIsRetrying(true);
     // Reload the page to retry
     window.location.reload();
   };
@@ -124,6 +130,25 @@ export function AuthErrorFallback({ message }: AuthErrorFallbackProps) {
             leftSection={<IconRefresh size={16} />}
             onClick={handleRetry}
             variant="light"
+            loading={isRetrying}
+            disabled={isLoggingOut || isRetrying}
+            style={{
+              border: '1px solid',
+              borderColor: 'var(--mantine-color-gray-4)',
+              transition: 'all 0.2s ease',
+            }}
+            styles={{
+              root: {
+                '&:hover': {
+                  borderColor: 'var(--mantine-color-blue-6)',
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                },
+                '&:active': {
+                  transform: 'translateY(0)',
+                },
+              },
+            }}
           >
             Retry
           </Button>
@@ -132,6 +157,25 @@ export function AuthErrorFallback({ message }: AuthErrorFallbackProps) {
             onClick={handleLogout}
             color="red"
             variant="light"
+            loading={isLoggingOut}
+            disabled={isLoggingOut || isRetrying}
+            style={{
+              border: '1px solid',
+              borderColor: 'var(--mantine-color-red-4)',
+              transition: 'all 0.2s ease',
+            }}
+            styles={{
+              root: {
+                '&:hover': {
+                  borderColor: 'var(--mantine-color-red-7)',
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                },
+                '&:active': {
+                  transform: 'translateY(0)',
+                },
+              },
+            }}
           >
             Logout
           </Button>

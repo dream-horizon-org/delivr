@@ -4,7 +4,6 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { Link } from '@remix-run/react';
 import {
   Box,
   Paper,
@@ -12,11 +11,11 @@ import {
   Badge,
   Title,
   Group,
-  Breadcrumbs,
-  Anchor,
   Stack,
   useMantineTheme,
 } from '@mantine/core';
+import { Breadcrumb } from '~/components/Common';
+import { getBreadcrumbItems } from '~/constants/breadcrumbs';
 import { IconSettings, IconEdit, IconCopy } from '@tabler/icons-react';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { useConfig } from '~/contexts/ConfigContext';
@@ -31,6 +30,7 @@ import { BasicInfoForm } from './BasicInfoForm';
 import { WIZARD_STEPS, STEP_INDEX } from '~/constants/wizard-steps';
 import { DEFAULT_PROJECT_MANAGEMENT_CONFIG } from '~/constants/release-config';
 import { canProceedFromStep } from './wizard-validation';
+import { validateScheduling } from '~/components/ReleaseConfig/Scheduling/scheduling-validation';
 import { VerticalStepper } from '~/components/Common/VerticalStepper/VerticalStepper';
 import { FixedPipelineCategories } from '../BuildPipeline/FixedPipelineCategories';
 import { BuildUploadSelector } from '../BuildUpload/BuildUploadSelector';
@@ -39,9 +39,9 @@ import { TestManagementSelector } from '../TestManagement/TestManagementSelector
 import { JiraProjectStep } from '../JiraProject/JiraProjectStep';
 import { SchedulingStepWrapper } from '../Scheduling/SchedulingStepWrapper';
 import { CommunicationConfig } from '../Communication/CommunicationConfig';
-import { derivePlatformsFromTargets } from '~/utils/platform-utils';
-import { BUILD_UPLOAD_STEPS } from '~/types/release-config-constants';
+import { BUILD_UPLOAD_STEPS, CONFIG_STATUSES } from '~/types/release-config-constants';
 import type { ConfigurationWizardProps } from '~/types/release-config-props';
+import { getPlatformsFromPlatformTargets, getTargetsFromPlatformTargets } from '~/utils/platform-utils';
 
 export function ConfigurationWizard({
   tenantId,
@@ -122,12 +122,45 @@ export function ConfigurationWizard({
 
       return () => clearTimeout(timeoutId);
     }
-  }, [config.targets, config.platforms, isEditMode, saveDraft, config.name]);
+  }, [config.platformTargets, isEditMode, saveDraft, config.name]);
   
   const handleNext = () => {
-    // Mark this step as attempted
+    // Mark this step as attempted (this will show validation errors)
     setAttemptedSteps(new Set([...attemptedSteps, currentStep]));
     
+    // For SCHEDULING step, check validation separately to show errors
+    if (currentStep === STEP_INDEX.SCHEDULING) {
+      // CRITICAL: Cannot configure scheduling without platformTargets
+      if (!config.platformTargets || config.platformTargets.length === 0) {
+        return; // Cannot proceed - no platform-targets selected
+      }
+      
+      // If user opted out of scheduling, allow proceed
+      if (!config.releaseSchedule) {
+        setCompletedSteps(new Set([...completedSteps, currentStep]));
+        if (!isEditMode && config.name) {
+          saveDraft();
+        }
+        setCurrentStep(currentStep + 1);
+        return;
+      }
+      
+      // If user opted in, validate scheduling config
+      const schedulingErrors = validateScheduling(config.releaseSchedule, isEditMode);
+      
+      // Only proceed if no validation errors
+      if (schedulingErrors.length === 0) {
+        setCompletedSteps(new Set([...completedSteps, currentStep]));
+        if (!isEditMode && config.name) {
+          saveDraft();
+        }
+        setCurrentStep(currentStep + 1);
+      }
+      // If there are errors, they will be shown because attemptedSteps includes this step
+      return;
+    }
+    
+    // For other steps, use existing logic
     if (canProceedFromStep(currentStep, config)) {
       setCompletedSteps(new Set([...completedSteps, currentStep]));
       
@@ -164,7 +197,7 @@ export function ConfigurationWizard({
     try {
       const completeConfig: ReleaseConfiguration = {
         ...config,
-        status: 'ACTIVE',
+        status: CONFIG_STATUSES.ACTIVE,
         updatedAt: new Date().toISOString(),
         createdAt: isEditMode ? config.createdAt! : new Date().toISOString(),
       } as ReleaseConfiguration;
@@ -203,27 +236,10 @@ export function ConfigurationWizard({
   };
 
   // Breadcrumb items
-  const breadcrumbItems = [
-    { title: 'Release Management', href: `/dashboard/${tenantId}/releases` },
-    { title: 'Configuration', href: `/dashboard/${tenantId}/releases/settings?tab=configurations` },
-    { title: isEditMode ? 'Edit' : 'New Configuration', href: '#' },
-  ].map((item, index) => (
-    item.href === '#' ? (
-      <Text key={index} size="sm" c={theme.colors.slate[6]}>
-        {item.title}
-      </Text>
-    ) : (
-      <Anchor
-        key={index}
-        component={Link}
-        to={item.href}
-        size="sm"
-        c={theme.colors.slate[5]}
-      >
-        {item.title}
-      </Anchor>
-    )
-  ));
+  const breadcrumbItems = getBreadcrumbItems('releases.configure', {
+    org: tenantId,
+    isEditMode,
+  });
 
   const currentStepData = WIZARD_STEPS[currentStep];
   
@@ -235,16 +251,16 @@ export function ConfigurationWizard({
             config={config}
             onChange={setConfig}
             tenantId={tenantId}
+            showValidation={attemptedSteps.has(STEP_INDEX.BASIC)}
           />
         );
         
       case STEP_INDEX.PLATFORMS:
         return (
           <PlatformSelector
-            selectedPlatforms={config.targets || []}
-            onChange={(targets) => {
-              const platforms = derivePlatformsFromTargets(targets);
-              setConfig({ ...config, targets, platforms });
+            platformTargets={config.platformTargets || []}
+            onChange={(platformTargets) => {
+              setConfig((prev) => ({ ...prev, platformTargets }));
             }}
           />
         );
@@ -274,7 +290,7 @@ export function ConfigurationWizard({
               jenkins: availableIntegrations.jenkins,
               githubActions: availableIntegrations.githubActions,
             }}
-            selectedPlatforms={config.platforms || []}
+            selectedPlatforms={getPlatformsFromPlatformTargets(config.platformTargets || [])}
             tenantId={tenantId}
             showValidation={attemptedSteps.has(STEP_INDEX.PIPELINES)}
           />
@@ -286,7 +302,7 @@ export function ConfigurationWizard({
             config={config.testManagementConfig!}
             onChange={(testManagementConfig) => setConfig({ ...config, testManagementConfig })}
             availableIntegrations={{ checkmate: availableIntegrations.checkmate }}
-            selectedTargets={config.targets || []}
+            selectedTargets={getTargetsFromPlatformTargets(config.platformTargets || [])}
           />
         );
         
@@ -296,7 +312,7 @@ export function ConfigurationWizard({
             config={config.projectManagementConfig ?? DEFAULT_PROJECT_MANAGEMENT_CONFIG}
             onChange={(projectManagementConfig) => setConfig({ ...config, projectManagementConfig })}
             availableIntegrations={availableIntegrations.jira}
-            selectedPlatforms={config.platforms || []}
+            selectedPlatforms={getPlatformsFromPlatformTargets(config.platformTargets || [])}
             tenantId={tenantId}
           />
         );
@@ -316,9 +332,11 @@ export function ConfigurationWizard({
           <SchedulingStepWrapper
             scheduling={config.releaseSchedule}
             onChange={(releaseSchedule) => setConfig({ ...config, releaseSchedule })}
-            selectedPlatforms={config.platforms || []}
+            selectedPlatforms={getPlatformsFromPlatformTargets(config.platformTargets || [])}
             showValidation={attemptedSteps.has(STEP_INDEX.SCHEDULING)}
             communicationConfig={config.communicationConfig}
+            platformTargets={config.platformTargets || []}
+            isEditMode={isEditMode}
           />
         );
         
@@ -334,7 +352,7 @@ export function ConfigurationWizard({
     <Box p={32}>
       {/* Header */}
       <Box mb={24}>
-        <Breadcrumbs mb={16}>{breadcrumbItems}</Breadcrumbs>
+        <Breadcrumb items={breadcrumbItems} mb={16} />
         
         <Group justify="space-between" align="flex-start">
           <Box>
@@ -375,16 +393,15 @@ export function ConfigurationWizard({
       {/* Wizard Content */}
       <Group align="flex-start" gap="lg" wrap="nowrap">
         {/* Left Sidebar - Stepper */}
-        <Box w={300} style={{ flexShrink: 0 }}>
+        <Box w={300} style={{ flexShrink: 0 , position:"sticky"}} top={24}>
           <Paper 
             p="xl" 
             radius="md" 
             shadow="sm" 
             withBorder
             style={{
-              position: 'sticky',
               top: 24,
-              maxHeight: 'calc(100vh - 100px)',
+              maxHeight: 'calc(100vh - 96px)',
               overflowY: 'auto',
               backgroundColor: theme.white,
             }}

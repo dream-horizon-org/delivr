@@ -192,7 +192,7 @@ export interface RegressionCycle {
 }
 
 /**
- * Approval Requirements - Matches backend contract
+ * Approval Requirements - Matches backend contract for Regression stage
  */
 export interface ApprovalRequirements {
   testManagementPassed: boolean;      // Test run threshold passed
@@ -201,11 +201,26 @@ export interface ApprovalRequirements {
 }
 
 /**
- * Approval Status - Matches backend contract exactly
+ * Pre-Release Approval Requirements - Matches backend contract for Pre-Release stage
+ */
+export interface PreReleaseApprovalRequirements {
+  projectManagementPassed: boolean;  // All project management tickets completed
+}
+
+/**
+ * Approval Status - Matches backend contract exactly for Regression stage
  */
 export interface ApprovalStatus {
   canApprove: boolean;                  // True if all requirements met
   approvalRequirements: ApprovalRequirements;
+}
+
+/**
+ * Pre-Release Approval Status - Matches backend contract exactly for Pre-Release stage
+ */
+export interface PreReleaseApprovalStatus {
+  canApprove: boolean;                  // True if all requirements met
+  approvalRequirements: PreReleaseApprovalRequirements;
 }
 
 /**
@@ -248,10 +263,11 @@ export interface RegressionStageResponse {
 }
 
 /**
- * Pre-Release Stage Response
+ * Pre-Release Stage Response - Matches backend contract exactly
  */
 export interface PreReleaseStageResponse extends StageTasksResponse {
   stage: TaskStage.PRE_RELEASE;
+  approvalStatus: PreReleaseApprovalStatus;
 }
 
 /**
@@ -367,6 +383,8 @@ export interface GetTestManagementStatusResponse {
  * Test Management Status Result - Single platform result
  */
 export type TestManagementStatusResult = {
+  releaseId?: string;                    // Release identifier
+  testManagementConfigId?: string;      // Config ID
   platform: string;
   target: string;
   version: string;
@@ -422,6 +440,7 @@ export interface GetProjectManagementStatusResponse {
   version: string;
   hasTicket: boolean;
   ticketKey: string | null;
+  ticketUrl?: string;                    // Direct link to ticket
   currentStatus?: string;
   completedStatus?: string;
   isCompleted?: boolean;
@@ -433,16 +452,19 @@ export interface GetProjectManagementStatusResponse {
  * Project Management Status Result - Single platform result
  */
 export type ProjectManagementStatusResult = {
+  releaseId?: string;                    // Release identifier
+  projectManagementConfigId?: string;    // Config ID
   platform: string;
   target: string;
   version: string;
   hasTicket: boolean;
   ticketKey: string | null;
+  ticketUrl?: string;                    // Direct link to ticket
   currentStatus?: string;
   completedStatus?: string;
   isCompleted?: boolean;
   message: string;
-  error?: string;
+  error?: string;                        // Keep as optional
 };
 
 /**
@@ -647,14 +669,14 @@ export interface ReleaseDetails {
   hasManualBuildUpload: boolean;
   
   // Ownership
-  createdByAccountId: string;
   releasePilotAccountId: string | null;
   releasePilot?: {
     id: string;
     email: string;
     name: string;
   } | null;
-  lastUpdatedByAccountId: string;
+  createdBy: string; // Email if available, otherwise accountId
+  lastUpdatedBy: string; // Email if available, otherwise accountId
   
   // Timestamps
   createdAt: string;                       // ISO 8601

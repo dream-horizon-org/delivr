@@ -28,11 +28,21 @@ import {
 import { apiGet } from '~/utils/api-client';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import type { BasicInfoFormProps } from '~/types/release-config-props';
+import { RELEASE_TYPES } from '~/types/release-config-constants';
 
-export function BasicInfoForm({ config, onChange, tenantId }: BasicInfoFormProps) {
+export function BasicInfoForm({ config, onChange, tenantId, showValidation = false }: BasicInfoFormProps) {
   const theme = useMantineTheme();
   const [branches, setBranches] = useState<Array<{ value: string; label: string }>>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
+  
+  // Validation helper for baseBranch
+  const getBaseBranchError = (): string | undefined => {
+    if (!showValidation) return undefined;
+    if (!config.baseBranch || !config.baseBranch.trim()) {
+      return 'Default base branch is required';
+    }
+    return undefined;
+  };
   
   // Track if we've already auto-filled the default branch (prevent re-setting)
   const hasAutoFilledBranchRef = useRef(false);
@@ -61,17 +71,20 @@ export function BasicInfoForm({ config, onChange, tenantId }: BasicInfoFormProps
           }));
           setBranches(branchOptions);
           
+          // Find the actual default branch from the branches array (not the stored defaultBranch)
+          const actualDefaultBranch = result.data.branches.find((branch: any) => branch.default)?.name;
+          
           // Auto-set default branch ONLY if:
-          // 1. We have a default branch from the API
+          // 1. We found an actual default branch from the repository
           // 2. We haven't auto-filled before (prevents overwriting user input)
           // 3. Config doesn't already have a baseBranch set (check current ref value)
-          if (result.data.defaultBranch && !hasAutoFilledBranchRef.current) {
+          if (actualDefaultBranch && !hasAutoFilledBranchRef.current) {
             // Use the ref to get the most current config value
             const currentConfig = configRef.current;
             if (!currentConfig.baseBranch) {
               hasAutoFilledBranchRef.current = true;
               // Use the current config from ref to avoid stale closure
-              onChange({ ...currentConfig, baseBranch: result.data.defaultBranch });
+              onChange({ ...currentConfig, baseBranch: actualDefaultBranch });
             }
           }
         }
@@ -147,14 +160,14 @@ export function BasicInfoForm({ config, onChange, tenantId }: BasicInfoFormProps
         <Select
           label="Release Type"
           data={[
-            { value: 'MINOR', label: 'Minor Release' },
-            { value: 'HOTFIX', label: 'Hotfix Release' },
-            { value: 'MAJOR', label: 'Major Release' },
+            { value: RELEASE_TYPES.MINOR, label: 'Minor Release' },
+            { value: RELEASE_TYPES.HOTFIX, label: 'Hotfix Release' },
+            { value: RELEASE_TYPES.MAJOR, label: 'Major Release' },
           ]}
-          value={config.releaseType || 'MINOR'}
+          value={config.releaseType || RELEASE_TYPES.MINOR}
           onChange={(val) => {
             // Explicitly handle the change and preserve other config values
-            onChange({ ...config, releaseType: (val || 'MINOR') as any });
+            onChange({ ...config, releaseType: (val || RELEASE_TYPES.MINOR) as any });
           }}
           required
           withAsterisk
@@ -179,6 +192,7 @@ export function BasicInfoForm({ config, onChange, tenantId }: BasicInfoFormProps
           clearable={false}
           required
           withAsterisk
+          error={getBaseBranchError()}
           disabled={loadingBranches}
           rightSection={loadingBranches ? <Loader size="xs" /> : null}
           description="Default branch to fork from for releases (from SCM integration)"

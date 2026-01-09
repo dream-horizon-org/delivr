@@ -6,6 +6,7 @@ import {
   AuthenticatedActionFunction,
   AuthenticatedLoaderFunction
 } from "~/utils/authenticate";
+import { logApiError } from '~/utils/api-route-helpers';
 
 // GET /api/v1/tenants/:tenantId/collaborators
 const getTenantCollaborators: AuthenticatedLoaderFunction = async ({ params, user }) => {
@@ -19,7 +20,7 @@ const getTenantCollaborators: AuthenticatedLoaderFunction = async ({ params, use
     const response = await CodepushService.getTenantCollaborators(tenantId, user.user.id);
     return json(response.data, { status: response.status });
   } catch (error: any) {
-    console.error("Error fetching tenant collaborators:", error);
+    logApiError('[Collaborators-Get]', error);
     return json(
       { error: error.response?.data?.error || "Failed to fetch collaborators" },
       { status: error.response?.status || 500 }
@@ -58,7 +59,7 @@ const addCollaborator: AuthenticatedActionFunction = async ({ request, params, u
     
     return json(response.data, { status: response.status });
   } catch (error: any) {
-    console.error("Error adding collaborator:", error);
+    logApiError('[Collaborators-Add]', error);
     return json(
       { error: error.response?.data?.error || "Failed to add collaborator" },
       { status: error.response?.status || 500 }
@@ -95,7 +96,7 @@ const updateCollaborator: AuthenticatedActionFunction = async ({ request, params
     
     return json(response.data, { status: response.status });
   } catch (error: any) {
-    console.error("Error updating collaborator:", error);
+    logApiError('[Collaborators-Update]', error);
     return json(
       { error: error.response?.data?.error || "Failed to update collaborator" },
       { status: error.response?.status || 500 }
@@ -127,7 +128,7 @@ const removeCollaborator: AuthenticatedActionFunction = async ({ request, params
     
     return json(response.data, { status: response.status });
   } catch (error: any) {
-    console.error("Error removing collaborator:", error);
+    logApiError('[Collaborators-Remove]', error);
     return json(
       { error: error.response?.data?.error || "Failed to remove collaborator" },
       { status: error.response?.status || 500 }

@@ -66,14 +66,19 @@ export interface ManualUploadConfig {
 
 export type TestManagementProvider = 'checkmate' | 'testrail' | 'zephyr' | 'none';
 
+/**
+ * Test Management Config (matches backend format)
+ * Flattened structure aligns with backend API contract and eliminates transformation overhead.
+ */
 export interface TestManagementConfig {
   enabled: boolean;
   provider: TestManagementProvider;
-  integrationId?: string; // Reference to connected integration
-  projectId?: string;
-  
-  // Provider-specific configuration
-  providerConfig?: CheckmateSettings | TestRailSettings;
+  integrationId: string; // Required (matches backend)
+  id?: string; // For updates
+  platformConfigurations: CheckmatePlatformConfiguration[];
+  passThresholdPercent: number;
+  autoCreateRuns: boolean;
+  filterType: 'AND' | 'OR';
 }
 
 export interface CheckmatePlatformConfiguration {
@@ -85,20 +90,7 @@ export interface CheckmatePlatformConfiguration {
   squadIds?: number[];
 }
 
-export interface CheckmateSettings {
-  type: 'checkmate';
-  integrationId: string; // ID of the connected integration
-  projectId: number; // Checkmate project ID
-  
-  // Platform-specific configurations
-  platformConfigurations: CheckmatePlatformConfiguration[];
-  
-  // Test run settings
-  autoCreateRuns: boolean;
-  runNameTemplate?: string; // e.g., "v{{version}} - {{platform}} - {{date}}"
-  passThresholdPercent: number; // 0-100
-  filterType: 'AND' | 'OR'; // Default: 'AND'
-}
+// CheckmateSettings removed - use TestManagementConfig with platformConfigurations instead
 
 export interface TestRailSettings {
   type: 'testrail';
@@ -125,7 +117,8 @@ export interface SchedulingConfig {
   firstReleaseKickoffDate: string; // ISO date string
   
   // Platform-specific initial release versions (only for configured platforms)
-  initialVersions: Partial<Record<Platform, string>>; // e.g., { ANDROID: "1.0.0", IOS: "1.0.0" }
+  // Array format supports multiple targets per platform (e.g., ANDROID + PLAY_STORE and ANDROID + WEB)
+  initialVersions: InitialVersion[]; // [{ platform, target, version }]
   
   // Kickoff settings
   kickoffTime: string; // HH:MM format (24-hour)
@@ -159,42 +152,47 @@ export interface RegressionSlot {
   };
 }
 
+/**
+ * Initial Version format (matches backend API contract)
+ * Array format supports multiple targets per platform (e.g., ANDROID + PLAY_STORE and ANDROID + WEB)
+ */
+export interface InitialVersion {
+  platform: Platform;
+  target: TargetPlatform;
+  version: string;
+}
+
 // ============================================================================
 // Jira Project Configuration
 // ============================================================================
 
 /**
- * Platform-specific JIRA configuration
- * Each platform can have different project settings
+ * Platform-specific JIRA configuration (matches backend API contract)
+ * Parameters are nested to match backend structure
  */
 export interface ProjectManagementPlatformConfig {
-  platform: Platform; // Platform identifier (ANDROID | IOS)
-  projectKey: string; // JIRA project key (e.g., "FE", "APP", "MOBILE")
-  issueType?: string; // Issue type (e.g., "Epic", "Story", "Task", "Bug")
-  completedStatus: string; // Status indicating completion (e.g., "Done", "Released", "Closed")
-  priority?: string; // Default priority (e.g., "High", "Medium", "Low")
-  labels?: string[]; // JIRA labels
-  assignee?: string; // Default assignee
-  customFields?: Record<string, any>; // Custom JIRA fields
+  platform: Platform; // Platform identifier (ANDROID | IOS | WEB)
+  parameters: Record<string, unknown>; // Matches backend format - nested parameters object
 }
 
 /**
- * Project Management Configuration (JIRA)
- * Flexible structure with enabled flag and platform configurations
+ * Project Management Configuration (matches backend API contract)
+ * Flattened structure aligns with backend API contract and eliminates transformation overhead.
  */
 export interface ProjectManagementConfig {
   enabled: boolean;
-  integrationId: string; // Reference to connected JIRA integration
+  integrationId: string; // Required (matches backend)
+  id?: string; // For updates
   
   // Platform-specific configurations
   platformConfigurations: ProjectManagementPlatformConfig[]; // One config per platform
   
-  // Global settings
+  // Global settings (UI-only, not sent to backend)
   createReleaseTicket?: boolean; // Auto-create release tickets
   linkBuildsToIssues?: boolean; // Link build info to Jira issues
 }
 
-// Legacy type aliases for backward compatibility
+// Type aliases for convenience (used throughout codebase)
 export type JiraProjectConfig = ProjectManagementConfig;
 export type JiraPlatformConfig = ProjectManagementPlatformConfig;
 
@@ -224,22 +222,15 @@ export interface StageWiseSlackChannels {
 }
 
 /**
- * Communication Configuration
- * Flexible structure supporting multiple channels (Slack, Email, MS Teams, etc.)
+ * Communication Config (matches backend format)
+ * Flattened structure aligns with backend API contract and eliminates transformation overhead.
  */
 export interface CommunicationConfig {
-  slack?: {
-    enabled: boolean;
-    integrationId: string;
-    channelData: SlackChannelConfig; // Channel data with id and name for different notification types
-  };
-  
-  email?: {
-    enabled: boolean;
-    notificationEmails: string[];
-  };
-  
-  // Future: msTeams, discord, etc.
+  id?: string; // For updates
+  integrationId: string; // Required (matches backend)
+  channelData: SlackChannelConfig; // Keep type for safety
+  enabled?: boolean; // UI-only flag for toggle
+  // Future: Add email, teams, etc. as separate optional fields
 }
 
 // ============================================================================
@@ -259,11 +250,8 @@ export interface ReleaseConfiguration {
   // Default base branch (from SCM integration)
   baseBranch?: string; // e.g., 'main', 'develop', 'master'
   
-  // Platforms configured in this release
-  platforms: Platform[]; // e.g., ['ANDROID', 'IOS']
-  
-  // Target platforms (match backend: defaultTargets → targets)
-  targets: TargetPlatform[];
+  // Platform-target combinations (matches backend contract)
+  platformTargets: Array<{ platform: Platform; target: TargetPlatform }>;
   
   // Build upload method
   hasManualBuildUpload: boolean; // true = manual upload, false = CI/CD

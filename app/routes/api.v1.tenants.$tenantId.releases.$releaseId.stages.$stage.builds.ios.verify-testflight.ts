@@ -47,14 +47,10 @@ const verifyTestFlight: AuthenticatedActionFunction = async ({ params, request, 
 
   try {
     const body = await request.json();
-    const { testflightBuildNumber, versionName } = body;
+    const { testflightBuildNumber } = body;
 
     if (!testflightBuildNumber) {
       return createValidationError('testflightBuildNumber is required');
-    }
-
-    if (!versionName) {
-      return createValidationError('versionName is required');
     }
 
     const buildUploadStage = stage as BuildUploadStage;
@@ -64,7 +60,6 @@ const verifyTestFlight: AuthenticatedActionFunction = async ({ params, request, 
       releaseId,
       stage: buildUploadStage,
       testflightBuildNumber,
-      versionName,
     });
 
     const response = await ReleaseProcessService.verifyTestFlight(
@@ -73,7 +68,6 @@ const verifyTestFlight: AuthenticatedActionFunction = async ({ params, request, 
       buildUploadStage,
       {
         testflightBuildNumber,
-        versionName,
       },
       user.user.id
     );

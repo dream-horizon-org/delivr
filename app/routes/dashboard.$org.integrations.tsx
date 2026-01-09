@@ -16,6 +16,8 @@ import {
   Center,
   Paper,
 } from '@mantine/core';
+import { Breadcrumb } from '~/components/Common';
+import { getBreadcrumbItems } from '~/constants/breadcrumbs';
 import { 
   IconPlug, 
   IconBrandGithub, 
@@ -229,6 +231,9 @@ export default function IntegrationsPage() {
 
   const isLoading = isLoadingMetadata || isLoadingTenantConfig;
 
+  // Breadcrumb items
+  const breadcrumbItems = getBreadcrumbItems('integrations', { org: tenantId });
+
   // Loading state
   if (isLoading) {
     return (
@@ -262,6 +267,7 @@ export default function IntegrationsPage() {
   if (hasNoIntegrations) {
     return (
       <Box>
+        <Breadcrumb items={breadcrumbItems} mb={16} />
         <Box mb={32}>
           <Title order={2} fw={700} c={theme.colors.slate[9]} mb={4}>
             Integrations
@@ -291,6 +297,9 @@ export default function IntegrationsPage() {
 
   return (
     <Box>
+      {/* Breadcrumb */}
+      <Breadcrumb items={breadcrumbItems} mb={16} />
+      
       {/* Header Section */}
       <Box mb={32}>
         <Group justify="space-between" align="flex-start">
@@ -299,20 +308,10 @@ export default function IntegrationsPage() {
               <Title order={2} fw={700} c={theme.colors.slate[9]}>
                 Integrations
               </Title>
-              {connectedCount > 0 && (
-                <Badge 
-                  size="lg" 
-                  variant="light" 
-                  color="brand"
-                  leftSection={<IconPlug size={14} />}
-                >
-                  {connectedCount} connected
-                </Badge>
-              )}
+
             </Group>
             <Text size="md" c={theme.colors.slate[5]} maw={600}>
               Connect external services to enhance your release management workflow.
-              Integrate with source control, CI/CD, communication tools, and more.
             </Text>
           </Box>
         </Group>

@@ -537,6 +537,7 @@ export const SCHEDULING_LABELS = {
   FIRST_KICKOFF_DESCRIPTION: 'The date when the first release cycle will start',
   KICKOFF_DATE_LABEL: 'Kickoff Date',
   KICKOFF_DATE_PLACEHOLDER: 'Select date',
+  FIRST_KICKOFF_DATE_DISABLED_DESCRIPTION: 'First release kickoff date cannot be changed after the release train is created. The first release has already been initialized with this date.',
   
   // Initial Versions
   INITIAL_VERSIONS_TITLE: 'Initial Release Versions',

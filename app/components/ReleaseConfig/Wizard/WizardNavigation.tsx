@@ -24,20 +24,8 @@ export function WizardNavigation({
   
   return (
     <Group justify="space-between" w="100%">
-      {/* Left: Cancel or Previous */}
+      {/* Left: Previous */}
       <Group gap="sm">
-        {onCancel && (
-          <Button
-            variant="default"
-            color="red"
-            leftSection={<IconX size={16} />}
-            onClick={onCancel}
-            disabled={isLoading}
-            size="sm"
-          >
-            Cancel
-          </Button>
-        )}
         {!isFirstStep && (
           <Button
             variant="default"
@@ -56,29 +44,43 @@ export function WizardNavigation({
         Step {currentStep + 1} of {totalSteps}
       </Text>
       
-      {/* Right: Next or Finish */}
-      {!isLastStep ? (
-        <Button
-          color="brand"
-          rightSection={<IconArrowRight size={16} />}
-          onClick={onNext}
-          disabled={!canProceed || isLoading}
-          size="sm"
-        >
-          Continue
-        </Button>
-      ) : (
-        <Button
-          color="green"
-          leftSection={<IconCheck size={16} />}
-          onClick={onFinish}
-          loading={isLoading}
-          disabled={!canProceed}
-          size="sm"
-        >
-          {isEditMode ? 'Update Configuration' : 'Save Configuration'}
-        </Button>
-      )}
+      {/* Right: Cancel and Next/Finish */}
+      <Group gap="sm">
+        {onCancel && (
+          <Button
+            variant="default"
+            color="red"
+            leftSection={<IconX size={16} />}
+            onClick={onCancel}
+            disabled={isLoading}
+            size="sm"
+          >
+            Cancel
+          </Button>
+        )}
+        {!isLastStep ? (
+          <Button
+            color="brand"
+            rightSection={<IconArrowRight size={16} />}
+            onClick={onNext}
+            disabled={!canProceed || isLoading}
+            size="sm"
+          >
+            Continue
+          </Button>
+        ) : (
+          <Button
+            color="green"
+            leftSection={<IconCheck size={16} />}
+            onClick={onFinish}
+            loading={isLoading}
+            disabled={!canProceed}
+            size="sm"
+          >
+            {isEditMode ? 'Update Configuration' : 'Save Configuration'}
+          </Button>
+        )}
+      </Group>
     </Group>
   );
 }

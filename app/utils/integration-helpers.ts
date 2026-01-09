@@ -155,8 +155,7 @@ export function validatePlayStoreData(data: Partial<PlayStorePayload>, isEditMod
   const baseFieldsValid = !!(
     data.displayName &&
     data.appIdentifier &&
-    data.defaultTrack &&
-    data.serviceAccountJson?.project_id
+    data.defaultTrack 
   );
   
   // In edit mode, credentials are optional (can keep existing ones)
@@ -167,6 +166,7 @@ export function validatePlayStoreData(data: Partial<PlayStorePayload>, isEditMod
   // In create mode, require all fields including credentials
   return baseFieldsValid && !!(
     data.serviceAccountJson?.client_email &&
+    data.serviceAccountJson?.project_id &&
     data.serviceAccountJson?.private_key
   );
 }
@@ -181,7 +181,7 @@ export function validateAppStoreData(data: Partial<AppStorePayload>, isEditMode:
     data.displayName &&
     data.targetAppId &&
     data.appIdentifier &&
-    data.keyId
+    data.teamName 
   );
   
   // In edit mode, privateKeyPem is optional (can keep existing one)
@@ -190,7 +190,7 @@ export function validateAppStoreData(data: Partial<AppStorePayload>, isEditMode:
   }
   
   // In create mode, require all fields including privateKeyPem
-  return baseFieldsValid && !!data.privateKeyPem;
+  return baseFieldsValid && !!data.privateKeyPem && !!data.issuerId && !!data.keyId;
 }
 
 /**

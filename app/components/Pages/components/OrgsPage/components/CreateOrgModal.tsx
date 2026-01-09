@@ -50,8 +50,29 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create project");
+        let errorMessage = "Failed to create project";
+        const statusCode = response.status;
+        
+        try {
+          const errorData = await response.json();
+          
+          // Extract error message from response - use backend message directly
+          if (errorData.error) {
+            errorMessage = typeof errorData.error === 'string' 
+              ? errorData.error 
+              : errorData.error.message || errorMessage;
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (parseError) {
+          // If JSON parsing fails, keep the default fallback message
+          console.error("Failed to parse error response:", parseError);
+        }
+        
+        // Create error with status code for proper handling
+        const error = new Error(errorMessage) as Error & { statusCode?: number };
+        error.statusCode = statusCode;
+        throw error;
       }
 
       notifications.show({
@@ -62,9 +83,12 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
 
       onSuccess();
     } catch (error: any) {
+      const errorMessage = error.message || "Failed to create project";
+      const isConflict = error.statusCode === 409 || errorMessage.includes("already exists");
+      
       notifications.show({
-        title: "Error",
-        message: error.message || "Failed to create project",
+        title: isConflict ? "Project Already Exists" : "Error",
+        message: errorMessage,
         color: "red",
       });
     } finally {

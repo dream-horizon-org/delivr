@@ -78,6 +78,7 @@ class AppDistributionIntegrationService extends IntegrationService {
    * PATCH /integrations/store/:integrationId
    */
   async updateStore(
+    tenantId: string,
     integrationId: string,
     payload: any,
     userId: string
@@ -85,7 +86,11 @@ class AppDistributionIntegrationService extends IntegrationService {
     try {
       const response = await this.patch<{ success: boolean; data?: any; message?: string }>(
         APP_DISTRIBUTION.update(integrationId),
-        { payload },
+        { 
+          payload,
+          tenantId,
+          userId,
+        },
         userId
       );
       return response;

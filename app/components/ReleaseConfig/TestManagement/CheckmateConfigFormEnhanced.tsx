@@ -9,25 +9,23 @@ import {
   Text,
   Select,
   NumberInput,
-  Switch,
   Card,
   Group,
   Button,
   MultiSelect,
   Loader,
   Alert,
-  Radio,
   Badge,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { apiGet, getApiErrorMessage } from '~/utils/api-client';
 import type {
-  CheckmateSettings,
+  TestManagementConfig,
   CheckmatePlatformConfiguration,
   TargetPlatform,
 } from '~/types/release-config';
 import type { CheckmateConfigFormEnhancedProps } from '~/types/release-config-props';
-import { PLATFORMS } from '~/types/release-config-constants';
+import { PLATFORMS, TEST_PROVIDERS } from '~/types/release-config-constants';
 import { isAndroidTarget, isIOSTarget } from '~/utils/platform-mapper';
 
 // Backend API response structures - match Checkmate API exactly
@@ -71,6 +69,7 @@ export function CheckmateConfigFormEnhanced({
   availableIntegrations,
   selectedTargets, // NEW: Receive selected targets
   integrationId, // Optional: if provided, use this integration (one-to-one mapping)
+  tenantId, // Required for new API format
 }: CheckmateConfigFormEnhancedProps) {
   // ✅ Use provided integrationId or fallback to config
   const selectedIntegrationId = integrationId || config?.integrationId || '';
@@ -86,17 +85,19 @@ export function CheckmateConfigFormEnhanced({
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const [isLoadingMetadata, setIsLoadingMetadata] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [projectsError, setProjectsError] = useState(false);
 
-  // Helper to ensure we always have a complete CheckmateSettings object
-  const createCompleteConfig = (updates: Partial<CheckmateSettings>): CheckmateSettings => {
+  // Helper to ensure we always have a complete TestManagementConfig object
+  const createCompleteConfig = (updates: Partial<TestManagementConfig>): TestManagementConfig => {
     return {
-      type: 'checkmate',
+      enabled: config?.enabled ?? true,
+      provider: config?.provider || TEST_PROVIDERS.CHECKMATE,
       integrationId: selectedIntegrationId || config?.integrationId || '',
-      projectId: 0, // No global projectId - platform-specific now
       platformConfigurations: config?.platformConfigurations || [],
       autoCreateRuns: config?.autoCreateRuns ?? false,
       passThresholdPercent: config?.passThresholdPercent ?? 100,
       filterType: config?.filterType || 'AND',
+      ...(config?.id && { id: config.id }),
       ...updates,
     };
   };
@@ -108,11 +109,12 @@ export function CheckmateConfigFormEnhanced({
   const fetchProjects = useCallback(async (integrationId: string) => {
     setIsLoadingProjects(true);
     setProjectsLoaded(false);
+    setProjectsError(false);
     setError(null);
 
     try {
       const result = await apiGet<{ projectsList: any[] }>(
-        `/api/v1/integrations/${integrationId}/metadata/projects`
+        `/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}/metadata/projects`
       );
       
       if (result.success && result.data?.projectsList) {
@@ -124,10 +126,11 @@ export function CheckmateConfigFormEnhanced({
     } catch (error) {
       setError(getApiErrorMessage(error, 'Failed to fetch projects'));
       setProjectsLoaded(false);
+      setProjectsError(true);
     } finally {
       setIsLoadingProjects(false);
     }
-  }, []);
+  }, [tenantId]);
 
   const fetchMetadata = useCallback(async (integrationId: string, projectId: number) => {
     setIsLoadingMetadata(true);
@@ -135,9 +138,9 @@ export function CheckmateConfigFormEnhanced({
 
     try {
       const [sectionsData, labelsData, squadsData] = await Promise.all([
-        apiGet<any[]>(`/api/v1/integrations/${integrationId}/metadata/sections?projectId=${projectId}`),
-        apiGet<any[]>(`/api/v1/integrations/${integrationId}/metadata/labels?projectId=${projectId}`),
-        apiGet<any[]>(`/api/v1/integrations/${integrationId}/metadata/squads?projectId=${projectId}`),
+        apiGet<any[]>(`/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}/metadata/sections?projectId=${projectId}`),
+        apiGet<any[]>(`/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}/metadata/labels?projectId=${projectId}`),
+        apiGet<any[]>(`/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}/metadata/squads?projectId=${projectId}`),
       ]);
 
       setSections(sectionsData.data || []);
@@ -148,7 +151,7 @@ export function CheckmateConfigFormEnhanced({
     } finally {
       setIsLoadingMetadata(false);
     }
-  }, []);
+  }, [tenantId]);
 
   // Store platform-specific metadata (projects are shared, metadata is platform-specific)
   const [platformSections, setPlatformSections] = useState<Record<string, CheckmateSection[]>>({});
@@ -161,14 +164,14 @@ export function CheckmateConfigFormEnhanced({
 
   // Fetch projects when integration is selected (single call, shared by all platforms)
   useEffect(() => {
-    if (selectedIntegrationId && !projectsLoaded && !isLoadingProjects) {
+    if (selectedIntegrationId && !projectsLoaded && !isLoadingProjects && !projectsError) {
       fetchProjects(selectedIntegrationId);
     }
-  }, [selectedIntegrationId, fetchProjects, projectsLoaded, isLoadingProjects]);
+  }, [selectedIntegrationId, projectsLoaded]);
 
   // Fetch platform-specific metadata (sequential calls to avoid parallelization issues)
   const fetchPlatformMetadata = useCallback(async (platform: string, projectId: number) => {
-    if (!selectedIntegrationId || !projectId) return;
+    if (!selectedIntegrationId || !projectId || !tenantId) return;
     
     setLoadingMetadataForPlatform(prev => ({ ...prev, [platform]: true }));
     setMetadataErrorForPlatform(prev => ({ ...prev, [platform]: false }));
@@ -177,9 +180,10 @@ export function CheckmateConfigFormEnhanced({
     
     try {
       // Sequential API calls instead of parallel to avoid failures
-      const sectionsData = await apiGet<any[]>(`/api/v1/integrations/${selectedIntegrationId}/metadata/sections?projectId=${projectId}`);
-      const labelsData = await apiGet<any[]>(`/api/v1/integrations/${selectedIntegrationId}/metadata/labels?projectId=${projectId}`);
-      const squadsData = await apiGet<any[]>(`/api/v1/integrations/${selectedIntegrationId}/metadata/squads?projectId=${projectId}`);
+      // UPDATED: Use new endpoint format with tenantId
+      const sectionsData = await apiGet<any[]>(`/api/v1/tenants/${tenantId}/integrations/test-management/${selectedIntegrationId}/metadata/sections?projectId=${projectId}`);
+      const labelsData = await apiGet<any[]>(`/api/v1/tenants/${tenantId}/integrations/test-management/${selectedIntegrationId}/metadata/labels?projectId=${projectId}`);
+      const squadsData = await apiGet<any[]>(`/api/v1/tenants/${tenantId}/integrations/test-management/${selectedIntegrationId}/metadata/squads?projectId=${projectId}`);
 
       // Only update if all calls succeeded
       if (sectionsData.success && labelsData.success && squadsData.success) {
@@ -212,7 +216,7 @@ export function CheckmateConfigFormEnhanced({
     } finally {
       setLoadingMetadataForPlatform(prev => ({ ...prev, [platform]: false }));
     }
-  }, [selectedIntegrationId]);
+  }, [selectedIntegrationId, tenantId]);
 
   // In edit mode: Fetch metadata for existing platform configurations
   // This ensures dropdowns show names instead of IDs when editing
@@ -265,15 +269,9 @@ export function CheckmateConfigFormEnhanced({
 
     // Create updated config with new platform configurations
     // Use the newPlatforms directly, not from config prop (which might be stale)
-    const updatedConfig: CheckmateSettings = {
-      type: 'checkmate',
-      integrationId: selectedIntegrationId || config?.integrationId || '',
-      projectId: 0, // No global projectId - platform-specific now
+    const updatedConfig = createCompleteConfig({
       platformConfigurations: newPlatforms, // Use the updated platforms
-      autoCreateRuns: config?.autoCreateRuns ?? false,
-      passThresholdPercent: config?.passThresholdPercent ?? 100,
-      filterType: config?.filterType || 'AND',
-    };
+    });
     
     // Update parent state
     onChange(updatedConfig);
@@ -347,8 +345,8 @@ export function CheckmateConfigFormEnhanced({
     }));
   };
 
-  // Don't show form until projects are loaded
-  if (selectedIntegrationId && (!projectsLoaded || isLoadingProjects)) {
+  // Don't show form until projects are loaded (but show error if fetch failed)
+  if (selectedIntegrationId && (!projectsLoaded || isLoadingProjects) && !projectsError) {
     return (
       <Stack gap="md">
         <div className="flex items-center justify-center py-8">
@@ -363,6 +361,13 @@ export function CheckmateConfigFormEnhanced({
 
   return (
     <Stack gap="md">
+      {/* Show error if projects fetch failed */}
+      {selectedIntegrationId && projectsError && !isLoadingProjects && (
+        <Alert color="red" title="Failed to Load Projects" icon={<IconAlertCircle size={16} />}>
+          <Text size="sm">{error || 'Failed to fetch Checkmate projects. Please try again or configure manually.'}</Text>
+        </Alert>
+      )}
+      
       {selectedIntegrationId && projectsLoaded && (
         <>
           {/* Platform Configurations - Project selection is now platform-specific */}
@@ -529,37 +534,6 @@ export function CheckmateConfigFormEnhanced({
                 max={100}
                 required
                 description="Minimum pass percentage to consider test run successful"
-              />
-
-              <Radio.Group
-                label="Filter Type"
-                description="How to combine section, label, and squad filters"
-                value={config.filterType || 'AND'}
-                onChange={(val) =>
-                  onChange(createCompleteConfig({ filterType: val as 'AND' | 'OR' }))
-                }
-              >
-                <Stack gap="xs" className="mt-2">
-                  <Radio
-                    value="AND"
-                    label="AND - All filters must match"
-                    description="Tests must match all selected sections, labels, and squads"
-                  />
-                  <Radio
-                    value="OR"
-                    label="OR - Any filter matches"
-                    description="Tests can match any selected section, label, or squad"
-                  />
-                </Stack>
-              </Radio.Group>
-
-              <Switch
-                label="Auto-create Test Runs"
-                description="Automatically create test runs for each release"
-                checked={config.autoCreateRuns ?? false}
-                onChange={(e) =>
-                  onChange(createCompleteConfig({ autoCreateRuns: e.currentTarget.checked }))
-                }
               />
             </Stack>
           </Card>

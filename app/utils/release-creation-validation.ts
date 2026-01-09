@@ -55,11 +55,11 @@ export function validateReleaseCreationState(
         // Validate version format (strict: X.Y.Z only, no prefix/suffix)
         const versionTrimmed = (pt.version || '').trim();
         if (!versionTrimmed) {
+          // Only set version-{target} error to avoid duplicates
           errors[`version-${pt.target}`] = 'Version is required';
-          errors[`platformTargets[${index}].version`] = 'Version is required';
         } else if (!/^\d+\.\d+\.\d+$/.test(versionTrimmed)) {
+          // Only set version-{target} error to avoid duplicates
           errors[`version-${pt.target}`] = `Invalid version format. Expected: 1.0.0 (no prefix or suffix)`;
-          errors[`platformTargets[${index}].version`] = `Invalid version format. Expected: 1.0.0 (no prefix or suffix)`;
         }
 
         // Validate platform-target combinations
@@ -166,15 +166,19 @@ export function validateReleaseCreationState(
     }
   }
 
-  // Validate kickoff reminder date and time (if provided)
+  // Validate kickoff reminder date and time (only if reminder is enabled)
   // Skip in edit mode post-kickoff (not editable)
-  if (!isAfterKickoff && (state.kickOffReminderDate || state.kickOffReminderTime)) {
-    // Both date and time should be provided together
+  // Reminder is enabled if: cronConfig.kickOffReminder is true OR both date and time are set
+  const isReminderEnabled = state.cronConfig?.kickOffReminder === true || 
+                            (!!state.kickOffReminderDate && !!state.kickOffReminderTime);
+  
+  if (!isAfterKickoff && isReminderEnabled) {
+    // Both date and time should be provided together when reminder is enabled
     if (!state.kickOffReminderDate) {
-      errors.kickOffReminderDate = 'Kickoff reminder date is required when reminder time is set';
+      errors.kickOffReminderDate = 'Kickoff reminder date is required when reminder is enabled';
     }
     if (!state.kickOffReminderTime) {
-      errors.kickOffReminderTime = 'Kickoff reminder time is required when reminder date is set';
+      errors.kickOffReminderTime = 'Kickoff reminder time is required when reminder is enabled';
     }
 
     // Validate reminder is before kickoff (including time)
@@ -217,20 +221,31 @@ export function validateReleaseCreationState(
       
       const reminder = new Date(reminderDateTime);
       const kickOff = new Date(kickOffDateTime);
+      const now = new Date();
       
       if (isNaN(reminder.getTime()) || isNaN(kickOff.getTime())) {
         errors.kickOffReminderDate = 'Invalid kickoff reminder date and time format';
         errors.kickOffReminderTime = 'Invalid kickoff reminder date and time format';
-      } else if (reminder >= kickOff) {
-        const errorMessage = 'Kickoff reminder must be before kickoff time';
-        errors.kickOffReminderDate = errorMessage;
-        errors.kickOffReminderTime = errorMessage;
+      } else {
+        // Validate reminder date is not in the past
+        if (reminder <= now) {
+          const errorMessage = 'Kickoff reminder date and time cannot be in the past. All updated dates must be future dates.';
+          errors.kickOffReminderDate = errorMessage;
+          errors.kickOffReminderTime = errorMessage;
+        } else if (reminder >= kickOff) {
+          const errorMessage = 'Kickoff reminder must be before kickoff time';
+          errors.kickOffReminderDate = errorMessage;
+          errors.kickOffReminderTime = errorMessage;
+        }
       }
     }
   }
 
-  // Validate regression slots if provided
-  if (state.regressionBuildSlots && state.regressionBuildSlots.length > 0) {
+  // Validate regression slots (required, must have at least one element)
+  if (!state.regressionBuildSlots || !Array.isArray(state.regressionBuildSlots) || state.regressionBuildSlots.length === 0) {
+    errors.regressionBuildSlots = 'At least one regression slot is required. Please add regression build slots to proceed.';
+  } else {
+    // Validate slot dates if kickoff and target release dates are available
     if (state.kickOffDate && state.targetReleaseDate) {
       // Combine date and time for accurate comparison
       const kickOffDateTime = combineDateAndTime(

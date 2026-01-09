@@ -97,7 +97,8 @@ export function formatRelativeTime(dateString: string | null): string {
 /**
  * Format status enum to human-readable label
  */
-export function formatStatus(status: string): string {
+export function formatStatus(status: string | undefined | null): string {
+  if (!status) return '-';
   return status.replace(/_/g, ' ');
 }
 

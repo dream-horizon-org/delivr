@@ -71,13 +71,13 @@ export function getNavigationModules(org: Organization): ModuleConfig[] {
       id: "dota",
       label: "DOTA (Over-The-Air)",
       icon: IconCloud,
-      mainRoute: `/dashboard/${org.id}/apps`,
+      mainRoute: `/dashboard/${org.id}/ota/apps`,
       prefetch: "render",
       subItems: [
         {
           label: "Applications",
           icon: IconApps,
-          path: `/dashboard/${org.id}/apps`,
+          path: `/dashboard/${org.id}/ota/apps`,
           prefetch: "render",
         },
       ],

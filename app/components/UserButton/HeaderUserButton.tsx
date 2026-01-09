@@ -22,6 +22,11 @@ export function HeaderUserButton({ user }: HeaderUserButtonProps) {
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const theme = useMantineTheme();
   
+  // Defensive check - return null if user data is missing
+  if (!user?.user) {
+    return null;
+  }
+  
   const brandColor = theme.colors?.brand?.[5] || '#14b8a6';
   
   return (

@@ -197,11 +197,11 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
 
         {/* Target Platforms */}
         <SectionCard icon={IconTarget} iconColor="orange" title="Target Platforms">
-          {config.targets && config.targets.length > 0 ? (
+          {config.platformTargets && config.platformTargets.length > 0 ? (
             <Group gap="xs">
-              {config.targets.map((target) => (
-                <Badge key={target} variant="light" size="md" color="orange">
-                  {target.replace('_', ' ')}
+              {config.platformTargets.map((pt, index) => (
+                <Badge key={`${pt.platform}-${pt.target}-${index}`} variant="light" size="md" color="orange">
+                  {pt.platform} → {pt.target.replace('_', ' ')}
                 </Badge>
               ))}
             </Group>
@@ -296,7 +296,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
         <SectionCard icon={IconBell} iconColor="indigo" title="Communication">
           <Stack gap="sm">
             <Group gap="xs">
-              {config.communicationConfig?.slack?.enabled ? (
+              {config.communicationConfig?.enabled ? (
                 <>
                   <IconBrandSlack size={14} color={theme.colors.green[6]} />
                   <Text size="sm">Slack enabled</Text>
@@ -306,22 +306,6 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
                   <IconBrandSlack size={14} color={theme.colors.slate[4]} />
                   <Text size="sm" c={theme.colors.slate[5]}>
                     Slack disabled
-                  </Text>
-                </>
-              )}
-            </Group>
-
-            <Group gap="xs">
-              {config.communicationConfig?.email?.enabled ? (
-                <>
-                  <IconMail size={14} color={theme.colors.green[6]} />
-                  <Text size="sm">Email enabled</Text>
-                </>
-              ) : (
-                <>
-                  <IconMail size={14} color={theme.colors.slate[4]} />
-                  <Text size="sm" c={theme.colors.slate[5]}>
-                    Email disabled
                   </Text>
                 </>
               )}

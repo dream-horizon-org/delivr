@@ -26,7 +26,9 @@ import {
   IconPlayerPlay,
   IconRefresh,
   IconRocket,
-  IconX
+  IconX,
+  IconCopy,
+  IconCheck,
 } from '@tabler/icons-react';
 import {
   API_ROUTES
@@ -52,6 +54,8 @@ import {
   canUpdateRollout as canUpdateRolloutUtil
 } from '~/utils/distribution/distribution-state.utils';
 import { formatDateTime, formatStatus } from '~/utils/distribution/distribution-ui.utils';
+import { showSuccessToast, showErrorToast } from '~/utils/toast';
+import { useState } from 'react';
 
 const { LABELS } = DISTRIBUTION_MANAGEMENT_UI;
 
@@ -96,6 +100,9 @@ export function LatestSubmissionCard({
 
   // Platform-specific checks
   const phasedRelease = isIOS && 'phasedRelease' in submission ? submission.phasedRelease : false;
+  
+  // State for copy feedback
+  const [copiedLink, setCopiedLink] = useState(false);
   
   // Derive action availability using utility functions (clean, testable logic)
   let canUpdateRollout = canUpdateRolloutUtil(submission.status, submission.platform);
@@ -147,6 +154,27 @@ export function LatestSubmissionCard({
     } catch (error) {
       console.error('Failed to download artifact:', error);
       alert('Failed to download artifact. Please try again.');
+    }
+  };
+
+  // Copy internal track link to clipboard
+  const handleCopyInternalTrackLink = async () => {
+    if (!('internalTrackLink' in submission.artifact) || !submission.artifact.internalTrackLink) return;
+    
+    try {
+      await navigator.clipboard.writeText(submission.artifact.internalTrackLink);
+      setCopiedLink(true);
+      showSuccessToast({
+        title: 'Link Copied',
+        message: 'Internal track link copied to clipboard',
+      });
+      // Reset copied state after 2 seconds
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch (error) {
+      showErrorToast({
+        title: 'Copy Failed',
+        message: 'Failed to copy link to clipboard',
+      });
     }
   };
 
@@ -415,15 +443,14 @@ export function LatestSubmissionCard({
                           {LABELS.INTERNAL_TRACK_LINK}
                         </Text>
                         <Button
-                          component="a"
-                          href={submission.artifact.internalTrackLink}
-                          target="_blank"
+                          onClick={handleCopyInternalTrackLink}
                           variant="light"
                           size="xs"
-                          rightSection={<IconExternalLink size={14} />}
+                          rightSection={copiedLink ? <IconCheck size={14} /> : <IconCopy size={14} />}
                           radius={DS_SPACING.BORDER_RADIUS}
+                          color={copiedLink ? 'green' : undefined}
                         >
-                          Open
+                          {copiedLink ? 'Copied!' : 'Copy Link'}
                         </Button>
                       </Group>
                     )}

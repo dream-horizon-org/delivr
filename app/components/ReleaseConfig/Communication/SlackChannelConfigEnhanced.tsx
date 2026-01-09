@@ -38,9 +38,9 @@ export function SlackChannelConfigEnhanced({
   const [isLoadingChannels, setIsLoadingChannels] = useState(false);
   const [channelsError, setChannelsError] = useState<string | null>(null);
 
-  const slackConfig = config?.slack;
-  const isEnabled = slackConfig?.enabled || false;
-  const integrationId = slackConfig?.integrationId || '';
+  // Use flat structure: config.enabled, config.integrationId, config.channelData
+  const isEnabled = config?.enabled || false;
+  const integrationId = config?.integrationId || '';
 
   // Fetch channels when integration is selected
   useEffect(() => {
@@ -73,35 +73,40 @@ export function SlackChannelConfigEnhanced({
   const handleToggle = (enabled: boolean) => {
     onChange({
       ...config,
-      slack: enabled
-        ? {
-            enabled: true,
-            integrationId: availableIntegrations[0]?.id || '',
-            channelData: {
-              releases: [],
-              builds: [],
-              regression: [],
-              critical: [],
-            },
-          }
-        : undefined,
+      enabled,
+      integrationId: enabled ? (availableIntegrations[0]?.id || '') : (config?.integrationId || ''),
+      channelData: enabled
+        ? (config?.channelData || {
+            releases: [],
+            builds: [],
+            regression: [],
+            critical: [],
+          })
+        : (config?.channelData || {
+            releases: [],
+            builds: [],
+            regression: [],
+            critical: [],
+          }),
     });
   };
 
-  const handleIntegrationChange = (integrationId: string) => {
-    if (slackConfig) {
-      onChange({
-        ...config,
-        slack: {
-          ...slackConfig,
-          integrationId,
-        },
-      });
-    }
+  const handleIntegrationChange = (newIntegrationId: string) => {
+    onChange({
+      ...config,
+      integrationId: newIntegrationId,
+      enabled: config?.enabled ?? true,
+      channelData: config?.channelData || {
+        releases: [],
+        builds: [],
+        regression: [],
+        critical: [],
+      },
+    });
   };
 
   const handleChannelChange = (channelType: keyof SlackChannelConfig, channelIds: string[]) => {
-    if (slackConfig && slackConfig.channelData) {
+    if (config) {
       const channelObjects = channelIds.map((id) => {
         const channel = availableChannels.find((ch) => ch.id === id);
         return channel || { id, name: id };
@@ -109,12 +114,14 @@ export function SlackChannelConfigEnhanced({
 
       onChange({
         ...config,
-        slack: {
-          ...slackConfig,
-          channelData: {
-            ...slackConfig.channelData,
-            [channelType]: channelObjects,
-          },
+        channelData: {
+          ...(config.channelData || {
+            releases: [],
+            builds: [],
+            regression: [],
+            critical: [],
+          }),
+          [channelType]: channelObjects,
         },
       });
     }
@@ -207,7 +214,7 @@ export function SlackChannelConfigEnhanced({
                       </Paper>
                     ) : availableChannels.length > 0 ? (
                       <>
-                        {slackConfig?.channelData && (
+                        {config?.channelData && (
                           <Paper
                             p="md"
                             radius="md"
@@ -224,45 +231,49 @@ export function SlackChannelConfigEnhanced({
                                 label="Release Notifications"
                                 placeholder="Select channels"
                                 data={channelOptions}
-                                value={slackConfig.channelData.releases?.map((ch) => ch.id) || []}
+                                value={config.channelData.releases?.map((ch) => ch.id) || []}
                                 onChange={(val) => handleChannelChange('releases', val)}
                                 searchable
                                 clearable
                                 description="Channels to notify for new releases"
                                 size="sm"
+                                required
                               />
                               <MultiSelect
                                 label="Build Notifications"
                                 placeholder="Select channels"
                                 data={channelOptions}
-                                value={slackConfig.channelData.builds?.map((ch) => ch.id) || []}
+                                value={config.channelData.builds?.map((ch) => ch.id) || []}
                                 onChange={(val) => handleChannelChange('builds', val)}
                                 searchable
                                 clearable
                                 description="Channels to notify for build updates"
                                 size="sm"
+                                required
                               />
                               <MultiSelect
                                 label="Regression Notifications"
                                 placeholder="Select channels"
                                 data={channelOptions}
-                                value={slackConfig.channelData.regression?.map((ch) => ch.id) || []}
+                                value={config.channelData.regression?.map((ch) => ch.id) || []}
                                 onChange={(val) => handleChannelChange('regression', val)}
                                 searchable
                                 clearable
                                 description="Channels to notify for regression testing"
                                 size="sm"
+                                required
                               />
                               <MultiSelect
                                 label="Critical Notifications"
                                 placeholder="Select channels"
                                 data={channelOptions}
-                                value={slackConfig.channelData.critical?.map((ch) => ch.id) || []}
+                                value={config.channelData.critical?.map((ch) => ch.id) || []}
                                 onChange={(val) => handleChannelChange('critical', val)}
                                 searchable
                                 clearable
                                 description="Channels to notify for critical issues"
                                 size="sm"
+                                required
                               />
                             </Stack>
                           </Paper>

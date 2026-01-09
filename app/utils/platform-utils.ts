@@ -4,7 +4,32 @@
  */
 
 import type { Platform, TargetPlatform } from '~/types/release-config';
-import { PLATFORMS } from '~/types/release-config-constants';
+import { PLATFORMS, TARGET_PLATFORMS } from '~/types/release-config-constants';
+import { TARGET_PLATFORM_LABELS } from '~/constants/release-config-ui';
+
+/**
+ * Derive platforms from platformTargets array
+ * 
+ * @param platformTargets - Array of platform-target combinations
+ * @returns Array of unique platforms
+ */
+export function getPlatformsFromPlatformTargets(
+  platformTargets: Array<{ platform: Platform; target: TargetPlatform }>
+): Platform[] {
+  return [...new Set(platformTargets.map((pt) => pt.platform))];
+}
+
+/**
+ * Derive targets from platformTargets array
+ * 
+ * @param platformTargets - Array of platform-target combinations
+ * @returns Array of targets
+ */
+export function getTargetsFromPlatformTargets(
+  platformTargets: Array<{ platform: Platform; target: TargetPlatform }>
+): TargetPlatform[] {
+  return platformTargets.map((pt) => pt.target);
+}
 
 /**
  * Derive mobile platforms from selected distribution targets
@@ -52,9 +77,9 @@ export function targetRequiresPlatform(
   platform: Platform
 ): boolean {
   const mapping: Record<TargetPlatform, Platform | null> = {
-    PLAY_STORE: PLATFORMS.ANDROID,
-    APP_STORE: PLATFORMS.IOS,
-    WEB: null,
+    [TARGET_PLATFORMS.PLAY_STORE]: PLATFORMS.ANDROID,
+    [TARGET_PLATFORMS.APP_STORE]: PLATFORMS.IOS,
+    [TARGET_PLATFORMS.WEB]: null,
   };
 
   return mapping[target] === platform;
@@ -69,9 +94,9 @@ export function targetRequiresPlatform(
 export function getTargetsForPlatform(platform: Platform): TargetPlatform[] {
   switch (platform) {
     case PLATFORMS.ANDROID:
-      return ['PLAY_STORE'];
+      return [TARGET_PLATFORMS.PLAY_STORE];
     case PLATFORMS.IOS:
-      return ['APP_STORE'];
+      return [TARGET_PLATFORMS.APP_STORE];
     default:
       return [];
   }
@@ -97,5 +122,21 @@ export function validatePlatformTargetConsistency(
     isValid: missingPlatforms.length === 0,
     missingPlatforms,
   };
+}
+
+/**
+ * Format target platform name for display
+ * Converts underscore-separated constants to human-readable labels
+ * 
+ * @param target - Target platform constant (e.g., 'PLAY_STORE', 'APP_STORE', 'WEB')
+ * @returns Formatted display name (e.g., 'Play Store', 'App Store', 'Web')
+ * 
+ * @example
+ * formatTargetPlatformName('PLAY_STORE') // → 'Play Store'
+ * formatTargetPlatformName('APP_STORE')  // → 'App Store'
+ * formatTargetPlatformName('WEB')        // → 'Web'
+ */
+export function formatTargetPlatformName(target: TargetPlatform): string {
+  return TARGET_PLATFORM_LABELS[target] || target.replace(/_/g, ' ');
 }
 

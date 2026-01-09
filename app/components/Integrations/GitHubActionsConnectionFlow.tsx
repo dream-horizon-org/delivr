@@ -87,20 +87,30 @@ export function GitHubActionsConnectionFlow({
   }, []);
 
   const handleVerify = async () => {
+    // Validate token is required for non-edit mode
+    if (!isEditMode && !formData.apiToken?.trim()) {
+      setError('Personal Access Token is required');
+      return;
+    }
+
     setIsVerifying(true);
     setError(null);
     setIsVerified(false);
     isInFlowRef.current = true; // Prevent draft save during verify
-    
 
     try {
-      // Encrypt the API token if provided
+      // Encrypt the API token (required for non-edit mode)
+      if (!isEditMode && !formData.apiToken?.trim()) {
+        setError('Personal Access Token is required');
+        return;
+      }
+      
       const encryptedApiToken = formData.apiToken ? await encrypt(formData.apiToken) : undefined;
       
       const verifyPayload = {
         displayName: formData.displayName || undefined,
         hostUrl: formData.hostUrl || GITHUB_ACTIONS_LABELS.API_URL_PLACEHOLDER,
-        apiToken: encryptedApiToken, // Let backend fallback to SCM token if undefined
+        apiToken: encryptedApiToken,
         _encrypted: !!encryptedApiToken, // Flag to indicate encryption
       };
       
@@ -125,6 +135,12 @@ export function GitHubActionsConnectionFlow({
   };
 
   const handleConnect = async () => {
+    // Validate token is required for non-edit mode
+    if (!isEditMode && !formData.apiToken?.trim()) {
+      setError('Personal Access Token is required');
+      return;
+    }
+
     setIsConnecting(true);
     setError(null);
     isInFlowRef.current = true;
@@ -135,11 +151,22 @@ export function GitHubActionsConnectionFlow({
         hostUrl: formData.hostUrl || GITHUB_ACTIONS_LABELS.API_URL_PLACEHOLDER,
       };
 
-      // Only include apiToken if provided (encrypt before sending)
-      if (formData.apiToken) {
+      // Token is required for non-edit mode
+      if (!isEditMode) {
+        if (!formData.apiToken?.trim()) {
+          setError('Personal Access Token is required');
+          return;
+        }
         const encryptedApiToken = await encrypt(formData.apiToken);
         payload.apiToken = encryptedApiToken;
         payload._encrypted = true; // Flag to indicate encryption
+      } else {
+        // For edit mode, only include if provided
+        if (formData.apiToken?.trim()) {
+          const encryptedApiToken = await encrypt(formData.apiToken);
+          payload.apiToken = encryptedApiToken;
+          payload._encrypted = true;
+        }
       }
 
       if (isEditMode && existingData?.id) {
@@ -174,14 +201,6 @@ export function GitHubActionsConnectionFlow({
         </Alert>
       )}
 
-      {/* Info alert about token fallback */}
-      {!isEditMode && (
-        <Alert icon={<IconInfoCircle size={16} />} color="brand" variant="light" radius="md">
-          <Text size="sm">
-            <Text component="span" fw={600}>{GITHUB_ACTIONS_LABELS.TIP_TITLE}</Text> {GITHUB_ACTIONS_LABELS.TIP_MESSAGE}
-          </Text>
-        </Alert>
-      )}
 
       <TextInput
         label={GITHUB_ACTIONS_LABELS.DISPLAY_NAME_LABEL}
@@ -209,6 +228,7 @@ export function GitHubActionsConnectionFlow({
         onChange={(e) => setFormData({ ...formData, apiToken: e.target.value })}
         description={isEditMode ? GITHUB_ACTIONS_LABELS.PAT_DESCRIPTION_EDIT : GITHUB_ACTIONS_LABELS.PAT_DESCRIPTION}
         size="sm"
+        required={!isEditMode}
         disabled={isVerified}
       />
 

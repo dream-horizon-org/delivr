@@ -62,7 +62,6 @@ export const loader = authenticateLoaderRequest(async ({ request, params, user }
         enabledPlatforms: config.enabledPlatforms || [],
         enabledTargets: config.enabledTargets || [],
         allowedReleaseTypes: config.allowedReleaseTypes || [],
-        customSettings: config.customSettings || {},
       },
     } : null;
 

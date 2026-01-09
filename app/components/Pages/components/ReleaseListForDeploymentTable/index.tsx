@@ -283,7 +283,7 @@ export function ReleaseListForDeploymentTable() {
             release={release}
             onClick={() => {
               navigate(
-                `/dashboard/${params.org}/${params.app}/${release.label}?deployment=${searchParams.get("deployment")}`
+                `/dashboard/${params.org}/ota/${params.app}/${release.label}?deployment=${searchParams.get("deployment")}`
               );
             }}
           />

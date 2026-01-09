@@ -10,7 +10,6 @@ import {
   Switch,
   Select,
   Paper,
-  Checkbox,
   Group,
   Box,
   ThemeIcon,
@@ -19,8 +18,6 @@ import {
   Loader,
 } from '@mantine/core';
 import {
-  IconTicket,
-  IconCheck,
   IconAlertCircle,
   IconPlug,
 } from '@tabler/icons-react';
@@ -110,10 +107,10 @@ export function JiraProjectStep({
   }, [tenantId]);
 
   useEffect(() => {
-    if (config.integrationId && !projectsLoaded && !isLoadingProjects) {
+    if (config.integrationId && !projectsLoaded && !isLoadingProjects && !projectsError) {
       fetchProjects(config.integrationId);
     }
-  }, [config.integrationId, fetchProjects, projectsLoaded, isLoadingProjects]);
+  }, [config.integrationId, projectsLoaded]);
 
   const handleIntegrationChange = (integrationId: string | null) => {
     setProjects([]);
@@ -136,13 +133,6 @@ export function JiraProjectStep({
     });
   };
 
-  const handleGlobalSettingChange = (field: 'createReleaseTicket' | 'linkBuildsToIssues', value: boolean) => {
-    onChange({
-      ...config,
-      [field]: value,
-    });
-  };
-
   const integrationOptions = availableIntegrations.map((int) => ({
     value: int.id,
     label: int.displayName || int.name,
@@ -159,49 +149,27 @@ export function JiraProjectStep({
           border: `1px solid ${theme.colors.blue[2]}`,
         }}
       >
-        <Group gap="sm">
-          <ThemeIcon size={32} radius="md" variant="light" color="blue">
-            <IconTicket size={18} />
-          </ThemeIcon>
-          <Box style={{ flex: 1 }}>
-            <Text size="sm" fw={600} c={theme.colors.blue[8]} mb={2}>
-              JIRA Project Management
-            </Text>
-            <Text size="xs" c={theme.colors.blue[7]}>
-              Optional: Link releases to JIRA issues and track project progress
-            </Text>
-          </Box>
-        </Group>
+        <Box>
+          <Text size="sm" fw={600} c={theme.colors.blue[8]} mb={2}>
+            JIRA Project Management
+          </Text>
+          <Text size="xs" c={theme.colors.blue[7]}>
+            Optional: Link releases to JIRA issues and track project progress
+          </Text>
+        </Box>
       </Paper>
 
       {/* Enable Toggle */}
       <Paper p="lg" radius="md" withBorder>
         <Group justify="space-between" align="flex-start">
-          <Group gap="md">
-            <ThemeIcon
-              size={40}
-              radius="md"
-              variant={isEnabled ? 'filled' : 'light'}
-              color={isEnabled ? 'blue' : 'gray'}
-            >
-              <IconTicket size={22} />
-            </ThemeIcon>
-            <Box>
-              <Group gap="xs" mb={4}>
-                <Text fw={600} size="md" c={theme.colors.slate[8]}>
-                  Enable JIRA Integration
-                </Text>
-                {isEnabled && (
-                  <ThemeIcon size={20} radius="xl" color="blue">
-                    <IconCheck size={12} />
-                  </ThemeIcon>
-                )}
-              </Group>
-              <Text size="sm" c={theme.colors.slate[5]}>
-                Connect JIRA to track releases and link builds to issues
-              </Text>
-            </Box>
-          </Group>
+          <Box>
+            <Text fw={600} size="md" c={theme.colors.slate[8]} mb={4}>
+              Enable JIRA Integration
+            </Text>
+            <Text size="sm" c={theme.colors.slate[5]}>
+              Connect JIRA to track releases and link builds to issues
+            </Text>
+          </Box>
           <Switch
             checked={isEnabled}
             onChange={(e) => handleToggle(e.currentTarget.checked)}
@@ -388,36 +356,6 @@ export function JiraProjectStep({
                 </Paper>
               )}
 
-              {/* Global Settings */}
-              {config.integrationId && (
-                <Paper p="lg" radius="md" withBorder>
-                  <Stack gap="md">
-                    <Text fw={600} size="sm" c={theme.colors.slate[8]} mb={4}>
-                      Global Settings
-                    </Text>
-                    <Stack gap="sm">
-                      <Checkbox
-                        label="Automatically Create Release Tickets"
-                        description="Create a JIRA ticket for each new release"
-                        checked={config.createReleaseTicket ?? true}
-                        onChange={(event) =>
-                          handleGlobalSettingChange('createReleaseTicket', event.currentTarget.checked)
-                        }
-                        size="sm"
-                      />
-                      <Checkbox
-                        label="Link Builds to Issues"
-                        description="Automatically link build artifacts to related JIRA issues"
-                        checked={config.linkBuildsToIssues ?? true}
-                        onChange={(event) =>
-                          handleGlobalSettingChange('linkBuildsToIssues', event.currentTarget.checked)
-                        }
-                        size="sm"
-                      />
-                    </Stack>
-                  </Stack>
-                </Paper>
-              )}
             </>
           )}
         </Stack>

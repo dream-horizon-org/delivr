@@ -21,33 +21,55 @@ import type { TargetPlatform, Platform } from '~/types/release-config';
 // ============================================================================
 
 /**
- * Combine date and time strings into ISO date string
+ * Combine date and time strings into ISO date string (UTC)
+ * Interprets user input as local timezone, then converts to UTC for storage
  * @param date - Date string in YYYY-MM-DD format
  * @param time - Time string in HH:MM format (optional)
- * @returns ISO date string
+ * @returns ISO date string in UTC
+ * 
+ * Example: User in IST (UTC+5:30) enters "2026-01-02" and "13:10" (1:10 PM local)
+ * - Creates Date object: 2026-01-02 13:10:00 in local timezone (IST)
+ * - Converts to UTC: 2026-01-02T07:40:00.000Z (13:10 - 5:30 = 07:40 UTC)
+ * - When displayed back: Converts UTC to local timezone, shows 1:10 PM again
  */
 export function combineDateAndTime(date: string, time?: string): string {
-  const dateObj = new Date(date);
+  // Parse date components (YYYY-MM-DD)
+  const [year, month, day] = date.split('-').map(Number);
+  
+  // Create date in LOCAL timezone (user's timezone)
+  // This interprets the date/time as the user intended in their local timezone
+  const dateObj = new Date(year, month - 1, day);
   
   if (time) {
-    const [hours, minutes] = time.split(':');
-    dateObj.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+    const [hours, minutes] = time.split(':').map(Number);
+    // Set time in LOCAL timezone (user's timezone)
+    dateObj.setHours(hours, minutes, 0, 0);
   } else {
-    // Default to midnight if no time provided
+    // Default to midnight local time if no time provided
     dateObj.setHours(0, 0, 0, 0);
   }
   
+  // Convert to UTC ISO string
+  // This automatically accounts for the timezone offset
   return dateObj.toISOString();
 }
 
 /**
  * Extract date and time from ISO string
- * @param isoString - ISO date string
- * @returns Object with date (YYYY-MM-DD) and time (HH:MM)
+ * Converts UTC ISO string to local timezone for display
+ * @param isoString - ISO date string (UTC)
+ * @returns Object with date (YYYY-MM-DD) and time (HH:MM) in local timezone
  */
 export function extractDateAndTime(isoString: string): { date: string; time: string } {
   const dateObj = new Date(isoString);
-  const date = dateObj.toISOString().split('T')[0] || '';
+  
+  // Use local timezone methods to convert UTC to local for display
+  // This ensures the user sees the date/time in their local timezone
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  const date = `${year}-${month}-${day}`;
+  
   const hours = String(dateObj.getHours()).padStart(2, '0');
   const minutes = String(dateObj.getMinutes()).padStart(2, '0');
   const time = `${hours}:${minutes}`;
@@ -62,6 +84,7 @@ export function extractDateAndTime(isoString: string): { date: string; time: str
 /**
  * Convert config's offset-based regression slots to backend's date-based format
  * Uses user-provided kickoff date to calculate absolute dates
+ * Interprets slot times as local timezone, then converts to UTC for storage
  * 
  * @param configSlots - Regression slots from config (offset-based)
  * @param kickOffDate - User-provided kickoff date (ISO string or Date)
@@ -79,24 +102,36 @@ export function convertConfigSlotsToBackend(
     : targetReleaseDate;
 
   return configSlots.map((slot) => {
-    // Calculate absolute date: kickoff date + offset days
-    const slotDate = new Date(kickOff);
-    slotDate.setDate(slotDate.getDate() + slot.regressionSlotOffsetFromKickoff);
+    // Extract kickoff date components in LOCAL timezone
+    // This ensures we're working with the user's intended local date
+    const kickOffLocal = new Date(kickOff);
+    const kickOffYear = kickOffLocal.getFullYear();
+    const kickOffMonth = kickOffLocal.getMonth();
+    const kickOffDay = kickOffLocal.getDate();
+    
+    // Calculate slot date: kickoff date + offset days (in local timezone)
+    const slotDateLocal = new Date(kickOffYear, kickOffMonth, kickOffDay);
+    slotDateLocal.setDate(slotDateLocal.getDate() + slot.regressionSlotOffsetFromKickoff);
 
-    // Combine date with time from slot
+    // Set slot time in LOCAL timezone (user's timezone)
+    // This interprets the slot time as the user intended in their local timezone
     const [hours, minutes] = slot.time.split(':');
-    slotDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+    slotDateLocal.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+
+    // Convert to UTC ISO string (automatically accounts for timezone offset)
+    const slotDateISO = slotDateLocal.toISOString();
+    const slotDateUTC = new Date(slotDateISO);
 
     // Validate slot date is between kickoff and target release
-    if (slotDate < kickOff || slotDate > targetRelease) {
+    if (slotDateUTC < kickOff || slotDateUTC > targetRelease) {
       console.warn(
-        `Regression slot date ${slotDate.toISOString()} is outside valid range ` +
+        `Regression slot date ${slotDateISO} is outside valid range ` +
         `(kickoff: ${kickOff.toISOString()}, target: ${targetRelease.toISOString()})`
       );
     }
 
     return {
-      date: slotDate.toISOString(),
+      date: slotDateISO,
       config: {
         regressionBuilds: slot.config.regressionBuilds,
         postReleaseNotes: slot.config.postReleaseNotes,
@@ -346,7 +381,7 @@ export function convertUpdateStateToBackendRequest(
     }
     // Always include upcomingRegressions if defined (even if empty array)
     // This ensures backend deletes all slots when array is empty
-    if (state.upcomingRegressions !== undefined) {
+    if (state.upcomingRegressions !== undefined && state.upcomingRegressions !== null) {
       request.cronJob.upcomingRegressions = state.upcomingRegressions.map(slot => ({
         date: slot.date,
         config: slot.config as Record<string, unknown>,

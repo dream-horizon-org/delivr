@@ -41,13 +41,14 @@ const BACKEND_API_URL = getReleaseManagementBaseURL();
  * Backend release response structure
  */
 import type { Phase, ReleaseStatus, CronStatus, PauseType } from '~/types/release-process-enums';
+import type { ReleaseType } from '~/types/release-creation-backend';
 
 export interface BackendReleaseResponse {
   id: string;
   releaseId: string;
   releaseConfigId: string | null;
   tenantId: string;
-  type: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
+  type: ReleaseType; // 'MAJOR' | 'MINOR' | 'HOTFIX'
   status: ReleaseStatus;  // Updated: Use enum - matches API #1: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED'
   releasePhase?: Phase;   // NEW: From API #1 - detailed phase
   branch: string | null;

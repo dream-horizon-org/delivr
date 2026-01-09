@@ -12,6 +12,12 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
     throw new Response("Organization not found", { status: 404 });
   }
 
+  // Validate user object
+  if (!user || !user.user || !user.user.id) {
+    console.error('[ManageTeam] Invalid user object:', user);
+    throw redirect(`/dashboard/${org}/releases`);
+  }
+
   // Check if user is owner - only owners can manage team
   try {
     const isOwner = await PermissionService.isTenantOwner(org, user.user.id);
@@ -19,6 +25,10 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
       throw redirect(`/dashboard/${org}/releases`);
     }
   } catch (error) {
+    // If error is already a redirect, re-throw it
+    if (error instanceof Response) {
+      throw error;
+    }
     console.error('[ManageTeam] Permission check failed:', error);
     throw redirect(`/dashboard/${org}/releases`);
   }
@@ -36,6 +46,17 @@ type LoaderData = {
 
 export default function ManageTenantCollaborators() {
   const { tenantId, user } = useLoaderData<LoaderData>();
+  
+  // Safety check - redirect if user data is missing
+  if (!user || !user.id) {
+    return (
+      <Container size="xl" py="xl">
+        <Paper shadow="sm" p="xl" radius="md">
+          <Text c="red">Error: User information not available. Please try refreshing the page.</Text>
+        </Paper>
+      </Container>
+    );
+  }
   
   return (
     <Container size="xl" py="xl">

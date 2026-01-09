@@ -60,7 +60,7 @@ export function SlackChannelMapper({
                 <Select
                   label="Slack Workspace"
                   placeholder="Select Slack integration"
-                  data={availableIntegrations.map(i => ({ value: i.id, label: i.displayName || i.name }))}
+                  data={availableIntegrations.map(i => ({ value: i.id, label: i.name }))}
                   value={integrationId}
                   onChange={(val) => onIntegrationChange(val || '')}
                   required
@@ -85,6 +85,7 @@ export function SlackChannelMapper({
                       searchable
                       clearable
                       description="Release announcements and status updates (supports multiple channels)"
+                      required
                     />
                     
                     <MultiSelect
@@ -96,6 +97,7 @@ export function SlackChannelMapper({
                       searchable
                       clearable
                       description="Build status and completion notifications (supports multiple channels)"
+                      required
                     />
                     
                     <MultiSelect
@@ -107,6 +109,7 @@ export function SlackChannelMapper({
                       searchable
                       clearable
                       description="Regression test updates (supports multiple channels)"
+                      required
                     />
                     
                     <MultiSelect
@@ -118,6 +121,7 @@ export function SlackChannelMapper({
                       searchable
                       clearable
                       description="Critical issues and urgent notifications (supports multiple channels)"
+                      required
                     />
                   </Stack>
                 </div>

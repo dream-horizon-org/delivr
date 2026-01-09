@@ -28,6 +28,7 @@ import { extractDateAndTime, combineDateAndTime } from '~/utils/release-creation
 import { IconEdit, IconTrash, IconCheck, IconX } from '@tabler/icons-react';
 import type { RegressionBuildSlotBackend } from '~/types/release-creation-backend';
 import { validateSlot } from '~/utils/regression-slot-validation';
+import { REGRESSION_SLOT_CARD } from '~/constants/release-creation-ui';
 
 interface RegressionSlotCardForReleaseProps {
   slot: RegressionBuildSlotBackend;
@@ -128,11 +129,11 @@ export function RegressionSlotCardForRelease({
           <Box style={{ flex: 1 }}>
             <Group gap="xs" align="center" mb={4}>
               <Badge size="sm" variant="light" color="grape">
-                {index === -1 ? 'New Slot' : `Slot ${index + 1}`}
+                {index === -1 ? REGRESSION_SLOT_CARD.NEW_SLOT : REGRESSION_SLOT_CARD.SLOT_NUMBER(index)}
               </Badge>
               {isPastSlot && isAfterKickoff && (
                 <Badge size="sm" variant="light" color="orange">
-                  Past Slot
+                  {REGRESSION_SLOT_CARD.PAST_SLOT}
                 </Badge>
               )}
             </Group>
@@ -148,13 +149,13 @@ export function RegressionSlotCardForRelease({
             </Text>
             {localSlot.config.regressionBuilds && (
               <Badge size="xs" variant="light" color="brand" mt={4}>
-                Regression Builds Enabled
+                {REGRESSION_SLOT_CARD.REGRESSION_BUILDS_ENABLED}
               </Badge>
             )}
             {isPastSlot && isAfterKickoff && (
-              <Alert icon={<IconX size={14} />} color="orange" variant="light" mt="xs" size="xs">
+              <Alert icon={<IconX size={14} />} color="orange" variant="light" mt="xs">
                 <Text size="xs">
-                  This slot is in the past. Update it to a future time to save the release.
+                  {REGRESSION_SLOT_CARD.PAST_SLOT_MESSAGE}
                 </Text>
               </Alert>
             )}
@@ -194,7 +195,7 @@ export function RegressionSlotCardForRelease({
       <Stack gap="md">
         <Group justify="space-between" align="center">
           <Text fw={600} size="md" c={theme.colors.slate[8]}>
-            {isPending ? 'New Slot' : `Edit Slot ${index + 1}`}
+            {isPending ? REGRESSION_SLOT_CARD.NEW_SLOT_TITLE : REGRESSION_SLOT_CARD.EDIT_SLOT_TITLE(index)}
           </Text>
           {!isPending && (
             <Button 
@@ -203,7 +204,7 @@ export function RegressionSlotCardForRelease({
               onClick={onCancel}
               color="gray"
             >
-              Cancel
+              {REGRESSION_SLOT_CARD.CANCEL}
             </Button>
           )}
         </Group>
@@ -212,7 +213,7 @@ export function RegressionSlotCardForRelease({
         {!validation.isValid && (
           <Alert icon={<IconX size={16} />} color="red" variant="light" radius="md">
             <Text size="sm" fw={500} mb={4}>
-              Validation Errors:
+              {REGRESSION_SLOT_CARD.VALIDATION_ERRORS_TITLE}
             </Text>
             <Stack gap={2}>
               {validation.errors.map((error, i) => (
@@ -227,7 +228,7 @@ export function RegressionSlotCardForRelease({
         <Stack gap="md">
           <Group grow align="flex-start">
             <TextInput
-              label="Date"
+              label={REGRESSION_SLOT_CARD.DATE_LABEL}
               type="date"
               value={localDate}
               onChange={(e) => setLocalDate(e.target.value)}
@@ -236,19 +237,19 @@ export function RegressionSlotCardForRelease({
               required
               withAsterisk
               error={validation.errors.length > 0 ? validation.errors[0] : undefined}
-              description="Slot must be between kickoff and target release date"
+              description={REGRESSION_SLOT_CARD.DATE_DESCRIPTION}
               styles={{
                 label: { fontWeight: 500, marginBottom: 6 },
               }}
             />
             <TextInput
-              label="Time"
+              label={REGRESSION_SLOT_CARD.TIME_LABEL}
               type="time"
               value={localTime}
               onChange={(e) => setLocalTime(e.target.value)}
               required
               withAsterisk
-              description="Time when this regression build will run"
+              description={REGRESSION_SLOT_CARD.TIME_DESCRIPTION}
               styles={{
                 label: { fontWeight: 500, marginBottom: 6 },
               }}
@@ -259,7 +260,7 @@ export function RegressionSlotCardForRelease({
         <Divider 
           label={
             <Text size="xs" fw={500} c={theme.colors.slate[5]} tt="uppercase" style={{ letterSpacing: '0.5px' }}>
-              Slot Configuration
+              {REGRESSION_SLOT_CARD.SLOT_CONFIGURATION_LABEL}
             </Text>
           } 
           labelPosition="center"
@@ -275,8 +276,8 @@ export function RegressionSlotCardForRelease({
           }}
         >
           <Switch
-            label="Enable Regression Builds"
-            description="Trigger regression builds in this slot. When enabled, automated regression tests will run at the scheduled time."
+            label={REGRESSION_SLOT_CARD.ENABLE_REGRESSION_BUILDS}
+            description={REGRESSION_SLOT_CARD.ENABLE_REGRESSION_BUILDS_DESC}
             checked={localSlot.config.regressionBuilds}
             onChange={(e) =>
               setLocalSlot({
@@ -296,7 +297,7 @@ export function RegressionSlotCardForRelease({
             onClick={onCancel}
             color="gray"
           >
-            Cancel
+            {REGRESSION_SLOT_CARD.CANCEL}
           </Button>
           <Button
             leftSection={<IconCheck size={16} />}
@@ -304,7 +305,7 @@ export function RegressionSlotCardForRelease({
             disabled={!validation.isValid}
             color="brand"
           >
-            Save
+            {REGRESSION_SLOT_CARD.SAVE}
           </Button>
         </Group>
       </Stack>

@@ -4,7 +4,7 @@
  */
 
 import { memo, useMemo, type ReactNode } from 'react';
-import { Tabs } from '@mantine/core';
+import { Tabs, Group, Box } from '@mantine/core';
 import { RELEASE_TAB_CONFIGS } from '~/constants/release-tabs';
 import { ReleasesTabPanel } from './ReleasesTabPanel';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
@@ -17,7 +17,7 @@ interface ReleasesTabsProps {
   completed: BackendReleaseResponse[];
   archived: BackendReleaseResponse[];
   org: string;
-  leftSection?: ReactNode;
+  rightSection?: ReactNode;
 }
 
 export const ReleasesTabs = memo(function ReleasesTabs({
@@ -28,7 +28,7 @@ export const ReleasesTabs = memo(function ReleasesTabs({
   completed,
   archived,
   org,
-  leftSection,
+  rightSection,
 }: ReleasesTabsProps) {
   const tabDataMap = useMemo(
     () => ({
@@ -42,25 +42,40 @@ export const ReleasesTabs = memo(function ReleasesTabs({
 
   return (
     <Tabs value={activeTab} onChange={onTabChange}>
-      <div className="flex items-center justify-between mb-6">
-        {leftSection || <div style={{ flex: 1 }} />}
-        <Tabs.List>
-          {RELEASE_TAB_CONFIGS.map((tabConfig) => {
-            const releases = tabDataMap[tabConfig.value];
-            const Icon = tabConfig.icon;
+      <Group justify="space-between" align="center" mb="md" wrap="wrap" gap="md" >
+        <Box style={{ flex: '1 1 auto', minWidth: 0, overflow: 'hidden' }}>
+          <Box
+            style={{
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              scrollbarWidth: 'thin',
+              width: 'max-content',
+            }}
+          >
+            <Tabs.List style={{ flexWrap: 'nowrap', minWidth: 'max-content' }}>
+              {RELEASE_TAB_CONFIGS.map((tabConfig) => {
+                const releases = tabDataMap[tabConfig.value];
+                const Icon = tabConfig.icon;
 
-            return (
-              <Tabs.Tab
-                key={tabConfig.value}
-                value={tabConfig.value}
-                leftSection={<Icon size={16} />}
-              >
-                {tabConfig.label} ({releases.length})
-              </Tabs.Tab>
-            );
-          })}
-        </Tabs.List>
-      </div>
+                return (
+                  <Tabs.Tab
+                    key={tabConfig.value}
+                    value={tabConfig.value}
+                    leftSection={<Icon size={16} />}
+                  >
+                    {tabConfig.label} ({releases.length})
+                  </Tabs.Tab>
+                );
+              })}
+            </Tabs.List>
+          </Box>
+        </Box>
+        {rightSection && (
+          <Box style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center' }}>
+            {rightSection}
+          </Box>
+        )}
+      </Group>
 
       {RELEASE_TAB_CONFIGS.map((tabConfig) => {
         const releases = tabDataMap[tabConfig.value];

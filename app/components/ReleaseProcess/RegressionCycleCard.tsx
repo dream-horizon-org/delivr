@@ -23,8 +23,9 @@ import {
   getCycleStatusLabel,
 } from '~/constants/release-process-ui';
 import type { RegressionCycle, Task, BuildInfo } from '~/types/release-process.types';
-import { RegressionCycleStatus } from '~/types/release-process-enums';
+import { RegressionCycleStatus, TaskStage } from '~/types/release-process-enums';
 import { formatReleaseDateTime } from '~/utils/release-process-date';
+import { sortTasksByExecutionOrder } from '~/utils/task-filtering';
 import { TaskCard } from './TaskCard';
 
 interface RegressionCycleCardProps {
@@ -82,6 +83,11 @@ export function RegressionCycleCard({
   // For past cycles, use accordion for collapsible display
   const isPastCycle = cycle.status === RegressionCycleStatus.DONE || cycle.status === RegressionCycleStatus.ABANDONED;
 
+  // Sort tasks by execution order within the cycle
+  const orderedTasks = useMemo(() => {
+    return sortTasksByExecutionOrder(tasks, TaskStage.REGRESSION);
+  }, [tasks]);
+
   // Tasks content (used in both accordion and non-accordion views)
   const tasksContent = (
     <>
@@ -89,13 +95,13 @@ export function RegressionCycleCard({
       {/* Note: Builds are displayed inside task cards via BuildTaskDetails component */}
       {/* When cycle is IN_PROGRESS: tasks use task.builds (consumed builds) */}
       {/* When cycle starts: builds are consumed and moved to task.builds, making task COMPLETED */}
-      {tasks.length > 0 ? (
+      {orderedTasks.length > 0 ? (
         <Stack gap="md">
           <Text size="sm" fw={500} c="dimmed">
-            Tasks ({tasks.length})
+            Tasks ({orderedTasks.length})
           </Text>
           <Stack gap="sm">
-            {tasks.map((task) => (
+            {orderedTasks.map((task) => (
               <TaskCard
                 key={task.id}
                 task={task}

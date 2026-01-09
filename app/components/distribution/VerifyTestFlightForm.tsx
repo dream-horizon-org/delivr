@@ -17,7 +17,7 @@ import {
   TextInput,
 } from '@mantine/core';
 import { IconAlertCircle, IconBrandApple, IconCheck } from '@tabler/icons-react';
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import {
   DS_COLORS,
   DS_SPACING,
@@ -36,10 +36,9 @@ import type { VerifyTestFlightFormProps } from '~/types/distribution/distributio
 
 export type VerificationSuccessProps = {
   buildNumber: string;
-  versionName: string;
 };
 
-function VerificationSuccess({ buildNumber, versionName }: VerificationSuccessProps) {
+function VerificationSuccess({ buildNumber }: VerificationSuccessProps) {
   return (
     <Paper p={DS_SPACING.MD} withBorder radius={DS_SPACING.BORDER_RADIUS} className="border-green-500 bg-green-50">
       <Group gap={DS_SPACING.SM}>
@@ -47,7 +46,7 @@ function VerificationSuccess({ buildNumber, versionName }: VerificationSuccessPr
         <div>
           <Text fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} c={DS_COLORS.STATUS.SUCCESS}>TestFlight Build Verified</Text>
           <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>
-            Build #{buildNumber} (v{versionName}) is ready for App Store submission.
+            Build #{buildNumber} is ready for App Store submission.
           </Text>
         </div>
       </Group>
@@ -61,7 +60,6 @@ function VerificationSuccess({ buildNumber, versionName }: VerificationSuccessPr
 
 export function VerifyTestFlightForm({ 
   releaseId, 
-  expectedVersion,
   onVerifyComplete, 
   onVerifyError, 
   onClose,
@@ -71,8 +69,6 @@ export function VerifyTestFlightForm({
   const {
     buildNumber,
     setBuildNumber,
-    versionName,
-    setVersionName,
     validationErrors,
     isVerifying,
     verifyError,
@@ -85,18 +81,6 @@ export function VerifyTestFlightForm({
     setBuildNumber(e.target.value);
   }, [setBuildNumber]);
 
-  const handleVersionNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setVersionName(e.target.value);
-  }, [setVersionName]);
-
-  // Pre-fill expected version if provided
-  useEffect(() => {
-    if (expectedVersion && !versionName) {
-      setVersionName(expectedVersion);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expectedVersion]);
-
   // Handle verification submission
   const handleSubmit = useCallback(() => {
     if (!validate()) return;
@@ -104,10 +88,9 @@ export function VerifyTestFlightForm({
     const formData = new FormData();
     formData.append('_action', 'verify-testflight');
     formData.append('testflightNumber', buildNumber);
-    formData.append('versionName', versionName);
 
     fetcher.submit(formData, { method: 'post' });
-  }, [buildNumber, versionName, fetcher, validate]);
+  }, [buildNumber, fetcher, validate]);
 
   // Handle success/error callbacks
   if (verifySuccess && onVerifyComplete && fetcher.data?.data) {
@@ -147,7 +130,7 @@ export function VerifyTestFlightForm({
 
       {/* Success State */}
       {verifySuccess && (
-        <VerificationSuccess buildNumber={buildNumber} versionName={versionName} />
+        <VerificationSuccess buildNumber={buildNumber} />
       )}
 
       {/* Form Fields */}
@@ -163,17 +146,6 @@ export function VerifyTestFlightForm({
             disabled={isVerifying}
             required
             data-autofocus
-          />
-
-          <TextInput
-            label="Version Name"
-            description="The version string (must match release version)"
-            placeholder={VALIDATION_RULES.VERSION_NAME.EXAMPLE}
-            value={versionName}
-            onChange={handleVersionNameChange}
-            error={validationErrors.versionName}
-            disabled={isVerifying}
-            required
           />
 
           {/* Action Buttons */}

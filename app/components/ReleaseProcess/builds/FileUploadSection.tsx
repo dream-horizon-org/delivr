@@ -13,7 +13,8 @@ import {
   SUCCESS_MESSAGES,
 } from '~/constants/release-process-ui';
 import { useManualBuildUpload } from '~/hooks/useReleaseProcess';
-import type { BuildUploadStage, Platform } from '~/types/release-process-enums';
+import type { BuildUploadStage } from '~/types/release-process-enums';
+import { Platform } from '~/types/release-process-enums';
 import { handleStageError } from '~/utils/stage-error-handling';
 import { showSuccessToast } from '~/utils/toast';
 
@@ -23,7 +24,7 @@ interface FileUploadSectionProps {
   stage: BuildUploadStage;
   availablePlatforms: Platform[];
   fixedPlatform?: Platform;
-  onUploadComplete?: () => void;
+  onUploadComplete?: (platform?: Platform) => void;
   onRefetchArtifacts: () => Promise<unknown>;
 }
 
@@ -105,7 +106,8 @@ export function FileUploadSection({
         fileInputRef.current.value = '';
       }
       await onRefetchArtifacts();
-      onUploadComplete?.();
+      // Pass platform to onUploadComplete so parent can track it
+      onUploadComplete?.(selectedPlatform);
     } catch (error) {
       const errorMessage = handleStageError(error, 'upload build');
       setValidationError(errorMessage);
@@ -125,7 +127,7 @@ export function FileUploadSection({
 
   const platformOptions = availablePlatforms.map(p => ({
     value: p,
-    label: p === 'ANDROID' ? 'Android' : p === 'IOS' ? 'iOS' : 'Web',
+    label: p === Platform.ANDROID ? 'Android' : p === Platform.IOS ? 'iOS' : 'Web',
   }));
 
   return (

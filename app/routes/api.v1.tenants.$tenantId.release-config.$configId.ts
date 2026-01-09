@@ -8,17 +8,8 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
 import { requireUserId } from '~/.server/services/Auth';
 import { ReleaseConfigService } from '~/.server/services/ReleaseConfig';
-import type { Platform, ReleaseConfiguration } from '~/types/release-config';
-import {
-    transformFromPlatformTargetsArray,
-    transformToPlatformTargetsArray,
-    type PlatformTarget,
-} from '~/utils/platform-mapper';
-
-// Backend response includes platformTargets which isn't in frontend ReleaseConfiguration type
-type BackendReleaseConfig = Partial<ReleaseConfiguration> & {
-  platformTargets?: PlatformTarget[];
-};
+import type { ReleaseConfiguration } from '~/types/release-config';
+import { logApiError } from '~/utils/api-route-helpers';
 
 /**
  * GET - Get specific release configuration
@@ -44,25 +35,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       console.error('[BFF] Get failed:', result.error);
       return json({ success: false, error: result.error }, { status: 404 });
     }
-    console.log('[BFF] Get successful:', result.data);
-    // Transform backend format (platformTargets) to UI format (targets array)
-    let transformedConfig = result.data;
-    const backendData = result.data as BackendReleaseConfig;
-    if (result.data && backendData.platformTargets && Array.isArray(backendData.platformTargets)) {
-      const targets = transformFromPlatformTargetsArray(backendData.platformTargets);
-      const platforms = [...new Set(backendData.platformTargets.map(pt => pt.platform))] as Platform[];
-      
-      transformedConfig = {
-        ...result.data,
-        targets,
-        platforms,
-      };
-    }
-
-    console.log('[BFF] Get successful in api route:', JSON.stringify(transformedConfig, null, 2), transformedConfig?.name);
-    return json({ success: true, data: transformedConfig }, { status: 200 });
+    console.log('[BFF] Get successful after transformation:', JSON.stringify(result.data, null, 2));
+    return json({ success: true, data: result.data }, { status: 200 });
   } catch (error: any) {
-    console.error('[BFF] Get error:', error);
+    logApiError('[BFF-ReleaseConfig-Get]', error);
     return json(
       { success: false, error: error.message ?? 'Internal server error' },
       { status: 500 }
@@ -93,45 +69,17 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
       console.log('[BFF] Updating release config:', configId, Object.keys(updates));
 
-      // Transform UI format to backend format if targets are present
-      let backendUpdates: BackendReleaseConfig;
-      if (updates.targets && Array.isArray(updates.targets)) {
-        const platformTargets = transformToPlatformTargetsArray(updates.targets);
-        const { platforms: _platforms, targets: _targets, ...restUpdates } = updates as any;
-        backendUpdates = {
-          ...restUpdates,
-          platformTargets,
-        };
-        console.log('[BFF] Transformed platformTargets:', platformTargets);
-      } else {
-        backendUpdates = { ...updates };
-      }
-
-      const result = await ReleaseConfigService.update(configId, backendUpdates, tenantId, userId);
+      const result = await ReleaseConfigService.update(configId, updates, tenantId, userId);
 
       if (!result.success) {
         console.error('[BFF] Update failed:', result.error);
         return json({ success: false, error: result.error }, { status: 400 });
       }
 
-      // Transform backend response to UI format
-      let transformedData = result.data;
-      const backendResponse = result.data as BackendReleaseConfig;
-      if (result.data && backendResponse.platformTargets && Array.isArray(backendResponse.platformTargets)) {
-        const targets = transformFromPlatformTargetsArray(backendResponse.platformTargets);
-        const platforms = [...new Set(backendResponse.platformTargets.map(pt => pt.platform))] as Platform[];
-        
-        transformedData = {
-          ...result.data,
-          targets,
-          platforms,
-        };
-      }
-
-      console.log('[BFF] Update successful:', transformedData?.name);
-      return json({ success: true, data: transformedData }, { status: 200 });
+      console.log('[BFF] Update successful:', result.data?.name);
+      return json({ success: true, data: result.data }, { status: 200 });
     } catch (error: any) {
-      console.error('[BFF] Update error:', error);
+      logApiError('[BFF-ReleaseConfig-Update]', error);
       return json(
         { success: false, error: error.message ?? 'Internal server error' },
         { status: 500 }
@@ -170,7 +118,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       console.log('[BFF] Delete successful');
       return json({ success: true, message: 'Release configuration deleted' }, { status: 200 });
     } catch (error: any) {
-      console.error('[BFF] Delete error:', error);
+      logApiError('[BFF-ReleaseConfig-Delete]', error);
       
       // Check if error is due to foreign key constraint
       const errorMessage = error.message ?? 'Internal server error';

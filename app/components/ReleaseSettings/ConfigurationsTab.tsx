@@ -21,6 +21,7 @@ import {
   Skeleton,
 } from '@mantine/core';
 import { useNavigate } from '@remix-run/react';
+import { CONFIG_STATUSES } from '~/types/release-config-constants';
 import { 
   IconPlus, 
   IconSearch, 
@@ -35,6 +36,7 @@ import { ConfirmationModal } from '~/components/Common/ConfirmationModal';
 import { apiDelete, apiPut, getApiErrorMessage } from '~/utils/api-client';
 import { showErrorToast, showInfoToast, showSuccessToast } from '~/utils/toast';
 import { RELEASE_CONFIG_MESSAGES, getErrorMessage } from '~/constants/toast-messages';
+import { extractApiErrorMessage } from '~/utils/api-error-utils';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { CONFIG_STATUS, RELEASE_TYPE } from '~/constants/release-config-ui';
 import { exportConfig } from '~/utils/release-config-storage';
@@ -92,7 +94,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
         // Only show draft if user has clicked "Next" at least once (step > 0)
         if (draftData && currentStep > 0) {
           draftConfig = JSON.parse(draftData);
-          draftConfig.status = 'DRAFT';
+          draftConfig.status = CONFIG_STATUSES.DRAFT;
           draftConfig.isActive = false;
           draftConfig.id = draftConfig.id || 'draft-temp-id';
         }
@@ -106,9 +108,9 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
 
   // Calculate stats
   const stats = useMemo(() => ({
-    total: configurations.filter((c: any) => c.status !== 'DRAFT').length,
+    total: configurations.filter((c: any) => c.status !== CONFIG_STATUSES.DRAFT).length,
     active: configurations.filter((c: any) => c.isActive === true).length,
-    archived: configurations.filter((c: any) => c.isActive === false && c.status !== 'DRAFT').length,
+    archived: configurations.filter((c: any) => c.isActive === false && c.status !== CONFIG_STATUSES.DRAFT).length,
   }), [configurations]);
 
   // Filter configurations
@@ -150,7 +152,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
     if (!archiveModal.configId) return;
     
     const config = configurations.find((c: any) => c.id === archiveModal.configId);
-    const isDraft = config?.status === 'DRAFT';
+    const isDraft = config?.status === CONFIG_STATUSES.DRAFT;
     
     setIsProcessing(true);
     
@@ -200,7 +202,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
           status: CONFIG_STATUS.ACTIVE,
         }));
         showErrorToast(getErrorMessage(
-          result.error || 'Unknown error',
+          extractApiErrorMessage(result.error, 'Unknown error'),
           RELEASE_CONFIG_MESSAGES.ARCHIVE_ERROR.title
         ));
       }
@@ -255,7 +257,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
           status: CONFIG_STATUS.ARCHIVED,
         }));
         showErrorToast(getErrorMessage(
-          result.error || 'Unknown error',
+          extractApiErrorMessage(result.error, 'Unknown error'),
           RELEASE_CONFIG_MESSAGES.UNARCHIVE_ERROR.title
         ));
       }
@@ -294,7 +296,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
         setDeleteModal({ opened: false, configId: null });
       } else {
         // Check if error is due to foreign key constraint (config in use by releases)
-        const errorMessage = result.error || 'Unknown error';
+        const errorMessage = extractApiErrorMessage(result.error, 'Unknown error');
         const isForeignKeyError = 
           errorMessage.includes('foreign key constraint') ||
           errorMessage.includes('releaseConfigId') ||
@@ -331,7 +333,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
   const handleSetDefault = useCallback(async (configId: string) => {
     try {
       // Find current default configuration and the config being set as default
-      const currentDefault = configurations.find((c: any) => c.isDefault && c.status !== 'DRAFT');
+      const currentDefault = configurations.find((c: any) => c.isDefault && c.status !== CONFIG_STATUSES.DRAFT);
       const configToSetDefault = configurations.find((c: any) => c.id === configId);
       
       if (!configToSetDefault) {
@@ -405,7 +407,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
           }));
         }
         showErrorToast(getErrorMessage(
-          result.error || 'Unknown error',
+          extractApiErrorMessage(result.error, 'Unknown error'),
           RELEASE_CONFIG_MESSAGES.SET_DEFAULT_ERROR.title
         ));
       }
@@ -640,7 +642,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
       {/* Archive Confirmation Modal */}
       {archiveModal.configId && (() => {
         const config = configurations.find((c: any) => c.id === archiveModal.configId);
-        const isDraft = config?.status === 'DRAFT';
+        const isDraft = config?.status === CONFIG_STATUSES.DRAFT;
         return (
           <ConfirmationModal
             opened={archiveModal.opened}

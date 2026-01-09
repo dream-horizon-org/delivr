@@ -35,9 +35,10 @@ import {
 import { useCallback, useState } from 'react';
 import type { User } from '~/.server/services/Auth/auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
-import { RolloutService } from '~/.server/services/Rollout';
+import { Breadcrumb } from '~/components/Common';
 import { CancelSubmissionDialog } from '~/components/Distribution/CancelSubmissionDialog';
 import { ResubmissionDialog } from '~/components/Distribution/ReSubmissionDialog';
+import { getBreadcrumbItems } from '~/constants/breadcrumbs';
 import { SUBMISSION_STATUS_LABELS } from '~/constants/distribution/distribution.constants';
 import {
   Platform,
@@ -50,6 +51,7 @@ import {
   canResubmitSubmission,
   canUpdateRollout
 } from '~/utils/distribution/distribution-state.utils';
+import { formatStatus } from '~/utils/distribution/distribution-ui.utils';
 
 interface LoaderData {
   org: string;
@@ -103,9 +105,9 @@ export const loader = authenticateLoaderRequest(
 
 // Actions
 const updateRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { submissionId } = params;
-  if (!submissionId) {
-    return json({ error: 'Submission ID required' }, { status: 400 });
+  const { org, submissionId } = params;
+  if (!org || !submissionId) {
+    return json({ error: 'Organization and Submission ID required' }, { status: 400 });
   }
 
   const formData = await request.formData();
@@ -117,7 +119,7 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
   }
 
   try {
-    await RolloutService.updateRollout(submissionId, { rolloutPercentage }, platform);
+    await DistributionService.updateRollout(org, submissionId, { rolloutPercentage }, platform);
     return json({ success: true });
   } catch (error) {
     return json({ error: 'Failed to update rollout' }, { status: 500 });
@@ -125,9 +127,9 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
 };
 
 const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { submissionId } = params;
-  if (!submissionId) {
-    return json({ error: 'Submission ID required' }, { status: 400 });
+  const { org, submissionId } = params;
+  if (!org || !submissionId) {
+    return json({ error: 'Organization and Submission ID required' }, { status: 400 });
   }
 
   const formData = await request.formData();
@@ -139,7 +141,7 @@ const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user
   }
 
   try {
-    await RolloutService.pauseRollout(submissionId, reason ? { reason } : undefined, platform);
+    await DistributionService.pauseRollout(org, submissionId, { reason: reason || '' }, platform);
     return json({ success: true });
   } catch (error) {
     return json({ error: 'Failed to pause rollout' }, { status: 500 });
@@ -147,9 +149,9 @@ const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user
 };
 
 const resumeRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { submissionId } = params;
-  if (!submissionId) {
-    return json({ error: 'Submission ID required' }, { status: 400 });
+  const { org, submissionId } = params;
+  if (!org || !submissionId) {
+    return json({ error: 'Organization and Submission ID required' }, { status: 400 });
   }
 
   const formData = await request.formData();
@@ -160,7 +162,7 @@ const resumeRollout: AuthenticatedActionFunction = async ({ params, request, use
   }
 
   try {
-    await RolloutService.resumeRollout(submissionId, platform);
+    await DistributionService.resumeRollout(org, submissionId, platform);
     return json({ success: true });
   } catch (error) {
     return json({ error: 'Failed to resume rollout' }, { status: 500 });
@@ -195,10 +197,6 @@ function getStatusColor(status: string): string {
     HALTED: 'orange',
   };
   return colors[status] ?? 'gray';
-}
-
-function formatStatus(status: string): string {
-  return status.replace(/_/g, ' ');
 }
 
 function formatDate(dateString: string | null | undefined): string {
@@ -327,9 +325,16 @@ export default function SubmissionDetailPage() {
   const canRetry = canResubmitSubmission(submission.status);
   const canCancel = canCancelSubmission(submission.status, submission.platform);
 
+  // Breadcrumb items
+  const breadcrumbItems = getBreadcrumbItems('releases.submission.detail', {
+    org,
+    releaseId,
+  });
+
   if (error || !submission.id) {
     return (
       <Container size="lg" className="py-8">
+        <Breadcrumb items={breadcrumbItems} mb={16} />
         <Alert color="red" icon={<IconAlertCircle />} title="Error">
           {error || 'Submission not found'}
         </Alert>
@@ -339,6 +344,9 @@ export default function SubmissionDetailPage() {
 
   return (
     <Container size="lg" className="py-8">
+      {/* Breadcrumb */}
+      <Breadcrumb items={breadcrumbItems} mb={16} />
+      
       {/* Header */}
       <Paper shadow="sm" p="md" radius="md" withBorder className="mb-6">
         <Group justify="space-between">

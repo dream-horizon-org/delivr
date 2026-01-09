@@ -49,15 +49,30 @@ export function Module({
           return true;
         }
       }
+      // For Configurations: active on /releases/settings and /releases/configure
+      else if (subItem.path === `/dashboard/${org.id}/releases/settings`) {
+        if (
+          location.pathname.startsWith(`/dashboard/${org.id}/releases/settings`) ||
+          location.pathname.startsWith(`/dashboard/${org.id}/releases/configure`)
+        ) {
+          return true;
+        }
+      }
+      // For Workflows: active on /releases/workflows and /releases/workflows/new
+      else if (subItem.path === `/dashboard/${org.id}/releases/workflows`) {
+        if (location.pathname.startsWith(subItem.path)) {
+          return true;
+        }
+      }
       // For other routes, use startsWith
       else if (location.pathname.startsWith(subItem.path)) {
         return true;
       }
     }
 
-    // For DOTA, check if on apps route or viewing a specific app
+    // For DOTA, check if on any OTA route (apps list, app detail, create-release, release detail)
     if (module.id === "dota") {
-      return location.pathname.includes("/apps") || !!currentAppId;
+      return location.pathname.includes(`/dashboard/${org.id}/ota/`) || !!currentAppId;
     }
 
     // Fallback: check if main route is active

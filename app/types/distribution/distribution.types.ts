@@ -696,7 +696,6 @@ export interface UploadAABRequest {
 export interface VerifyTestFlightRequest {
   releaseId: string;
   testflightNumber: number;
-  versionName: string;
 }
 
 /** Manual Approval Request */

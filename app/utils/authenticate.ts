@@ -7,6 +7,7 @@ import {
 } from "@remix-run/node";
 import { AxiosError } from "axios";
 import { AuthenticatorService } from "~/.server/services/Auth";
+import { AUTH_ERROR_MESSAGES } from "~/.server/services/Auth/auth.constants";
 import { User } from '~/.server/services/Auth/auth.interface';
 import { sanitizeUser } from "~/.server/services/Auth/sanitize-user";
 import { ensureFreshToken } from "~/.server/services/Auth/token-refresh";
@@ -71,8 +72,23 @@ export const authenticateLoaderRequest = (cb?: AuthenticatedLoaderFunction) => {
         return (await cb?.({ ...args, user })) ?? json(sanitizeUser(user));
       });
     } catch (e) {
-      // If token refresh fails with REFRESH_TOKEN_INVALID, logout
-      if (e instanceof Error && e.message === 'REFRESH_TOKEN_INVALID') {
+      // Log error details for debugging
+      console.error('[authenticateLoaderRequest] Error caught:', JSON.stringify({
+        errorType: e?.constructor?.name,
+        message: e instanceof Error ? e.message : String(e),
+        response: e instanceof AxiosError ? {
+          status: e.response?.status,
+          data: e.response?.data,
+          headers: e.response?.headers
+        } : undefined,
+        stack: e instanceof Error ? e.stack : undefined
+      }, null, 2));
+
+      // If token refresh fails (no refresh token or invalid refresh token), logout
+      if (e instanceof Error && (
+        e.message === AUTH_ERROR_MESSAGES.REFRESH_TOKEN_INVALID ||
+        e.message === AUTH_ERROR_MESSAGES.NO_REFRESH_TOKEN
+      )) {
         return await AuthenticatorService.logout(args.request);
       }
       
@@ -160,8 +176,23 @@ export const authenticateActionRequest = (
         return await actionCallback({ ...args, user });
       });
     } catch (e) {
-      // If token refresh fails with REFRESH_TOKEN_INVALID, logout
-      if (e instanceof Error && e.message === 'REFRESH_TOKEN_INVALID') {
+      // Log error details for debugging
+      console.error('[authenticateActionRequest] Error caught:', JSON.stringify({
+        errorType: e?.constructor?.name,
+        message: e instanceof Error ? e.message : String(e),
+        response: e instanceof AxiosError ? {
+          status: e.response?.status,
+          data: e.response?.data,
+          headers: e.response?.headers
+        } : undefined,
+        stack: e instanceof Error ? e.stack : undefined
+      }, null, 2));
+
+      // If token refresh fails (no refresh token or invalid refresh token), logout
+      if (e instanceof Error && (
+        e.message === AUTH_ERROR_MESSAGES.REFRESH_TOKEN_INVALID ||
+        e.message === AUTH_ERROR_MESSAGES.NO_REFRESH_TOKEN
+      )) {
         return await AuthenticatorService.logout(args.request);
       }
       

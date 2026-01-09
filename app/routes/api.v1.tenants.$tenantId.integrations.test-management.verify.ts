@@ -8,6 +8,7 @@ import type { ActionFunctionArgs } from '@remix-run/node';
 import { authenticateActionRequest } from '~/utils/authenticate';
 import type { User } from '~/.server/services/Auth/auth.interface';
 import { CheckmateIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
+import { logApiError } from '~/utils/api-route-helpers';
 
 const verifyTestManagementCredentials = async ({
   request,
@@ -56,6 +57,7 @@ const verifyTestManagementCredentials = async ({
         orgId: config.orgId,
         _encrypted: config._encrypted, // Forward encryption flag
       },
+      tenantId,
       user.user.id
     );
 
@@ -80,7 +82,7 @@ const verifyTestManagementCredentials = async ({
       }, { status: 401 });
     }
   } catch (error) {
-    console.error('[BFF-TestMgmt-Verify] Error:', error);
+    logApiError('[BFF-TestMgmt-Verify]', error);
     return json(
       {
         success: false,

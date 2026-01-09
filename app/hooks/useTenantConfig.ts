@@ -19,7 +19,6 @@ interface TenantInfoResponse {
         enabledPlatforms: string[];
         enabledTargets: string[];
         allowedReleaseTypes: string[];
-        customSettings: any;
       };
       integrations?: any[];
     };
@@ -50,7 +49,6 @@ async function fetchTenantConfig(tenantId: string): Promise<TenantConfig | null>
       enabledPlatforms: config.enabledPlatforms,
       enabledTargets: config.enabledTargets,
       allowedReleaseTypes: config.allowedReleaseTypes,
-      customSettings: config.customSettings,
     },
   };
 }
@@ -65,7 +63,7 @@ export function useTenantConfig(
     {
       enabled: !!tenantId, // Only fetch if tenantId exists
       initialData: initialData || undefined, // Use initialData if provided
-      staleTime: 1000 * 60 * 5, // 5 minutes - can change more frequently
+      staleTime: 100 * 60 * 5, // 5 minutes - can change more frequently
       cacheTime: 1000 * 60 * 30, // 30 minutes
       refetchOnWindowFocus: false,
       refetchOnMount: false,

@@ -25,14 +25,13 @@ import { PlatformIcon } from '~/components/Releases/PlatformIcon';
 import { useReleaseConfigs } from '~/hooks/useReleaseConfigs';
 import { useArchiveRelease } from '~/hooks/useReleaseProcess';
 import type { ReleaseCardProps } from '~/types/release';
-import { formatReleaseDate, getActiveStatusColor, getReleaseActiveStatus, getReleaseTypeGradient } from '~/utils/release-utils';
+import { formatReleaseDate, getActiveStatusColor, getReleaseActiveStatus, getReleaseTypeGradient, isReleasePaused } from '~/utils/release-utils';
 import { Phase, ReleaseStatus, PauseType } from '~/types/release-process-enums';
 import { getPhaseColor, getPhaseLabel, getReleaseStatusColor, getReleaseStatusLabel, BUTTON_LABELS } from '~/constants/release-process-ui';
+import { RELEASE_TYPES } from '~/types/release-config-constants';
 import { ConfigurationPreviewModal } from '~/components/ReleaseSettings/ConfigurationPreviewModal';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
 import { getApiErrorMessage } from '~/utils/api-client';
-import { useQueryClient } from 'react-query';
-import { invalidateReleases } from '~/utils/cache-invalidation';
 
 /**
  * Release Card Component - Modern Clean Design
@@ -45,7 +44,6 @@ export const ReleaseCard = memo(function ReleaseCard({
   const [searchParams] = useSearchParams();
   const [configModalOpened, setConfigModalOpened] = useState(false);
   const [archiveConfirmModalOpened, setArchiveConfirmModalOpened] = useState(false);
-  const queryClient = useQueryClient();
   
   // Archive hook
   const archiveMutation = useArchiveRelease(org, release.id);
@@ -63,11 +61,11 @@ export const ReleaseCard = memo(function ReleaseCard({
   // Helper to get release type color
   const getReleaseTypeColor = (type: string): string => {
     switch (type.toUpperCase()) {
-      case 'MAJOR':
+      case RELEASE_TYPES.MAJOR:
         return 'purple';
-      case 'MINOR':
+      case RELEASE_TYPES.MINOR:
         return 'blue';
-      case 'HOTFIX':
+      case RELEASE_TYPES.HOTFIX:
         return 'red';
       default:
         return 'brand';
@@ -81,10 +79,9 @@ export const ReleaseCard = memo(function ReleaseCard({
     : `/dashboard/${org}/releases/${release.id}`;
 
   // Status indicators
-  // Check if paused - use pauseType from cronJob (primary check)
-  // Backend keeps cronStatus=RUNNING and uses pauseType to control pause state
-  const pauseType = release.cronJob?.pauseType;
-  const isPaused = !!(pauseType && pauseType !== PauseType.NONE);
+  // Check if paused - use utility function which handles special cases
+  // (e.g., distribution stage with completed cron but active release)
+  const isPaused = isReleasePaused(release);
   const phase = release.releasePhase;
   const status = release.status;
 
@@ -108,7 +105,7 @@ export const ReleaseCard = memo(function ReleaseCard({
         message: 'Release archived successfully',
       });
 
-      await invalidateReleases(queryClient, org);
+      // Hook handles optimistic update + background refetch
       setArchiveConfirmModalOpened(false);
     } catch (error) {
       const errorMessage = getApiErrorMessage(error, 'Failed to archive release');
@@ -218,7 +215,7 @@ export const ReleaseCard = memo(function ReleaseCard({
                     >
                       Paused
                     </Badge>
-                  ) : activeStatus && activeStatus !== 'COMPLETED' ? (
+                  ) : activeStatus && activeStatus !== ReleaseStatus.COMPLETED ? (
                     <Badge
                       size="sm"
                       variant="light"

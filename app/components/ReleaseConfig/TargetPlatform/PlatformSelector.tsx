@@ -30,7 +30,7 @@ import {
   IconExternalLink,
 } from '@tabler/icons-react';
 import { Link, useParams } from '@remix-run/react';
-import type { TargetPlatform } from '~/types/release-config';
+import type { TargetPlatform, Platform } from '~/types/release-config';
 import type { PlatformSelectorProps } from '~/types/release-config-props';
 import { PLATFORM_CONFIGS } from '~/constants/release-config';
 import { PLATFORMS, TARGET_PLATFORMS } from '~/types/release-config-constants';
@@ -45,7 +45,7 @@ const TARGET_TO_INTEGRATION_MAP: Record<TargetPlatform, string> = {
   [TARGET_PLATFORMS.WEB]: '', // WEB doesn't require integration
 };
 
-export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelectorProps) {
+export function PlatformSelector({ platformTargets, onChange }: PlatformSelectorProps) {
   const theme = useMantineTheme();
   const { isIntegrationConnected } = useConfig();
   const params = useParams<{ org: string }>();
@@ -109,76 +109,78 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
       });
   };
 
-  // Get all available target IDs across all platforms
-  const allAvailableTargetIds = useMemo(() => {
-    const available: TargetPlatform[] = [];
+  // Get all available platform-target combinations
+  const allAvailablePlatformTargets = useMemo(() => {
+    const available: Array<{ platform: Platform; target: TargetPlatform }> = [];
     PLATFORM_CONFIGS.forEach((platform) => {
       const platformTargets = getAvailableTargetsForPlatform(platform.id);
       platformTargets.forEach((target) => {
-        if (!available.includes(target.id as TargetPlatform)) {
-          available.push(target.id as TargetPlatform);
-        }
+        available.push({ platform: platform.id as Platform, target: target.id as TargetPlatform });
       });
     });
     return available;
   }, [getAvailableTargetsForPlatform]);
 
-  // Filter out invalid targets when integrations change
+  // Filter out invalid platform-target combinations when integrations change
   useEffect(() => {
-    // Filter to only include targets that are currently available
-    const validTargets = selectedPlatforms.filter((target) =>
-      allAvailableTargetIds.includes(target)
+    // Filter to only include platform-targets that are currently available
+    const validPlatformTargets = platformTargets.filter((pt) =>
+      allAvailablePlatformTargets.some(
+        (apt) => apt.platform === pt.platform && apt.target === pt.target
+      )
     );
 
-    // Only call onChange if there are invalid targets to remove
-    // Compare arrays to avoid unnecessary updates
-    if (validTargets.length !== selectedPlatforms.length) {
-      onChange(validTargets);
-    } else {
-      // Check if any target is invalid (same length but different content)
-      const hasInvalidTarget = selectedPlatforms.some(
-        (target) => !allAvailableTargetIds.includes(target)
-      );
-      if (hasInvalidTarget) {
-        onChange(validTargets);
-      }
+    // Only call onChange if there are invalid combinations to remove
+    if (validPlatformTargets.length !== platformTargets.length) {
+      onChange(validPlatformTargets);
     }
-  }, [allAvailableTargetIds, selectedPlatforms, onChange]);
+  }, [allAvailablePlatformTargets, platformTargets, onChange]);
 
-  // Determine which platforms are selected based on their targets
-  const isPlatformSelected = (platformId: typeof PLATFORMS.ANDROID | typeof PLATFORMS.IOS) => {
-    const platform = PLATFORM_CONFIGS.find((p) => p.id === platformId);
-    if (!platform) return false;
-    const availableTargets = getAvailableTargetsForPlatform(platformId);
-    return availableTargets.some((target) => selectedPlatforms.includes(target.id));
+  // Check if a platform-target combination is selected
+  const isSelected = (platformId: Platform, targetId: TargetPlatform): boolean => {
+    return platformTargets.some(
+      (pt) => pt.platform === platformId && pt.target === targetId
+    );
   };
 
-  const handlePlatformToggle = (platformId: typeof PLATFORMS.ANDROID | typeof PLATFORMS.IOS) => {
-    const platform = PLATFORM_CONFIGS.find((p) => p.id === platformId);
-    if (!platform) return;
+  // Determine which platforms have any selected targets
+  const isPlatformSelected = (platformId: Platform) => {
+    return platformTargets.some((pt) => pt.platform === platformId);
+  };
 
+  const handlePlatformToggle = (platformId: Platform) => {
     const availableTargets = getAvailableTargetsForPlatform(platformId);
-    const availableTargetIds = availableTargets.map((t) => t.id);
-    const isCurrentlySelected = isPlatformSelected(platformId);
+    const availableTargetIds = availableTargets.map((t) => t.id as TargetPlatform);
+    const hasAnySelected = isPlatformSelected(platformId);
 
-    if (isCurrentlySelected) {
+    if (hasAnySelected) {
+      // Remove all platform-target combinations for this platform
       onChange(
-        selectedPlatforms.filter((p) => !(availableTargetIds as readonly TargetPlatform[]).includes(p))
+        platformTargets.filter((pt) => pt.platform !== platformId)
       );
     } else {
-      const newTargets = [
-        ...selectedPlatforms,
-        ...availableTargetIds.filter((t) => !selectedPlatforms.includes(t)),
-      ];
-      onChange(newTargets);
+      // Add all available platform-target combinations for this platform
+      const newPlatformTargets = availableTargetIds
+        .map((target) => ({ platform: platformId, target }))
+        .filter((pt) => !isSelected(pt.platform, pt.target));
+      
+      onChange([...platformTargets, ...newPlatformTargets]);
     }
   };
 
-  const handleTargetToggle = (targetId: TargetPlatform) => {
-    if (selectedPlatforms.includes(targetId)) {
-      onChange(selectedPlatforms.filter((p) => p !== targetId));
+  const handleTargetToggle = (platformId: Platform, targetId: TargetPlatform) => {
+    const isCurrentlySelected = isSelected(platformId, targetId);
+    
+    if (isCurrentlySelected) {
+      // Remove this platform-target combination
+      onChange(
+        platformTargets.filter(
+          (pt) => !(pt.platform === platformId && pt.target === targetId)
+        )
+      );
     } else {
-      onChange([...selectedPlatforms, targetId]);
+      // Add this platform-target combination
+      onChange([...platformTargets, { platform: platformId, target: targetId }]);
     }
   };
 
@@ -197,7 +199,7 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
       {/* Platform Cards */}
       {PLATFORM_CONFIGS.map((platform) => {
         const isExpanded = expandedPlatforms.has(platform.id);
-        const isSelected = isPlatformSelected(platform.id);
+        const isPlatformSelectedValue = isPlatformSelected(platform.id);
         const PlatformIcon = platformIcons[platform.id] || IconTarget;
         const platformColor = platformColors[platform.id] || 'brand';
         const availableTargets = getAvailableTargetsForPlatform(platform.id);
@@ -211,12 +213,12 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
             radius="md"
             withBorder
             style={{
-              borderColor: isSelected 
+              borderColor: isPlatformSelectedValue 
                 ? theme.colors[platformColor][4] 
                 : platformDisabled 
                   ? theme.colors.red[2] 
                   : theme.colors.slate[2],
-              backgroundColor: isSelected 
+              backgroundColor: isPlatformSelectedValue 
                 ? theme.colors[platformColor][0] 
                 : platformDisabled 
                   ? theme.colors.red[0] 
@@ -250,7 +252,7 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
 
                   {/* Platform Checkbox */}
                   <Checkbox
-                    checked={isSelected}
+                    checked={isPlatformSelectedValue}
                     onChange={() => !platformDisabled && handlePlatformToggle(platform.id)}
                     onClick={(e) => e.stopPropagation()}
                     disabled={!platform.available || platformDisabled}
@@ -262,7 +264,7 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
                   <ThemeIcon
                     size={40}
                     radius="md"
-                    variant={isSelected ? 'filled' : 'light'}
+                    variant={isPlatformSelectedValue ? 'filled' : 'light'}
                     color={platformColor}
                   >
                     <PlatformIcon size={22} />
@@ -324,7 +326,7 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
               >
                 <Stack gap="xs">
                   {availableTargets.map((target) => {
-                    const isTargetSelected = selectedPlatforms.includes(target.id);
+                    const isTargetSelected = isSelected(platform.id as Platform, target.id as TargetPlatform);
 
                     return (
                       <Paper
@@ -342,12 +344,12 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
                           cursor: target.available ? 'pointer' : 'not-allowed',
                           transition: 'all 150ms ease',
                         }}
-                        onClick={() => target.available && handleTargetToggle(target.id)}
+                        onClick={() => target.available && handleTargetToggle(platform.id as Platform, target.id as TargetPlatform)}
                       >
                         <Group gap="sm">
                           <Checkbox
                             checked={isTargetSelected}
-                            onChange={() => handleTargetToggle(target.id)}
+                            onChange={() => handleTargetToggle(platform.id as Platform, target.id as TargetPlatform)}
                             onClick={(e) => e.stopPropagation()}
                             disabled={!target.available}
                             color={platformColor}
@@ -368,7 +370,7 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
       })}
 
       {/* No Selection Warning */}
-      {selectedPlatforms.length === 0 && (
+      {platformTargets.length === 0 && (
         <Paper
           p="md"
           radius="md"

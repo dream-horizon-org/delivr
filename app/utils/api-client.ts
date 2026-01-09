@@ -11,8 +11,22 @@ interface ApiClientOptions extends RequestInit {
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
-  error?: string;
+  error?: string | { code?: string; message?: string };
   message?: string;
+}
+
+/**
+ * Internal helper to extract error message from error field (supports both string and object formats)
+ * Note: For external usage, use extractErrorMessage from api-error-utils.ts
+ */
+function extractErrorMessageInternal(error: unknown): string | undefined {
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (error && typeof error === 'object' && 'message' in error) {
+    return typeof error.message === 'string' ? error.message : undefined;
+  }
+  return undefined;
 }
 
 class ApiError extends Error {
@@ -94,9 +108,9 @@ async function apiRequest<T = unknown>(
     // If HTTP status is not OK, throw with best available message
     if (!response.ok) {
       // Server-side loaders handle 401 redirects, client-side just throws error
+      const errorMessage = parsed?.error ? extractErrorMessageInternal(parsed.error) : undefined;
       const messageFromParsed =
-        (parsed && (parsed.error || parsed.message)) ||
-        `Request failed with status ${response.status}`;
+        errorMessage || parsed?.message || `Request failed with status ${response.status}`;
       if (isReleaseConfigRequest) {
         console.error('[ApiClient] Request failed:', response.status, messageFromParsed);
       }
@@ -111,8 +125,9 @@ async function apiRequest<T = unknown>(
     if (hasSuccessBoolean) {
       const envelope = parsed as ApiResponse<T>;
       if (!envelope.success) {
+        const errorMessage = envelope.error ? extractErrorMessageInternal(envelope.error) : undefined;
         const messageFromEnvelope =
-          envelope.error || envelope.message || `Request failed with status ${response.status}`;
+          errorMessage || envelope.message || `Request failed with status ${response.status}`;
         throw new ApiError(messageFromEnvelope, response.status, envelope);
       }
       // Normalize shape when payload lives at top-level instead of in 'data'

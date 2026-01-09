@@ -4,9 +4,7 @@
  */
 
 import {
-  Anchor,
   Box,
-  Breadcrumbs,
   Button,
   Center,
   Group,
@@ -27,6 +25,8 @@ import {
   IconRocket,
 } from '@tabler/icons-react';
 import { sanitizeUser } from '~/.server/services/Auth';
+import { Breadcrumb } from '~/components/Common';
+import { getBreadcrumbItems } from '~/constants/breadcrumbs';
 import { CICDTab } from '~/components/ReleaseSettings/CICDTab';
 import { useConfig } from '~/contexts/ConfigContext';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
@@ -69,26 +69,7 @@ export default function WorkflowsPage() {
   const isLoading = isLoadingMetadata || isLoadingTenantConfig;
 
   // Breadcrumb items
-  const breadcrumbItems = [
-    { title: 'Release Management', href: `/dashboard/${org}/releases` },
-    { title: 'Workflows', href: '#' },
-  ].map((item, index) => (
-    item.href === '#' ? (
-      <Text key={index} size="sm" c={theme.colors.slate[6]}>
-        {item.title}
-      </Text>
-    ) : (
-      <Anchor
-        key={index}
-        component={Link}
-        to={item.href}
-        size="sm"
-        c={theme.colors.slate[5]}
-      >
-        {item.title}
-      </Anchor>
-    )
-  ));
+  const breadcrumbItems = getBreadcrumbItems('releases.workflows.list', { org });
 
   // Loading state
   if (isLoading) {
@@ -115,7 +96,7 @@ export default function WorkflowsPage() {
     return (
       <Box>
         <Box mb={32}>
-          <Breadcrumbs mb={16}>{breadcrumbItems}</Breadcrumbs>
+          <Breadcrumb items={breadcrumbItems} />
           <Title order={2} fw={700} c={theme.colors.slate[9]} mb={4}>
             Workflows
           </Title>
@@ -153,7 +134,7 @@ export default function WorkflowsPage() {
     <Box>
       {/* Header Section */}
       <Box mb={32}>
-        <Breadcrumbs mb={16}>{breadcrumbItems}</Breadcrumbs>
+        <Breadcrumb items={breadcrumbItems} />
         
         <Group justify="space-between" align="flex-start">
           <Box>

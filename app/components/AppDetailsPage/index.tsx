@@ -38,7 +38,7 @@ export function AppDetailsPage() {
   const currentOrg = orgs?.find((org) => org.id === orgId);
 
   const handleBack = () => {
-    navigate(route("/dashboard/:org/apps", { org: orgId }));
+    navigate(route("/dashboard/:org/ota/apps", { org: orgId }));
   };
 
   const iconStyle = { width: rem(16), height: rem(16) };

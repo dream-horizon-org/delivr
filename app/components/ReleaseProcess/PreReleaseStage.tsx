@@ -14,7 +14,7 @@ import { useConfig } from '~/contexts/ConfigContext';
 import { useRelease } from '~/hooks/useRelease';
 import { usePermissions } from '~/hooks/usePermissions';
 import type { Task } from '~/types/release-process.types';
-import { TaskStage, TaskStatus } from '~/types/release-process-enums';
+import { TaskStage, TaskStatus, StageStatus, ReleaseStatus } from '~/types/release-process-enums';
 import { validateStageProps } from '~/utils/prop-validation';
 import { handleStageError } from '~/utils/stage-error-handling';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
@@ -81,19 +81,26 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
   const completeMutation = useCompletePreReleaseStage(tenantId, releaseId);
   const [approvalModalOpened, setApprovalModalOpened] = useState(false);
 
-  // Extract tasks and uploadedBuilds from data
+  // Extract tasks, uploadedBuilds, and approvalStatus from data
   const tasks = data?.tasks || [];
   const uploadedBuilds = data?.uploadedBuilds || [];
+  const approvalStatus = data?.approvalStatus;
 
+  // Check if stage is already completed
+  const isStageCompleted = data?.stageStatus === StageStatus.COMPLETED;
   // Check if we're in transition state (data loaded but no tasks yet)
   // This happens when transitioning from stage 2 to stage 3 - tasks are being created
   const isFetchingTasks = isLoading || (data && tasks.length === 0);
 
+  // Get approval requirements from backend
+  const approvalRequirements = approvalStatus?.approvalRequirements;
+
   // Calculate approval requirements for Pre-Release
+  // Always check tasks completion + backend PM requirement if configured
   const requirements: ApprovalRequirement[] = useMemo(() => {
     const reqs: ApprovalRequirement[] = [];
     
-    // All tasks completed requirement
+    // ALWAYS check: All Tasks Completed requirement
     // Filter for PRE_RELEASE stage tasks only
     const preReleaseTasks = tasks.filter((t: Task) => t.stage === TaskStage.PRE_RELEASE);
     
@@ -116,46 +123,19 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
         : undefined,
     });
 
-    // Project Management requirement - only if configured
-    if (hasProjectManagement) {
-      if (projectManagementStatus.data) {
-        if ('platforms' in projectManagementStatus.data) {
-          const allPlatformsCompleted = projectManagementStatus.data.platforms.every(
-            (platform) => platform.isCompleted === true
-          );
-          reqs.push({
-            label: 'Project Management',
-            passed: allPlatformsCompleted,
-            message: allPlatformsCompleted
-              ? undefined
-              : 'Some platforms have incomplete tickets.',
-          });
-        } else {
-          reqs.push({
-            label: 'Project Management',
-            passed: projectManagementStatus.data.isCompleted === true,
-          });
-        }
-      } else if (projectManagementStatus.isLoading) {
-        // Still loading - show as pending
-        reqs.push({
-          label: 'Project Management',
-          passed: false,
-          message: 'Loading...',
-        });
-      } else if (projectManagementStatus.error) {
-        // Error loading - show as failed
-        reqs.push({
-          label: 'Project Management',
-          passed: false,
-          message: 'Error loading status',
-        });
-      }
+    // Project Management requirement - from backend if configured
+    if (hasProjectManagement && approvalRequirements) {
+      reqs.push({
+        label: 'Project Management',
+        passed: approvalRequirements.projectManagementPassed,
+        message: approvalRequirements.projectManagementPassed
+          ? undefined
+          : 'Some platforms have incomplete tickets.',
+      });
     }
-    // If PM is not configured, don't add it to requirements (it's not required)
-
+    
     return reqs;
-  }, [tasks, hasProjectManagement, projectManagementStatus.data, projectManagementStatus.isLoading, projectManagementStatus.error]);
+  }, [tasks, hasProjectManagement, approvalRequirements]);
 
   const passedCount = useMemo(() => {
     return requirements.filter((r) => r.passed).length;
@@ -165,10 +145,22 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
     return requirements.filter((r) => !r.passed).length;
   }, [requirements]);
 
-  // Calculate promotion readiness - all PRE_RELEASE tasks must be completed AND user has permission
+  // Check if approval button should be enabled (combine requirements with permissions)
+  // Disable if distribution stage has started (similar to regression stage logic)
   const canPromote = useMemo(() => {
+    // Disable if distribution stage is already in progress or completed
+    // Distribution only gets triggered when approval is given, so if it's already started,
+    // the approval button should be disabled
+    const isDistributionInProgress = release?.cronJob?.stage4Status === StageStatus.IN_PROGRESS || 
+                                     release?.cronJob?.stage4Status === StageStatus.COMPLETED;
+    
+    if (isDistributionInProgress) {
+      return false;
+    }
+    
+    // All requirements must pass AND user must have permission
     return requirements.every((r) => r.passed) && canPerform;
-  }, [requirements, canPerform]);
+  }, [requirements, canPerform, release?.cronJob?.stage4Status]);
 
   const handleApproveClick = useCallback(() => {
     if (!canPromote) {
@@ -217,15 +209,19 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
             tasks={tasks}
             tenantId={tenantId}
             releaseId={releaseId}
-            isArchived={release?.status === 'ARCHIVED'}
+            isArchived={release?.status === ReleaseStatus.ARCHIVED}
             onRetry={handleRetry}
             uploadedBuilds={uploadedBuilds}
           />
         )}
 
-        {/* Approval Section - Show if PM is configured OR if there are other requirements */}
-        {/* Only show approval section when tasks are loaded */}
-        {!isFetchingTasks && (hasProjectManagement || requirements.length > 0) && (
+        
+        {/* Approval Section - Show when tasks are loaded and distribution hasn't started */}
+        {/* Show approval section even if stage is COMPLETED, as long as distribution hasn't started */}
+        {!isFetchingTasks && 
+         requirements.length > 0 && 
+         release?.cronJob?.stage4Status !== StageStatus.IN_PROGRESS &&
+         release?.cronJob?.stage4Status !== StageStatus.COMPLETED && (
         <StageApprovalSection
           title="Pre-Release Approval"
           canApprove={canPromote}
@@ -285,6 +281,20 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
             </Stack>
           )}
         />
+      )}
+
+      {/* Show completion message if stage is completed AND distribution has started */}
+      {isStageCompleted && 
+       (release?.cronJob?.stage4Status === StageStatus.IN_PROGRESS ||
+        release?.cronJob?.stage4Status === StageStatus.COMPLETED) && (
+        <Alert 
+          icon={<IconCheck size={16} />} 
+          color="green" 
+          variant="light" 
+          radius="md"
+        >
+          <Text size="sm" fw={500}>Pre-Release stage has been completed</Text>
+        </Alert>
       )}
 
       {/* Approval Confirmation Modal */}

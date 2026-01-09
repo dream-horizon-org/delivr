@@ -3,7 +3,9 @@
  * All modals used in the release header (Edit, Activity Logs, Slack Message, Pause Confirmation)
  */
 
+import { useEffect } from 'react';
 import { Button, Group, Modal, ScrollArea, Select, Stack, Text } from '@mantine/core';
+import { useQueryClient } from 'react-query';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { CreateReleaseForm } from '~/components/ReleaseCreation/CreateReleaseForm';
 import { ActivityLogsDrawer } from '../ActivityLogsDrawer';
@@ -49,7 +51,16 @@ export function ReleaseHeaderModals({
   onPauseResume,
   onUpdateCallback,
 }: ReleaseHeaderModalsProps) {
+  const queryClient = useQueryClient();
   const sendNotificationMutation = useSendNotification(org, release.id);
+  
+  // Refetch release data when edit modal opens to get latest upcomingRegressions
+  useEffect(() => {
+    if (editModalOpened) {
+      // Invalidate release query to force refetch of latest data including upcomingRegressions
+      queryClient.invalidateQueries(['release', org, release.id]);
+    }
+  }, [editModalOpened, org, release.id, queryClient]);
 
   const handleSendNotification = async () => {
     if (!selectedMessageType) {
@@ -76,8 +87,8 @@ export function ReleaseHeaderModals({
       <Modal
         opened={editModalOpened}
         onClose={onEditModalClose}
-        title={BUTTON_LABELS.EDIT_RELEASE}
-        size="xl"
+        title={"Modify release"}
+        size="2xl"
         scrollAreaComponent={ScrollArea.Autosize}
       >
         <CreateReleaseForm

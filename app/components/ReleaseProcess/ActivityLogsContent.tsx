@@ -16,6 +16,11 @@ import {
   IconSettings,
   IconTag,
   IconX,
+  IconUpload,
+  IconArchive,
+  IconRocket,
+  IconRefresh,
+  IconPlane,
 } from '@tabler/icons-react';
 import type { ActivityLog } from '~/types/release-process.types';
 
@@ -33,7 +38,7 @@ function getUpdatedByName(log: ActivityLog): string {
 /**
  * Format complete activity log message
  * Returns a single formatted message instead of separate label + description
- * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL
+ * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL, RELEASE_ARCHIVED, RELEASE_CREATED, MANUAL_BUILD_UPLOADED, TASK_RETRIED, TESTFLIGHT_BUILD_VERIFIED
  */
 function formatActivityLogMessage(log: ActivityLog): string {
   const { type, previousValue, newValue } = log;
@@ -148,6 +153,46 @@ function formatActivityLogMessage(log: ActivityLog): string {
       }
       return 'Cron configuration activity';
 
+    case 'RELEASE_ARCHIVED':
+      return 'Release archived';
+
+    case 'RELEASE_CREATED':
+      if (newValue) {
+        const releaseType = newValue.type || 'Release';
+        const branch = newValue.branch || 'N/A';
+        const releaseId = newValue.releaseId || '';
+        return `${releaseType} release created: ${branch}${releaseId ? ` (${releaseId})` : ''}`;
+      }
+      return 'Release created';
+
+    case 'MANUAL_BUILD_UPLOADED':
+      if (newValue) {
+        const platform = newValue.platform || 'Unknown';
+        const filename = newValue.filename || 'build file';
+        const stage = newValue.stage || '';
+        const allPlatformsReady = newValue.allPlatformsReady ? ' (All platforms ready)' : '';
+        return `Manual build uploaded for ${platform}: ${filename}${stage ? ` in ${stage}` : ''}${allPlatformsReady}`;
+      }
+      return 'Manual build uploaded';
+
+    case 'TASK_RETRIED':
+      if (previousValue && newValue) {
+        const oldStatus = previousValue.taskStatus || 'FAILED';
+        const newStatus = newValue.taskStatus || 'PENDING';
+        return `Task retried: ${oldStatus} → ${newStatus}`;
+      }
+      return 'Task retried';
+
+    case 'TESTFLIGHT_BUILD_VERIFIED':
+      if (newValue) {
+        const platform = newValue.platform || 'Unknown';
+        const version = newValue.version || 'N/A';
+        const testflightNumber = newValue.testflightNumber || '';
+        const stage = newValue.stage || '';
+        return `TestFlight build verified for ${platform} ${version}${testflightNumber ? ` (#${testflightNumber})` : ''}${stage ? ` in ${stage}` : ''}`;
+      }
+      return 'TestFlight build verified';
+
     default:
       // Fallback for unknown types
       if (previousValue && newValue) {
@@ -219,7 +264,7 @@ function formatTimestamp(dateString: string): string {
 
 /**
  * Get icon for activity type
- * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL
+ * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL, RELEASE_ARCHIVED, RELEASE_CREATED, MANUAL_BUILD_UPLOADED, TASK_RETRIED, TESTFLIGHT_BUILD_VERIFIED
  */
 function getActivityIcon(type: string): React.ReactNode {
   switch (type) {
@@ -238,6 +283,16 @@ function getActivityIcon(type: string): React.ReactNode {
       return <IconPlayerPlay size={16} />;
     case 'REGRESSION_STAGE_APPROVAL':
       return <IconCheck size={16} />;
+    case 'RELEASE_ARCHIVED':
+      return <IconArchive size={16} />;
+    case 'RELEASE_CREATED':
+      return <IconRocket size={16} />;
+    case 'MANUAL_BUILD_UPLOADED':
+      return <IconUpload size={16} />;
+    case 'TASK_RETRIED':
+      return <IconRefresh size={16} />;
+    case 'TESTFLIGHT_BUILD_VERIFIED':
+      return <IconPlane size={16} />;
     // Legacy types (for backward compatibility)
     case 'RELEASE_STATUS_CHANGE':
       return <IconTag size={16} />;
@@ -258,7 +313,7 @@ function getActivityIcon(type: string): React.ReactNode {
 
 /**
  * Get color for activity type
- * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL
+ * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL, RELEASE_ARCHIVED, RELEASE_CREATED, MANUAL_BUILD_UPLOADED, TASK_RETRIED, TESTFLIGHT_BUILD_VERIFIED
  */
 function getActivityColor(type: string): string {
   switch (type) {
@@ -277,6 +332,16 @@ function getActivityColor(type: string): string {
       return 'teal';
     case 'REGRESSION_STAGE_APPROVAL':
       return 'green';
+    case 'RELEASE_ARCHIVED':
+      return 'gray';
+    case 'RELEASE_CREATED':
+      return 'blue';
+    case 'MANUAL_BUILD_UPLOADED':
+      return 'green';
+    case 'TASK_RETRIED':
+      return 'orange';
+    case 'TESTFLIGHT_BUILD_VERIFIED':
+      return 'teal';
     // Legacy types (for backward compatibility)
     case 'RELEASE_STATUS_CHANGE':
       return 'blue';

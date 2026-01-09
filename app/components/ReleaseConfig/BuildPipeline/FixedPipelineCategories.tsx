@@ -14,7 +14,6 @@ import { PipelineEditModal } from './PipelineEditModal';
 import { ANDROID_PIPELINE_CATEGORIES, IOS_PIPELINE_CATEGORIES } from '~/constants/release-config';
 import { PLATFORMS, BUILD_PROVIDERS, BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
 import {
-  PROVIDER_LABELS,
   BUILD_UPLOAD_LABELS,
   STATUS_LABELS,
   BUTTON_LABELS,
@@ -26,6 +25,7 @@ import {
   ICON_SIZES,
   FIELD_LABELS,
 } from '~/constants/release-config-ui';
+import { getBuildProviderLabel } from '~/utils/ui-utils';
 
 export function FixedPipelineCategories({
   pipelines,
@@ -143,18 +143,6 @@ export function FixedPipelineCategories({
   };
 
   // Get provider display name
-  const getProviderLabel = (provider: string): string => {
-    switch (provider) {
-      case BUILD_PROVIDERS.JENKINS:
-        return PROVIDER_LABELS.JENKINS;
-      case BUILD_PROVIDERS.GITHUB_ACTIONS:
-        return PROVIDER_LABELS.GITHUB_ACTIONS;
-      case BUILD_PROVIDERS.MANUAL_UPLOAD:
-        return BUILD_UPLOAD_LABELS.MANUAL;
-      default:
-        return provider;
-    }
-  };
 
   const missingRequired = getMissingRequired();
 
@@ -269,7 +257,7 @@ export function FixedPipelineCategories({
                         <div>
                           <Text size="xs" c="dimmed">{FIELD_LABELS.PROVIDER}</Text>
                           <Text size="sm" fw={500}>
-                            {getProviderLabel(pipeline.provider)}
+                            {getBuildProviderLabel(pipeline.provider)}
                           </Text>
                         </div>
                         <div>

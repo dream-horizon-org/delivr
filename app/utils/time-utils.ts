@@ -124,6 +124,37 @@ export function calculateNextSlotTime(
   return { offsetDays: nextOffsetDays, time: nextTime };
 }
 
+/**
+ * Format date as relative time (compact format)
+ * Returns short format like "5m ago", "2h ago", "3d ago" for recent dates
+ * Falls back to formatted date for older items (7+ days)
+ * 
+ * @param dateString - ISO date string or null
+ * @returns Formatted relative time string or formatted date
+ * 
+ * @example
+ * formatRelativeTimeCompact('2024-01-15T10:00:00Z') // Returns "5m ago" (if 5 mins ago)
+ * formatRelativeTimeCompact('2024-01-15T08:00:00Z') // Returns "2h ago" (if 2 hours ago)
+ * formatRelativeTimeCompact('2024-01-10T10:00:00Z') // Returns "Jan 10, 2024" (if 7+ days ago)
+ */
+export function formatRelativeTimeCompact(dateString: string | null): string {
+  if (!dateString) return '-';
+  
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
 
-
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  
+  return date.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric', 
+    year: 'numeric' 
+  });
+}
 

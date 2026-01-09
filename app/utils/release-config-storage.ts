@@ -10,7 +10,7 @@
  */
 
 import type { ReleaseConfiguration, Workflow } from '~/types/release-config';
-import { PLATFORMS, BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
+import { PLATFORMS, BUILD_ENVIRONMENTS, TARGET_PLATFORMS, BUILD_PROVIDERS } from '~/types/release-config-constants';
 import { generateStorageKey } from '~/hooks/useDraftStorage';
 
 // ============================================================================
@@ -83,11 +83,11 @@ export function hasDraftConfig(organizationId: string): boolean {
 // ============================================================================
 
 /**
- * Validate build pipeline configuration based on target platforms
+ * Validate build pipeline configuration based on platform targets
  */
 export function validateBuildPipelines(
   workflows: Workflow[],
-  targetPlatforms: ReleaseConfiguration['targets']
+  platformTargets: ReleaseConfiguration['platformTargets']
 ): string[] {
   const errors: string[] = [];
   
@@ -96,9 +96,9 @@ export function validateBuildPipelines(
     return errors;
   }
   
-  // Determine required platforms from target platforms
-  const needsAndroid = targetPlatforms.includes('PLAY_STORE');
-  const needsIOS = targetPlatforms.includes('APP_STORE');
+  // Determine required platforms from platform targets
+  const needsAndroid = platformTargets.some((pt) => pt.target === TARGET_PLATFORMS.PLAY_STORE);
+  const needsIOS = platformTargets.some((pt) => pt.target === TARGET_PLATFORMS.APP_STORE);
   
   // Android requirements: Regression is mandatory
   if (needsAndroid) {
@@ -134,12 +134,12 @@ export function validateBuildPipelines(
       errors.push(`Pipeline ${index + 1}: Name is required`);
     }
     
-    if (pipeline.provider === 'JENKINS') {
+    if (pipeline.provider === BUILD_PROVIDERS.JENKINS) {
       const config = pipeline.providerConfig as any;
       if (!config.jobUrl) {
         errors.push(`Pipeline ${pipeline.name}: Jenkins job URL is required`);
       }
-    } else if (pipeline.provider === 'GITHUB_ACTIONS') {
+    } else if (pipeline.provider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
       const config = pipeline.providerConfig as any;
       if (!config.workflowUrl) {
         errors.push(`Pipeline ${pipeline.name}: GitHub Actions workflow url is required`);
@@ -208,14 +208,14 @@ export function validateConfiguration(
     errors.general = [...(errors.general || []), 'Base branch is required'];
   }
   
-  if (!config.targets || config.targets.length === 0) {
-    errors.targets = ['At least one target platform must be selected'];
+  if (!config.platformTargets || config.platformTargets.length === 0) {
+    errors.platformTargets = ['At least one platform target must be selected'];
   }
   
   // Validate build pipelines (optional - manual upload is the default)
   const workflows = config.ciConfig?.workflows || [];
-  if (workflows.length > 0 && config.targets) {
-    const pipelineErrors = validateBuildPipelines(workflows, config.targets);
+  if (workflows.length > 0 && config.platformTargets) {
+    const pipelineErrors = validateBuildPipelines(workflows, config.platformTargets);
     if (pipelineErrors.length > 0) {
       errors.workflows = pipelineErrors;
     }

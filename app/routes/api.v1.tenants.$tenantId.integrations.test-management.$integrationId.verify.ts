@@ -20,7 +20,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   try {
-    const result = await CheckmateIntegrationService.verifyIntegration(integrationId, userId);
+    const result = await CheckmateIntegrationService.verifyIntegration(integrationId, tenantId, userId);
 
     return json(result, { status: result.success ? 200 : 400 });
   } catch (error: any) {

@@ -10,6 +10,7 @@ import { authenticateActionRequest } from '~/utils/authenticate';
 import type { User } from '~/.server/services/Auth/auth.interface';
 import { ProjectManagementIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 import type { ProjectManagementProviderType } from '~/.server/services/ReleaseManagement/integrations';
+import { logApiError } from '~/utils/api-route-helpers';
 
 const verifyPMCredentials = async ({
   request,
@@ -89,7 +90,7 @@ const verifyPMCredentials = async ({
       }, { status: 401 });
     }
   } catch (error) {
-    console.error('[BFF-PM-Verify] Error:', error);
+    logApiError('[BFF-PM-Verify]', error);
     return json(
       {
         success: false,

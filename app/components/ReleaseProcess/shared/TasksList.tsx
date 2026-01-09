@@ -1,14 +1,15 @@
 /**
  * TasksList Component
- * Shared component for displaying and filtering tasks across all stages
+ * Shared component for displaying tasks across all stages
+ * Tasks are displayed in execution order
  */
 
-import { Alert, Group, Select, Stack, Text } from '@mantine/core';
+import { Alert, Stack, Text } from '@mantine/core';
 import { IconArchive } from '@tabler/icons-react';
-import { useMemo, useState } from 'react';
-import { getStatusFilterOptions } from '~/constants/release-process-ui';
-import { filterAndSortTasks } from '~/utils/task-filtering';
+import { useMemo } from 'react';
+import { sortTasksByExecutionOrder } from '~/utils/task-filtering';
 import type { Task, BuildInfo } from '~/types/release-process.types';
+import { TaskStage } from '~/types/release-process-enums';
 import { TaskCard } from '../TaskCard';
 
 interface TasksListProps {
@@ -17,9 +18,9 @@ interface TasksListProps {
   releaseId: string;
   onRetry?: (taskId: string) => void;
   emptyMessage?: string;
-  showFilter?: boolean;
-  uploadedBuilds?: BuildInfo[];  // Stage-level uploaded builds
-  isArchived?: boolean;  // New prop to indicate archived release
+  uploadedBuilds?: BuildInfo[];
+  isArchived?: boolean;
+  stage?: TaskStage; // Stage for ordering tasks
 }
 
 export function TasksList({
@@ -28,17 +29,18 @@ export function TasksList({
   releaseId,
   onRetry,
   emptyMessage = 'No tasks available',
-  showFilter = true,
   uploadedBuilds = [],
   isArchived = false,
+  stage,
 }: TasksListProps) {
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const statusOptions = getStatusFilterOptions();
-
-  // Sort and filter tasks by status
-  const filteredTasks = useMemo(() => {
-    return filterAndSortTasks(tasks, statusFilter);
-  }, [tasks, statusFilter]);
+  // Sort tasks by execution order if stage provided
+  const sortedTasks = useMemo(() => {
+    if (!stage) {
+      // If no stage, return tasks as-is (fallback)
+      return tasks;
+    }
+    return sortTasksByExecutionOrder(tasks, stage);
+  }, [tasks, stage]);
 
   const hasTasks = tasks && tasks.length > 0;
 
@@ -58,28 +60,18 @@ export function TasksList({
         </Alert>
       )}
 
-      {/* Tasks Header with Filter */}
-      {hasTasks && showFilter && (
-        <Group justify="space-between" align="center">
-          <Text fw={600} size="lg">
-            Tasks
-          </Text>
-          <Select
-            placeholder="Filter by status"
-            data={statusOptions}
-            value={statusFilter}
-            onChange={setStatusFilter}
-            clearable
-            style={{ width: '200px' }}
-          />
-        </Group>
+      {/* Tasks Header */}
+      {hasTasks && (
+        <Text fw={600} size="lg">
+          Tasks
+        </Text>
       )}
 
       {/* Tasks - Full width, stacked */}
       {hasTasks ? (
-        filteredTasks.length > 0 ? (
+        sortedTasks.length > 0 ? (
           <Stack gap="md">
-            {filteredTasks.map((task: Task) => (
+            {sortedTasks.map((task: Task) => (
               <TaskCard
                 key={task.id}
                 task={task}
@@ -92,7 +84,7 @@ export function TasksList({
           </Stack>
         ) : (
           <Alert color="gray" variant="light">
-            No tasks match the selected filter
+            {emptyMessage}
           </Alert>
         )
       ) : (

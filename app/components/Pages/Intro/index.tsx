@@ -93,7 +93,7 @@ export function Intro() {
             mobile updates.
           </Title>
           
-          <Text size="xl" c="slate.5" ta="center" maw={560} lh={1.6}>
+          <Text size="xl" c="slate.5" ta="center" maw={560} lh={1.6} mt="xl">
             Deploy over-the-air updates to your React Native and mobile apps instantly. Bypass app store reviews and ship faster.
           </Text>
 
@@ -110,22 +110,12 @@ export function Intro() {
               size="lg"
               fw={600}
               c="slate.9"
-              onClick={() => window.open('https://dota.dreamsportslabs.com/', '_blank')}
+              onClick={() => window.open('https://delivr.live/', '_blank')}
             >
               Read the docs
             </Button>
           </Group>
 
-          <Group gap="xl" mt="md" c="slate.5">
-            <Group gap={6}>
-              <IconCheck size={18} color={theme.colors.brand[5]} />
-              <Text size="sm" fw={500}>No credit card required</Text>
-            </Group>
-            <Group gap={6}>
-              <IconCheck size={18} color={theme.colors.brand[5]} />
-              <Text size="sm" fw={500}>14-day free trial</Text>
-            </Group>
-          </Group>
         </Stack>
       </Container>
 

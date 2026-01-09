@@ -191,6 +191,7 @@ export default function ReleasesListPage() {
       const newParams = new URLSearchParams(searchParams);
       newParams.set('tab', value);
       setSearchParams(newParams);
+      invalidateCache();
     }
   };
 
@@ -277,7 +278,7 @@ export default function ReleasesListPage() {
           completed={filteredCompleted}
           archived={filteredArchived}
           org={org}
-          leftSection={
+          rightSection={
             <ReleasesFilter
               buildMode={buildMode}
               stage={stage}

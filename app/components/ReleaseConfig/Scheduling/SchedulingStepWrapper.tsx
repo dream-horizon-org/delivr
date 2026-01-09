@@ -18,16 +18,20 @@ import {
   IconCheck,
   IconInfoCircle,
 } from '@tabler/icons-react';
-import type { SchedulingConfig as SchedulingConfigType, Platform, CommunicationConfig } from '~/types/release-config';
+import type { SchedulingConfig as SchedulingConfigType, Platform, CommunicationConfig, InitialVersion } from '~/types/release-config';
+import type { PlatformTarget } from '~/utils/platform-mapper';
 import type { SchedulingStepWrapperProps } from '~/types/release-config-props';
 import { SchedulingConfig } from './SchedulingConfig';
 import { DEFAULT_SCHEDULING_CONFIG } from '~/constants/release-config-ui';
+import { PLATFORMS, TARGET_PLATFORMS } from '~/types/release-config-constants';
 
-const createDefaultSchedulingConfig = (platforms: Platform[]): SchedulingConfigType => {
-  const initialVersions: Partial<Record<Platform, string>> = {};
-  platforms.forEach((platform) => {
-    initialVersions[platform] = DEFAULT_SCHEDULING_CONFIG.INITIAL_VERSION;
-  });
+const createDefaultSchedulingConfig = (platformTargets: PlatformTarget[]): SchedulingConfigType => {
+  // Create array format: one entry per platform-target combination
+  const initialVersions: InitialVersion[] = platformTargets.map((pt) => ({
+    platform: pt.platform,
+    target: pt.target,
+    version: DEFAULT_SCHEDULING_CONFIG.INITIAL_VERSION,
+  }));
 
   return {
     releaseFrequency: DEFAULT_SCHEDULING_CONFIG.RELEASE_FREQUENCY,
@@ -50,13 +54,22 @@ export function SchedulingStepWrapper({
   selectedPlatforms,
   showValidation = false,
   communicationConfig,
-}: SchedulingStepWrapperProps & { communicationConfig?: CommunicationConfig }) {
+  platformTargets = [],
+  isEditMode = false,
+}: SchedulingStepWrapperProps & { communicationConfig?: CommunicationConfig; platformTargets?: PlatformTarget[] }) {
   const theme = useMantineTheme();
   const isEnabled = scheduling !== undefined && scheduling !== null;
 
   const handleToggle = (enabled: boolean) => {
     if (enabled) {
-      onChange(createDefaultSchedulingConfig(selectedPlatforms));
+      // Use platformTargets if available, otherwise derive from selectedPlatforms
+      const targets = platformTargets.length > 0 
+        ? platformTargets 
+        : selectedPlatforms.map((platform) => ({
+            platform,
+            target: platform === PLATFORMS.ANDROID ? TARGET_PLATFORMS.PLAY_STORE : platform === PLATFORMS.IOS ? TARGET_PLATFORMS.APP_STORE : TARGET_PLATFORMS.WEB,
+          } as PlatformTarget));
+      onChange(createDefaultSchedulingConfig(targets));
     } else {
       onChange(undefined);
     }
@@ -160,6 +173,11 @@ export function SchedulingStepWrapper({
           selectedPlatforms={selectedPlatforms}
           showValidation={showValidation}
           communicationConfig={communicationConfig}
+          platformTargets={platformTargets.length > 0 ? platformTargets : selectedPlatforms.map((platform) => ({
+            platform,
+            target: platform === PLATFORMS.ANDROID ? TARGET_PLATFORMS.PLAY_STORE : platform === PLATFORMS.IOS ? TARGET_PLATFORMS.APP_STORE : TARGET_PLATFORMS.WEB,
+          } as PlatformTarget))}
+          isEditMode={isEditMode}
         />
       )}
     </Stack>

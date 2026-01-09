@@ -22,10 +22,13 @@ export function JiraPlatformConfigCard({
 }: JiraPlatformConfigCardProps) {
   const platformConfig = JIRA_PLATFORM_CONFIG[platform];
 
-  const handleChange = (field: keyof JiraPlatformConfig, value: unknown) => {
+  const handleChange = (field: keyof JiraPlatformConfig['parameters'], value: unknown) => {
     onChange({
       ...config,
-      [field]: value,
+      parameters: {
+        ...config.parameters,
+        [field]: value,
+      },
     });
   };
 
@@ -39,10 +42,6 @@ export function JiraPlatformConfigCard({
     <Card withBorder p="md" radius="md">
       {/* Platform Header */}
       <div className="flex items-center gap-2 mb-4">
-        <span className="text-2xl">{platformConfig.icon}</span>
-        <Text fw={600} size="lg">
-          {platformConfig.label}
-        </Text>
         <Badge color={platformConfig.color} variant="light" size="sm">
           {platform}
         </Badge>
@@ -56,12 +55,12 @@ export function JiraPlatformConfigCard({
             placeholder={JIRA_LABELS.PROJECT_KEY_PLACEHOLDER}
             description={JIRA_LABELS.PROJECT_KEY_DESCRIPTION}
             data={projectOptions}
-            value={config.projectKey || null}
+            value={(config.parameters?.projectKey as string) || null}
             onChange={(value) => handleChange(JIRA_FIELD_NAMES.PROJECT_KEY, value || '')}
             required
             searchable
             error={
-              config.projectKey && !/^[A-Z][A-Z0-9]*$/.test(config.projectKey)
+              config.parameters?.projectKey && typeof config.parameters.projectKey === 'string' && !/^[A-Z][A-Z0-9]*$/.test(config.parameters.projectKey)
                 ? VALIDATION_MESSAGES.JIRA_PROJECT_KEY_INVALID
                 : undefined
             }
@@ -71,26 +70,26 @@ export function JiraPlatformConfigCard({
             label={JIRA_LABELS.PROJECT_KEY}
             placeholder={JIRA_LABELS.PROJECT_KEY_PLACEHOLDER}
             description={JIRA_LABELS.PROJECT_KEY_DESCRIPTION}
-            value={config.projectKey}
+            value={(config.parameters?.projectKey as string) || ''}
             onChange={(e) => handleChange(JIRA_FIELD_NAMES.PROJECT_KEY, e.target.value.toUpperCase())}
             required
             error={
-              config.projectKey && !/^[A-Z][A-Z0-9]*$/.test(config.projectKey)
+              config.parameters?.projectKey && typeof config.parameters.projectKey === 'string' && !/^[A-Z][A-Z0-9]*$/.test(config.parameters.projectKey)
                 ? VALIDATION_MESSAGES.JIRA_PROJECT_KEY_INVALID
                 : undefined
             }
           />
         )}
 
-        {/* Issue Type - Optional */}
+        {/* Issue Type - Required */}
         <Select
           label={JIRA_LABELS.ISSUE_TYPE}
           placeholder={JIRA_LABELS.ISSUE_TYPE_PLACEHOLDER}
           description={JIRA_LABELS.ISSUE_TYPE_DESCRIPTION}
           data={JIRA_ISSUE_TYPES}
-          value={config.issueType || null}
-          onChange={(value) => handleChange(JIRA_FIELD_NAMES.ISSUE_TYPE, value || undefined)}
-          clearable
+          value={(config.parameters?.issueType as string) || null}
+          onChange={(value) => handleChange(JIRA_FIELD_NAMES.ISSUE_TYPE, value || '')}
+          required
           searchable
         />
 
@@ -100,7 +99,7 @@ export function JiraPlatformConfigCard({
           placeholder={JIRA_LABELS.COMPLETION_STATUS_PLACEHOLDER}
           description={JIRA_LABELS.COMPLETION_STATUS_DESCRIPTION}
           data={JIRA_COMPLETION_STATUSES}
-          value={config.completedStatus}
+          value={(config.parameters?.completedStatus as string) || 'Done'}
           onChange={(value) => handleChange(JIRA_FIELD_NAMES.COMPLETED_STATUS, value || 'Done')}
           required
           searchable
@@ -112,7 +111,7 @@ export function JiraPlatformConfigCard({
           placeholder={JIRA_LABELS.PRIORITY_PLACEHOLDER}
           description={JIRA_LABELS.PRIORITY_DESCRIPTION}
           data={JIRA_PRIORITIES}
-          value={config.priority || null}
+          value={(config.parameters?.priority as string) || null}
           onChange={(value) => handleChange(JIRA_FIELD_NAMES.PRIORITY, value || undefined)}
           clearable
         />

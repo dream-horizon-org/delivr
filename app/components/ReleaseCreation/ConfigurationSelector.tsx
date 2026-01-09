@@ -11,6 +11,7 @@ import { IconSettings, IconPlus, IconEye } from '@tabler/icons-react';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { ConfigurationPreviewModal } from '~/components/ReleaseSettings/ConfigurationPreviewModal';
 import { PLATFORM_LABELS, TARGET_PLATFORM_LABELS } from '~/constants/release-config-ui';
+import { PLATFORMS } from '~/types/release-config-constants';
 
 interface ConfigurationSelectorProps {
   configurations: ReleaseConfiguration[];
@@ -52,24 +53,19 @@ export function ConfigurationSelector({
 
   // Get targeted platforms (platform → target)
   const getTargetedPlatforms = (config: ReleaseConfiguration): string => {
-    if (!config.targets || config.targets.length === 0) {
+    if (!config.platformTargets || config.platformTargets.length === 0) {
       return 'No targets';
     }
-    return config.targets
-      .map((target) => {
-        // Map target to platform
-        let platform: string;
-        if (target === 'WEB') {
-          platform = PLATFORM_LABELS.WEB;
-        } else if (target === 'PLAY_STORE') {
-          platform = PLATFORM_LABELS.ANDROID;
-        } else if (target === 'APP_STORE') {
-          platform = PLATFORM_LABELS.IOS;
-        } else {
-          platform = target;
-        }
-        const targetLabel = TARGET_PLATFORM_LABELS[target as keyof typeof TARGET_PLATFORM_LABELS] || target;
-        return `${platform} → ${targetLabel}`;
+    return config.platformTargets
+      .map((pt) => {
+        // Map platform to label
+        const platformLabel = pt.platform === PLATFORMS.ANDROID
+          ? PLATFORM_LABELS.ANDROID
+          : pt.platform === PLATFORMS.IOS
+          ? PLATFORM_LABELS.IOS
+          : PLATFORM_LABELS.WEB;
+        const targetLabel = TARGET_PLATFORM_LABELS[pt.target as keyof typeof TARGET_PLATFORM_LABELS] || pt.target;
+        return `${platformLabel} → ${targetLabel}`;
       })
       .join(', ');
   };
@@ -86,7 +82,7 @@ export function ConfigurationSelector({
 
   return (
     <Stack gap="lg">
-      <Group justify="space-between" align="center">
+      <Group justify="space-between" align="flex-end" wrap="nowrap">
         <Select
           label="Configuration"
           placeholder="Select a configuration"
@@ -113,7 +109,6 @@ export function ConfigurationSelector({
             leftSection={<IconPlus size={18} />}
             variant="light"
             onClick={onCreateNew}
-            style={{ marginTop: '24px' }}
           >
             Create New
           </Button>

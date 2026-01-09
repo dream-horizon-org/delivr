@@ -12,7 +12,7 @@
 import { useMemo } from 'react';
 import { Stack } from '@mantine/core';
 import { useRelease } from '~/hooks/useRelease';
-import type { Task, BuildInfo, BuildTaskOutput } from '~/types/release-process.types';
+import type { Task, BuildInfo, BuildTaskOutput, PlatformTargetMapping } from '~/types/release-process.types';
 import { TaskStatus, BuildUploadStage, TaskType, Platform } from '~/types/release-process-enums';
 import { BuildUploadSection } from './BuildUploadSection';
 import { ConsumedBuildsDisplay } from './builds/ConsumedBuildsDisplay';
@@ -90,8 +90,8 @@ export function BuildTaskDetails({
     if (task.taskType === TaskType.TRIGGER_PRE_REGRESSION_BUILDS || task.taskType === TaskType.TRIGGER_REGRESSION_BUILDS) {
       // Pre-Regression: All platforms from release config
       return release?.platformTargetMappings
-        ?.map(m => m.platform)
-        .filter((p, i, arr) => arr.indexOf(p) === i) || [];
+        ?.map((m: PlatformTargetMapping) => m.platform)
+        .filter((p: Platform, i: number, arr: Platform[]) => arr.indexOf(p) === i) || [];
     } else if (task.taskType === TaskType.TRIGGER_TEST_FLIGHT_BUILD) {
       // Pre-Release TestFlight: iOS only
       return [Platform.IOS];
@@ -139,6 +139,16 @@ export function BuildTaskDetails({
   // Special case: Build tasks can have jobUrl even when IN_PROGRESS
   const buildOutput = task.output as BuildTaskOutput | null;
 
+  // Determine when to show builds display:
+  // - COMPLETED: Always show if we have builds
+  // - IN_PROGRESS/AWAITING_CALLBACK/FAILED: Show if we have expectedPlatforms (CI/CD mode) or buildOutput with platforms
+  const shouldShowBuildsDisplay = 
+    (task.taskStatus === TaskStatus.COMPLETED && effectiveBuilds.length > 0) ||
+    ((task.taskStatus === TaskStatus.IN_PROGRESS || 
+      task.taskStatus === TaskStatus.AWAITING_CALLBACK || 
+      task.taskStatus === TaskStatus.FAILED) &&
+     (expectedPlatforms.length > 0 || (buildOutput?.platforms && buildOutput.platforms.length > 0)));
+
   return (
     <Stack gap="md">
       {/* Build Upload Widget - Show for platforms without builds (Manual mode only) */}
@@ -155,8 +165,8 @@ export function BuildTaskDetails({
         />
       )}
 
-      {/* Consumed Builds Display - Show consumed builds (task completed) */}
-      {task.taskStatus === TaskStatus.COMPLETED && effectiveBuilds.length > 0 && (
+      {/* Builds Display - Show for completed tasks or when in progress/awaiting callback/failed with CI/CD info */}
+      {shouldShowBuildsDisplay && (
         <ConsumedBuildsDisplay
           builds={effectiveBuilds}
           taskStatus={task.taskStatus}

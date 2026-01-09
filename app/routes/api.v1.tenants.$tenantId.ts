@@ -10,6 +10,7 @@ import {
   authenticateLoaderRequest,
   type AuthenticatedLoaderFunction,
 } from '~/utils/authenticate';
+import { logApiError } from '~/utils/api-route-helpers';
 
 const getTenantInfo: AuthenticatedLoaderFunction = async ({ params, user }) => {
   const tenantId = params.tenantId;
@@ -60,11 +61,7 @@ const getTenantInfo: AuthenticatedLoaderFunction = async ({ params, user }) => {
       },
     });
   } catch (error) {
-    console.error('[BFF-TenantInfo] Error fetching tenant info:');
-    console.error('[BFF-TenantInfo] Error type:', error?.constructor?.name);
-    console.error('[BFF-TenantInfo] Error message:', error instanceof Error ? error.message : 'Unknown error');
-    console.error('[BFF-TenantInfo] Error stack:', error instanceof Error ? error.stack : 'No stack');
-    console.error('[BFF-TenantInfo] Full error:', error);
+    logApiError('[BFF-TenantInfo]', error);
     return json(
       {
         error: error instanceof Error ? error.message : 'Failed to fetch tenant info',

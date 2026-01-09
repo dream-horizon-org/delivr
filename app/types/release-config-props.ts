@@ -31,7 +31,6 @@ import type {
   JenkinsConfig,
   GitHubActionsConfig,
   ManualUploadConfig,
-  CheckmateSettings,
   RegressionSlot,
   ReleaseFrequency,
   CheckmatePlatformConfiguration,
@@ -88,6 +87,7 @@ export interface BasicInfoFormProps {
   config: Partial<ReleaseConfiguration>;
   onChange: (config: Partial<ReleaseConfiguration>) => void;
   tenantId: string;
+  showValidation?: boolean;
 }
 
 export interface ConfigSummaryProps {
@@ -193,8 +193,8 @@ export interface BuildUploadSelectorProps {
 // ============================================================================
 
 export interface PlatformSelectorProps {
-  selectedPlatforms: TargetPlatform[];
-  onChange: (platforms: TargetPlatform[]) => void;
+  platformTargets: Array<{ platform: Platform; target: TargetPlatform }>;
+  onChange: (platformTargets: Array<{ platform: Platform; target: TargetPlatform }>) => void;
 }
 
 export interface JiraProjectStepProps {
@@ -276,6 +276,7 @@ export interface SchedulingStepWrapperProps {
   onChange: (scheduling: SchedulingConfig | undefined) => void;
   selectedPlatforms: Platform[];
   showValidation?: boolean;
+  isEditMode?: boolean;
 }
 
 export interface SchedulingConfigProps {
@@ -283,6 +284,7 @@ export interface SchedulingConfigProps {
   onChange: (config: SchedulingConfig) => void;
   selectedPlatforms: Platform[];
   showValidation?: boolean;
+  isEditMode?: boolean;
 }
 
 export interface ReleaseFrequencySelectorProps {
@@ -449,8 +451,8 @@ export interface AvailableIntegrations {
 }
 
 export interface CheckmateConfigFormEnhancedProps {
-  config: Partial<CheckmateSettings>;
-  onChange: (config: CheckmateSettings) => void;
+  config: Partial<TestManagementConfig>;
+  onChange: (config: TestManagementConfig) => void;
   availableIntegrations: Array<{ 
     id: string; 
     name: string; 
@@ -460,6 +462,7 @@ export interface CheckmateConfigFormEnhancedProps {
   }>;
   selectedTargets: TargetPlatform[];
   integrationId?: string; // Optional: if provided, auto-select this integration (one-to-one mapping)
+  tenantId: string; // Required for new API format
 }
 
 export interface ConfigSummaryProps {

@@ -41,6 +41,9 @@ import { validateAllSlots } from '~/utils/regression-slot-validation';
 import { combineDateAndTime } from '~/utils/release-creation-converter';
 import { useConfig } from '~/contexts/ConfigContext';
 import { canEnableKickoffReminder } from '~/utils/communication-helpers';
+import { StageStatus } from '~/types/release-process-enums';
+import { SCHEDULING_PANEL } from '~/constants/release-creation-ui';
+import { BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
 
 interface ReleaseSchedulingPanelProps {
   state: Partial<ReleaseCreationState>;
@@ -89,13 +92,27 @@ export function ReleaseSchedulingPanel({
   // Pre-fill kickoff reminder time from config if available
   const kickOffReminderTimeValue = kickOffReminderTime || config?.releaseSchedule?.kickoffReminderTime || '';
 
-  // Check if pre-release stage is in progress
-  // Disable adding regression slots only when stage3Status === 'IN_PROGRESS' (PRE_RELEASE stage)
-  // Users can still add slots when phase is AWAITING_PRE_RELEASE (regression completed, approval pending)
+  // Check if pre-release stage or later stages have started
+  // Disable adding regression slots once pre-release has started or any later stage is active
+  // Allow adding slots: Until regression stage is not completed OR is in "awaiting pre release" (stage2Status === 'COMPLETED' && stage3Status === 'PENDING')
+  // Disallow adding slots: Once pre-release has started (stage3Status === 'IN_PROGRESS') OR further stages
   const isPreReleaseInProgress = useMemo(() => {
     if (!isEditMode || !existingRelease || !existingRelease.cronJob) return false;
-    const stage3Status = (existingRelease.cronJob as any).stage3Status;
-    return stage3Status === 'IN_PROGRESS';
+    const cronJob = existingRelease.cronJob as any;
+    const stage3Status = cronJob.stage3Status;
+    const stage4Status = cronJob.stage4Status;
+    
+    // Disallow if pre-release has started or completed
+    if (stage3Status === StageStatus.IN_PROGRESS || stage3Status === StageStatus.COMPLETED) {
+      return true;
+    }
+    
+    // Disallow if any later stage has started or completed
+    if (stage4Status === StageStatus.IN_PROGRESS || stage4Status === StageStatus.COMPLETED) {
+      return true;
+    }
+    
+    return false;
   }, [isEditMode, existingRelease]);
 
   // Check if kickoff reminder is enabled
@@ -151,13 +168,13 @@ export function ReleaseSchedulingPanel({
     const kickOffDateTime = new Date(`${kickOffDate}T${normalizedKickoffTime}`);
 
     if (isNaN(reminderDateTime.getTime()) || isNaN(kickOffDateTime.getTime())) {
-      return { hasError: true, message: 'Invalid reminder date or time format' };
+      return { hasError: true, message: SCHEDULING_PANEL.INVALID_REMINDER_FORMAT };
     }
 
     if (reminderDateTime >= kickOffDateTime) {
       return { 
         hasError: true, 
-        message: 'Kickoff reminder must be before kickoff time' 
+        message: SCHEDULING_PANEL.REMINDER_MUST_BE_BEFORE_KICKOFF 
       };
     }
 
@@ -203,14 +220,16 @@ export function ReleaseSchedulingPanel({
   }, [config, targetReleaseDate]);
 
   // Check if target release date is being extended (for delayReason requirement)
+  // Compare full datetimes (date + time) to match backend validation logic
   const isExtendingTargetDate = useMemo(() => {
     if (!isEditMode || !existingRelease?.targetReleaseDate || !targetReleaseDate) {
       return false;
     }
-    const oldDate = new Date(existingRelease.targetReleaseDate);
-    const newDate = new Date(targetReleaseDate);
-    return newDate > oldDate;
-  }, [isEditMode, existingRelease, targetReleaseDate]);
+    // Backend compares full datetimes, so we need to compare date + time here too
+    const oldDateTime = new Date(existingRelease.targetReleaseDate);
+    const newDateTime = new Date(combineDateAndTime(targetReleaseDate, targetReleaseTimeValue));
+    return newDateTime > oldDateTime;
+  }, [isEditMode, existingRelease, targetReleaseDate, targetReleaseTimeValue]);
 
   // Handle release date change - only auto-update kickoff date if it hasn't been manually set
   const handleReleaseDateChange = (date: string) => {
@@ -257,12 +276,12 @@ export function ReleaseSchedulingPanel({
     <Stack gap="lg">
       <Box>
         <Text fw={600} size="lg" mb={4}>
-          Release Scheduling
+          {SCHEDULING_PANEL.TITLE}
         </Text>
         <Text size="sm" c={theme.colors.slate[5]}>
           {showOnlyTargetDateAndSlots 
-            ? "Update the target release date and add regression build slots for testing."
-            : "Configure when the release branch will be created (kickoff) and when it will be deployed (release date). You can also schedule regression build slots for testing."}
+            ? SCHEDULING_PANEL.DESCRIPTION_EDIT_MODE
+            : SCHEDULING_PANEL.DESCRIPTION_CREATE_MODE}
         </Text>
       </Box>
 
@@ -280,9 +299,9 @@ export function ReleaseSchedulingPanel({
           {isEditMode && existingRelease && (
             <Group justify="space-between" align="center">
               <Box style={{ flex: 1 }}>
-                <Text fw={500} size="sm" mb={4}>Enable Kickoff Date Change</Text>
+                <Text fw={500} size="sm" mb={4}>{SCHEDULING_PANEL.ENABLE_KICKOFF_DATE_CHANGE}</Text>
                 <Text size="xs" c="dimmed">
-                  Enable this toggle to modify the kickoff date and time. Note: Changing the kickoff date will validate all regression slots. Invalid slots will show errors and must be updated.
+                  {SCHEDULING_PANEL.ENABLE_KICKOFF_DATE_CHANGE_DESC}
                 </Text>
               </Box>
               <Switch
@@ -296,13 +315,13 @@ export function ReleaseSchedulingPanel({
           {isEditMode && existingRelease && !enableKickoffDateChange ? (
             <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
               <Text size="sm">
-                Changing kickoff date will validate all regression slots. Invalid slots will show errors and must be updated to future times.
+                {SCHEDULING_PANEL.KICKOFF_DATE_CHANGE_WARNING}
               </Text>
             </Alert>
           ) : (
             <DateTimeInput
-              dateLabel="Kickoff Date"
-              timeLabel="Kickoff Time"
+              dateLabel={SCHEDULING_PANEL.KICKOFF_DATE_LABEL}
+              timeLabel={SCHEDULING_PANEL.KICKOFF_TIME_LABEL}
               dateValue={kickOffDate || ''}
               timeValue={kickOffTimeValue}
               onDateChange={(date) => {
@@ -319,8 +338,8 @@ export function ReleaseSchedulingPanel({
               }}
               dateError={errors.kickOffDate}
               timeError={errors.kickOffTime}
-              dateDescription="Date when the release branch will be created from the base branch. This triggers the release process."
-              timeDescription="Time when the branch fork will occur. Use 24-hour format (e.g., 09:00, 14:30)."
+              dateDescription={SCHEDULING_PANEL.KICKOFF_DATE_DESCRIPTION}
+              timeDescription={SCHEDULING_PANEL.KICKOFF_TIME_DESCRIPTION}
               dateMin={new Date().toISOString().split('T')[0]}
               dateMax={targetReleaseDate || undefined}
               required
@@ -331,9 +350,9 @@ export function ReleaseSchedulingPanel({
           {!isEditMode && kickOffDate && targetReleaseDate && (
             <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
               <Text size="xs">
-                Branch will fork off on{' '}
+                {SCHEDULING_PANEL.BRANCH_FORK_MESSAGE_PREFIX}{' '}
                 <strong>
-                  {new Date(kickOffDate).toLocaleDateString()} at {kickOffTimeValue}
+                  {new Date(kickOffDate).toLocaleDateString()} {SCHEDULING_PANEL.AT} {kickOffTimeValue}
                 </strong>
                 {', '}
                 {Math.ceil(
@@ -341,7 +360,7 @@ export function ReleaseSchedulingPanel({
                     new Date(kickOffDate).getTime()) /
                     (1000 * 60 * 60 * 24)
                 )}{' '}
-                days before release
+                {SCHEDULING_PANEL.BRANCH_FORK_MESSAGE_SUFFIX}
               </Text>
             </Alert>
           )}
@@ -364,12 +383,12 @@ export function ReleaseSchedulingPanel({
                 <IconCalendar size={20} />
                 <div>
                   <Text fw={600} size="sm">
-                    Kickoff Reminder
+                    {SCHEDULING_PANEL.KICKOFF_REMINDER_TITLE}
                   </Text>
                   <Text size="xs" c="dimmed">
                     {config?.releaseSchedule?.kickoffReminderEnabled
-                      ? "Kickoff reminder is enabled in your release config"
-                      : "Send a reminder before the release kickoff"}
+                      ? SCHEDULING_PANEL.KICKOFF_REMINDER_ENABLED_DESC
+                      : SCHEDULING_PANEL.KICKOFF_REMINDER_DISABLED_DESC}
                   </Text>
                 </div>
               </Group>
@@ -399,8 +418,8 @@ export function ReleaseSchedulingPanel({
             {/* Show date/time fields only when reminder toggle is enabled */}
             {isKickoffReminderEnabled && (
               <DateTimeInput
-                dateLabel="Kickoff Reminder Date"
-                timeLabel="Kickoff Reminder Time"
+                dateLabel={SCHEDULING_PANEL.KICKOFF_REMINDER_DATE_LABEL}
+                timeLabel={SCHEDULING_PANEL.KICKOFF_REMINDER_TIME_LABEL}
                 dateValue={kickOffReminderDate || ''}
                 timeValue={kickOffReminderTimeValue}
                 onDateChange={(date) =>
@@ -431,8 +450,8 @@ export function ReleaseSchedulingPanel({
                   errors.kickOffReminderTime || 
                   (reminderValidation.hasError && kickOffReminderTime ? reminderValidation.message : undefined)
                 }
-                dateDescription="Date when to send a reminder notification before the kickoff. Optional but recommended."
-                timeDescription="Time when to send the reminder. Must be before the kickoff date and time."
+                dateDescription={SCHEDULING_PANEL.KICKOFF_REMINDER_DATE_DESCRIPTION}
+                timeDescription={SCHEDULING_PANEL.KICKOFF_REMINDER_TIME_DESCRIPTION}
                 dateMax={kickOffDate || undefined}
                 dateMin={new Date().toISOString().split('T')[0]}
                 required={false}
@@ -442,13 +461,13 @@ export function ReleaseSchedulingPanel({
             {kickOffReminderDate && kickOffDate && (
               <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
                 <Text size="xs">
-                  Reminder will be sent on{' '}
+                  {SCHEDULING_PANEL.REMINDER_SENT_MESSAGE_PREFIX}{' '}
                   <strong>
-                    {new Date(kickOffReminderDate).toLocaleDateString()} at {kickOffReminderTimeValue || 'default time'}
+                    {new Date(kickOffReminderDate).toLocaleDateString()} {SCHEDULING_PANEL.AT} {kickOffReminderTimeValue || SCHEDULING_PANEL.DEFAULT_TIME}
                   </strong>
-                  {', before kickoff on '}
+                  {`, ${SCHEDULING_PANEL.REMINDER_SENT_MESSAGE_BEFORE} `}
                   <strong>
-                    {new Date(kickOffDate).toLocaleDateString()} at {kickOffTimeValue}
+                    {new Date(kickOffDate).toLocaleDateString()} {SCHEDULING_PANEL.AT} {kickOffTimeValue}
                   </strong>
                 </Text>
               </Alert>
@@ -463,12 +482,12 @@ export function ReleaseSchedulingPanel({
           icon={<IconInfoCircle size={16} />}
           color="blue"
           variant="light"
-          title="Kickoff Reminder"
+          title={SCHEDULING_PANEL.KICKOFF_REMINDER_TITLE}
         >
           <Text size="sm">
             {getConnectedIntegrations('COMMUNICATION').length === 0
-              ? 'Connect a communication integration (Slack, Email) in the Integrations page to enable kickoff reminders.'
-              : 'Enable communication notifications in your release config to use kickoff reminders.'}
+              ? SCHEDULING_PANEL.NO_COMMUNICATION_INTEGRATION
+              : SCHEDULING_PANEL.COMMUNICATION_NOT_ENABLED}
           </Text>
         </Alert>
       )}
@@ -483,8 +502,8 @@ export function ReleaseSchedulingPanel({
       >
         <Stack gap="md">
             <DateTimeInput
-              dateLabel="Release Date"
-              timeLabel="Release Time"
+              dateLabel={SCHEDULING_PANEL.RELEASE_DATE_LABEL}
+              timeLabel={SCHEDULING_PANEL.RELEASE_TIME_LABEL}
               dateValue={targetReleaseDate || ''}
               timeValue={targetReleaseTimeValue}
               onDateChange={(date) => handleReleaseDateChange(date)}
@@ -496,8 +515,8 @@ export function ReleaseSchedulingPanel({
               }
               dateError={errors.targetReleaseDate}
               timeError={errors.targetReleaseTime}
-              dateDescription="Date when the release will be deployed to production. Release time must be after kickoff time if on the same day."
-              timeDescription="Time when the release will be deployed. Use 24-hour format (e.g., 10:00, 15:30)."
+              dateDescription={SCHEDULING_PANEL.RELEASE_DATE_DESCRIPTION}
+              timeDescription={SCHEDULING_PANEL.RELEASE_TIME_DESCRIPTION}
               dateMin={kickOffDate ? new Date(kickOffDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
               required
             />
@@ -505,8 +524,8 @@ export function ReleaseSchedulingPanel({
             {/* Delay Reason - Required when extending target release date */}
             {isExtendingTargetDate && (
               <Textarea
-                label="Delay Reason"
-                placeholder="e.g., Additional testing required due to critical bug fixes"
+                label={SCHEDULING_PANEL.DELAY_REASON_LABEL}
+                placeholder={SCHEDULING_PANEL.DELAY_REASON_PLACEHOLDER}
                 value={delayReason || ''}
                 onChange={(e) =>
                   onChange({
@@ -518,7 +537,7 @@ export function ReleaseSchedulingPanel({
                 withAsterisk
                 minRows={3}
                 maxRows={5}
-                description="Please provide a reason for extending the target release date. This is required when moving the release date to a later time."
+                description={SCHEDULING_PANEL.DELAY_REASON_DESCRIPTION}
                 error={errors.delayReason}
                 styles={{
                   label: { fontWeight: 500, marginBottom: 6 },
@@ -543,18 +562,18 @@ export function ReleaseSchedulingPanel({
               <Group gap="sm" mb={4}>
                 <IconSettings size={20} color={theme.colors.slate[6]} />
                 <Text fw={600} size="sm">
-                  Pre-Regression Builds
+                  {SCHEDULING_PANEL.PRE_REGRESSION_BUILDS_TITLE}
                 </Text>
               </Group>
               <Text size="xs" c="dimmed">
-                {config?.ciConfig?.workflows?.some((w: any) => w.environment === 'PRE_REGRESSION')
-                  ? "Pre-regression workflows are configured in your release config. Enable this to run pre-regression builds before the release."
-                  : "No pre-regression workflows found in your release config. Enable this only if you have pre-regression workflows configured."}
+                {config?.ciConfig?.workflows?.some((w: any) => w.environment === BUILD_ENVIRONMENTS.PRE_REGRESSION)
+                  ? SCHEDULING_PANEL.PRE_REGRESSION_ENABLED_DESC
+                  : SCHEDULING_PANEL.PRE_REGRESSION_DISABLED_DESC}
               </Text>
             </Box>
             <Switch
               checked={state.cronConfig?.preRegressionBuilds ?? 
-                (config?.ciConfig?.workflows || []).some((w: any) => w.environment === 'PRE_REGRESSION')}
+                (config?.ciConfig?.workflows || []).some((w: any) => w.environment === BUILD_ENVIRONMENTS.PRE_REGRESSION)}
               onChange={(e) => {
                 const currentCronConfig = state.cronConfig || {};
                 onChange({
@@ -565,13 +584,42 @@ export function ReleaseSchedulingPanel({
                   },
                 });
               }}
+              disabled={(() => {
+                // Always enabled for manual build upload
+                if (state.hasManualBuildUpload === true) {
+                  return false;
+                }
+                
+                // For CI/CD mode: check if all platforms in config have pre-regression workflows
+                if (state.hasManualBuildUpload === false && config?.platformTargets) {
+                  // Get unique platforms from config
+                  const platforms = [...new Set(config.platformTargets.map((pt: any) => pt.platform))];
+                  
+                  // Check if each platform has an enabled pre-regression workflow
+                  const workflows = config.ciConfig?.workflows || [];
+                  const allPlatformsHavePreRegression = platforms.every((platform: string) => {
+                    return workflows.some(
+                      (w: any) => 
+                        w.platform === platform && 
+                        w.environment === BUILD_ENVIRONMENTS.PRE_REGRESSION && 
+                        w.enabled === true
+                    );
+                  });
+                  
+                  // Disable if not all platforms have pre-regression workflows
+                  return !allPlatformsHavePreRegression;
+                }
+                
+                // Default: enable if no config or workflows exist
+                return false;
+              })()}
             />
           </Group>
           
           {state.cronConfig?.preRegressionBuilds === false && (
             <Alert icon={<IconInfoCircle size={16} />} color="yellow" variant="light">
               <Text size="xs">
-                ⚠️ Pre-regression builds are disabled for this release. Pre-regression testing will be skipped.
+                {SCHEDULING_PANEL.PRE_REGRESSION_DISABLED_WARNING}
               </Text>
             </Alert>
           )}
@@ -579,8 +627,8 @@ export function ReleaseSchedulingPanel({
       </Box>
       )}
 
-      {/* Regression Build Slots - Always shown if dates are available */}
-      {targetReleaseDate && (
+      {/* Regression Build Slots - Only shown if dates are available and slots can be added */}
+      {targetReleaseDate && !isPreReleaseInProgress && (
         <RegressionSlotsManager
           regressionBuildSlots={regressionBuildSlots || []}
           kickOffDate={kickOffDate || ''} // kickOffDate should always be available from existing release in edit mode
@@ -599,7 +647,8 @@ export function ReleaseSchedulingPanel({
           config={config}
           errors={errors}
           isAfterKickoff={showOnlyTargetDateAndSlots}
-          disableAddSlot={isPreReleaseInProgress}
+          disableAddSlot={false}
+          isEditMode={isEditMode}
         />
       )}
 

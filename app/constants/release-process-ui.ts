@@ -459,8 +459,7 @@ export const STATUS_FILTER_OPTIONS = [
   { value: '', label: 'All Statuses' },
   { value: TaskStatus.PENDING, label: TASK_STATUS_LABELS.PENDING },
   { value: TaskStatus.IN_PROGRESS, label: TASK_STATUS_LABELS.IN_PROGRESS },
-  { value: TaskStatus.AWAITING_CALLBACK, label: TASK_STATUS_LABELS.AWAITING_CALLBACK },
-  { value: TaskStatus.AWAITING_MANUAL_BUILD, label: TASK_STATUS_LABELS.AWAITING_MANUAL_BUILD },
+  // AWAITING_CALLBACK and AWAITING_MANUAL_BUILD are included in IN_PROGRESS filter (see task-filtering.ts)
   { value: TaskStatus.COMPLETED, label: TASK_STATUS_LABELS.COMPLETED },
   { value: TaskStatus.FAILED, label: TASK_STATUS_LABELS.FAILED },
   { value: TaskStatus.SKIPPED, label: TASK_STATUS_LABELS.SKIPPED },
@@ -472,4 +471,28 @@ export const STATUS_FILTER_OPTIONS = [
 export function getStatusFilterOptions() {
   return STATUS_FILTER_OPTIONS;
 }
+
+// ============================================================================
+// Build Display Labels
+// ============================================================================
+
+export const BUILD_DISPLAY_LABELS = {
+  SECTION_TITLE: 'Builds',
+  VIEW_CI_CD_JOB: 'View CI/CD Job',
+  DOWNLOAD_ARTIFACT: 'Download Artifact',
+  VERSION_LABEL: 'Version',
+  BUILD_LABEL: 'Build',
+  RUNNING: 'Running',
+  FAILED: 'Failed',
+  QUEUED: 'Queued',
+  BUILD_IN_PROGRESS: 'Build in progress...',
+  BUILD_QUEUED: 'Build queued...',
+  BUILD_FAILED: 'Build failed',
+  TESTFLIGHT_BUILD: 'TestFlight Build #',
+  PLAY_STORE_INTERNAL_TRACK: 'Play Store Internal Track',
+  COPY_PLAY_STORE_LINK: 'Copy Play Store Link',
+  COPIED: 'Copied!',
+  TESTFLIGHT_BUILD_NUMBER_MISSING: 'TestFlight build number missing',
+  PLAY_STORE_LINK_MISSING: 'Play Store link missing',
+} as const;
 

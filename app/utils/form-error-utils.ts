@@ -4,6 +4,8 @@
  */
 
 import { FIELD_GROUPS } from '~/constants/release-creation';
+import { TARGET_PLATFORM_LABELS } from '~/constants/release-config-ui';
+import type { TargetPlatform } from '~/types/release-config-constants';
 
 /**
  * Clear errors for updated fields and their related fields
@@ -61,4 +63,64 @@ export function clearErrorsForFields(
   });
 
   return cleared;
+}
+
+/**
+ * Format field name for display in error messages
+ * Converts camelCase/PascalCase field names to human-readable labels
+ * 
+ * @param field - Field name (e.g., 'platformTargets', 'kickOffDate', 'version-PLAY_STORE')
+ * @returns Formatted label (e.g., 'Platform Targets', 'Kickoff Date', 'Play Store Version')
+ * 
+ * @example
+ * formatFieldLabel('platformTargets')  // → 'Platform Targets'
+ * formatFieldLabel('kickOffDate')      // → 'Kickoff Date'
+ * formatFieldLabel('targetReleaseDate') // → 'Target Release Date'
+ * formatFieldLabel('version-PLAY_STORE') // → 'Play Store Version'
+ * formatFieldLabel('platformTargets[0].version') // → 'Platform Target 1 Version'
+ */
+export function formatFieldLabel(field: string): string {
+  // Handle version-{TARGET} format (e.g., "version-PLAY_STORE" → "Play Store Version")
+  if (field.startsWith('version-')) {
+    const target = field.replace('version-', '') as TargetPlatform;
+    const targetLabel = TARGET_PLATFORM_LABELS[target] || target.replace(/_/g, ' ');
+    return `${targetLabel} Version`;
+  }
+
+  // Handle platformTargets[index].version format
+  const platformTargetVersionMatch = field.match(/^platformTargets\[(\d+)\]\.version$/);
+  if (platformTargetVersionMatch) {
+    const index = parseInt(platformTargetVersionMatch[1]) + 1;
+    return `Platform Target ${index} Version`;
+  }
+
+  // Handle platformTargets[index] format
+  const platformTargetIndexMatch = field.match(/^platformTargets\[(\d+)\]$/);
+  if (platformTargetIndexMatch) {
+    const index = parseInt(platformTargetIndexMatch[1]) + 1;
+    return `Platform Target ${index}`;
+  }
+
+  // Handle initialVersions[index].version format (scheduling config)
+  const initialVersionMatch = field.match(/^initialVersions\[(\d+)\]\.version$/);
+  if (initialVersionMatch) {
+    const index = parseInt(initialVersionMatch[1]) + 1;
+    return `Initial Version ${index}`;
+  }
+
+  // Handle initialVersions[index] format
+  const initialVersionIndexMatch = field.match(/^initialVersions\[(\d+)\]$/);
+  if (initialVersionIndexMatch) {
+    const index = parseInt(initialVersionIndexMatch[1]) + 1;
+    return `Initial Version ${index}`;
+  }
+
+  // Default formatting for other fields
+  return field
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, str => str.toUpperCase())
+    .replace(/platform targets/i, 'Platform Targets')
+    .replace(/kick off/i, 'Kickoff')
+    .replace(/target release/i, 'Target Release')
+    .replace(/release config/i, 'Configuration');
 }

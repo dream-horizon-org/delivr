@@ -21,14 +21,9 @@ import {
 import {
   IconDots,
   IconEdit,
-  IconCopy,
   IconArchive,
-  IconDownload,
   IconStar,
   IconStarFilled,
-  IconDeviceMobile,
-  IconBrandAndroid,
-  IconBrandApple,
   IconCalendar,
   IconTarget,
   IconEye,
@@ -39,24 +34,438 @@ import {
 } from '@tabler/icons-react';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import type { ConfigurationListItemProps } from '~/types/release-config-props';
-import { PLATFORMS } from '~/types/release-config-constants';
+import { getPlatformsFromPlatformTargets, getTargetsFromPlatformTargets, formatTargetPlatformName } from '~/utils/platform-utils';
+import { 
+  getPlatformIcon, 
+  getReleaseConfigStatusDisplay, 
+  getReleaseConfigTypeColor 
+} from '~/utils/release-config-ui.utils';
+import { formatRelativeTimeCompact } from '~/utils/time-utils';
 import { ConfigurationPreviewModal } from './ConfigurationPreviewModal';
 
-// Helper to get status display from isActive field or draft status
-const getStatusDisplay = (config: any) => {
-  if (config.status === 'DRAFT') {
-    return { label: 'DRAFT', color: 'yellow' };
-  }
-  return config.isActive
-    ? { label: 'ACTIVE', color: 'green' }
-    : { label: 'ARCHIVED', color: 'gray' };
-};
+// ============================================================================
+// Sub-Components
+// ============================================================================
 
-const releaseTypeColors: Record<string, string> = {
-  MINOR: 'blue',
-  HOTFIX: 'orange',
-  MAJOR: 'red',
-};
+interface ConfigurationCardActionsProps {
+  config: ReleaseConfiguration;
+  isDraft: boolean;
+  theme: ReturnType<typeof useMantineTheme>;
+  onEdit: () => void;
+  onSetDefault: () => void;
+  onArchive: () => void;
+  onUnarchive: () => void;
+  onDelete: () => void;
+}
+
+function ConfigurationCardActions({
+  config,
+  isDraft,
+  theme,
+  onEdit,
+  onSetDefault,
+  onArchive,
+  onUnarchive,
+  onDelete,
+}: ConfigurationCardActionsProps) {
+  return (
+    <Menu
+      shadow="md"
+      width={220}
+      radius="md"
+      position="bottom-end"
+      styles={{
+        dropdown: {
+          padding: theme.spacing.xs,
+          border: `1px solid ${theme.colors.slate[2]}`,
+        },
+        item: {
+          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+          borderRadius: theme.radius.sm,
+          fontSize: theme.fontSizes.sm,
+          fontWeight: 500,
+        },
+        itemLabel: {
+          fontSize: theme.fontSizes.sm,
+        },
+        divider: {
+          margin: `${theme.spacing.xs} 0`,
+          borderColor: theme.colors.slate[2],
+        },
+      }}
+    >
+      <Menu.Target>
+        <ActionIcon variant="subtle" color="brand" size="md">
+          <IconDots size={18} />
+        </ActionIcon>
+      </Menu.Target>
+
+      <Menu.Dropdown>
+        <Menu.Item
+          leftSection={<IconEdit size={16} stroke={1.5} />}
+          onClick={onEdit}
+          disabled={!isDraft && config.isActive === false}
+        >
+          {isDraft ? 'Continue Editing' : 'Edit Configuration'}
+        </Menu.Item>
+
+        {!isDraft && !config.isDefault && config.isActive && (
+          <Menu.Item
+            leftSection={<IconStar size={16} stroke={1.5} />}
+            onClick={onSetDefault}
+          >
+            Set as Default
+          </Menu.Item>
+        )}
+
+        <Menu.Divider />
+
+        {!isDraft && config.isActive && (
+          <Menu.Item
+            leftSection={<IconArchive size={16} stroke={1.5} />}
+            onClick={onArchive}
+            color="red"
+          >
+            Archive
+          </Menu.Item>
+        )}
+
+        {!isDraft && config.isActive === false && (
+          <>
+            <Menu.Item
+              leftSection={<IconRefresh size={16} stroke={1.5} />}
+              onClick={onUnarchive}
+            >
+              Unarchive
+            </Menu.Item>
+            <Menu.Divider />
+            <Menu.Item
+              leftSection={<IconTrash size={16} stroke={1.5} />}
+              onClick={onDelete}
+              color="red"
+            >
+              Delete
+            </Menu.Item>
+          </>
+        )}
+
+        {isDraft && (
+          <Menu.Item
+            leftSection={<IconArchive size={16} stroke={1.5} />}
+            onClick={onArchive}
+            color="red"
+          >
+            Delete Draft
+          </Menu.Item>
+        )}
+      </Menu.Dropdown>
+    </Menu>
+  );
+}
+
+interface ConfigurationCardHeaderProps {
+  config: ReleaseConfiguration;
+  statusDisplay: { label: string; color: string };
+  releaseTypeColor: string;
+  theme: ReturnType<typeof useMantineTheme>;
+  onPreview: () => void;
+  onEdit: () => void;
+  onSetDefault: () => void;
+  onArchive: () => void;
+  onUnarchive: () => void;
+  onDelete: () => void;
+  isDraft: boolean;
+}
+
+function ConfigurationCardHeader({
+  config,
+  statusDisplay,
+  releaseTypeColor,
+  theme,
+  onPreview,
+  onEdit,
+  onSetDefault,
+  onArchive,
+  onUnarchive,
+  onDelete,
+  isDraft,
+}: ConfigurationCardHeaderProps) {
+  return (
+    <Paper
+      p="md"
+      radius="md"
+      style={{
+        backgroundColor: theme.colors.brand[0],
+        borderBottom: `1px solid ${theme.colors.slate[2]}`,
+      }}
+    >
+      <Group justify="space-between" align="flex-start">
+        <Box style={{ flex: 1 }}>
+          <Group gap="xs" mb="xs">
+            <Text fw={600} size="md" c={theme.colors.slate[9]}>
+              {config.name}
+            </Text>
+            {config.isDefault && (
+              <Tooltip label="Default Configuration">
+                <ThemeIcon size={20} radius="xl" variant="light" color="yellow">
+                  <IconStarFilled size={12} />
+                </ThemeIcon>
+              </Tooltip>
+            )}
+          </Group>
+
+          <Group gap="xs">
+            <Badge size="sm" variant="light" color={statusDisplay.color}>
+              {statusDisplay.label}
+            </Badge>
+            <Badge size="sm" variant="light" color={releaseTypeColor}>
+              {config.releaseType}
+            </Badge>
+            {config.releaseSchedule && (
+              <Badge 
+                size="sm" 
+                variant="light" 
+                color="indigo"
+                leftSection={<IconTrain size={12} />}
+              >
+                Release Train
+              </Badge>
+            )}
+          </Group>
+        </Box>
+
+        <Group gap="xs">
+          <Tooltip label="Preview Configuration">
+            <ActionIcon
+              variant="subtle"
+              color="brand"
+              size="md"
+              onClick={onPreview}
+            >
+              <IconEye size={18} />
+            </ActionIcon>
+          </Tooltip>
+
+          <ConfigurationCardActions
+            config={config}
+            isDraft={isDraft}
+            theme={theme}
+            onEdit={onEdit}
+            onSetDefault={onSetDefault}
+            onArchive={onArchive}
+            onUnarchive={onUnarchive}
+            onDelete={onDelete}
+          />
+        </Group>
+      </Group>
+    </Paper>
+  );
+}
+
+interface PlatformsAndTargetsSectionProps {
+  platformTargets: ReleaseConfiguration['platformTargets'];
+  theme: ReturnType<typeof useMantineTheme>;
+}
+
+function PlatformsAndTargetsSection({
+  platformTargets,
+  theme,
+}: PlatformsAndTargetsSectionProps) {
+  if (!platformTargets || platformTargets.length === 0) {
+    return (
+      <Text size="xs" c={theme.colors.slate[4]}>
+        No platforms configured
+      </Text>
+    );
+  }
+
+  return (
+    <Stack gap="xs">
+      <Box>
+        <Text size="xs" c={theme.colors.slate[4]} mb={4}>
+          Platforms:
+        </Text>
+        <Group gap="xs">
+                    {getPlatformsFromPlatformTargets(platformTargets).map((platform) => (
+                      <Badge
+                        key={platform}
+                        variant="light"
+                        color="brand"
+                        leftSection={getPlatformIcon(platform, 16)}
+                        size="sm"
+                      >
+                        {platform}
+                      </Badge>
+                    ))}
+        </Group>
+      </Box>
+      
+      <Box>
+        <Text size="xs" c={theme.colors.slate[4]} mb={4}>
+          Targets:
+        </Text>
+        <Group gap="xs">
+          {getTargetsFromPlatformTargets(platformTargets).map((target) => (
+            <Badge key={target} variant="outline" color="gray" size="sm">
+              {formatTargetPlatformName(target)}
+            </Badge>
+          ))}
+        </Group>
+      </Box>
+    </Stack>
+  );
+}
+
+interface BranchAndStatsSectionProps {
+  baseBranch?: string;
+  releaseSchedule?: ReleaseConfiguration['releaseSchedule'];
+  theme: ReturnType<typeof useMantineTheme>;
+}
+
+function BranchAndStatsSection({
+  baseBranch,
+  releaseSchedule,
+  theme,
+}: BranchAndStatsSectionProps) {
+  return (
+    <Group gap="md" style={{ minHeight: '28px' }}>
+      {baseBranch && (
+        <Paper
+          p="xs"
+          radius="sm"
+          style={{
+            backgroundColor: theme.colors.blue[0],
+            border: `1px solid ${theme.colors.blue[2]}`,
+          }}
+        >
+          <Group gap="xs">
+            <IconGitBranch size={14} color={theme.colors.blue[7]} />
+            <Text size="xs" fw={500} c={theme.colors.blue[7]}>
+              {baseBranch}
+            </Text>
+          </Group>
+        </Paper>
+      )}
+
+      {releaseSchedule && (
+        <>
+          <Paper
+            p="xs"
+            radius="sm"
+            style={{
+              backgroundColor: theme.colors.indigo[0],
+              border: `1px solid ${theme.other.borders.brand}`,
+            }}
+          >
+            <Group gap="xs">
+              <IconCalendar size={14} color={theme.other.borders.brand} />
+              <Text size="xs" fw={500} c={theme.other.borders.brand}>
+                {releaseSchedule.releaseFrequency}
+              </Text>
+            </Group>
+          </Paper>
+
+          {releaseSchedule.regressionSlots && releaseSchedule.regressionSlots.length > 0 && (
+            <Paper
+              p="xs"
+              radius="sm"
+              style={{
+                backgroundColor: theme.colors.green[0],
+                border: `1px solid ${theme.colors.green[2]}`,
+              }}
+            >
+              <Group gap="xs">
+                <IconTarget size={14} color={theme.colors.green[7]} />
+                <Text size="xs" fw={500} c={theme.colors.green[7]}>
+                  {releaseSchedule.regressionSlots.length} slots
+                </Text>
+              </Group>
+            </Paper>
+          )}
+        </>
+      )}
+    </Group>
+  );
+}
+
+interface ConfigurationCardFooterProps {
+  updatedAt: string;
+  theme: ReturnType<typeof useMantineTheme>;
+}
+
+function ConfigurationCardFooter({
+  updatedAt,
+  theme,
+}: ConfigurationCardFooterProps) {
+  if (!updatedAt) return null;
+
+  return (
+    <Box 
+      pt="sm" 
+      style={{ 
+        borderTop: `1px solid ${theme.colors.slate[2]}`,
+        marginTop: 'auto',
+      }}
+    >
+      <Text size="xs" c={theme.colors.slate[5]}>
+        Updated {formatRelativeTimeCompact(updatedAt)}
+      </Text>
+    </Box>
+  );
+}
+
+interface ConfigurationCardContentProps {
+  config: ReleaseConfiguration;
+  theme: ReturnType<typeof useMantineTheme>;
+}
+
+function ConfigurationCardContent({
+  config,
+  theme,
+}: ConfigurationCardContentProps) {
+  return (
+    <Box
+      p="md"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '220px',
+      }}
+    >
+      <Stack gap="md" style={{ flex: 1 }}>
+        {config.description && (
+          <Text size="sm" c={theme.colors.slate[6]} lineClamp={2}>
+            {config.description}
+          </Text>
+        )}
+
+        <Box>
+          <PlatformsAndTargetsSection
+            platformTargets={config.platformTargets}
+            theme={theme}
+          />
+        </Box>
+
+        <Box>
+          <BranchAndStatsSection
+            baseBranch={config.baseBranch}
+            releaseSchedule={config.releaseSchedule}
+            theme={theme}
+          />
+        </Box>
+      </Stack>
+
+      <ConfigurationCardFooter
+        updatedAt={config.updatedAt}
+        theme={theme}
+      />
+    </Box>
+  );
+}
+
+// ============================================================================
+// Main Component
+// ============================================================================
 
 export function ConfigurationListItem({
   config,
@@ -71,35 +480,9 @@ export function ConfigurationListItem({
   const theme = useMantineTheme();
   const [previewOpened, setPreviewOpened] = useState(false);
 
-  const formatRelativeTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
-  const statusDisplay = getStatusDisplay(config);
+  const statusDisplay = getReleaseConfigStatusDisplay(config);
   const isDraft = config.status === 'DRAFT';
-  const releaseTypeColor = releaseTypeColors[config.releaseType] || 'blue';
-
-  // Platform icons mapping
-  const getPlatformIcon = (platform: string) => {
-    switch (platform) {
-      case PLATFORMS.ANDROID:
-        return <IconBrandAndroid size={16} />;
-      case PLATFORMS.IOS:
-        return <IconBrandApple size={16} />;
-      default:
-        return <IconDeviceMobile size={16} />;
-    }
-  };
+  const releaseTypeColor = getReleaseConfigTypeColor(config.releaseType);
 
   return (
     <Card 
@@ -124,280 +507,24 @@ export function ConfigurationListItem({
         e.currentTarget.style.borderColor = theme.colors.slate[2];
       }}
     >
-      {/* Header */}
-      <Paper
-        p="md"
-        radius="md"
-        style={{
-          backgroundColor: theme.colors.brand[0],
-          borderBottom: `1px solid ${theme.colors.slate[2]}`,
-        }}
-      >
-        <Group justify="space-between" align="flex-start">
-          <Box style={{ flex: 1 }}>
-            <Group gap="xs" mb="xs">
-              <Text fw={600} size="md" c={theme.colors.slate[9]}>
-                {config.name}
-              </Text>
-              {config.isDefault && (
-                <Tooltip label="Default Configuration">
-                  <ThemeIcon size={20} radius="xl" variant="light" color="yellow">
-                    <IconStarFilled size={12} />
-                  </ThemeIcon>
-                </Tooltip>
-              )}
-            </Group>
+      <ConfigurationCardHeader
+        config={config}
+        statusDisplay={statusDisplay}
+        releaseTypeColor={releaseTypeColor}
+        theme={theme}
+        onPreview={() => setPreviewOpened(true)}
+        onEdit={onEdit}
+        onSetDefault={onSetDefault}
+        onArchive={onArchive}
+        onUnarchive={onUnarchive}
+        onDelete={onDelete}
+        isDraft={isDraft}
+      />
 
-            <Group gap="xs">
-              <Badge size="sm" variant="light" color={statusDisplay.color}>
-                {statusDisplay.label}
-              </Badge>
-              <Badge size="sm" variant="light" color={releaseTypeColor}>
-                {config.releaseType}
-              </Badge>
-              {config.releaseSchedule && (
-                <Badge 
-                  size="sm" 
-                  variant="light" 
-                  color="indigo"
-                  leftSection={<IconTrain size={12} />}
-                >
-                  Release Train
-                </Badge>
-              )}
-              
-            </Group>
-          </Box>
-
-          <Group gap="xs">
-            <Tooltip label="Preview Configuration">
-              <ActionIcon
-                variant="subtle"
-                color="brand"
-                size="md"
-                onClick={() => setPreviewOpened(true)}
-              >
-                <IconEye size={18} />
-              </ActionIcon>
-            </Tooltip>
-
-            <Menu
-              shadow="md"
-              width={220}
-              radius="md"
-              position="bottom-end"
-              styles={{
-                dropdown: {
-                  padding: theme.spacing.xs,
-                  border: `1px solid ${theme.colors.slate[2]}`,
-                },
-                item: {
-                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                  borderRadius: theme.radius.sm,
-                  fontSize: theme.fontSizes.sm,
-                  fontWeight: 500,
-                },
-                itemLabel: {
-                  fontSize: theme.fontSizes.sm,
-                },
-                divider: {
-                  margin: `${theme.spacing.xs} 0`,
-                  borderColor: theme.colors.slate[2],
-                },
-              }}
-            >
-              <Menu.Target>
-                <ActionIcon variant="subtle" color="brand" size="md">
-                  <IconDots size={18} />
-                </ActionIcon>
-              </Menu.Target>
-
-              <Menu.Dropdown>
-                <Menu.Item
-                  leftSection={<IconEdit size={16} stroke={1.5} />}
-                  onClick={onEdit}
-                  disabled={!isDraft && config.isActive === false}
-                >
-                  {isDraft ? 'Continue Editing' : 'Edit Configuration'}
-                </Menu.Item>
-
-                {!isDraft && !config.isDefault && config.isActive && (
-                  <Menu.Item
-                    leftSection={<IconStar size={16} stroke={1.5} />}
-                    onClick={onSetDefault}
-                  >
-                    Set as Default
-                  </Menu.Item>
-                )}
-
-                <Menu.Divider />
-
-                {/* Archive - only for active configs */}
-                {!isDraft && config.isActive && (
-                  <Menu.Item
-                    leftSection={<IconArchive size={16} stroke={1.5} />}
-                    onClick={onArchive}
-                    color="red"
-                  >
-                    Archive
-                  </Menu.Item>
-                )}
-
-                {/* Unarchive and Delete - only for archived configs */}
-                {!isDraft && config.isActive === false && (
-                  <>
-                    <Menu.Item
-                      leftSection={<IconRefresh size={16} stroke={1.5} />}
-                      onClick={onUnarchive}
-                    >
-                      Unarchive
-                    </Menu.Item>
-                    <Menu.Divider />
-                    <Menu.Item
-                      leftSection={<IconTrash size={16} stroke={1.5} />}
-                      onClick={onDelete}
-                      color="red"
-                    >
-                      Delete
-                    </Menu.Item>
-                  </>
-                )}
-
-                {/* Delete Draft - only for drafts */}
-                {isDraft && (
-                  <Menu.Item
-                    leftSection={<IconArchive size={16} stroke={1.5} />}
-                    onClick={onArchive}
-                    color="red"
-                  >
-                    Delete Draft
-                  </Menu.Item>
-                )}
-              </Menu.Dropdown>
-            </Menu>
-          </Group>
-        </Group>
-      </Paper>
-
-      {/* Content */}
-      <Box
-        p="md"
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: '220px',
-        }}
-      >
-        <Stack gap="md" style={{ flex: 1 }}>
-          {config.description && (
-            <Text size="sm" c={theme.colors.slate[6]} lineClamp={2}>
-              {config.description}
-            </Text>
-          )}
-
-          {/* Platforms & Targets */}
-          <Box>
-            <Text size="xs" fw={600} c={theme.colors.slate[5]} mb="xs" tt="uppercase">
-              Platforms & Targets
-            </Text>
-            <Group gap="xs" style={{ minHeight: '24px' }}>
-              {config.platforms?.map((platform) => (
-                <Badge
-                  key={platform}
-                  variant="light"
-                  color="brand"
-                  leftSection={getPlatformIcon(platform)}
-                  size="sm"
-                >
-                  {platform}
-                </Badge>
-              ))}
-
-              {config.targets?.map((target) => (
-                <Badge key={target} variant="outline" color="gray" size="sm">
-                  {target.replace(/_/g, ' ')}
-                </Badge>
-              ))}
-            </Group>
-          </Box>
-
-          {/* Branch & Stats */}
-          <Box>
-            <Group gap="md" style={{ minHeight: '28px' }}>
-              {config.baseBranch && (
-                <Paper
-                  p="xs"
-                  radius="sm"
-                  style={{
-                    backgroundColor: theme.colors.blue[0],
-                    border: `1px solid ${theme.colors.blue[2]}`,
-                  }}
-                >
-                  <Group gap="xs">
-                    <IconGitBranch size={14} color={theme.colors.blue[7]} />
-                    <Text size="xs" fw={500} c={theme.colors.blue[7]}>
-                      {config.baseBranch}
-                    </Text>
-                  </Group>
-                </Paper>
-              )}
-
-              {config.releaseSchedule && (
-                <>
-                  <Paper
-                    p="xs"
-                    radius="sm"
-                    style={{
-                      backgroundColor: theme.colors.indigo[0],
-                      border: `1px solid ${theme.other.borders.brand}`,
-                    }}
-                  >
-                    <Group gap="xs">
-                      <IconCalendar size={14} color={theme.other.borders.brand} />
-                      <Text size="xs" fw={500} c={theme.other.borders.brand}>
-                        {config.releaseSchedule.releaseFrequency}
-                      </Text>
-                    </Group>
-                  </Paper>
-
-                  {config.releaseSchedule.regressionSlots && config.releaseSchedule.regressionSlots.length > 0 && (
-                    <Paper
-                      p="xs"
-                      radius="sm"
-                      style={{
-                        backgroundColor: theme.colors.green[0],
-                        border: `1px solid ${theme.colors.green[2]}`,
-                      }}
-                    >
-                      <Group gap="xs">
-                        <IconTarget size={14} color={theme.colors.green[7]} />
-                        <Text size="xs" fw={500} c={theme.colors.green[7]}>
-                          {config.releaseSchedule.regressionSlots.length} slots
-                        </Text>
-                      </Group>
-                    </Paper>
-                  )}
-                </>
-              )}
-            </Group>
-          </Box>
-        </Stack>
-
-        {/* Footer - Always at bottom */}
-        {config.updatedAt && (
-          <Box 
-            pt="sm" 
-            style={{ 
-              borderTop: `1px solid ${theme.colors.slate[2]}`,
-              marginTop: 'auto',
-            }}
-          >
-            <Text size="xs" c={theme.colors.slate[5]}>
-              Updated {formatRelativeTime(config.updatedAt)}
-            </Text>
-          </Box>
-        )}
-      </Box>
+      <ConfigurationCardContent
+        config={config}
+        theme={theme}
+      />
 
       <ConfigurationPreviewModal
         opened={previewOpened}

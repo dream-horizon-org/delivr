@@ -15,6 +15,7 @@ import {
 } from '@mantine/core';
 import { IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import { apiGet, apiPost, apiPut, getApiErrorMessage } from '~/utils/api-client';
+import { extractApiErrorMessage } from '~/utils/api-error-utils';
 import { TEST_PROVIDERS } from '~/types/release-config-constants';
 import { CHECKMATE_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
 import { ActionButtons } from './shared/ActionButtons';
@@ -163,7 +164,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
       if (result.data?.verified || result.success) {
         setIsVerified(true);
       } else {
-        const errorMsg = (result as any).error || (result.data as any)?.error || ALERT_MESSAGES.VERIFICATION_FAILED;
+        const errorMsg = extractApiErrorMessage(result.error, ALERT_MESSAGES.VERIFICATION_FAILED);
         setError(errorMsg);
       }
     } catch (err) {
@@ -221,7 +222,10 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
         markSaveSuccessful();
         onConnect(result);
       } else {
-        const errorMsg = result.error || `Failed to ${isEditMode ? 'update' : 'connect'} ${TEST_PROVIDERS.CHECKMATE} integration`;
+        const errorMsg = extractApiErrorMessage(
+          result.error,
+          `Failed to ${isEditMode ? 'update' : 'connect'} ${TEST_PROVIDERS.CHECKMATE} integration`
+        );
         setError(errorMsg);
       }
     } catch (err) {

@@ -228,9 +228,9 @@ export function TaskCard({
                   >
                     {statusLabel}
                   </Badge>
-                  {task.createdAt && (
+                  {task.updatedAt && (
                     <Text size="xs" c="dimmed">
-                      Started {formatTimeAgo(task.createdAt)}
+                      Updated {formatTimeAgo(task.updatedAt)}
                     </Text>
                   )}
                   {duration && (

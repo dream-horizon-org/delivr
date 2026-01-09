@@ -1,9 +1,9 @@
 /**
  * App Distribution Connection Flow
- * Handles Play Store and App Store connection with auto-save draft support
+ * Handles Play Store and App Store connection
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Stack,
   Text,
@@ -21,6 +21,7 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconCheck, IconDeviceMobile } from '@tabler/icons-react';
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
+import { extractApiErrorMessage } from '~/utils/api-error-utils';
 import type {
   StoreType,
   Platform,
@@ -30,7 +31,7 @@ import type {
 import { encrypt, isEncryptionConfigured } from '~/utils/encryption';
 import { TARGET_PLATFORMS } from '~/types/release-config-constants';
 import { DEBUG_LABELS } from '~/constants/integration-ui';
-import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
+import { ConfirmationModal } from '~/components/Common/ConfirmationModal';
 import { 
   mapPlayStoreFormData, 
   mapAppStoreFormData,
@@ -46,6 +47,7 @@ interface AppDistributionConnectionFlowProps {
   allowedPlatforms: Platform[];
   isEditMode?: boolean;
   existingData?: any;
+  onRequestClose?: (handler: () => void) => void; // Register close handler for modal close/outside click
 }
 
 export function AppDistributionConnectionFlow({
@@ -56,11 +58,13 @@ export function AppDistributionConnectionFlow({
   allowedPlatforms,
   isEditMode = false,
   existingData,
+  onRequestClose,
 }: AppDistributionConnectionFlowProps) {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   
   // Platforms are fixed based on store type (from system metadata)
   // Validate that we have at least one platform from metadata
@@ -71,42 +75,40 @@ export function AppDistributionConnectionFlow({
     console.error(`${DEBUG_LABELS.APP_DIST_PREFIX} ${DEBUG_LABELS.APP_DIST_NO_PLATFORMS}`);
   }
 
-  // Play Store draft storage with auto-save
-  // Ref to track if we're in the middle of verify/connect flow
-  const isInFlowRef = useRef(false);
-
-  const playStoreDraft = useDraftStorage<Partial<PlayStorePayload>>(
-    {
-      storageKey: generateStorageKey('playstore', tenantId),
-      sensitiveFields: ['serviceAccountJson.private_key'],
-      // Only save draft if NOT in verify/connect flow and NOT in edit mode
-      shouldSaveDraft: (data) => !isInFlowRef.current && !isEditMode && !!(data.displayName || data.appIdentifier),
-    },
-    mapPlayStoreFormData(existingData),
-    isEditMode ? existingData : undefined // Pass existingData to hook to prioritize over draft in edit mode
+  // Initialize form data from existingData or empty
+  const initialPlayStoreData = useMemo(
+    () => (isEditMode && storeType === TARGET_PLATFORMS.PLAY_STORE 
+      ? mapPlayStoreFormData(existingData) 
+      : {}),
+    [isEditMode, storeType, existingData]
   );
 
-  // App Store draft storage with auto-save
-  const appStoreDraft = useDraftStorage<Partial<AppStorePayload>>(
-    {
-      storageKey: generateStorageKey('appstore', tenantId),
-      sensitiveFields: ['privateKeyPem'],
-      // Only save draft if NOT in verify/connect flow and NOT in edit mode
-      shouldSaveDraft: (data) => !isInFlowRef.current && !isEditMode && !!(data.displayName || data.appIdentifier),
-    },
-    mapAppStoreFormData(existingData),
-    isEditMode ? existingData : undefined // Pass existingData to hook to prioritize over draft in edit mode
+  const initialAppStoreData = useMemo(
+    () => (isEditMode && storeType === TARGET_PLATFORMS.APP_STORE 
+      ? mapAppStoreFormData(existingData) 
+      : {}),
+    [isEditMode, storeType, existingData]
   );
 
-  // Select the appropriate draft based on store type
-  const { formData, setFormData, isDraftRestored, markSaveSuccessful } =
-    storeType === TARGET_PLATFORMS.PLAY_STORE ? playStoreDraft : appStoreDraft;
+  // Form state (replacing draft storage)
+  const [playStoreData, setPlayStoreData] = useState<Partial<PlayStorePayload>>(initialPlayStoreData);
+  const [appStoreData, setAppStoreData] = useState<Partial<AppStorePayload>>(initialAppStoreData);
 
-  // Type-safe accessors for form data
-  const playStoreData = formData as Partial<PlayStorePayload>;
-  const appStoreData = formData as Partial<AppStorePayload>;
-  const setPlayStoreData = setFormData as typeof playStoreDraft.setFormData;
-  const setAppStoreData = setFormData as typeof appStoreDraft.setFormData;
+  // Store initial data for comparison
+  const initialDataRef = useRef(
+    storeType === TARGET_PLATFORMS.PLAY_STORE ? initialPlayStoreData : initialAppStoreData
+  );
+
+  // Update initial data ref when existingData changes
+  useEffect(() => {
+    if (storeType === TARGET_PLATFORMS.PLAY_STORE) {
+      initialDataRef.current = initialPlayStoreData;
+      setPlayStoreData(initialPlayStoreData);
+    } else {
+      initialDataRef.current = initialAppStoreData;
+      setAppStoreData(initialAppStoreData);
+    }
+  }, [initialPlayStoreData, initialAppStoreData, storeType]);
 
   // Check encryption configuration on mount
   useEffect(() => {
@@ -116,16 +118,73 @@ export function AppDistributionConnectionFlow({
     }
   }, []);
 
+  // Deep comparison helper for form data
+  const deepEqual = (obj1: any, obj2: any): boolean => {
+    if (obj1 === obj2) return true;
+    if (obj1 == null || obj2 == null) return false;
+    if (typeof obj1 !== 'object' || typeof obj2 !== 'object') return obj1 === obj2;
+    
+    const keys1 = Object.keys(obj1);
+    const keys2 = Object.keys(obj2);
+    
+    if (keys1.length !== keys2.length) return false;
+    
+    for (const key of keys1) {
+      if (!keys2.includes(key)) return false;
+      if (!deepEqual(obj1[key], obj2[key])) return false;
+    }
+    
+    return true;
+  };
+
+  // Check if form has unsaved changes
+  const hasUnsavedChanges = useMemo(() => {
+    const currentData = storeType === TARGET_PLATFORMS.PLAY_STORE ? playStoreData : appStoreData;
+    return !deepEqual(currentData, initialDataRef.current);
+  }, [playStoreData, appStoreData, storeType]);
+
   // Validation functions
   const isFormValid =
     storeType === TARGET_PLATFORMS.PLAY_STORE
       ? validatePlayStoreData(playStoreData, isEditMode)
       : validateAppStoreData(appStoreData, isEditMode);
 
+  // Handle cancel with confirmation
+  const handleCancelClick = () => {
+    if (hasUnsavedChanges) {
+      setShowConfirmModal(true);
+    } else {
+      onCancel();
+    }
+  };
+
+  // Handle confirmation modal actions
+  const handleConfirmClose = () => {
+    setShowConfirmModal(false);
+    onCancel(); // Close the modal
+  };
+
+  const handleContinueEditing = () => {
+    setShowConfirmModal(false);
+  };
+
+  // Register close handler with parent (for modal close button/outside click)
+  useEffect(() => {
+    if (onRequestClose) {
+      const closeHandler = () => {
+        if (hasUnsavedChanges) {
+          setShowConfirmModal(true);
+        } else {
+          onCancel(); // This will close the modal via parent
+        }
+      };
+      onRequestClose(closeHandler);
+    }
+  }, [hasUnsavedChanges, onRequestClose, onCancel]);
+
   const handleVerify = async () => {
     setIsVerifying(true);
     setError(null);
-    isInFlowRef.current = true; // Prevent draft save during verify
 
     try {
       let payload: any;
@@ -138,6 +197,7 @@ export function AppDistributionConnectionFlow({
           ...playStoreData,
           serviceAccountJson: {
             ...playStoreData.serviceAccountJson,
+            type: 'service_account', // Required by backend validation
             private_key: encryptedPrivateKey,
             _encrypted: true, // Flag to indicate encryption
           },
@@ -166,15 +226,13 @@ export function AppDistributionConnectionFlow({
       // BFF returns: {success: true, data: {verified: true, message: "..."}}
       if (result.success && result.data?.verified) {
         setIsVerified(true);
-        // Keep isInFlowRef.current = true until Connect is clicked
       } else {
-        const errorMsg = result.data?.message || result.error || 'Verification failed';
+        const errorMsg = result.data?.message 
+          || extractApiErrorMessage(result.error, 'Verification failed');
         setError(errorMsg);
-        isInFlowRef.current = false; // Reset flag on verification failure
       }
     } catch (err) {
       setError(getApiErrorMessage(err, 'Failed to verify credentials'));
-      isInFlowRef.current = false; // Reset flag on error
     } finally {
       setIsVerifying(false);
     }
@@ -203,22 +261,38 @@ export function AppDistributionConnectionFlow({
             ...playStoreData,
             serviceAccountJson: {
               ...playStoreData.serviceAccountJson,
+              type: 'service_account', 
               private_key: encryptedPrivateKey,
               _encrypted: true, // Flag to indicate encryption
             },
           };
         } else {
           // In edit mode without new private key
+          // Only include serviceAccountJson fields if they have values
+          const { serviceAccountJson, ...restPlayStoreData } = playStoreData;
           payload = {
-            displayName: playStoreData.displayName,
-            appIdentifier: playStoreData.appIdentifier,
-            defaultTrack: playStoreData.defaultTrack,
+            ...restPlayStoreData,
           };
-          // Only include serviceAccountJson fields if they exist (excluding private_key)
-          if (playStoreData.serviceAccountJson) {
-            const { private_key, ...restServiceAccount } = playStoreData.serviceAccountJson;
-            if (Object.keys(restServiceAccount).length > 0) {
-              payload.serviceAccountJson = restServiceAccount;
+          
+          // Only include serviceAccountJson if it has non-empty fields (excluding private_key)
+          if (serviceAccountJson) {
+            const { private_key, ...restServiceAccount } = serviceAccountJson;
+            const filteredServiceAccount: any = {};
+            
+            // Only include fields that have non-empty values
+            if (restServiceAccount.project_id?.trim()) {
+              filteredServiceAccount.project_id = restServiceAccount.project_id;
+            }
+            if (restServiceAccount.client_email?.trim()) {
+              filteredServiceAccount.client_email = restServiceAccount.client_email;
+            }
+            if (restServiceAccount.type) {
+              filteredServiceAccount.type = restServiceAccount.type;
+            }
+            
+            // Only add serviceAccountJson if it has any fields
+            if (Object.keys(filteredServiceAccount).length > 0) {
+              payload.serviceAccountJson = filteredServiceAccount;
             }
           }
         }
@@ -232,9 +306,15 @@ export function AppDistributionConnectionFlow({
             privateKeyPem: encryptedPem,
           };
         } else {
-          // In edit mode without new privateKeyPem, only send other fields
-          const { privateKeyPem, ...restAppStoreData } = appStoreData;
-          payload = restAppStoreData;
+          // In edit mode without new privateKeyPem, only send fields that have values
+          // Filter out empty strings for credential fields to avoid backend validation errors
+          const { privateKeyPem, issuerId, keyId, ...restAppStoreData } = appStoreData;
+          payload = {
+            ...restAppStoreData,
+            // Only include credential fields if they have non-empty values
+            ...(issuerId && issuerId.trim() && { issuerId }),
+            ...(keyId && keyId.trim() && { keyId }),
+          };
         }
       }
 
@@ -278,19 +358,14 @@ export function AppDistributionConnectionFlow({
       }
 
       if (result.success) {
-        // Mark connection as successful and clear draft
-        markSaveSuccessful();
-        isInFlowRef.current = false; // Reset flag after successful connect
-        console.log(`[${storeType}] ${isEditMode ? 'Update' : 'Connection'} successful, draft cleared`);
+        console.log(`[${storeType}] ${isEditMode ? 'Update' : 'Connection'} successful`);
         onConnect(result);
       } else {
         setError(isEditMode ? 'Failed to update' : 'Failed to connect');
-        isInFlowRef.current = false; // Reset flag on connect failure
         setIsSaving(false);
       }
     } catch (err) {
       setError(getApiErrorMessage(err, isEditMode ? 'Failed to update' : 'Failed to connect'));
-      isInFlowRef.current = false; // Reset flag on error
       setIsSaving(false);
     }
   };
@@ -341,8 +416,8 @@ export function AppDistributionConnectionFlow({
       <Divider label="Service Account Credentials" labelPosition="center" />
 
       <TextInput
-        label="Project ID"
-        placeholder="Enter your project ID"
+        label={isEditMode ? "Project ID (leave blank to keep existing)" : "Project ID"}
+        placeholder={isEditMode ? "Leave blank to keep existing" : "Enter your project ID"}
         value={playStoreData.serviceAccountJson?.project_id}
         onChange={(e) =>
           setPlayStoreData({
@@ -353,14 +428,17 @@ export function AppDistributionConnectionFlow({
             },
           })
         }
-        required
+        required={!isEditMode} 
         size="sm"
         disabled={isVerified}
+        description={
+          isEditMode ?  'Only provide a new project ID if you want to update it':''
+        }
       />
 
       <TextInput
-        label="Client Email"
-        placeholder="Enter your service account email"
+        label={isEditMode ? "Client Email (leave blank to keep existing)" : "Client Email"}
+        placeholder={isEditMode ? "Leave blank to keep existing" : "Enter your service account email"}
         value={playStoreData.serviceAccountJson?.client_email}
         onChange={(e) =>
           setPlayStoreData({
@@ -371,14 +449,17 @@ export function AppDistributionConnectionFlow({
             },
           })
         }
-        required
+        required={!isEditMode} 
         size="sm"
         disabled={isVerified}
+        description={
+          isEditMode ?  'Only provide a new client email if you want to update it':''
+        }
       />
 
       <Textarea
-        label="Private Key"
-        placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
+        label={isEditMode ? "Private Key (leave blank to keep existing)" : "Private Key"}
+        placeholder={`-----BEGIN PRIVATE KEY-----\\n.......\\n-----END PRIVATE KEY-----`}
         value={playStoreData.serviceAccountJson?.private_key}
         onChange={(e) =>
           setPlayStoreData({
@@ -389,10 +470,15 @@ export function AppDistributionConnectionFlow({
             },
           })
         }
-        required
+        required={!isEditMode} 
         minRows={4}
         size="sm"
         disabled={isVerified}
+        description={
+          isEditMode 
+            ? 'Only provide a new private key if you want to update it'
+            : 'Paste the complete private key from your .pem file, including the BEGIN and END markers'
+        }
       />
     </Stack>
   );
@@ -450,40 +536,51 @@ export function AppDistributionConnectionFlow({
       <Divider label="App Store Connect API Credentials" labelPosition="center" />
 
       <TextInput
-        label="Issuer ID"
-        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        label={isEditMode ? "Issuer ID (leave blank to keep existing)" : "Issuer ID"}
+        placeholder={isEditMode ? "Leave blank to keep existing" : "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}
         value={appStoreData.issuerId}
         onChange={(e) =>
           setAppStoreData({ ...appStoreData, issuerId: e.target.value })
         }
-        required
+        required={!isEditMode} 
         size="sm"
         disabled={isVerified}
+        description={
+          isEditMode ?  'Only provide a new issuer ID if you want to update it':''
+        }
       />
 
       <TextInput
-        label="Key ID"
-        placeholder="XXXXXXXXXX"
+        label={isEditMode ? "Key ID (leave blank to keep existing)" : "Key ID"}
+        placeholder={isEditMode ? "Leave blank to keep existing" : "XXXXXXXXXX"}
         value={appStoreData.keyId}
         onChange={(e) =>
           setAppStoreData({ ...appStoreData, keyId: e.target.value })
         }
-        required
+        required={!isEditMode} 
         size="sm"
         disabled={isVerified}
+        description={
+          isEditMode ?  'Only provide a new key ID if you want to update it':''
+        }
       />
 
       <Textarea
-        label="Private Key (PEM)"
-        placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
+        label={isEditMode ? "Private Key (PEM) (leave blank to keep existing)" : "Private Key (PEM)"}
+        placeholder={`-----BEGIN PRIVATE KEY-----\\n.......\\n-----END PRIVATE KEY-----`}
         value={appStoreData.privateKeyPem}
         onChange={(e) =>
           setAppStoreData({ ...appStoreData, privateKeyPem: e.target.value })
         }
-        required
+        required={!isEditMode} 
         minRows={4}
         size="sm"
         disabled={isVerified}
+        description={
+          isEditMode 
+            ? 'Only provide a new private key if you want to update it'
+            : 'Paste the complete private key from your .p8 file, including the BEGIN and END markers'
+        }
       />
 
       <TextInput
@@ -501,20 +598,18 @@ export function AppDistributionConnectionFlow({
   const theme = useMantineTheme();
 
   return (
-    <Stack gap="lg">
-      {/* Draft Restored Alert */}
-      {isDraftRestored && (
-        <Alert 
-          icon={<IconCheck size={16} />} 
-          color="blue" 
-          title="Draft Restored"
-          variant="light"
-          radius="md"
-        >
-          Your previously entered data has been restored. Note: Sensitive credentials (like private keys) are never saved for security.
-        </Alert>
-      )}
-      
+    <>
+      <ConfirmationModal
+        opened={showConfirmModal}
+        onClose={handleContinueEditing}
+        onConfirm={handleConfirmClose}
+        title="Unsaved Changes"
+        message="You have unsaved changes. Your progress may be lost. Do you want to continue editing or close?"
+        confirmLabel="Close"
+        cancelLabel="Continue Editing"
+        confirmColor="red"
+      />
+      <Stack gap="lg">
       {/* Platform Information */}
       {allowedPlatforms.length === 0 ? (
         <Alert 
@@ -534,33 +629,14 @@ export function AppDistributionConnectionFlow({
             border: `1px solid ${theme.colors.brand[2]}`,
           }}
         >
-          <Group gap="md" align="center">
-            <ThemeIcon size={32} radius="md" variant="light" color="brand">
-              <IconDeviceMobile size={18} />
-            </ThemeIcon>
-            <div style={{ flex: 1 }}>
-              <Text size="sm" fw={500} mb={4}>
-                Target Platform{allowedPlatforms.length > 1 ? 's' : ''}
-              </Text>
-              <Group gap="xs">
-                {allowedPlatforms.map((platform) => (
-                  <Badge
-                    key={platform}
-                    size="md"
-                    variant="light"
-                    color="brand"
-                  >
-                    {platform}
-                  </Badge>
-                ))}
-              </Group>
-            </div>
+          <Group gap="sm">
+            <Badge size="md" variant="light" color="brand">
+              Platform: {allowedPlatforms[0]}
+            </Badge>
+            <Badge size="md" variant="light" color="brand">
+              Target: {storeType === TARGET_PLATFORMS.PLAY_STORE ? 'Play Store' : 'App Store'}
+            </Badge>
           </Group>
-          <Text size="xs" c={theme.colors.slate[6]} mt="sm">
-            {storeType === TARGET_PLATFORMS.PLAY_STORE 
-              ? 'This integration will be used for Android app distribution via Google Play Store'
-              : 'This integration will be used for iOS app distribution via Apple App Store'}
-          </Text>
         </Box>
       )}
 
@@ -598,7 +674,7 @@ export function AppDistributionConnectionFlow({
       <Group justify="flex-end" gap="sm">
         <Button 
           variant="default" 
-          onClick={onCancel} 
+          onClick={handleCancelClick} 
           disabled={isVerifying || isSaving}
           size="sm"
         >
@@ -641,6 +717,7 @@ export function AppDistributionConnectionFlow({
         )}
       </Group>
     </Stack>
+    </>
   );
 }
 

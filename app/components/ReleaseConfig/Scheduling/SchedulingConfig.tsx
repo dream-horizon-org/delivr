@@ -24,7 +24,9 @@ import type {
   RegressionSlot,
   ReleaseFrequency,
   Platform,
+  InitialVersion,
 } from '~/types/release-config';
+import type { PlatformTarget } from '~/utils/platform-mapper';
 import type { SchedulingConfigProps, RegressionSlotCardProps } from '~/types/release-config-props';
 import { ReleaseFrequencySelector } from './ReleaseFrequencySelector';
 import { WorkingDaysSelector } from './WorkingDaysSelector';
@@ -44,7 +46,9 @@ export function SchedulingConfig({
   selectedPlatforms, 
   showValidation = false,
   communicationConfig,
-}: SchedulingConfigProps & { communicationConfig?: CommunicationConfig }) {
+  platformTargets = [],
+  isEditMode = false,
+}: SchedulingConfigProps & { communicationConfig?: CommunicationConfig; platformTargets?: PlatformTarget[] }) {
   const { getConnectedIntegrations } = useConfig();
   
   const shouldShowKickoffReminder = canEnableKickoffReminder(
@@ -55,9 +59,9 @@ export function SchedulingConfig({
 
   // Comprehensive validation matching backend
   const validationErrors = useMemo(() => {
-    const backendValidationErrors = validateScheduling(config);
+    const backendValidationErrors = validateScheduling(config, isEditMode);
     return formatValidationErrors(backendValidationErrors);
-  }, [config]);
+  }, [config, isEditMode]);
   
   const handleFrequencyChange = (frequency: ReleaseFrequency) => {
     onChange({
@@ -114,18 +118,6 @@ export function SchedulingConfig({
         </Text>
       </div>
       
-      {showValidation && validationErrors.length > 0 && (
-        <Alert icon={<IconAlertCircle size={ICON_SIZES.SMALL} />} color="red" title={SCHEDULING_LABELS.VALIDATION_ERRORS}>
-          <Stack gap="xs">
-            {validationErrors.map((error, i) => (
-              <Text key={i} size="sm">
-                • {error}
-        </Text>
-            ))}
-          </Stack>
-      </Alert>
-      )}
-      
       {/* Release Frequency */}
       <ReleaseFrequencySelector
         frequency={config.releaseFrequency}
@@ -143,6 +135,15 @@ export function SchedulingConfig({
               {SCHEDULING_LABELS.FIRST_KICKOFF_DESCRIPTION}
             </Text>
           </div>
+
+          {/* Show info alert in edit mode */}
+          {isEditMode && (
+            <Alert color="blue" variant="light" icon={<IconInfoCircle size={ICON_SIZES.SMALL} />}>
+              <Text size="xs">
+                {SCHEDULING_LABELS.FIRST_KICKOFF_DATE_DISABLED_DESCRIPTION}
+              </Text>
+            </Alert>
+          )}
 
           <TextInput
             label={SCHEDULING_LABELS.KICKOFF_DATE_LABEL}
@@ -162,7 +163,9 @@ export function SchedulingConfig({
               }
             }}
             required
-            min={new Date().toISOString().split('T')[0]}
+            disabled={isEditMode}
+            min={isEditMode ? undefined : new Date().toISOString().split('T')[0]}
+            description={isEditMode ? SCHEDULING_LABELS.FIRST_KICKOFF_DATE_DISABLED_DESCRIPTION : undefined}
             leftSection={<IconCalendar size={ICON_SIZES.SMALL} />}
           />
         </Stack>
@@ -181,12 +184,18 @@ export function SchedulingConfig({
               </Text>
             </div>
 
-            <Group grow={selectedPlatforms.length === 2}>
-              {selectedPlatforms.map((platform) => {
-                const metadata = PLATFORM_METADATA[platform];
+            <Group grow={platformTargets.length === 2}>
+              {platformTargets.map((pt) => {
+                const metadata = PLATFORM_METADATA[pt.platform as Platform];
+                // Find existing entry in array format
+                const existingEntry = config.initialVersions?.find(
+                  (iv) => iv.platform === pt.platform && iv.target === pt.target
+                );
+                const currentValue = existingEntry?.version || '';
+
                 return (
                   <TextInput
-                    key={platform}
+                    key={`${pt.platform}-${pt.target}`}
                     label={
                       <Group gap="xs" wrap="nowrap" style={{ display: 'inline-flex' }}>
                         <Badge color={metadata.color} size="sm" variant="filled">
@@ -198,16 +207,33 @@ export function SchedulingConfig({
                       </Group>
                     }
                     placeholder={SCHEDULING_LABELS.INITIAL_VERSION_PLACEHOLDER}
-                    value={config.initialVersions?.[platform] || ''}
-                    onChange={(e) =>
+                    value={currentValue}
+                    onChange={(e) => {
+                      const newVersions: InitialVersion[] = [...(config.initialVersions || [])];
+                      const existingIndex = newVersions.findIndex(
+                        (iv) => iv.platform === pt.platform && iv.target === pt.target
+                      );
+                      
+                      if (existingIndex >= 0) {
+                        // Update existing entry
+                        newVersions[existingIndex] = {
+                          ...newVersions[existingIndex],
+                          version: e.target.value,
+                        };
+                      } else {
+                        // Add new entry
+                        newVersions.push({
+                          platform: pt.platform,
+                          target: pt.target,
+                          version: e.target.value,
+                        });
+                      }
+
                       onChange({
                         ...config,
-                        initialVersions: {
-                          ...config.initialVersions,
-                          [platform]: e.target.value,
-                        },
-                      })
-                    }
+                        initialVersions: newVersions,
+                      });
+                    }}
                     required
                     description={SCHEDULING_LABELS.SEMANTIC_VERSION_DESCRIPTION.replace('{platform}', metadata.label)}
                   />
@@ -402,6 +428,19 @@ export function SchedulingConfig({
           )}
         </Stack>
       </Card>
+
+      {/* Validation Errors - Displayed at bottom above Create button */}
+      {showValidation && validationErrors.length > 0 && (
+        <Alert icon={<IconAlertCircle size={ICON_SIZES.SMALL} />} color="red" title={SCHEDULING_LABELS.VALIDATION_ERRORS}>
+          <Stack gap="xs">
+            {validationErrors.map((error, i) => (
+              <Text key={i} size="sm">
+                • {error}
+              </Text>
+            ))}
+          </Stack>
+        </Alert>
+      )}
     </Stack>
   );
 }

@@ -8,6 +8,7 @@ import type { ActionFunctionArgs } from '@remix-run/node';
 import { authenticateActionRequest } from '~/utils/authenticate';
 import type { User } from '~/.server/services/Auth/auth.interface';
 import { ProjectManagementIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
+import { logApiError } from '~/utils/api-route-helpers';
 
 const verifyJiraCredentials = async ({
   request,
@@ -81,7 +82,7 @@ const verifyJiraCredentials = async ({
       }, { status: 401 });
     }
   } catch (error) {
-    console.error('[BFF-Jira-Verify] Error:', error);
+    logApiError('[BFF-Jira-Verify]', error);
     return json(
       {
         success: false,

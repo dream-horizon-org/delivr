@@ -52,6 +52,7 @@ import {
   Platform,
   SubmissionStatus
 } from '~/types/distribution/distribution.types';
+import { ReleaseStatus } from '~/types/release-process-enums';
 import { formatStatus } from '~/utils/distribution/distribution-ui.utils';
 
 interface DistributionStageProps {
@@ -136,7 +137,7 @@ export function DistributionStage({
   
   const { distribution, isLoading, error, refetch } = useDistributionStage(tenantId, releaseId);
   const { release } = useRelease(tenantId, releaseId);
-  const isArchived = release?.status === 'ARCHIVED';
+  const isArchived = release?.status === ReleaseStatus.ARCHIVED;
   
   console.log('[DistributionStage] Hook state:', { 
     hasDistribution: !!distribution, 

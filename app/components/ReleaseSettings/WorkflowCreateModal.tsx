@@ -33,6 +33,7 @@ import {
   PLACEHOLDERS,
 } from '~/constants/release-config-ui';
 import { workflowTypeToEnvironment, environmentToWorkflowType, getEnvironmentsForPlatform } from '~/types/workflow-mappings';
+import { validateWorkflowName } from '~/utils/workflow-validation';
 
 const platformOptions = [
   { value: PLATFORMS.ANDROID, label: PLATFORM_LABELS.ANDROID },
@@ -120,11 +121,15 @@ function WorkflowCreateModalComponent({
               }, {} as Record<string, string>)
             : (params as Record<string, string>) || {};
           
+          // Extract parameterDefinitions if params is an array
+          const parameterDefinitions = Array.isArray(params) ? params : undefined;
+          
           setProviderConfig({
             type: BUILD_PROVIDERS.JENKINS,
             integrationId: existingWorkflow.integrationId,
             jobUrl: existingWorkflow.workflowUrl,
             parameters: parametersRecord,
+            parameterDefinitions, // Add this to restore fetched parameters
           });
         } else if (existingWorkflow.providerType === BUILD_PROVIDERS.GITHUB_ACTIONS) {
           const params = existingWorkflow.parameters;
@@ -139,11 +144,15 @@ function WorkflowCreateModalComponent({
             inputsRecord = (params as any).inputs || {};
           }
           
+          // Extract parameterDefinitions if params is an array
+          const parameterDefinitions = Array.isArray(params) ? params : undefined;
+          
           setProviderConfig({
             type: BUILD_PROVIDERS.GITHUB_ACTIONS,
             integrationId: existingWorkflow.integrationId,
             workflowUrl: existingWorkflow.workflowUrl,
             inputs: inputsRecord,
+            parameterDefinitions, // Add this to restore fetched parameters
           });
         }
       } else {
@@ -212,19 +221,13 @@ function WorkflowCreateModalComponent({
   const validate = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!name || !name.trim()) {
-      newErrors.name = 'Workflow name is required';
-    }else{
-      // Check for duplicate display names (exclude current workflow if editing)
-      const trimmedName = name.trim();
-      const duplicateWorkflow = workflows.find(
-        (wf) => 
-          wf.displayName.toLowerCase() === trimmedName.toLowerCase() &&
-        (!existingWorkflow || wf.id !== existingWorkflow.id)
-      );
-      if(duplicateWorkflow){
-        newErrors.name = 'A workflow with this name already exists. Please use a different name.';
-      }
+    // Validate workflow name using utility function
+    const nameError = validateWorkflowName(name, workflows, {
+      existingWorkflow,
+      isEditMode: !!existingWorkflow,
+    });
+    if (nameError) {
+      newErrors.name = nameError;
     }
 
     if (provider === BUILD_PROVIDERS.JENKINS) {

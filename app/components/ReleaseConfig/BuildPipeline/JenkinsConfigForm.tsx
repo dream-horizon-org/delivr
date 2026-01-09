@@ -11,6 +11,7 @@ import type { JenkinsConfig } from '~/types/release-config';
 import type { JenkinsConfigFormProps } from '~/types/release-config-props';
 import type { WorkflowParameter } from '~/.server/services/ReleaseManagement/integrations';
 import { FIELD_LABELS, PLACEHOLDERS, BUTTON_LABELS } from '~/constants/release-config-ui';
+import { BUILD_PROVIDERS } from '~/types/release-config-constants';
 
 export function JenkinsConfigForm({
   config,
@@ -19,9 +20,9 @@ export function JenkinsConfigForm({
   tenantId,
 }: JenkinsConfigFormProps) {
   
-  // Manual parameter entry state (legacy fallback)
-  const [newParamKey, setNewParamKey] = useState('');
-  const [newParamValue, setNewParamValue] = useState('');
+  // Manual parameter entry state (legacy fallback) - DISABLED
+  // const [newParamKey, setNewParamKey] = useState('');
+  // const [newParamValue, setNewParamValue] = useState('');
   
   // Parameter fetching state
   const [fetchingParams, setFetchingParams] = useState(false);
@@ -41,28 +42,78 @@ export function JenkinsConfigForm({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availableIntegrations.length, availableIntegrations[0]?.id]);
+
+  // Restore parameterDefinitions and auto-fetch if missing
+  useEffect(() => {
+    // If parameterDefinitions exist in config, restore them
+    if (config.parameterDefinitions && Array.isArray(config.parameterDefinitions)) {
+      const restoredParams = config.parameterDefinitions.map((param) => {
+        const hasChoices = (param as any).choices && (param as any).choices.length > 0;
+        const hasOptions = param.options && param.options.length > 0;
+        const options = hasOptions ? param.options : (hasChoices ? (param as any).choices : undefined);
+        
+        return {
+          ...param,
+          options,
+        };
+      });
+      
+      setFetchedParameters(restoredParams);
+      setParametersFetched(true);
+    } else if (config.jobUrl && config.integrationId && tenantId && !parametersFetched && !fetchingParams) {
+      // Auto-fetch if we have jobUrl and integrationId but no parameterDefinitions
+      // This handles edit mode where workflow was created with manual parameters
+      handleFetchParameters();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.parameterDefinitions, config.jobUrl, config.integrationId]);
   
-  const handleAddParameter = () => {
-    if (newParamKey && newParamValue) {
+  // Manual parameter handlers - DISABLED
+  // const handleAddParameter = () => {
+  //   if (newParamKey && newParamValue) {
+  //     onChange({
+  //       ...config,
+  //       parameters: {
+  //         ...parameters,
+  //         [newParamKey]: newParamValue,
+  //       },
+  //     });
+  //     setNewParamKey('');
+  //     setNewParamValue('');
+  //   }
+  // };
+  
+  // Updated handleRemoveParameter to work with fetched parameters
+  const handleRemoveParameter = (paramName: string) => {
+    // If it's a fetched parameter, check if it's required
+    if (parametersFetched) {
+      const param = fetchedParameters.find(p => p.name === paramName);
+      if (param?.required) {
+        return; // Don't allow removing required parameters
+      }
+      
+      // Remove from fetched parameters
+      const updated = fetchedParameters.filter(p => p.name !== paramName);
+      setFetchedParameters(updated);
+      
+      // Remove from parameters object
+      const newParams = { ...parameters };
+      delete newParams[paramName];
+      
       onChange({
         ...config,
-        parameters: {
-          ...parameters,
-          [newParamKey]: newParamValue,
-        },
+        parameters: newParams,
+        parameterDefinitions: updated,
+      } as any);
+    } else {
+      // Fallback for non-fetched parameters (shouldn't happen now, but keeping for safety)
+      const newParams = { ...parameters };
+      delete newParams[paramName];
+      onChange({
+        ...config,
+        parameters: newParams,
       });
-      setNewParamKey('');
-      setNewParamValue('');
     }
-  };
-  
-  const handleRemoveParameter = (key: string) => {
-    const newParams = { ...parameters };
-    delete newParams[key];
-    onChange({
-      ...config,
-      parameters: newParams,
-    });
   };
   
   // Fetch job parameters from Jenkins
@@ -90,7 +141,7 @@ export function JenkinsConfigForm({
       const result = await apiPost<{ parameters: WorkflowParameter[] }>(
         `/api/v1/tenants/${tenantId}/workflows/job-parameters`,
         {
-          providerType: 'JENKINS',
+          providerType: BUILD_PROVIDERS.JENKINS,
           integrationId: config.integrationId,
           url: config.jobUrl,
         }
@@ -216,18 +267,31 @@ export function JenkinsConfigForm({
             {fetchedParameters.map((param) => (
               <Card key={param.name} withBorder className="bg-gray-50">
                 <Stack gap="xs">
-                  <Group gap="xs">
-                    <Text size="sm" fw={600}>
-                      {param.name}
-                    </Text>
-                    {param.required && (
-                      <Badge size="xs" color="red">
-                        Required
+                  <Group gap="xs" justify="space-between">
+                    <Group gap="xs">
+                      <Text size="sm" fw={600}>
+                        {param.name}
+                      </Text>
+                      {param.required && (
+                        <Badge size="xs" color="red">
+                          Required
+                        </Badge>
+                      )}
+                      <Badge size="xs" color="gray">
+                        {param.type}
                       </Badge>
+                    </Group>
+                    {!param.required && (
+                      <Button
+                        variant="subtle"
+                        color="red"
+                        size="xs"
+                        onClick={() => handleRemoveParameter(param.name)}
+                        leftSection={<IconTrash size={14} />}
+                      >
+                        Remove
+                      </Button>
                     )}
-                    <Badge size="xs" color="gray">
-                      {param.type}
-                    </Badge>
                   </Group>
                   
                   {param.description && (
@@ -260,8 +324,8 @@ export function JenkinsConfigForm({
         </div>
       )}
       
-      {/* Manual Parameter Entry (Fallback) */}
-      {!parametersFetched && (
+      {/* Manual Parameter Entry (Fallback) - DISABLED */}
+      {/* {!parametersFetched && (
         <div>
           <Text size="sm" fw={500} className="mb-2">
             Job Parameters (Manual)
@@ -323,7 +387,7 @@ export function JenkinsConfigForm({
             </Button>
           </div>
         </div>
-      )}
+      )} */}
       </Stack>
     </div>
   );

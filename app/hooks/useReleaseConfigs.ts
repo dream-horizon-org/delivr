@@ -54,7 +54,7 @@ export function useReleaseConfigs(tenantId?: string) {
       staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh
       cacheTime: 30 * 60 * 1000, // 30 minutes - cache time
       refetchOnWindowFocus: true, // Refetch when user returns to tab
-      refetchOnMount: false, // Don't refetch on component mount if data is fresh
+      refetchOnMount: true, // Refetch on component mount to ensure fresh data
       retry: 1, // Retry once on failure
     }
   );

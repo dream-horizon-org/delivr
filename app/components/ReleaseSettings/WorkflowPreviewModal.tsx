@@ -6,17 +6,14 @@
 import { Modal, Stack, Text, Card, Group, Badge, Divider, ScrollArea, useMantineTheme, ThemeIcon, Anchor } from '@mantine/core';
 import {
   IconRocket,
-  IconBrandAndroid,
-  IconBrandApple,
-  IconServer,
-  IconBrandGithub,
   IconLink,
   IconCalendar,
 } from '@tabler/icons-react';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
-import { PLATFORMS, BUILD_PROVIDERS } from '~/types/release-config-constants';
-import { PLATFORM_LABELS, ENVIRONMENT_LABELS, PROVIDER_LABELS } from '~/constants/release-config-ui';
+import { BUILD_PROVIDERS } from '~/types/release-config-constants';
+import { PLATFORM_LABELS, ENVIRONMENT_LABELS } from '~/constants/release-config-ui';
 import { workflowTypeToEnvironment } from '~/types/workflow-mappings';
+import { getPlatformIcon, getBuildProviderIcon, getBuildProviderLabel, formatDateTime } from '~/utils/ui-utils';
 
 interface WorkflowPreviewModalProps {
   opened: boolean;
@@ -30,41 +27,6 @@ export function WorkflowPreviewModal({
   workflow,
 }: WorkflowPreviewModalProps) {
   const theme = useMantineTheme();
-
-  const getPlatformIcon = (platform: string) => {
-    // Normalize to uppercase for comparison (backend may return lowercase)
-    const normalizedPlatform = platform?.toUpperCase();
-    switch (normalizedPlatform) {
-      case PLATFORMS.ANDROID:
-        return <IconBrandAndroid size={18} />;
-      case PLATFORMS.IOS:
-        return <IconBrandApple size={18} />;
-      default:
-        return null;
-    }
-  };
-
-  const getProviderIcon = (provider: string) => {
-    switch (provider) {
-      case BUILD_PROVIDERS.JENKINS:
-        return <IconServer size={18} />;
-      case BUILD_PROVIDERS.GITHUB_ACTIONS:
-        return <IconBrandGithub size={18} />;
-      default:
-        return <IconRocket size={18} />;
-    }
-  };
-
-  const getProviderLabel = (provider: string): string => {
-    switch (provider) {
-      case BUILD_PROVIDERS.JENKINS:
-        return PROVIDER_LABELS.JENKINS;
-      case BUILD_PROVIDERS.GITHUB_ACTIONS:
-        return PROVIDER_LABELS.GITHUB_ACTIONS;
-      default:
-        return provider;
-    }
-  };
 
   const getWorkflowTypeLabel = (workflowType: string) => {
     const environment = workflowTypeToEnvironment[workflowType];
@@ -133,7 +95,7 @@ export function WorkflowPreviewModal({
               <Badge
                 variant="light"
                 color="brand"
-                leftSection={getPlatformIcon(workflow.platform)}
+                leftSection={getPlatformIcon(workflow.platform, 18)}
                 size="md"
               >
                 {PLATFORM_LABELS[workflow.platform?.toUpperCase() as keyof typeof PLATFORM_LABELS] || workflow.platform}
@@ -164,10 +126,10 @@ export function WorkflowPreviewModal({
               <Badge
                 variant="light"
                 color={workflow.providerType === BUILD_PROVIDERS.JENKINS ? 'red' : 'gray'}
-                leftSection={getProviderIcon(workflow.providerType)}
+                leftSection={getBuildProviderIcon(workflow.providerType, 18)}
                 size="md"
               >
-                {getProviderLabel(workflow.providerType)}
+                {getBuildProviderLabel(workflow.providerType)}
               </Badge>
             </Group>
           </Stack>
@@ -299,13 +261,7 @@ export function WorkflowPreviewModal({
                 Created:
               </Text>
               <Text fw={500} size="sm" c={theme.colors.slate[9]}>
-                {new Date(workflow.createdAt).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+                {formatDateTime(workflow.createdAt)}
               </Text>
             </Group>
 
@@ -316,13 +272,7 @@ export function WorkflowPreviewModal({
                 Last Updated:
               </Text>
               <Text fw={500} size="sm" c={theme.colors.slate[9]}>
-                {new Date(workflow.updatedAt).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+                {formatDateTime(workflow.updatedAt)}
               </Text>
             </Group>
           </Stack>

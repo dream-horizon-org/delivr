@@ -46,13 +46,28 @@ export const loader = authenticateLoaderRequest(async ({ params, request, user }
     );
   }
 
+  // NOTE: This route is deprecated. Use /api/v1/tenants/:tenantId/integrations/test-management/:integrationId/metadata/:metadataType instead
+  // For backward compatibility, we need to get tenantId from the integration
+  // This requires a lookup which is not ideal - migrate to new route format
   try {
-    const result = await CheckmateIntegrationService.fetchMetadata(
-      integrationId,
-      metadataType as 'labels' | 'projects' | 'sections' | 'squads',
-      projectId || undefined,
-      user?.user?.id
+    // TODO: Get tenantId from integration lookup or require it in path
+    // For now, this will fail - migrate frontend to use new route with tenantId
+    return json(
+      { 
+        success: false, 
+        error: 'This route is deprecated. Please use /api/v1/tenants/:tenantId/integrations/test-management/:integrationId/metadata/:metadataType' 
+      },
+      { status: 410 } // Gone - resource no longer available
     );
+    
+    // OLD CODE (commented out - requires tenantId):
+    // const result = await CheckmateIntegrationService.fetchMetadata(
+    //   integrationId,
+    //   tenantId, // MISSING - need to get from integration
+    //   metadataType as 'labels' | 'projects' | 'sections' | 'squads',
+    //   projectId || undefined,
+    //   user?.user?.id
+    // );
 
     if (!result.success) {
       return json(

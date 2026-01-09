@@ -12,6 +12,7 @@ import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-r
 import { CheckmateIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 import { requireUserId } from '~/.server/services/Auth';
 import type { UpdateCheckmateIntegrationRequest } from '~/.server/services/ReleaseManagement/integrations/checkmate-integration';
+import { logApiError } from '~/utils/api-route-helpers';
 
 /**
  * GET - List all test management integrations for tenant
@@ -28,7 +29,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     const result = await CheckmateIntegrationService.listIntegrations(tenantId, userId);
     return json(result, { status: result.success ? 200 : 404 });
   } catch (error: any) {
-    console.error('[Test Management] Error listing integrations:', error);
+    logApiError('[Test Management-List]', error);
     return json(
       { success: false, error: error.message || 'Failed to list test management integrations' },
       { status: 500 }
@@ -111,6 +112,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       // Build update payload - only include fields that are provided
       const updatePayload: UpdateCheckmateIntegrationRequest = {
         integrationId,
+        tenantId,
         userId,
         ...(name && { name }),
         ...(config && {
@@ -137,13 +139,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
         return json({ success: false, error: 'Integration ID is required for delete' }, { status: 400 });
       }
 
-      const result = await CheckmateIntegrationService.deleteIntegration(integrationId, userId);
+      const result = await CheckmateIntegrationService.deleteIntegration(integrationId, tenantId, userId);
       return json(result, { status: result.success ? 200 : 500 });
     }
 
     return json({ success: false, error: 'Method not allowed' }, { status: 405 });
   } catch (error: any) {
-    console.error('[Test Management] Action error:', error);
+    logApiError('[Test Management-Action]', error);
     return json(
       { success: false, error: error.message || 'Failed to perform operation' },
       { status: 500 }

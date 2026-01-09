@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { TextInput, Alert, PasswordInput, Select, Stack, Box, Text, Anchor, List, ThemeIcon, useMantineTheme, Group } from '@mantine/core';
+import { TextInput, Alert, PasswordInput, Stack, Box, Text, Anchor, List, ThemeIcon, useMantineTheme, Group } from '@mantine/core';
 import { IconCheck, IconAlertCircle, IconExternalLink, IconBrandGithub } from '@tabler/icons-react';
 import { useParams } from '@remix-run/react';
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
@@ -247,25 +247,7 @@ export function GitHubConnectionFlow({
         </ConnectionAlert>
       )}
 
-      {/* SCM Type */}
-      <Select
-        label="Source Control"
-        placeholder="Select provider"
-        value={scmType}
-        onChange={(value) => {
-          setFormData({ ...formData, scmType: value || SCM_TYPES.GITHUB });
-          if (isEditMode) setIsVerified(false);
-        }}
-        data={[
-          { value: SCM_TYPES.GITHUB, label: 'GitHub' },
-          { value: SCM_TYPES.GITLAB, label: 'GitLab (Coming Soon)', disabled: true },
-          { value: SCM_TYPES.BITBUCKET, label: 'Bitbucket (Coming Soon)', disabled: true },
-        ]}
-        required
-        disabled={!isEditMode && isVerified}
-        description="Select your source control provider"
-        size="sm"
-      />
+     
 
       {/* Repository Owner */}
       <TextInput
@@ -301,19 +283,33 @@ export function GitHubConnectionFlow({
 
       {/* Personal Access Token */}
       <PasswordInput
-        label={isEditMode ? `${GITHUB_LABELS.ACCESS_TOKEN_LABEL} (leave blank to keep existing)` : GITHUB_LABELS.ACCESS_TOKEN_LABEL}
-        placeholder={isEditMode ? 'Leave blank to keep existing token' : GITHUB_LABELS.ACCESS_TOKEN_PLACEHOLDER}
+        label={
+          isEditMode 
+            ? hasOwnerOrRepoChanged 
+              ? GITHUB_LABELS.ACCESS_TOKEN_LABEL
+              : `${GITHUB_LABELS.ACCESS_TOKEN_LABEL} (leave blank to keep existing)`
+            : GITHUB_LABELS.ACCESS_TOKEN_LABEL
+        }
+        placeholder={
+          isEditMode 
+            ? hasOwnerOrRepoChanged
+              ? GITHUB_LABELS.ACCESS_TOKEN_PLACEHOLDER
+              : 'Leave blank to keep existing token'
+            : GITHUB_LABELS.ACCESS_TOKEN_PLACEHOLDER
+        }
         value={token}
         onChange={(e) => {
           setFormData({ ...formData, token: e.currentTarget.value });
           setIsVerified(false);
           setError(null);
         }}
-        required={!isEditMode}
-        disabled={isVerified}
+        required={!isEditMode || hasOwnerOrRepoChanged}
+        disabled={isVerifying || isSaving}
         description={
           isEditMode 
-            ? 'Only provide a new token if you want to update it'
+            ? hasOwnerOrRepoChanged
+              ? 'Access token is required to verify the new repository'
+              : 'Only provide a new token if you want to update it'
             : 'Create a token with "repo" scope'
         }
         size="sm"
@@ -358,7 +354,7 @@ export function GitHubConnectionFlow({
           isPrimaryLoading={isVerifying}
           isPrimaryDisabled={!owner || !repoName || !token || isVerifying}
         />
-      ) : isEditMode && hasOwnerOrRepoChanged && !token ? (
+      ) : isEditMode && !isVerified && (hasOwnerOrRepoChanged || token) ? (
         <ActionButtons
           onCancel={onCancel}
           onPrimary={handleVerify}

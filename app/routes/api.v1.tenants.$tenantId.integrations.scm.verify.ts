@@ -4,6 +4,7 @@ import {
   type AuthenticatedActionFunction,
 } from '~/utils/authenticate';
 import { SCMIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
+import { logApiError } from '~/utils/api-route-helpers';
 
 const verifySCM: AuthenticatedActionFunction = async ({ request, params, user }) => {
   const tenantId = params.tenantId;
@@ -47,7 +48,7 @@ const verifySCM: AuthenticatedActionFunction = async ({ request, params, user })
     console.log(`[Frontend-Verify-Route] Verification result:`, result);
     return json(result);
   } catch (error) {
-    console.error('[Frontend-Verify-Route] SCM verification error:', error);
+    logApiError('[SCM-Verify]', error);
     return json(
       {
         success: false,

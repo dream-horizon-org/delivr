@@ -23,20 +23,20 @@ import {
   useMantineTheme,
   Anchor,
 } from '@mantine/core';
-import { Link } from '@remix-run/react';
+import { Link, useNavigate } from '@remix-run/react';
 import {
   IconPencil,
   IconTrash,
-  IconServer,
-  IconBrandGithub,
   IconAlertCircle,
   IconDots,
   IconEye,
+  IconExternalLink,
 } from '@tabler/icons-react';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
 import { WorkflowPreviewModal } from './WorkflowPreviewModal';
 import { PLATFORMS, BUILD_PROVIDERS, BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
-import { PLATFORM_LABELS, ENVIRONMENT_LABELS, PROVIDER_LABELS } from '~/constants/release-config-ui';
+import { PLATFORM_LABELS, ENVIRONMENT_LABELS } from '~/constants/release-config-ui';
+import { getBuildProviderIcon, getBuildProviderLabel } from '~/utils/ui-utils';
 
 export interface WorkflowListProps {
   workflows: CICDWorkflow[];
@@ -61,6 +61,7 @@ export function WorkflowList({
   onDelete,
 }: WorkflowListProps) {
   const theme = useMantineTheme();
+  const navigate = useNavigate();
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
   const [workflowToDelete, setWorkflowToDelete] = useState<CICDWorkflow | null>(null);
   const [previewWorkflow, setPreviewWorkflow] = useState<CICDWorkflow | null>(null);
@@ -70,8 +71,8 @@ export function WorkflowList({
   const hasAnyIntegration = hasJenkinsIntegration || hasGitHubIntegration;
 
   const handleEdit = (workflow: CICDWorkflow) => {
-    // Navigate to edit page
-    window.location.href = `/dashboard/${tenantId}/releases/workflows/${workflow.id}`;
+    // Navigate to edit page using client-side navigation (no reload)
+    navigate(`/dashboard/${tenantId}/releases/workflows/${workflow.id}`);
   };
 
   const handleDeleteClick = (workflow: CICDWorkflow) => {
@@ -88,23 +89,6 @@ export function WorkflowList({
     }
   };
 
-  const getProviderIcon = (providerType: string) => {
-    return providerType === BUILD_PROVIDERS.JENKINS ? (
-      <ThemeIcon size={32} radius="md" variant="light" color="red">
-        <IconServer size={18} />
-      </ThemeIcon>
-    ) : (
-      <ThemeIcon size={32} radius="md" variant="light" color="gray">
-        <IconBrandGithub size={18} />
-      </ThemeIcon>
-    );
-  };
-
-  const getProviderLabel = (providerType: string) => {
-    return providerType === BUILD_PROVIDERS.JENKINS
-      ? PROVIDER_LABELS.JENKINS
-      : PROVIDER_LABELS.GITHUB_ACTIONS;
-  };
 
   const getPlatformLabel = (platform: string) => {
     // Normalize to uppercase for comparison (backend may return lowercase)
@@ -127,17 +111,6 @@ export function WorkflowList({
       PRODUCTION: 'Production',
     };
     return mapping[workflowType] || workflowType;
-  };
-
-  const getWorkflowTypeColor = (workflowType: string) => {
-    const mapping: Record<string, string> = {
-      PRE_REGRESSION: 'blue',
-      REGRESSION: 'purple',
-      TESTFLIGHT: 'orange',
-      PRODUCTION: 'green',
-      AAB_BUILD: 'teal',
-    };
-    return mapping[workflowType] || 'gray';
   };
 
   // Group workflows by provider
@@ -184,7 +157,7 @@ export function WorkflowList({
         <Box>
           <Group gap="sm" mb="md">
             <ThemeIcon size={28} radius="md" variant="light" color="red">
-              <IconServer size={16} />
+              {getBuildProviderIcon(BUILD_PROVIDERS.JENKINS, 16)}
             </ThemeIcon>
             <Text fw={600} size="md" c={theme.colors.slate[8]}>
               Jenkins Workflows ({workflowsByProvider.jenkins.length})
@@ -213,10 +186,26 @@ export function WorkflowList({
                     <Group justify="space-between" align="flex-start">
                       <Box style={{ flex: 1 }}>
                         <Group gap="sm" mb="sm">
-                          {getProviderIcon(workflow.providerType)}
+                          <ThemeIcon 
+                            size={32} 
+                            radius="md" 
+                            variant="light" 
+                            color={workflow.providerType === BUILD_PROVIDERS.JENKINS ? 'red' : 'gray'}
+                          >
+                            {getBuildProviderIcon(workflow.providerType, 18)}
+                          </ThemeIcon>
                           <Text fw={600} size="sm" c={theme.colors.slate[9]}>
                             {workflow.displayName}
                           </Text>
+                          <IconExternalLink size={14} />
+                          <Anchor
+                            href={workflow.workflowUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            size="sm"
+                          >
+                            <IconExternalLink size={14} />
+                          </Anchor>
                         </Group>
                         <Group gap="xs" mb="xs">
                           <Badge size="sm" variant="light" color="brand">
@@ -225,7 +214,7 @@ export function WorkflowList({
                           <Badge
                             size="sm"
                             variant="light"
-                            color={getWorkflowTypeColor(workflow.workflowType)}
+                            color="blue"
                           >
                             {getWorkflowTypeLabel(workflow.workflowType)}
                           </Badge>
@@ -235,27 +224,17 @@ export function WorkflowList({
                             </Badge>
                           )}
                         </Group>
-                        <Anchor
-                          href={workflow.workflowUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          size="xs"
-                          c={theme.colors.slate[5]}
-                          style={{
-                            fontFamily: 'monospace',
-                            wordBreak: 'break-all',
-                            lineHeight: 1.4,
-                            textDecoration: 'none',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.textDecoration = 'underline';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.textDecoration = 'none';
-                          }}
-                        >
-                          {workflow.workflowUrl}
-                        </Anchor>
+                        <Group gap={4}>
+                          <IconExternalLink size={14} />
+                          <Anchor
+                            href={workflow.workflowUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            size="sm"
+                          >
+                            View Workflow
+                          </Anchor>
+                        </Group>
                       </Box>
                       <Menu
                         shadow="md"
@@ -320,7 +299,7 @@ export function WorkflowList({
         <Box>
           <Group gap="sm" mb="md">
             <ThemeIcon size={28} radius="md" variant="light" color="gray">
-              <IconBrandGithub size={16} />
+              {getBuildProviderIcon(BUILD_PROVIDERS.GITHUB_ACTIONS, 16)}
             </ThemeIcon>
             <Text fw={600} size="md" c={theme.colors.slate[8]}>
               GitHub Actions Workflows ({workflowsByProvider.github.length})
@@ -349,10 +328,29 @@ export function WorkflowList({
                     <Group justify="space-between" align="flex-start">
                       <Box style={{ flex: 1 }}>
                         <Group gap="sm" mb="sm">
-                          {getProviderIcon(workflow.providerType)}
+                          <ThemeIcon 
+                            size={32} 
+                            radius="md" 
+                            variant="light" 
+                            color={workflow.providerType === BUILD_PROVIDERS.JENKINS ? 'red' : 'gray'}
+                          >
+                            {getBuildProviderIcon(workflow.providerType, 18)}
+                          </ThemeIcon>
                           <Text fw={600} size="sm" c={theme.colors.slate[9]}>
                             {workflow.displayName}
                           </Text>
+                          
+                          <Anchor
+                            href={workflow.workflowUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            size="sm"
+                          >
+                            <Group gap={4}>
+                            <Text>View Workflow</Text>
+                            <IconExternalLink size={14} />
+                            </Group>
+                          </Anchor>
                         </Group>
                         <Group gap="xs" mb="xs">
                           <Badge size="sm" variant="light" color="brand">
@@ -361,7 +359,7 @@ export function WorkflowList({
                           <Badge
                             size="sm"
                             variant="light"
-                            color={getWorkflowTypeColor(workflow.workflowType)}
+                            color="blue"
                           >
                             {getWorkflowTypeLabel(workflow.workflowType)}
                           </Badge>
@@ -371,27 +369,7 @@ export function WorkflowList({
                             </Badge>
                           )}
                         </Group>
-                        <Anchor
-                          href={workflow.workflowUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          size="xs"
-                          c={theme.colors.slate[5]}
-                          style={{
-                            fontFamily: 'monospace',
-                            wordBreak: 'break-all',
-                            lineHeight: 1.4,
-                            textDecoration: 'none',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.textDecoration = 'underline';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.textDecoration = 'none';
-                          }}
-                        >
-                          {workflow.workflowUrl}
-                        </Anchor>
+
                       </Box>
                       <Menu
                         shadow="md"

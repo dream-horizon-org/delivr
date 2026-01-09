@@ -12,6 +12,8 @@ import { Button, Container, Group, Stack } from '@mantine/core';
 import { Link, useNavigate, useParams, useSearchParams } from '@remix-run/react';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
+import { Breadcrumb } from '~/components/Common';
+import { getBreadcrumbItems } from '~/constants/breadcrumbs';
 import { PageLoader } from '~/components/Common/PageLoader';
 import { DistributionStage, KickoffStage, PreKickoffStage, PreReleaseStage, RegressionStage, ReleaseProcessHeader, ReleaseProcessSidebar } from '~/components/ReleaseProcess';
 import { IntegrationsStatusSidebar } from '~/components/ReleaseProcess/IntegrationsStatusSidebar';
@@ -128,7 +130,7 @@ export default function ReleaseDetailsPage() {
       const result = await refetch();
       // If refetch succeeds, React Query will update the data and clear error
       // The component will re-render with the new data
-      if (result.data?.release) {
+      if (result.isSuccess) {
         // Success - component will re-render and show release
         return;
       }
@@ -164,6 +166,9 @@ export default function ReleaseDetailsPage() {
   }
 
   const releaseVersion = getReleaseVersion(release);
+
+  // Breadcrumb items
+  const breadcrumbItems = getBreadcrumbItems('releases.detail', { org, releaseVersion });
 
   // Handle stage selection from stepper
   const handleStageSelect = (stage: TaskStage | null) => {
@@ -207,6 +212,9 @@ export default function ReleaseDetailsPage() {
   return (
     <Container size="xl" className="py-4">
       <Stack gap="md">
+        {/* Breadcrumb */}
+        <Breadcrumb items={breadcrumbItems} />
+
         {/* Back Button - Between main header and release header */}
         <Group>
           <Link to={backUrl}>

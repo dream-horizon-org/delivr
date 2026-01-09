@@ -114,9 +114,8 @@ export function getReleaseActiveStatus(release: BackendReleaseResponse): typeof 
     return RELEASE_ACTIVE_STATUS.COMPLETED;
   }
   
-  // Check if cronJob is paused - use pauseType (backend keeps cronStatus=RUNNING)
-  const pauseType = release.cronJob?.pauseType;
-  if (pauseType && pauseType !== 'NONE') {
+  // Check if cronJob is paused - use isReleasePaused helper which handles special cases
+  if (isReleasePaused(release)) {
     return RELEASE_ACTIVE_STATUS.PAUSED;
   }
   
@@ -137,6 +136,38 @@ export function getReleaseActiveStatus(release: BackendReleaseResponse): typeof 
   // Default fallback: if no kickOffDate and status is IN_PROGRESS, consider it RUNNING
   // This handles edge cases where kickOffDate might not be set yet
   return RELEASE_ACTIVE_STATUS.RUNNING;
+}
+
+/**
+ * Check if release is paused
+ * 
+ * EXCEPTION: When cronStatus is COMPLETED but stage4Status is IN_PROGRESS and release status is IN_PROGRESS,
+ * the release is still active in distribution stage (no automated tasks, but release is still in progress).
+ * In this case, don't treat it as paused even if pauseType is set.
+ * 
+ * @param release - Backend release response
+ * @returns true if release is paused, false otherwise
+ */
+export function isReleasePaused(release: BackendReleaseResponse): boolean {
+  const pauseType = release.cronJob?.pauseType;
+  const hasPauseType = !!(pauseType && pauseType !== 'NONE');
+  
+  // Special case: Distribution stage with completed cron but active release
+  // When cronStatus is COMPLETED (no automated tasks) but stage4Status is IN_PROGRESS
+  // and release status is IN_PROGRESS, the release is still active, not paused
+  const cronStatus = release.cronJob?.cronStatus;
+  const stage4Status = release.cronJob?.stage4Status;
+  const isDistributionStageActive = 
+    cronStatus === 'COMPLETED' && 
+    stage4Status === 'IN_PROGRESS' && 
+    release.status === RELEASE_STATUS.IN_PROGRESS;
+  
+  // If distribution stage is active, don't treat as paused
+  if (isDistributionStageActive) {
+    return false;
+  }
+  
+  return hasPauseType;
 }
 
 /**

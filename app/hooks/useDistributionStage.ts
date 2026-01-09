@@ -8,42 +8,71 @@
  */
 
 import { useQuery } from 'react-query';
-import type { APISuccessResponse, DistributionDetail } from '~/types/distribution/distribution.types';
+import type { DistributionDetail } from '~/types/distribution/distribution.types';
 import { apiGet, type ApiResponse } from '~/utils/api-client';
+import { extractErrorMessage } from '~/utils/api-error-utils';
 
 const QUERY_KEY = (releaseId: string) => ['distribution-stage', releaseId];
 
 /**
- * Type guard to check if data is already an APISuccessResponse
+ * Response type that allows null data (no distribution yet)
  */
-function isAPISuccessResponse(data: unknown): data is APISuccessResponse<DistributionDetail> {
+type DistributionResponse = {
+  success: true;
+  data: DistributionDetail | null;
+};
+
+/**
+ * Type guard to check if data is already a DistributionResponse wrapper
+ */
+function isDistributionResponse(data: unknown): data is DistributionResponse {
   return (
     typeof data === 'object' &&
     data !== null &&
     'success' in data &&
     'data' in data &&
-    (data as APISuccessResponse<DistributionDetail>).success === true
+    (data as DistributionResponse).success === true
+  );
+}
+
+/**
+ * Type guard to check if data is a valid DistributionDetail
+ */
+function isValidDistributionDetail(data: unknown): data is DistributionDetail {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'id' in data &&
+    'status' in data &&
+    'submissions' in data
   );
 }
 
 /**
  * Unwrap potentially double-wrapped API response
- * BFF may return: { success: true, data: DistributionDetail }
- * apiGet may wrap it: { success: true, data: { success: true, data: DistributionDetail } }
+ * BFF may return: { success: true, data: DistributionDetail | null }
+ * apiGet may wrap it: { success: true, data: { success: true, data: DistributionDetail | null } }
  */
 function unwrapDistributionResponse(
-  response: ApiResponse<APISuccessResponse<DistributionDetail>>
-): APISuccessResponse<DistributionDetail> {
-  // If response.data is already the correct shape, return it (double-wrapped case)
-  if (isAPISuccessResponse(response.data)) {
+  response: ApiResponse<DistributionResponse>
+): DistributionResponse {
+  // If response.data is already a DistributionResponse wrapper (double-wrapped), use inner data
+  if (isDistributionResponse(response.data)) {
     return response.data;
   }
   
-  // Otherwise, assume response.data is DistributionDetail (single-wrapped case)
-  return {
-    success: true,
-    data: (response.data ?? {}) as DistributionDetail
-  };
+  // If response.data is null, return as "no distribution" response
+  if (response.data === null) {
+    return { success: true, data: null };
+  }
+  
+  // Otherwise, check if response.data is directly a DistributionDetail (single-wrapped case)
+  if (isValidDistributionDetail(response.data)) {
+    return { success: true, data: response.data };
+  }
+  
+  // Invalid data - return null to indicate no valid distribution
+  return { success: true, data: null };
 }
 
 /**
@@ -59,7 +88,7 @@ export function useDistributionStage(tenantId: string, releaseId: string) {
     isLoading,
     error,
     refetch,
-  } = useQuery<APISuccessResponse<DistributionDetail>, Error>(
+  } = useQuery<DistributionResponse, Error>(
     QUERY_KEY(releaseId),
     async () => {
       if (!releaseId) {
@@ -70,12 +99,12 @@ export function useDistributionStage(tenantId: string, releaseId: string) {
         throw new Error('Tenant ID is required');
       }
 
-      const response = await apiGet<APISuccessResponse<DistributionDetail>>(
+      const response = await apiGet<DistributionResponse>(
         `/api/v1/tenants/${tenantId}/releases/${releaseId}/distribution`
       );
 
       if (!response.success) {
-        throw new Error(response.error || response.message || 'Failed to fetch distribution');
+        throw new Error(extractErrorMessage(response.error, response.message ?? 'Failed to fetch distribution'));
       }
 
       return unwrapDistributionResponse(response);

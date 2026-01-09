@@ -9,6 +9,7 @@ import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from '@remix-r
 import { authenticateLoaderRequest, authenticateActionRequest } from '~/utils/authenticate';
 import type { User } from '~/.server/services/Auth/auth.interface';
 import { getReleaseById, updateRelease } from '~/.server/services/ReleaseManagement';
+import { logApiError } from '~/utils/api-route-helpers';
 
 /**
  * GET /api/v1/tenants/:tenantId/releases/:releaseId
@@ -51,7 +52,7 @@ export const loader = authenticateLoaderRequest(
       },
     });
   } catch (error: any) {
-    console.error('[BFF] Get error:', error);
+    logApiError('[BFF-Release-Get]', error);
     return json(
       { success: false, error: error.message || 'Internal server error' },
       { status: 500 }
@@ -100,7 +101,7 @@ export const action = authenticateActionRequest({
         message: 'Release updated successfully',
       });
     } catch (error: any) {
-      console.error('[BFF] Action error:', error);
+      logApiError('[BFF-Release-Update-PUT]', error);
       return json(
         { success: false, error: error.message || 'Internal server error' },
         { status: 500 }
@@ -141,7 +142,7 @@ export const action = authenticateActionRequest({
         message: 'Release updated successfully',
       });
     } catch (error: any) {
-      console.error('[BFF] Action error:', error);
+      logApiError('[BFF-Release-Update-PATCH]', error);
       return json(
         { success: false, error: error.message || 'Internal server error' },
         { status: 500 }

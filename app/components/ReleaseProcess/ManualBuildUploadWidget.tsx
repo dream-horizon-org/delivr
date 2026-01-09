@@ -5,11 +5,16 @@
  * Receives ALL expected platforms - determines internally which have builds and which need uploads
  */
 
-import { Badge, Card, Stack, Text } from '@mantine/core';
-import { useMemo, useState } from 'react';
+import { Badge, Card, Stack, Text, Group, Loader, Alert } from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
+import { useMemo, useState, useEffect } from 'react';
+import { useRouteLoaderData } from '@remix-run/react';
 import { useRelease } from '~/hooks/useRelease';
+import { useBuildArtifacts } from '~/hooks/useReleaseProcess';
+import { usePermissions } from '~/hooks/usePermissions';
 import { BuildUploadStage, Platform, TaskType } from '~/types/release-process-enums';
 import type { BuildInfo } from '~/types/release-process.types';
+import type { OrgLayoutLoaderData } from '~/routes/dashboard.$org';
 import { ChangeBuildHeader } from './builds/ChangeBuildHeader';
 import { FileUploadSection } from './builds/FileUploadSection';
 import { TestFlightVerificationSection } from './builds/TestFlightVerificationSection';
@@ -43,7 +48,64 @@ export function ManualBuildUploadWidget({
   // Track which platform is being changed (key = platform, value = true if changing)
   const [changingPlatforms, setChangingPlatforms] = useState<Record<string, boolean>>({});
   
+  // Track recently uploaded platforms (showing loading state)
+  const [loadingPlatforms, setLoadingPlatforms] = useState<Set<Platform>>(new Set());
+  
   const { release } = useRelease(tenantId, releaseId);
+
+  // Get user data and check permissions
+  const orgLayoutData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
+  const userId = orgLayoutData?.user?.user?.id || '';
+  const { canPerformReleaseAction } = usePermissions(tenantId, userId);
+  const canUpload = canPerformReleaseAction(release?.releasePilotAccountId || null);
+
+  // Fetch artifacts to detect when fetch completes
+  // Map stage to buildStage for the query
+  const buildStage = useMemo(() => {
+    switch (stage) {
+      case BuildUploadStage.PRE_REGRESSION:
+        return 'KICKOFF';
+      case BuildUploadStage.REGRESSION:
+        return 'REGRESSION';
+      case BuildUploadStage.PRE_RELEASE:
+        return 'PRE_RELEASE';
+      default:
+        return undefined;
+    }
+  }, [stage]);
+
+  const artifactsQuery = useBuildArtifacts(tenantId, releaseId, { buildStage });
+
+  // Clear loading state when artifacts fetch completes
+  useEffect(() => {
+    // If we're not fetching and we have loading platforms, check if they're now in uploadedBuilds
+    if (!artifactsQuery.isFetching && loadingPlatforms.size > 0) {
+      const platformsToClear: Platform[] = [];
+      
+      loadingPlatforms.forEach((platform) => {
+        // Check if this platform now has a build in uploadedBuilds
+        const hasBuild = uploadedBuilds.some(
+          (build) => build.platform === platform && 
+                     (build.isUsed === false || build.usedByTaskId === null) &&
+                     !build.regressionId && 
+                     !build.taskId
+        );
+        
+        if (hasBuild) {
+          platformsToClear.push(platform);
+        }
+      });
+      
+      // Clear platforms that now have builds
+      if (platformsToClear.length > 0) {
+        setLoadingPlatforms((prev) => {
+          const next = new Set(prev);
+          platformsToClear.forEach((p) => next.delete(p));
+          return next;
+        });
+      }
+    }
+  }, [artifactsQuery.isFetching, uploadedBuilds, loadingPlatforms]);
 
   // Group uploaded builds by platform (non-consumed builds only)
   const uploadedBuildsByPlatform = useMemo(() => {
@@ -79,6 +141,9 @@ export function ManualBuildUploadWidget({
 
   const handleUploadComplete = (platform?: Platform) => {
     if (platform) {
+      // Add platform to loading set
+      setLoadingPlatforms(prev => new Set(prev).add(platform));
+      
       setChangingPlatforms(prev => {
         const next = { ...prev };
         delete next[platform];
@@ -91,6 +156,24 @@ export function ManualBuildUploadWidget({
   // If no platforms, don't render
   if (platforms.length === 0) {
     return null;
+  }
+
+  // If user doesn't have permission, show message
+  if (!canUpload) {
+    return (
+      <Card shadow="sm" padding="lg" radius="md" withBorder className={className}>
+        <Stack gap="md">
+          <Text fw={600} size="sm">
+            {isTestFlightVerification ? 'Verify TestFlight Build' : 'Upload Builds'}
+          </Text>
+          <Alert icon={<IconInfoCircle size={16} />} color="gray" variant="light">
+            <Text size="sm">
+              Only release pilots can upload builds. Please contact your release pilot to upload builds.
+            </Text>
+          </Alert>
+        </Stack>
+      </Card>
+    );
   }
 
   return (
@@ -108,13 +191,14 @@ export function ManualBuildUploadWidget({
           )}
         </Stack>
 
-        {/* For each platform: show uploaded build OR upload widget */}
+        {/* For each platform: show loading, uploaded build, or upload widget */}
         {platforms.map((platform) => {
           const uploadedBuild = uploadedBuildsByPlatform[platform];
           const isChanging = changingPlatforms[platform] || false;
+          const isLoading = loadingPlatforms.has(platform);
           const hasUploadedBuild = !!uploadedBuild;
-          // Show upload widget if: forcing, changing, or no build exists
-          const shouldShowUpload = forceShowUpload || isChanging || !hasUploadedBuild;
+          // Show upload widget if: forcing, changing, or no build exists (and not loading)
+          const shouldShowUpload = (forceShowUpload || isChanging || !hasUploadedBuild) && !isLoading;
           return (
             <Stack key={platform} gap="sm">
               {/* Platform Badge */}
@@ -122,15 +206,30 @@ export function ManualBuildUploadWidget({
                 {platform}
               </Badge>
 
-              {/* Show uploaded build if exists and not changing */}
-              {hasUploadedBuild && !isChanging && (
+              {/* Show loading state if recently uploaded */}
+              {isLoading && (
+                <Group gap="xs" p="sm" style={{ 
+                  border: '1px solid var(--mantine-color-gray-3)', 
+                  borderRadius: '4px',
+                  backgroundColor: 'var(--mantine-color-gray-0)',
+                }}>
+                  <Loader size="sm" />
+                  <Text size="sm" c="dimmed">
+                    Loading artifact info...
+                  </Text>
+                </Group>
+              )}
+
+              {/* Show uploaded build if exists and not changing and not loading */}
+              {hasUploadedBuild && !isChanging && !isLoading && (
                 <UploadedBuildDisplay
                   build={uploadedBuild}
                   onChangeBuild={() => handleChangeBuild(platform)}
+                  canChangeBuild={canUpload}
                 />
               )}
 
-              {/* Show upload widget if needed */}
+              {/* Show upload widget if needed and not loading */}
               {shouldShowUpload && (
                 <Stack gap="xs">
                   {isChanging && (
