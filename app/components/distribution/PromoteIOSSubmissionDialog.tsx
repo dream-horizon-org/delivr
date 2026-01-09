@@ -47,6 +47,7 @@ export interface PromoteIOSSubmissionDialogProps {
   opened: boolean;
   onClose: () => void;
   submission: IOSSubmission;
+  releaseId: string; // Required for backend ownership validation
   onPromoteComplete?: () => void;
   action?: string; // Optional: custom form action URL (defaults to current route)
 }
@@ -65,6 +66,7 @@ export function PromoteIOSSubmissionDialog({
   opened,
   onClose,
   submission,
+  releaseId,
   onPromoteComplete,
   action,
 }: PromoteIOSSubmissionDialogProps) {
@@ -95,6 +97,7 @@ export function PromoteIOSSubmissionDialog({
     const formData = new FormData();
     formData.append('intent', 'promoteSubmission');
     formData.append('submissionId', submission.id);
+    formData.append('releaseId', releaseId);
     formData.append('platform', submission.platform);
     formData.append('phasedRelease', String(values.phasedRelease));
     formData.append('resetRating', String(values.resetRating));

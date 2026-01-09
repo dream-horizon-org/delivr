@@ -93,7 +93,7 @@ export function getOrganizationRoutes(org: Organization): SubItem[] {
       icon: IconPlug,
       path: `/dashboard/${org.id}/integrations`,
       prefetch: "intent",
-      isOwnerOnly: true,
+      isEditorOnly: true,
     },
     {
       label: "Manage Team",

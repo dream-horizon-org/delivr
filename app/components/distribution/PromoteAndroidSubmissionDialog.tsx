@@ -55,6 +55,7 @@ export interface PromoteAndroidSubmissionDialogProps {
   opened: boolean;
   onClose: () => void;
   submission: AndroidSubmission;
+  releaseId: string; // Required for backend ownership validation
   onPromoteComplete?: () => void;
   action?: string; // Optional: custom form action URL (defaults to current route)
 }
@@ -73,6 +74,7 @@ export function PromoteAndroidSubmissionDialog({
   opened,
   onClose,
   submission,
+  releaseId,
   onPromoteComplete,
   action,
 }: PromoteAndroidSubmissionDialogProps) {
@@ -105,6 +107,7 @@ export function PromoteAndroidSubmissionDialog({
     const formData = new FormData();
     formData.append('intent', 'promoteSubmission');
     formData.append('submissionId', submission.id);
+    formData.append('releaseId', releaseId);
     formData.append('platform', submission.platform);
     formData.append('rolloutPercentage', values.rolloutPercentage.toString());
     formData.append('inAppUpdatePriority', values.inAppUpdatePriority.toString());

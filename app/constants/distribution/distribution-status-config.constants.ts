@@ -81,7 +81,7 @@ export const SUBMISSION_STATUS_CONFIG: Record<SubmissionStatus, SubmissionStatus
   },
 
   // ============================
-  // SUBMITTED (Android only - submitted to Play Store)
+  // SUBMITTED (Both platforms - submitted to store, awaiting review)
   // ============================
   [SubmissionStatus.SUBMITTED]: {
     category: 'reviewing',
@@ -100,7 +100,17 @@ export const SUBMISSION_STATUS_CONFIG: Record<SubmissionStatus, SubmissionStatus
       canUpdateRollout: false,
       canPause: false,
       canResume: false,
-      canCancel: false,
+      canCancel: false, // Platform-specific override below
+    },
+    platformOverrides: {
+      [Platform.IOS]: {
+        actions: {
+          canUpdateRollout: false,
+          canPause: false,
+          canResume: false,
+          canCancel: true, // iOS can cancel during submission review
+        },
+      },
     },
   },
 
@@ -155,7 +165,7 @@ export const SUBMISSION_STATUS_CONFIG: Record<SubmissionStatus, SubmissionStatus
       showsProgressBar: true,  // Show progress bar - ready to release
     },
     actions: {
-      canUpdateRollout: true,  // Can start rollout
+      canUpdateRollout: false,  // Can start rollout
       canPause: false,
       canResume: false,
       canCancel: false, // Platform-specific override below
@@ -163,7 +173,7 @@ export const SUBMISSION_STATUS_CONFIG: Record<SubmissionStatus, SubmissionStatus
     platformOverrides: {
       [Platform.IOS]: {
         actions: {
-          canUpdateRollout: true,
+          canUpdateRollout: false, // Cannot update rollout - not yet released
           canPause: false,
           canResume: false,
           canCancel: true, // iOS can cancel before release

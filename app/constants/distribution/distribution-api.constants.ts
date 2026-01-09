@@ -135,31 +135,34 @@ export const API_ROUTES = {
   /**
    * Create new submission (Android/iOS)
    * @param tenantId - Tenant ID for authorization
+   * @param releaseId - Release ID for ownership validation
    * @param distributionId - Distribution ID
-   * @returns POST /api/v1/tenants/:tenantId/distributions/:distributionId/submissions
+   * @returns POST /api/v1/tenants/:tenantId/releases/:releaseId/distributions/:distributionId/submissions
    */
-  createSubmission: (tenantId: string, distributionId: string) =>
-    `/api/v1/tenants/${tenantId}/distributions/${distributionId}/submissions`,
+  createSubmission: (tenantId: string, releaseId: string, distributionId: string) =>
+    `/api/v1/tenants/${tenantId}/releases/${releaseId}/distributions/${distributionId}/submissions`,
   
   /**
    * Submit to app store (promote PENDING → SUBMITTED/IN_REVIEW)
    * @param tenantId - Tenant ID for authorization
+   * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param platform - Platform (ANDROID or IOS)
-   * @returns PUT /api/v1/tenants/:tenantId/submissions/:submissionId/submit?platform={platform}
+   * @returns PUT /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/submit?platform={platform}
    */
-  submitToStore: (tenantId: string, submissionId: string, platform: string) =>
-    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/submit?platform=${platform}`,
+  submitToStore: (tenantId: string, releaseId: string, submissionId: string, platform: string) =>
+    `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/submit?platform=${platform}`,
   
   /**
    * Cancel submission (iOS only - Android cannot cancel)
    * @param tenantId - Tenant ID for authorization
+   * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param platform - Platform (should be IOS)
-   * @returns DELETE /api/v1/tenants/:tenantId/submissions/:submissionId/cancel?platform={platform}
+   * @returns PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/cancel?platform={platform}
    */
-  cancelSubmission: (tenantId: string, submissionId: string, platform: string) =>
-    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/cancel?platform=${platform}`,
+  cancelSubmission: (tenantId: string, releaseId: string, submissionId: string, platform: string) =>
+    `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/cancel?platform=${platform}`,
   
   // ============================================================================
   // ROLLOUT MANAGEMENT
@@ -170,44 +173,48 @@ export const API_ROUTES = {
    * - Android: 0.01-100 (supports decimals)
    * - iOS: Only 100 (complete early for phased release)
    * @param tenantId - Tenant ID for authorization
+   * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param platform - Platform (ANDROID or IOS)
-   * @returns PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout?platform={platform}
+   * @returns PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout?platform={platform}
    */
-  updateRollout: (tenantId: string, submissionId: string, platform: string) =>
-    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout?platform=${platform}`,
+  updateRollout: (tenantId: string, releaseId: string, submissionId: string, platform: string) =>
+    `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/rollout?platform=${platform}`,
   
   /**
    * Pause rollout (iOS phased release only)
    * @param tenantId - Tenant ID for authorization
+   * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param platform - Platform (IOS)
-   * @returns PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout/pause?platform={platform}
+   * @returns PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/pause?platform={platform}
    */
-  pauseRollout: (tenantId: string, submissionId: string, platform: string) =>
-    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout/pause?platform=${platform}`,
+  pauseRollout: (tenantId: string, releaseId: string, submissionId: string, platform: string) =>
+    `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/rollout/pause?platform=${platform}`,
   
   /**
    * Resume rollout (Both platforms - from PAUSED/HALTED)
    * - iOS: Resume from PAUSED (phased release)
    * - Android: Resume from HALTED
    * @param tenantId - Tenant ID for authorization
+   * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param platform - Platform (ANDROID or IOS)
-   * @returns PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout/resume?platform={platform}
+   * @returns PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/resume?platform={platform}
    */
-  resumeRollout: (tenantId: string, submissionId: string, platform: string) =>
-    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout/resume?platform=${platform}`,
+  resumeRollout: (tenantId: string, releaseId: string, submissionId: string, platform: string) =>
+    `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/rollout/resume?platform=${platform}`,
   
   /**
    * Halt rollout (Emergency stop - Both platforms)
    * @param tenantId - Tenant ID for authorization
+   * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param platform - Platform (ANDROID or IOS)
-   * @returns PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout/halt?platform={platform}
+   * @returns PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/halt?platform={platform}
    */
-  haltRollout: (tenantId: string, submissionId: string, platform: string) =>
-    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout/halt?platform=${platform}`,
+  haltRollout: (tenantId: string, releaseId: string, submissionId: string, platform: string) =>
+    `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/rollout/halt?platform=${platform}`,
   
   // ============================================================================
   // ARTIFACTS & DOWNLOADS

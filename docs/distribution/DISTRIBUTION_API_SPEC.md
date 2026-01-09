@@ -164,18 +164,18 @@ PENDING → IN_REVIEW → APPROVED → LIVE
 
 ### Available Actions
 
-| Action | From Status | To Status | Platform | Prerequisites | Result |
-|--------|-------------|-----------|----------|---------------|--------|
-| **Submit** | PENDING | SUBMITTED (Android) / IN_REVIEW (iOS) | Both | Submission details provided | Submission sent to store for review |
-| **Cancel** | IN_REVIEW | CANCELLED | **iOS only** | - | Submission cancelled, becomes inactive, can resubmit |
-| **Resubmit** | REJECTED, CANCELLED (iOS) / USER_ACTION_PENDING (Android) | SUBMITTED (Android) / IN_REVIEW (iOS) | Both | New submission details | Creates **new submission** (new ID), old marked SUSPENDED/inactive |
-| **Pause** | IN_PROGRESS (Android) / LIVE (iOS) | HALTED (Android) / PAUSED (iOS) | Both | iOS: `phasedRelease = true` | Rollout paused (displayed as "Rollout Paused"), can resume later |
-| **Resume** | HALTED (Android) / PAUSED (iOS) | IN_PROGRESS (Android) / LIVE (iOS) | Both | - | Rollout continues from current % |
-| **Update Rollout** | IN_PROGRESS (Android) / LIVE (iOS) | Same status | Android / iOS Phased | - | Changes rollout percentage (platform-specific rules) |
+| Action | From Status | To Status | Platform | Prerequisites | Endpoint | Result |
+|--------|-------------|-----------|----------|---------------|----------|--------|
+| **Submit** | PENDING | SUBMITTED (Android) / IN_REVIEW (iOS) | Both | Submission details provided | `PUT /tenants/:tenantId/releases/:releaseId/submissions/:submissionId/submit` | Submission sent to store for review |
+| **Cancel** | IN_REVIEW | CANCELLED | **iOS only** | - | `PATCH /tenants/:tenantId/releases/:releaseId/submissions/:submissionId/cancel` | Submission cancelled, becomes inactive, can resubmit |
+| **Resubmit** | REJECTED, CANCELLED (iOS) / USER_ACTION_PENDING (Android) | SUBMITTED (Android) / IN_REVIEW (iOS) | Both | New submission details | `POST /tenants/:tenantId/releases/:releaseId/distributions/:distributionId/submissions` | Creates **new submission** (new ID), old marked SUSPENDED/inactive |
+| **Pause** | IN_PROGRESS (Android) / LIVE (iOS) | HALTED (Android) / PAUSED (iOS) | Both | iOS: `phasedRelease = true` | `PATCH /tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/pause` | Rollout paused (displayed as "Rollout Paused"), can resume later |
+| **Resume** | HALTED (Android) / PAUSED (iOS) | IN_PROGRESS (Android) / LIVE (iOS) | Both | - | `PATCH /tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/resume` | Rollout continues from current % |
+| **Update Rollout** | IN_PROGRESS (Android) / LIVE (iOS) | Same status | Android / iOS Phased | - | `PATCH /tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout` | Changes rollout percentage (platform-specific rules) |
 
 ### Action Rules
 
-#### 1. Submit (`POST /api/v1/submissions/:submissionId/submit`)
+#### 1. Submit (`PUT /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/submit`)
 - **Prerequisite**: Submission must be `PENDING`
 - **Required**: Submission details (artifact, release notes, etc.)
 - **Transition**: 
@@ -186,10 +186,10 @@ PENDING → IN_REVIEW → APPROVED → LIVE
   - Distribution status may change to `SUBMITTED` (if all platforms now in review/submitted)
 - **Android Note**: After submission, backend will poll Play Store daily for 5 days to verify status
 
-#### 2. Cancel (`POST /api/v1/submissions/:submissionId/cancel`)
+#### 2. Cancel (`PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/cancel`)
 - **Platform**: **iOS only** (Android does not support cancellation)
 - **Prerequisite**: Submission must be `IN_REVIEW`
-- **Required**: Cancellation reason (mandatory)
+- **Required**: Cancellation reason (optional)
 - **Transition**: IN_REVIEW → CANCELLED
 - **Effect**: 
   - Submission becomes inactive (`isActive = false`)
@@ -197,7 +197,7 @@ PENDING → IN_REVIEW → APPROVED → LIVE
   - Distribution status may revert based on remaining submissions
 - **Android Note**: Cancel action is NOT available for Android submissions
 
-#### 3. Resubmit (`POST /api/v1/submissions/:submissionId/resubmit`)
+#### 3. Resubmit (`POST /api/v1/tenants/:tenantId/releases/:releaseId/distributions/:distributionId/submissions`)
 - **Prerequisite**: 
   - **iOS**: Submission must be `REJECTED` or `CANCELLED`
   - **Android**: Submission must be `USER_ACTION_PENDING`
@@ -212,7 +212,7 @@ PENDING → IN_REVIEW → APPROVED → LIVE
   - Distribution status recalculated based on new submission
 - **Android Note**: Resubmission is triggered when status polling fails after 5 days, allowing user to check Play Store manually and resubmit if needed
 
-#### 4. Pause Rollout (`POST /api/v1/submissions/:submissionId/pause`)
+#### 4. Pause Rollout (`PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/pause`)
 - **Platform**: Both Android and iOS
 - **Prerequisite**: 
   - **Android**: Submission status must be `IN_PROGRESS`
@@ -227,7 +227,7 @@ PENDING → IN_REVIEW → APPROVED → LIVE
   - Distribution status remains `RELEASED` (HALTED/PAUSED is considered "released")
 - **UI Display**: Both Android HALTED and iOS PAUSED are displayed as "Rollout Paused" in the UI for consistency
 
-#### 5. Resume Rollout (`POST /api/v1/submissions/:submissionId/resume`)
+#### 5. Resume Rollout (`PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/resume`)
 - **Platform**: Both Android and iOS
 - **Prerequisite**: 
   - **Android**: Submission status must be `HALTED`
@@ -240,7 +240,7 @@ PENDING → IN_REVIEW → APPROVED → LIVE
   - Rollout continues from current percentage
   - Distribution status remains `RELEASED`
 
-#### 6. Update Rollout (`PATCH /api/v1/submissions/:submissionId/rollout?platform=<ANDROID|IOS>`)
+#### 6. Update Rollout (`PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout?platform=<ANDROID|IOS>`)
 - **Platform**: Android and iOS (Phased Release only)
 - **Prerequisite**: 
   - **Android**: Submission status must be `IN_PROGRESS` (NOT `HALTED` - must resume first)
@@ -371,9 +371,32 @@ enum Platform {
 
 ## API Endpoints
 
-**⚠️ CRITICAL: All endpoints now require `tenantId` in the path for proper tenant isolation and validation.**
+**⚠️ CRITICAL PATH REQUIREMENTS:**
 
-**Path Structure:** `/api/v1/tenants/:tenantId/...`
+1. **All endpoints require `tenantId`** in the path for tenant isolation and validation.
+2. **All mutation operations require `releaseId`** in the path for ownership validation:
+   - Submit existing submission
+   - Create resubmission
+   - Cancel submission
+   - Update rollout percentage
+   - Pause rollout
+   - Resume rollout
+3. **Read-only operations (GET)** don't require `releaseId`:
+   - Get submission details
+   - Get artifact download URL
+   - Get distribution by distributionId
+   - List all distributions
+
+**Path Structure Patterns:**
+- **Read operations**: `/api/v1/tenants/:tenantId/...`
+  - Example: `GET /api/v1/tenants/:tenantId/submissions/:submissionId`
+- **Mutation operations**: `/api/v1/tenants/:tenantId/releases/:releaseId/...`
+  - Example: `PUT /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/submit`
+
+**Why include releaseId?**
+- Provides additional authorization layer
+- Ensures user has access to the release that owns this submission
+- Prevents cross-release manipulation attacks
 
 ### 1. Get Distribution by Release
 
@@ -779,13 +802,14 @@ Submit an existing PENDING submission to the store (first-time submission).
 
 **Endpoint:**
 ```
-PUT /api/v1/tenants/:tenantId/submissions/:submissionId/submit?platform=<ANDROID|IOS>
+PUT /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/submit?platform=<ANDROID|IOS>
 ```
 
 **Path Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `tenantId` | string | **Yes** | Tenant/Organization ID (required for tenant isolation and validation) |
+| `releaseId` | string | **Yes** | Release ID (required for ownership validation - ensures user has access to the release) |
 | `submissionId` | string | **Yes** | Submission ID to submit |
 
 **Query Parameters:**
@@ -1193,13 +1217,14 @@ Increase/decrease rollout percentage for a submission (platform-specific rules a
 
 **Endpoint:**
 ```
-PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
+PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
 ```
 
 **Path Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `tenantId` | string | **Yes** | Tenant/Organization ID (required for tenant isolation and validation) |
+| `releaseId` | string | **Yes** | Release ID (required for ownership validation - ensures user has access to the release) |
 | `submissionId` | string | **Yes** | Submission ID to update |
 
 **Query Parameters:**
@@ -1210,9 +1235,11 @@ PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout?platform=<ANDR
 **Request:**
 ```json
 {
-  "rolloutPercentage": 25.5
+  "rolloutPercent": 25.5
 }
 ```
+
+**⚠️ IMPORTANT FIELD NAME**: Backend expects `rolloutPercent` (without 'age'), NOT `rolloutPercentage`.
 
 **Platform-Specific Rules:**
 
@@ -1254,9 +1281,11 @@ PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout?platform=<ANDR
 }
 ```
 
+**Field Naming Note:** Backend accepts `rolloutPercent` in request but returns `rolloutPercentage` in response (for consistency with other endpoints).
+
 **Validation:**
-- **Android**: `0.01 <= rolloutPercentage <= 100` (float, can increase or decrease, minimum: 0.01%)
-- **iOS Phased (phasedRelease = true)**: `rolloutPercentage === 100` (can only skip to 100% to complete early)
+- **Android**: `0.01 <= rolloutPercent <= 100` (float, can increase or decrease, minimum: 0.01%)
+- **iOS Phased (phasedRelease = true)**: `rolloutPercent === 100` (can only skip to 100% to complete early)
 - **iOS Manual (phasedRelease = false)**: Returns `409` (already at 100%, no rollout needed)
 
 **Error Cases:**
@@ -1300,13 +1329,14 @@ Create a completely new submission after rejection or cancellation. User provide
 
 **Endpoint:**
 ```
-POST /api/v1/tenants/:tenantId/distributions/:distributionId/submissions
+POST /api/v1/tenants/:tenantId/releases/:releaseId/distributions/:distributionId/submissions
 ```
 
 **Path Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `tenantId` | string | **Yes** | Tenant/Organization ID (required for tenant isolation and validation) |
+| `releaseId` | string | **Yes** | Release ID (required for ownership validation - ensures user has access to the release) |
 | `distributionId` | string | **Yes** | Distribution ID to create submission for |
 
 **Request (Android):**
@@ -1445,13 +1475,14 @@ Cancel an in-review submission.
 
 **Endpoint:**
 ```
-PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/cancel?platform=<ANDROID|IOS>
+PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/cancel?platform=<ANDROID|IOS>
 ```
 
 **Path Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `tenantId` | string | **Yes** | Tenant/Organization ID (required for tenant isolation and validation) |
+| `releaseId` | string | **Yes** | Release ID (required for ownership validation - ensures user has access to the release) |
 | `submissionId` | string | **Yes** | Submission ID to cancel |
 
 **Query Parameters:**
@@ -1489,13 +1520,14 @@ Pause an active rollout.
 
 **Endpoint:**
 ```
-PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout/pause?platform=<ANDROID|IOS>
+PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/pause?platform=<ANDROID|IOS>
 ```
 
 **Path Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `tenantId` | string | **Yes** | Tenant/Organization ID (required for tenant isolation and validation) |
+| `releaseId` | string | **Yes** | Release ID (required for ownership validation - ensures user has access to the release) |
 | `submissionId` | string | **Yes** | Submission ID to pause |
 
 **Query Parameters:**
@@ -1550,13 +1582,14 @@ Resume a paused rollout.
 
 **Endpoint:**
 ```
-PATCH /api/v1/tenants/:tenantId/submissions/:submissionId/rollout/resume?platform=<ANDROID|IOS>
+PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/resume?platform=<ANDROID|IOS>
 ```
 
 **Path Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `tenantId` | string | **Yes** | Tenant/Organization ID (required for tenant isolation and validation) |
+| `releaseId` | string | **Yes** | Release ID (required for ownership validation - ensures user has access to the release) |
 | `submissionId` | string | **Yes** | Submission ID to resume |
 
 **Query Parameters:**
@@ -1895,6 +1928,42 @@ CREATE TABLE ios_submission_builds (
 - Future: Will add `rejectionReason` and `rejectionDetails` fields
 - Frontend: Has hardcoded fallback until backend implements
 - No blocker for testing
+
+---
+
+## API Endpoint Summary (Quick Reference)
+
+### Pattern: Mutation Operations (Require releaseId)
+
+All operations that modify submission state include `releaseId` in the path for ownership validation:
+
+```
+PUT    /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/submit?platform=<ANDROID|IOS>
+POST   /api/v1/tenants/:tenantId/releases/:releaseId/distributions/:distributionId/submissions
+PATCH  /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/cancel?platform=<ANDROID|IOS>
+PATCH  /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
+PATCH  /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/pause?platform=<ANDROID|IOS>
+PATCH  /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/resume?platform=<ANDROID|IOS>
+```
+
+### Pattern: Read Operations (No releaseId)
+
+Read-only operations don't require `releaseId`:
+
+```
+GET    /api/v1/tenants/:tenantId/releases/:releaseId/distribution
+GET    /api/v1/tenants/:tenantId/distributions/:distributionId
+GET    /api/v1/tenants/:tenantId/submissions/:submissionId?platform=<ANDROID|IOS>
+GET    /api/v1/tenants/:tenantId/submissions/:submissionId/artifact?platform=<ANDROID|IOS>
+GET    /api/v1/distributions?tenantId=xxx
+```
+
+### Key Design Decisions
+
+1. **releaseId for mutations**: Provides ownership validation - ensures user has access to the release
+2. **platform query param**: Required for backend to identify correct database table (android_submission_builds vs ios_submission_builds)
+3. **Field naming**: Backend accepts `rolloutPercent` in requests but returns `rolloutPercentage` in responses
+4. **Tenant isolation**: All endpoints require `tenantId` for multi-tenant security
 
 ---
 
