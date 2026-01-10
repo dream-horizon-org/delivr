@@ -11,6 +11,7 @@ import { useQuery } from 'react-query';
 import type { DistributionDetail } from '~/types/distribution/distribution.types';
 import { apiGet, type ApiResponse } from '~/utils/api-client';
 import { extractErrorMessage } from '~/utils/api-error-utils';
+import { shouldRetryOnError } from '~/utils/react-query-retry';
 
 const QUERY_KEY = (releaseId: string) => ['distribution-stage', releaseId];
 
@@ -113,7 +114,7 @@ export function useDistributionStage(tenantId: string, releaseId: string) {
       enabled: !!releaseId && !!tenantId,
       staleTime: 30000, // Cache for 30s
       refetchOnWindowFocus: false, // Don't refetch on focus
-      retry: 1,
+      retry: shouldRetryOnError, // Don't retry auth errors to prevent cascading failures
     }
   );
 

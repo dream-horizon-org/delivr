@@ -10,6 +10,7 @@ import { apiGet, apiPost, apiPut, apiDelete, getApiErrorMessage, apiUpload } fro
 import { TaskStage, Platform, BuildUploadStage, ReleaseStatus } from '~/types/release-process-enums';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { filterValidTaskTypes } from '~/utils/task-filtering';
+import { shouldRetryOnError } from '~/utils/react-query-retry';
 import {
   RELEASE_PROCESS_STAGE_POLLING_INTERVAL,
   ACTIVITY_LOGS_POLLING_INTERVAL,
@@ -54,6 +55,7 @@ function extractErrorFromResponse(response: ApiResponse<unknown>): string | unde
   }
   return undefined;
 }
+
 
 // Query Keys
 const QUERY_KEYS = {
@@ -121,7 +123,7 @@ export function useKickoffStage(
       cacheTime: RELEASE_PROCESS_STAGE_CACHE_TIME,
       refetchOnWindowFocus: true,
       refetchOnMount: true, // Changed to true to ensure it fetches
-      retry: 1, // Smart retry prevents retries on 5xx errors, which naturally stops polling
+      retry: shouldRetryOnError, // Don't retry auth errors to prevent cascading failures
       refetchInterval: (shouldPoll && isEnabled) ? RELEASE_PROCESS_STAGE_POLLING_INTERVAL : false,
       refetchIntervalInBackground: false, // Stop polling when tab is in background
     }
@@ -175,7 +177,7 @@ export function useRegressionStage(
       cacheTime: RELEASE_PROCESS_STAGE_CACHE_TIME,
       refetchOnWindowFocus: true,
       refetchOnMount: true, // Changed to true to ensure it fetches
-      retry: 1, // Smart retry prevents retries on 5xx errors, which naturally stops polling
+      retry: shouldRetryOnError, // Don't retry auth errors to prevent cascading failures
       refetchInterval: (shouldPoll && isEnabled) ? RELEASE_PROCESS_STAGE_POLLING_INTERVAL : false,
       refetchIntervalInBackground: false, // Stop polling when tab is in background
     }
@@ -222,7 +224,7 @@ export function usePreReleaseStage(
       cacheTime: RELEASE_PROCESS_STAGE_CACHE_TIME,
       refetchOnWindowFocus: true,
       refetchOnMount: false,
-      retry: 1, // Smart retry prevents retries on 5xx errors, which naturally stops polling
+      retry: shouldRetryOnError, // Don't retry auth errors to prevent cascading failures
       refetchInterval: (shouldPoll && isEnabled) ? RELEASE_PROCESS_STAGE_POLLING_INTERVAL : false,
       refetchIntervalInBackground: false, // Stop polling when tab is in background
     }
@@ -452,7 +454,7 @@ export function useTestManagementStatus(
       enabled: enabled && !!tenantId && !!releaseId, // NEW: Use enabled parameter
       staleTime: ACTIVITY_LOGS_STALE_TIME,
       cacheTime: ACTIVITY_LOGS_CACHE_TIME,
-      retry: 1, // Smart retry prevents retries on 5xx errors, which naturally stops polling
+      retry: shouldRetryOnError, // Smart retry prevents retries on 5xx errors, which naturally stops polling
       refetchInterval: enabled ? ACTIVITY_LOGS_POLLING_INTERVAL : false,
     }
   );
@@ -491,7 +493,7 @@ export function useProjectManagementStatus(
       enabled: enabled && !!tenantId && !!releaseId, // NEW: Use enabled parameter
       staleTime: ACTIVITY_LOGS_STALE_TIME,
       cacheTime: ACTIVITY_LOGS_CACHE_TIME,
-      retry: 1, // Smart retry prevents retries on 5xx errors, which naturally stops polling
+      retry: shouldRetryOnError, // Smart retry prevents retries on 5xx errors, which naturally stops polling
       refetchInterval: enabled ? ACTIVITY_LOGS_POLLING_INTERVAL : false,
     }
   );
@@ -532,7 +534,7 @@ export function useCherryPickStatus(
       enabled: enabled && !!tenantId && !!releaseId,
       staleTime: CHERRY_PICK_STALE_TIME,
       cacheTime: CHERRY_PICK_CACHE_TIME,
-      retry: 1, // Smart retry prevents retries on 5xx errors, which naturally stops polling
+      retry: shouldRetryOnError, // Smart retry prevents retries on 5xx errors, which naturally stops polling
       refetchInterval: ACTIVITY_LOGS_POLLING_INTERVAL,
     }
   );
@@ -652,7 +654,7 @@ export function useNotifications(tenantId?: string, releaseId?: string) {
       staleTime: CHERRY_PICK_STALE_TIME,
       cacheTime: CHERRY_PICK_CACHE_TIME,
       refetchOnWindowFocus: false,
-      retry: 1,
+      retry: shouldRetryOnError,
     }
   );
 }
@@ -726,7 +728,7 @@ export function useActivityLogs(tenantId?: string, releaseId?: string) {
       staleTime: CHERRY_PICK_STALE_TIME,
       cacheTime: CHERRY_PICK_CACHE_TIME,
       refetchOnWindowFocus: false,
-      retry: 1,
+      retry: shouldRetryOnError,
     }
   );
 }
@@ -789,7 +791,7 @@ export function useBuildArtifacts(
       staleTime: ACTIVITY_LOGS_STALE_TIME,
       cacheTime: ACTIVITY_LOGS_CACHE_TIME,
       refetchOnWindowFocus: true,
-      retry: 1,
+      retry: shouldRetryOnError,
     }
   );
 }

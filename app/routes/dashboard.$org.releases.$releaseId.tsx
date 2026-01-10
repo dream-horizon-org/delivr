@@ -8,16 +8,18 @@
  * - Phase-based rendering of stage components
  */
 
-import { Button, Container, Group, Stack } from '@mantine/core';
+import { Button, Container, Group, Stack, Box } from '@mantine/core';
 import { Link, useNavigate, useParams, useSearchParams } from '@remix-run/react';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { useQueryClient } from 'react-query';
 import { Breadcrumb } from '~/components/Common';
 import { getBreadcrumbItems } from '~/constants/breadcrumbs';
 import { PageLoader } from '~/components/Common/PageLoader';
 import { DistributionStage, KickoffStage, PreKickoffStage, PreReleaseStage, RegressionStage, ReleaseProcessHeader, ReleaseProcessSidebar } from '~/components/ReleaseProcess';
 import { IntegrationsStatusSidebar } from '~/components/ReleaseProcess/IntegrationsStatusSidebar';
 import { ReleaseNotFound } from '~/components/Releases/ReleaseNotFound';
+import { AuthErrorFallback } from '~/components/Auth/AuthErrorFallback';
 import { BUTTON_LABELS } from '~/constants/release-process-ui';
 import { useDistributionStage } from '~/hooks/useDistributionStage';
 import { useRelease } from '~/hooks/useRelease';
@@ -29,6 +31,7 @@ import {
   getReleaseVersion,
   getStageFromPhase,
 } from '~/utils/release-process-utils';
+import { isAuthenticationError } from '~/utils/error-handler.utils';
 
 export default function ReleaseDetailsPage() {
   const params = useParams();
@@ -36,6 +39,7 @@ export default function ReleaseDetailsPage() {
   const releaseId = params.releaseId || '';
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
 
   // Get returnTo params from URL to restore filters and tab when going back
   const returnTo = searchParams.get('returnTo');
@@ -76,7 +80,44 @@ export default function ReleaseDetailsPage() {
   const kickoffData = useKickoffStage(org, releaseId, shouldPollKickoff);
   const regressionData = useRegressionStage(org, releaseId, shouldPollRegression);
   const preReleaseData = usePreReleaseStage(org, releaseId, shouldPollPreRelease);
-  const { distribution } = useDistributionStage(org, releaseId);
+  const { distribution, error: distributionError } = useDistributionStage(org, releaseId);
+
+  // Check for auth errors in any of the hooks
+  const authError = useMemo(() => {
+    // Check all possible error sources
+    const errors = [
+      error, // useRelease error
+      kickoffData.error,
+      regressionData.error,
+      preReleaseData.error,
+      distributionError,
+    ];
+
+    for (const err of errors) {
+      if (err && isAuthenticationError(err)) {
+        const errorMessage = err instanceof Error 
+          ? err.message 
+          : 'Your session has expired. Please refresh the page to log in again.';
+        return errorMessage;
+      }
+    }
+
+    return null;
+  }, [error, kickoffData.error, regressionData.error, preReleaseData.error, distributionError]);
+
+  // Cancel all pending queries when auth error is detected to prevent cascading failures
+  useEffect(() => {
+    if (authError) {
+      // Cancel all pending queries to stop cascading failures
+      // This prevents other API calls from continuing when auth has failed
+      queryClient.cancelQueries();
+      
+      // Also cancel queries specific to this release to be more targeted
+      queryClient.cancelQueries(['release', org, releaseId]);
+      queryClient.cancelQueries(['release-process', org, releaseId]);
+      queryClient.cancelQueries(['distribution-stage', releaseId]);
+    }
+  }, [authError, queryClient, org, releaseId]);
 
   // Check if kickoff stage is completed
   const isKickoffCompleted = kickoffData.data?.stageStatus === StageStatus.COMPLETED;
@@ -141,6 +182,17 @@ export default function ReleaseDetailsPage() {
       setIsRetrying(false);
     }
   };
+
+  // Show auth error fallback if authentication failed
+  if (authError) {
+    return (
+      <Container size="xl" className="py-4">
+        <Box p="md">
+          <AuthErrorFallback message={authError} />
+        </Box>
+      </Container>
+    );
+  }
 
   // Loading State (including retry state)
   if (isLoading || isRetrying) {

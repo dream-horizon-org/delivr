@@ -3,6 +3,7 @@ import "@mantine/spotlight/styles.css";
 import "@mantine/notifications/styles.css";
 
 import { QueryClient, QueryClientProvider } from "react-query";
+import { shouldRetryOnError } from "~/utils/react-query-retry";
 
 /**
  * Configure QueryClient with sensible defaults
@@ -19,8 +20,8 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: true,
       // Don't refetch on mount if data is fresh (saves API calls)
       refetchOnMount: false,
-      // Retry failed requests once
-      retry: 1,
+      // Retry failed requests once, but not for auth errors
+      retry: shouldRetryOnError,
       // Retry delay: exponential backoff starting at 1s
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     },

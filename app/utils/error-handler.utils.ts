@@ -8,6 +8,7 @@ import type { AxiosError } from 'axios';
 import axios from 'axios';
 import { ERROR_MESSAGES } from '~/constants/distribution/distribution.constants';
 import type { APIErrorResponse } from '~/types/distribution/distribution.types';
+import { ApiError } from '~/utils/api-client';
 
 // ============================================================================
 // ERROR MESSAGE EXTRACTION
@@ -93,11 +94,29 @@ export function isValidationError(error: unknown): boolean {
 
 /**
  * Check if error is an authentication error (401)
+ * Also checks for ApiError with isAuthError flag
  */
 export function isAuthenticationError(error: unknown): boolean {
+  // Check ApiError with isAuthError flag (from api-client.ts)
+  if (error instanceof ApiError) {
+    return error.isAuthError === true || error.status === 401;
+  }
+  
+  // Check for ApiError-like object with isAuthError flag
+  if (error && typeof error === 'object' && 'isAuthError' in error) {
+    return (error as { isAuthError?: boolean }).isAuthError === true;
+  }
+  
+  // Check for 401 status in Axios errors
   if (axios.isAxiosError(error)) {
     return error.response?.status === 401;
   }
+  
+  // Check for Error with 401 status
+  if (error instanceof Error && 'status' in error) {
+    return (error as { status?: number }).status === 401;
+  }
+  
   return false;
 }
 

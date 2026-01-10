@@ -8,6 +8,7 @@ import { useCallback } from 'react';
 import { useQuery, useQueryClient } from 'react-query';
 import { apiGet } from '~/utils/api-client';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
+import { shouldRetryOnError } from '~/utils/react-query-retry';
 
 interface ReleaseResponse {
   success: boolean;
@@ -51,7 +52,7 @@ export function useRelease(tenantId?: string, releaseId?: string) {
       cacheTime: 10 * 60 * 1000, // 10 minutes - cache time
       refetchOnWindowFocus: true, // Refetch when user returns to tab
       refetchOnMount: true, // Always refetch on mount to catch status changes
-      retry: 1, // Retry once on failure
+      retry: shouldRetryOnError, // Don't retry auth errors to prevent cascading failures
     }
   );
 

@@ -33,7 +33,8 @@ class ApiError extends Error {
   constructor(
     message: string,
     public status?: number,
-    public response?: unknown
+    public response?: unknown,
+    public isAuthError?: boolean
   ) {
     super(message);
     this.name = 'ApiError';
@@ -79,6 +80,25 @@ async function apiRequest<T = unknown>(
     const contentType = response.headers.get('content-type');
     if (!contentType?.includes('application/json')) {
       const text = await response.text();
+      
+      // Special handling for 401 auth errors - backend returns plain text
+      const isAuthError = response.status === 401 && (
+        text.includes('session') || 
+        text.includes('access key') || 
+        text.includes('expired') || 
+        text.includes('invalid') ||
+        text.includes('login')
+      );
+      
+      if (isAuthError) {
+        throw new ApiError(
+          'Your session has expired. Please refresh the page to log in again.',
+          response.status,
+          text,
+          true // Mark as auth error
+        );
+      }
+      
       throw new ApiError(
         `Server returned ${response.status} ${response.statusText}. Expected JSON but got ${contentType || 'unknown'}`,
         response.status,
@@ -94,7 +114,18 @@ async function apiRequest<T = unknown>(
       const errorMessage = parsed?.error ? extractErrorMessageInternal(parsed.error) : undefined;
       const messageFromParsed =
         errorMessage || parsed?.message || `Request failed with status ${response.status}`;
-      throw new ApiError(messageFromParsed, response.status, parsed);
+      
+      // Check if it's an auth error (401 status)
+      const isAuthError = response.status === 401;
+      
+      throw new ApiError(
+        isAuthError 
+          ? 'Your session has expired. Please refresh the page to log in again.'
+          : messageFromParsed,
+        response.status,
+        parsed,
+        isAuthError
+      );
     }
 
     // Support two response shapes:
