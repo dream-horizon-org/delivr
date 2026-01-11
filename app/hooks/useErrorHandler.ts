@@ -4,9 +4,8 @@
  * Provides error handling with retry functionality
  */
 
-import { notifications } from '@mantine/notifications';
-import { IconCheck, IconX } from '@tabler/icons-react';
 import React, { useCallback, useState } from 'react';
+import { showErrorToast, showSuccessToast } from '~/utils/toast';
 import {
     type AppError,
     type RetryOptions,
@@ -58,12 +57,9 @@ export function useErrorHandler(options: UseErrorHandlerOptions = {}): ErrorHand
     setErrorState(appError);
     
     if (showNotification) {
-      notifications.show({
-        title: 'Error',
+      showErrorToast({
         message: appError.userMessage,
-        color: 'red',
-        icon: React.createElement(IconX, { size: 18 }),
-        autoClose: appError.retryable ? 5000 : 7000,
+        duration: appError.retryable ? 5000 : 7000,
       });
     }
     
@@ -137,12 +133,9 @@ export function useApiCall<T>(options: UseApiCallOptions<T> = {}): ApiCallState<
       const result = await fn();
       
       if (successMessage) {
-        notifications.show({
-          title: 'Success',
+        showSuccessToast({
           message: successMessage,
-          color: 'green',
-          icon: React.createElement(IconCheck, { size: 16 }),
-          autoClose: 3000,
+          duration: 3000,
         });
       }
       

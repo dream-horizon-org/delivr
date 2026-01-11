@@ -1,5 +1,6 @@
 import { useMutation } from "react-query";
-import { notifications } from "@mantine/notifications";
+import { showSuccessToast, showErrorToast, showInfoToast } from "~/utils/toast";
+import { RELEASE_MESSAGES } from "~/constants/toast-messages";
 import { createRelease } from "../data/createRelease";
 import { handleApiError } from "~/utils/handleApiError";
 
@@ -158,9 +159,8 @@ export const useCreateRelease = () => {
   return useMutation(createRelease, {
     onSuccess: (data) => {
       const releaseLabel = data.package?.label || 'new release';
-      notifications.show({
-        color: "green",
-        title: "Release Created Successfully",
+      showSuccessToast({
+        title: RELEASE_MESSAGES.CREATE_SUCCESS.title,
         message: `Release ${releaseLabel} has been created and is now available for deployment!`,
       });
     },
@@ -170,12 +170,17 @@ export const useCreateRelease = () => {
       // Ensure message is never empty
       const finalMessage = message && message.trim() ? message : "An error occurred while creating the release. Please check the console for details.";
       
-      notifications.show({
-        color,
-        title,
-        message: finalMessage,
-        autoClose: color === "blue" ? 5000 : 8000, // Longer for actionable errors
-      });
+      const duration = color === "blue" ? 5000 : color === "orange" ? 8000 : 6000;
+      
+      if (color === "red") {
+        showErrorToast({ title, message: finalMessage, duration });
+      } else if (color === "orange") {
+        showErrorToast({ title, message: finalMessage, duration });
+      } else if (color === "blue") {
+        showInfoToast({ title, message: finalMessage, duration });
+      } else {
+        showErrorToast({ title, message: finalMessage, duration });
+      }
 
       // Log detailed error for debugging
       console.group('🚨 Release Creation Error: ', finalMessage);

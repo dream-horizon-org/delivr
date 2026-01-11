@@ -9,7 +9,8 @@ import {
 import { useForm } from "@mantine/form";
 import { IconBuilding } from "@tabler/icons-react";
 import { useState } from "react";
-import { notifications } from "@mantine/notifications";
+import { showSuccessToast, showErrorToast } from "~/utils/toast";
+import { PROJECT_MESSAGES } from "~/constants/toast-messages";
 
 type CreateOrgModalProps = {
   onSuccess: () => void;
@@ -75,21 +76,16 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
         throw error;
       }
 
-      notifications.show({
-        title: "Success",
-        message: "Project created successfully!",
-        color: "teal",
-      });
+      showSuccessToast(PROJECT_MESSAGES.CREATE_SUCCESS);
 
       onSuccess();
     } catch (error: any) {
-      const errorMessage = error.message || "Failed to create project";
+      const errorMessage = error.message || PROJECT_MESSAGES.CREATE_ERROR.message;
       const isConflict = error.statusCode === 409 || errorMessage.includes("already exists");
       
-      notifications.show({
-        title: isConflict ? "Project Already Exists" : "Error",
+      showErrorToast({
+        title: isConflict ? PROJECT_MESSAGES.CREATE_CONFLICT.title : PROJECT_MESSAGES.CREATE_ERROR.title,
         message: errorMessage,
-        color: "red",
       });
     } finally {
       setIsLoading(false);

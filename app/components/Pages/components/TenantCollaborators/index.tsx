@@ -15,8 +15,9 @@ import {
 } from "@mantine/core";
 import { IconUserPlus, IconTrash, IconEdit, IconAlertCircle } from "@tabler/icons-react";
 import { useQuery, useMutation, useQueryClient } from "react-query";
-import { notifications } from "@mantine/notifications";
 import axios from "axios";
+import { showSuccessToast, showErrorToast } from "~/utils/toast";
+import { COLLABORATOR_MESSAGES } from "~/constants/toast-messages";
 
 interface Collaborator {
   email: string;
@@ -81,21 +82,16 @@ export function TenantCollaboratorsPage({ tenantId, userId }: TenantCollaborator
     },
     {
       onSuccess: () => {
-        notifications.show({
-          title: "Success",
-          message: "Collaborator added successfully",
-          color: "green",
-        });
+        showSuccessToast(COLLABORATOR_MESSAGES.ADD_SUCCESS);
         queryClient.invalidateQueries(["tenant-collaborators", tenantId]);
         setAddModalOpen(false);
         setNewEmail("");
         setNewPermission("Viewer");
       },
       onError: (error: Error) => {
-        notifications.show({
-          title: "Error",
+        showErrorToast({
+          title: COLLABORATOR_MESSAGES.ADD_ERROR.title,
           message: error.message,
-          color: "red",
         });
       },
     }
@@ -122,20 +118,15 @@ export function TenantCollaboratorsPage({ tenantId, userId }: TenantCollaborator
     },
     {
       onSuccess: () => {
-        notifications.show({
-          title: "Success",
-          message: "Permission updated successfully",
-          color: "green",
-        });
+        showSuccessToast(COLLABORATOR_MESSAGES.UPDATE_SUCCESS);
         queryClient.invalidateQueries(["tenant-collaborators", tenantId]);
         setEditModalOpen(false);
         setSelectedCollaborator(null);
       },
       onError: (error: Error) => {
-        notifications.show({
-          title: "Error",
+        showErrorToast({
+          title: COLLABORATOR_MESSAGES.UPDATE_ERROR.title,
           message: error.message,
-          color: "red",
         });
       },
     }
@@ -162,20 +153,15 @@ export function TenantCollaboratorsPage({ tenantId, userId }: TenantCollaborator
     },
     {
       onSuccess: () => {
-        notifications.show({
-          title: "Success",
-          message: "Collaborator removed successfully",
-          color: "green",
-        });
+        showSuccessToast(COLLABORATOR_MESSAGES.REMOVE_SUCCESS);
         queryClient.invalidateQueries(["tenant-collaborators", tenantId]);
         setDeleteModalOpen(false);
         setSelectedCollaborator(null);
       },
       onError: (error: Error) => {
-        notifications.show({
-          title: "Error",
+        showErrorToast({
+          title: COLLABORATOR_MESSAGES.REMOVE_ERROR.title,
           message: error.message,
-          color: "red",
         });
       },
     }
@@ -183,11 +169,7 @@ export function TenantCollaboratorsPage({ tenantId, userId }: TenantCollaborator
 
   const handleAddCollaborator = () => {
     if (!newEmail.trim()) {
-      notifications.show({
-        title: "Error",
-        message: "Email is required",
-        color: "red",
-      });
+      showErrorToast(COLLABORATOR_MESSAGES.EMAIL_REQUIRED);
       return;
     }
 

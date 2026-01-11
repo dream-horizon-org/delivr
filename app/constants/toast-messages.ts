@@ -216,3 +216,99 @@ export const BUILD_COPY_MESSAGES = {
   },
 } as const;
 
+
+// ============================================================================
+// PROJECT/ORGANIZATION MESSAGES
+// ============================================================================
+
+export const PROJECT_MESSAGES = {
+  CREATE_SUCCESS: {
+    title: 'Project Created',
+    message: 'Project created successfully!',
+  },
+  CREATE_ERROR: {
+    title: 'Failed to Create Project',
+    message: 'Failed to create project',
+  },
+  CREATE_CONFLICT: {
+    title: 'Project Already Exists',
+    message: 'A project with this name already exists',
+  },
+  DELETE_SUCCESS: {
+    title: 'Project Deleted',
+    message: 'Project deleted successfully',
+  },
+  DELETE_ERROR: {
+    title: 'Failed to Delete Project',
+    message: 'Failed to delete project',
+  },
+} as const;
+
+// ============================================================================
+// APP MESSAGES
+// ============================================================================
+
+export const APP_MESSAGES = {
+  CREATE_SUCCESS: {
+    title: 'App Created',
+    message: 'App created successfully',
+  },
+  CREATE_ERROR: {
+    title: 'Failed to Create App',
+    message: 'Failed to create app',
+  },
+  DELETE_SUCCESS: {
+    title: 'App Deleted',
+    message: 'App deleted successfully',
+  },
+  DELETE_ERROR: {
+    title: 'Failed to Delete App',
+    message: 'Failed to delete app',
+  },
+} as const;
+
+// ============================================================================
+// TOKEN MESSAGES
+// ============================================================================
+
+export const TOKEN_MESSAGES = {
+  CREATE_SUCCESS: {
+    title: 'Token Created',
+    message: 'Access token created successfully',
+  },
+  CREATE_ERROR: {
+    title: 'Failed to Create Token',
+    message: 'Failed to create access token',
+  },
+  DELETE_SUCCESS: {
+    title: 'Token Deleted',
+    message: 'Access token deleted successfully',
+  },
+  DELETE_ERROR: {
+    title: 'Failed to Delete Token',
+    message: 'Failed to delete access token',
+  },
+} as const;
+
+// ============================================================================
+// DEPLOYMENT MESSAGES
+// ============================================================================
+
+export const DEPLOYMENT_MESSAGES = {
+  CREATE_SUCCESS: {
+    title: 'Deployment Created',
+    message: 'Deployment created successfully',
+  },
+  CREATE_ERROR: {
+    title: 'Failed to Create Deployment',
+    message: 'Failed to create deployment',
+  },
+  DELETE_SUCCESS: {
+    title: 'Deployment Deleted',
+    message: 'Deployment deleted successfully',
+  },
+  DELETE_ERROR: {
+    title: 'Failed to Delete Deployment',
+    message: 'Failed to delete deployment',
+  },
+} as const;

@@ -38,7 +38,7 @@ import {
   IconUpload,
   IconInfoCircle,
 } from "@tabler/icons-react";
-import { notifications } from "@mantine/notifications";
+import { showErrorToast } from "~/utils/toast";
 import { User } from '~/.server/services/Auth/auth.interface';
 import { authenticateLoaderRequest } from "~/utils/authenticate";
 import { useGetDeploymentsForApp } from "~/components/Pages/DeploymentList/hooks/getDeploymentsForApp";
@@ -137,11 +137,9 @@ export default function CreateReleasePage() {
     if (validation.hasErrors) return;
 
     if (!directoryBlob) {
-      notifications.show({
+      showErrorToast({
         title: "Missing Bundle",
         message: "Please select a bundle directory",
-        color: "red",
-        icon: <IconAlertCircle size={18} />,
       });
       return;
     }
