@@ -249,7 +249,7 @@ export function CreateReleaseForm({
   const previousPlatformTargets = useRef<PlatformTargetWithVersion[] | undefined>(state.platformTargets);
 
   // Use version suggestions hook
-  const { suggestions, needsVersionSuggestions, shouldUpdateBranch } = useVersionSuggestions({
+  const { suggestions, needsVersionSuggestions } = useVersionSuggestions({
     releases,
     releaseType: state.type,
     platformTargets: state.platformTargets,
@@ -341,17 +341,17 @@ export function CreateReleaseForm({
 
     // Check if any versions changed
     const versionsChanged = JSON.stringify(state.platformTargets) !== JSON.stringify(updatedPlatformTargets);
-    const updateBranch = shouldUpdateBranch(suggestions.branchName, versionsChanged);
 
-    if (versionsChanged || updateBranch) {
+    // Only update platformTargets - branch suggestion should be placeholder only
+    if (versionsChanged) {
       setState((prev) => ({
         ...prev,
         platformTargets: updatedPlatformTargets,
-        branch: updateBranch ? suggestions.branchName : prev.branch,
+        // Don't set branch here - keep it as placeholder only
       }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [suggestions, shouldUpdateBranch, isEditMode]);
+  }, [suggestions, isEditMode]);
 
   // Handler to create new configuration
   const handleCreateNewConfig = () => {
@@ -624,6 +624,8 @@ export function CreateReleaseForm({
               tenantId={org}
               errors={errors}
               disablePlatformTargets={isEditMode && isUpcoming}
+              releases={releases}
+              isEditMode={isEditMode}
             />
           </Box>
         )}

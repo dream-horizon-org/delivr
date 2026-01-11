@@ -7,7 +7,7 @@
  * Follows cursor rules: No 'any' or 'unknown' types, uses constants
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   TextInput,
   Textarea,
@@ -26,6 +26,8 @@ import { PlatformTargetsSelector } from './PlatformTargetsSelector';
 import { convertConfigTargetsToPlatformTargets } from '~/utils/release-creation-converter';
 import { RELEASE_DETAILS_FORM } from '~/constants/release-creation-ui';
 import { AppBadge } from '~/components/Common/AppBadge';
+import { getVersionSuggestions } from '~/utils/release-version-suggestions';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 
 interface ReleaseDetailsFormProps {
   state: Partial<ReleaseCreationState>;
@@ -35,6 +37,8 @@ interface ReleaseDetailsFormProps {
   tenantId: string; // For fetching branches
   errors?: Record<string, string>;
   disablePlatformTargets?: boolean; // Disable platform target editing (for edit mode pre-kickoff)
+  releases?: BackendReleaseResponse[]; // For calculating branch name suggestions
+  isEditMode?: boolean; // Whether this is edit mode
 }
 
 /**
@@ -55,6 +59,8 @@ export function ReleaseDetailsForm({
   tenantId,
   errors = {},
   disablePlatformTargets = false,
+  releases = [],
+  isEditMode = false,
 }: ReleaseDetailsFormProps) {
   const [branches, setBranches] = useState<Array<{ value: string; label: string }>>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
@@ -201,6 +207,20 @@ export function ReleaseDetailsForm({
     return '';
   };
 
+  // Calculate suggested branch name dynamically based on current platformTargets
+  const suggestedBranchName = useMemo(() => {
+    if (isEditMode || !state.type || !state.platformTargets || state.platformTargets.length === 0 || releases.length === 0) {
+      return RELEASE_DETAILS_FORM.RELEASE_BRANCH_PLACEHOLDER;
+    }
+
+    try {
+      const suggestions = getVersionSuggestions(releases, state.type, state.platformTargets);
+      return suggestions.branchName;
+    } catch (error) {
+      return RELEASE_DETAILS_FORM.RELEASE_BRANCH_PLACEHOLDER;
+    }
+  }, [state.type, state.platformTargets, releases, isEditMode]);
+
   const isReleaseTypeDisabled = !!config; // Disabled if from config
 
   return (
@@ -247,7 +267,7 @@ export function ReleaseDetailsForm({
           />
           <TextInput
             label={RELEASE_DETAILS_FORM.RELEASE_BRANCH_LABEL}
-            placeholder={RELEASE_DETAILS_FORM.RELEASE_BRANCH_PLACEHOLDER}
+            placeholder={suggestedBranchName}
             value={state.branch || ''}
             onChange={(e) => onChange({ ...state, branch: e.target.value || undefined })}
             error={errors.branch}

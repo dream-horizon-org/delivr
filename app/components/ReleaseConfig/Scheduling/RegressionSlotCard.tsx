@@ -147,6 +147,43 @@ export function RegressionSlotCard({
 
   const hasAnyError = combinedValidation.hasError || hasOffsetError;
 
+  // Handler for time input changes
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = e.target.value;
+    // Normalize time format (time input returns HH:MM format, but normalize just in case)
+    const normalizedTime = normalizeTime(newTime);
+    
+    // If time wraps to next day (e.g., previous was 22:00, new is 04:00), increment day
+    if (index > 0 && allSlots[index - 1]) {
+      const previousSlot = allSlots[index - 1];
+      // Normalize previous time
+      const prevTime = normalizeTime(previousSlot.time);
+      
+      const previousMinutes = timeToMinutes(prevTime);
+      const newMinutes = timeToMinutes(normalizedTime);
+      
+      // If new time is before previous time (and not 00:00), it likely wrapped to next day
+      // Also check if we're on the same day offset - if so, definitely need to increment
+      const isOnSameDay = slot.regressionSlotOffsetFromKickoff === previousSlot.regressionSlotOffsetFromKickoff;
+      
+      if (isOnSameDay && newMinutes < previousMinutes && normalizedTime !== '00:00') {
+        // Time wrapped to next day - increment day offset
+        const newOffsetDays = Math.min(
+          slot.regressionSlotOffsetFromKickoff + 1,
+          targetReleaseOffset
+        );
+        onUpdate({
+          ...slot,
+          time: normalizedTime,
+          regressionSlotOffsetFromKickoff: newOffsetDays,
+        });
+        return;
+      }
+    }
+    
+    onUpdate({ ...slot, time: normalizedTime });
+  };
+
   // Display mode (not editing)
   if (!isEditing) {
     return (
@@ -300,45 +337,11 @@ export function RegressionSlotCard({
               label="Time"
               type="time"
               value={slot.time}
-              onChange={(e) => {
-                const newTime = e.target.value;
-                // Normalize time format (time input returns HH:MM format, but normalize just in case)
-                const normalizedTime = normalizeTime(newTime);
-                
-                // If time wraps to next day (e.g., previous was 22:00, new is 04:00), increment day
-                if (index > 0 && allSlots[index - 1]) {
-                  const previousSlot = allSlots[index - 1];
-                  // Normalize previous time
-                  const prevTime = normalizeTime(previousSlot.time);
-                  
-                  const previousMinutes = timeToMinutes(prevTime);
-                  const newMinutes = timeToMinutes(normalizedTime);
-                  
-                  // If new time is before previous time (and not 00:00), it likely wrapped to next day
-                  // Also check if we're on the same day offset - if so, definitely need to increment
-                  const isOnSameDay = slot.regressionSlotOffsetFromKickoff === previousSlot.regressionSlotOffsetFromKickoff;
-                  
-                  if (isOnSameDay && newMinutes < previousMinutes && normalizedTime !== '00:00') {
-                    // Time wrapped to next day - increment day offset
-                    const newOffsetDays = Math.min(
-                      slot.regressionSlotOffsetFromKickoff + 1,
-                      targetReleaseOffset
-                    );
-                    onUpdate({
-                      ...slot,
-                      time: normalizedTime,
-                      regressionSlotOffsetFromKickoff: newOffsetDays,
-                    });
-                    return;
-                  }
-                }
-                
-                onUpdate({ ...slot, time: normalizedTime });
-              }}
+              onChange={handleTimeChange}
               required
               withAsterisk
               size="sm"
-              description="Time when this regression build will run. Must be chronologically after the previous slot."
+              description="Must be chronologically after the previous slot."
               error={combinedValidation.hasError ? combinedValidation.message : undefined}
               styles={{
                 label: { fontWeight: 500, marginBottom: 6 },

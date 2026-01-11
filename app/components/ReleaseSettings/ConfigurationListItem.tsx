@@ -241,6 +241,12 @@ function ConfigurationCardHeader({
               size="sm"
               color={releaseTypeColor}
             />
+            <AppBadge
+              type="build-type"
+              value={config.hasManualBuildUpload ? 'MANUAL' : 'CI_CD'}
+              title={config.hasManualBuildUpload ? 'Manual' : 'CI/CD'}
+              size="sm"
+            />
             {config.releaseSchedule && (
               <AppBadge
                 type="status"

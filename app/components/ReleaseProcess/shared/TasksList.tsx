@@ -79,6 +79,7 @@ export function TasksList({
                 releaseId={releaseId}
                 onRetry={onRetry}
                 uploadedBuilds={uploadedBuilds}
+                isArchived={isArchived}
               />
             ))}
           </Stack>

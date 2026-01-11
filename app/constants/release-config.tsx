@@ -46,7 +46,7 @@ export const WIZARD_STEPS: Step[] = [
   { 
     id: 'pipelines', 
     title: 'CI/CD Workflows', 
-    description: 'Configure builds',
+    description: 'Configure builds workflows for selected platforms',
     icon: (props: { size?: number; className?: string }) => <IconSettings size={props.size} className={props.className} />,
   },
   { 

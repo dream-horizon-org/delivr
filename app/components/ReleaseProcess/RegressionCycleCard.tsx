@@ -39,6 +39,7 @@ interface RegressionCycleCardProps {
   isExpanded?: boolean; // For past cycles - whether to show expanded by default
   className?: string;
   isInsideAccordion?: boolean; // Explicitly mark if this is inside an Accordion
+  isArchived?: boolean;
 }
 
 export function RegressionCycleCard({
@@ -51,6 +52,7 @@ export function RegressionCycleCard({
   isExpanded = false,
   className,
   isInsideAccordion = false,
+  isArchived = false,
 }: RegressionCycleCardProps) {
   const statusColor = getCycleStatusColor(cycle.status);
   const statusLabel = getCycleStatusLabel(cycle.status);
@@ -109,6 +111,7 @@ export function RegressionCycleCard({
                 releaseId={releaseId}
                 onRetry={onRetryTask}
                 uploadedBuilds={uploadedBuilds}
+                isArchived={isArchived}
               />
             ))}
           </Stack>

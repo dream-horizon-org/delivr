@@ -167,12 +167,12 @@ export function FixedPipelineCategories({
       <Stack gap="md">
       {/* Header with validation status */}
       <div>
-        <Text fw={600} size="lg" className="mb-1">
+        {/* <Text fw={600} size="lg" className="mb-1">
           {SECTION_TITLES.CI_CD_WORKFLOWS}
         </Text>
         <Text size="sm" c="dimmed" className="mb-3">
           {SECTION_DESCRIPTIONS.CI_CD_WORKFLOWS}
-        </Text>
+        </Text> */}
         
         <Group gap="sm" className="mb-4">
           <AppBadge

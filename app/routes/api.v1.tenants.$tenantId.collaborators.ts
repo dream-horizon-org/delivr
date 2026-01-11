@@ -60,9 +60,15 @@ const addCollaborator: AuthenticatedActionFunction = async ({ request, params, u
     return json(response.data, { status: response.status });
   } catch (error: any) {
     logApiError('[Collaborators-Add]', error);
+    
+    // Pass through the backend error message as-is
+    // Backend sends plain string for 404 errors: "Account with this email does not exist"
+    const errorMessage = error.response?.data || error.message || "Failed to add collaborator";
+    const statusCode = error.response?.status || 500;
+    
     return json(
-      { error: error.response?.data?.error || "Failed to add collaborator" },
-      { status: error.response?.status || 500 }
+      { error: errorMessage },
+      { status: statusCode }
     );
   }
 };

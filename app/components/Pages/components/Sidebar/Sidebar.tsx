@@ -230,37 +230,37 @@ function OrgSidebar({
           {/* Only show Project section if there are visible routes */}
           {visibleOrgRoutes.length > 0 && (
             <>
-              <Divider my={16} color={theme.colors.slate[2]} />
+          <Divider my={16} color={theme.colors.slate[2]} />
 
-              {/* Project Section */}
-              <Text
-                size="11px"
-                fw={600}
-                tt="uppercase"
-                style={{
-                  letterSpacing: "0.06em",
-                  marginBottom: 10,
-                  paddingLeft: 4,
-                  color: theme.colors.slate[4],
-                }}
-              >
-                Project
-              </Text>
+          {/* Project Section */}
+          <Text
+            size="11px"
+            fw={600}
+            tt="uppercase"
+            style={{
+              letterSpacing: "0.06em",
+              marginBottom: 10,
+              paddingLeft: 4,
+              color: theme.colors.slate[4],
+            }}
+          >
+            Project
+          </Text>
 
-              {/* Render Project Routes */}
+          {/* Render Project Routes */}
               {visibleOrgRoutes.map((orgRoute) => {
-                const isRouteActive = location.pathname.startsWith(orgRoute.path);
+            const isRouteActive = location.pathname.startsWith(orgRoute.path);
 
-                return (
-                  <Box key={orgRoute.path} mb={4}>
+            return (
+              <Box key={orgRoute.path} mb={4}>
                     <SubItemComponent
-                      subItem={orgRoute}
-                      org={org}
-                      isActive={isRouteActive}
-                    />
-                  </Box>
-                );
-              })}
+                  subItem={orgRoute}
+                  org={org}
+                  isActive={isRouteActive}
+                />
+              </Box>
+            );
+          })}
             </>
           )}
         </Stack>

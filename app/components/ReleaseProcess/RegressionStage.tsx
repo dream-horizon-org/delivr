@@ -223,11 +223,12 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
             tenantId={tenantId}
             releaseId={releaseId}
             onRetryTask={handleRetry}
+            isArchived={isArchived}
           />
         )}
 
       {/* Approval Section */}
-      {approvalStatus && (
+      {approvalStatus && !isArchived && (
         <StageApprovalSection
           title="Regression Approval"
           canApprove={canApprove}

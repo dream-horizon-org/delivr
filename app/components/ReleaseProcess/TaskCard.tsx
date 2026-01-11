@@ -48,6 +48,7 @@ interface TaskCardProps {
   onRetry?: (taskId: string) => void;
   className?: string;
   uploadedBuilds?: BuildInfo[];  // Stage-level uploaded builds
+  isArchived?: boolean;
 }
 
 function getTaskStatusIcon(status: TaskStatus) {
@@ -124,12 +125,13 @@ export function TaskCard({
   onRetry,
   className,
   uploadedBuilds = [],
+  isArchived = false,
 }: TaskCardProps) {
   const statusColor = getTaskStatusColor(task.taskStatus);
   const statusLabel = getTaskStatusLabel(task.taskStatus);
   const typeLabel = getTaskTypeLabel(task.taskType);
   const duration = formatTaskDuration(task);
-  const canRetry = task.taskStatus === TaskStatus.FAILED && onRetry;
+  const canRetry = task.taskStatus === TaskStatus.FAILED && onRetry && !isArchived;
 
   // Determine if this is a build task
   const isBuildTask =

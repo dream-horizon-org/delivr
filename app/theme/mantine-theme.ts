@@ -83,6 +83,150 @@ export const mantineTheme = createTheme({
         color: "brand",
       },
     },
+    // Clip descriptions to 1 line for all input components
+    TextInput: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    DateInput: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    DateTimePicker: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    TimeInput: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    Select: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    Textarea: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    NumberInput: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    MultiSelect: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    PasswordInput: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    FileInput: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    ColorInput: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    JsonInput: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    Autocomplete: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
   },
 
   other: {

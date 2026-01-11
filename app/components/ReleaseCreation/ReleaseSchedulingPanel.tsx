@@ -350,7 +350,7 @@ export function ReleaseSchedulingPanel({
           {!isEditMode && kickOffDate && targetReleaseDate && (
             <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
               <Text size="xs">
-                {SCHEDULING_PANEL.BRANCH_FORK_MESSAGE_PREFIX}{' '}
+                {SCHEDULING_PANEL.BRANCH_FORK_MESSAGE_PREFIX}
                 <strong>
                   {new Date(kickOffDate).toLocaleDateString()} {SCHEDULING_PANEL.AT} {kickOffTimeValue}
                 </strong>
@@ -547,8 +547,8 @@ export function ReleaseSchedulingPanel({
         </Stack>
       </Box>
 
-      {/* Pre-Regression Builds Configuration - Hidden after kickoff */}
-      {!showOnlyTargetDateAndSlots && (
+      {/* Pre-Regression Builds Configuration - Hidden after kickoff and in edit mode */}
+      {!showOnlyTargetDateAndSlots && !isEditMode && (
         <Box
           p="md"
           style={{

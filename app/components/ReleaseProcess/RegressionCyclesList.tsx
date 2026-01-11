@@ -38,6 +38,7 @@ interface RegressionCyclesListProps {
   releaseId: string;
   onRetryTask?: (taskId: string) => void;
   className?: string;
+  isArchived?: boolean;
 }
 
 export function RegressionCyclesList({
@@ -50,6 +51,7 @@ export function RegressionCyclesList({
   releaseId,
   onRetryTask,
   className,
+  isArchived = false,
 }: RegressionCyclesListProps) {
   const { release } = useRelease(tenantId, releaseId);
   const isManualMode = release?.hasManualBuildUpload === true;
@@ -215,12 +217,13 @@ export function RegressionCyclesList({
             releaseId={releaseId}
             onRetryTask={onRetryTask}
             uploadedBuilds={uploadedBuilds}
+            isArchived={isArchived}
           />
         </Stack>
       )}
 
       {/* Manual Build Upload Section */}
-      {shouldShowUploadWidgets && (
+      {shouldShowUploadWidgets && !isArchived && (
         <Stack gap="md">
           <Group justify="space-between" align="center">
             <div>
@@ -256,7 +259,7 @@ export function RegressionCyclesList({
       )}
 
       {/* Upcoming Slot (when no active cycle) */}
-      {!actualCurrentCycle && upcomingSlot && upcomingSlot.length > 0 && upcomingSlotDate && (
+      {!actualCurrentCycle && upcomingSlot && upcomingSlot.length > 0 && upcomingSlotDate && !isArchived && (
         <Alert
           icon={<IconCalendar size={16} />}
           color="blue"
@@ -289,7 +292,7 @@ export function RegressionCyclesList({
       )}
 
       {/* No Active Cycle and No Upcoming Slot */}
-      {!actualCurrentCycle && (!upcomingSlot || upcomingSlot.length === 0) && (
+      {!actualCurrentCycle && (!upcomingSlot || upcomingSlot.length === 0) && !isArchived && (
         <Alert icon={<IconInfoCircle size={16} />} color="gray" variant="light">
           No upcoming regression cycles scheduled.
         </Alert>
@@ -333,6 +336,7 @@ export function RegressionCyclesList({
                   uploadedBuilds={uploadedBuilds}
                   isExpanded={false}
                   isInsideAccordion={true}
+                  isArchived={isArchived}
                 />
               ))}
             </Accordion>

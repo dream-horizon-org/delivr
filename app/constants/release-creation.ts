@@ -61,4 +61,3 @@ export const FIELD_GROUPS = {
  * Helper type for field group keys
  */
 export type FieldGroupKey = keyof typeof FIELD_GROUPS;
-
