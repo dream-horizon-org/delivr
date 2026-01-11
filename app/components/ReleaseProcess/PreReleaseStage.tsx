@@ -118,7 +118,7 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
       label: 'All Tasks Completed',
       passed: allTasksCompleted,
       message: preReleaseTasks.length === 0 
-        ? 'No pre-release tasks found'
+        ? 'Please wait while we are fetching the tasks...'
         : pendingTasks.length > 0
         ? `${pendingTasks.length} task(s) pending`
         : undefined,

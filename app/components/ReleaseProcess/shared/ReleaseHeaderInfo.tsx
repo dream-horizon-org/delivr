@@ -242,7 +242,16 @@ export function ReleaseHeaderInfo({
       key: 'status',
       icon: <IconFlag size={18} className="text-slate-600" />,
       label: HEADER_LABELS.STATUS,
-      getValue: ({ isPaused, releaseStatus }) => isPaused ? 'Paused' : getReleaseStatusLabel(releaseStatus),
+      getValue: ({ isPaused, releaseStatus, release }) => {
+        if (isPaused) {
+          const pauseType = release.cronJob?.pauseType;
+          if (pauseType === PauseType.AWAITING_STAGE_TRIGGER) {
+            return 'Awaiting Approval';
+          }
+          return 'Paused';
+        }
+        return getReleaseStatusLabel(releaseStatus);
+      },
       shouldShow: () => true,
     },
   ];

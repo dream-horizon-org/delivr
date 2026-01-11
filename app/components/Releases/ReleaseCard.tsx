@@ -210,13 +210,22 @@ export const ReleaseCard = memo(function ReleaseCard({
 
                       {/* Show active status combined with paused if applicable */}
                       {isPaused ? (
-                        <AppBadge
-                          type="status"
-                          value="warning"
-                          title="Paused"
-                          size="sm"
-                          leftSection={<IconPlayerPause size={12} />}
-                        />
+                        release.cronJob?.pauseType === PauseType.AWAITING_STAGE_TRIGGER ? (
+                          <AppBadge
+                            type="status"
+                            value="warning"
+                            title="Awaiting Approval"
+                            size="sm"
+                          />
+                        ) : (
+                          <AppBadge
+                            type="status"
+                            value="warning"
+                            title="Paused"
+                            size="sm"
+                            leftSection={<IconPlayerPause size={12} />}
+                          />
+                        )
                       ) : activeStatus && activeStatus !== ReleaseStatus.COMPLETED ? (
                         <AppBadge
                           type="status"
