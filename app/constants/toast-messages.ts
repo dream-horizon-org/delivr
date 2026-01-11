@@ -216,8 +216,6 @@ export const BUILD_COPY_MESSAGES = {
   },
 } as const;
 
-<<<<<<< HEAD
-=======
 // ============================================================================
 // COLLABORATOR MESSAGES
 // ============================================================================
@@ -253,7 +251,6 @@ export const COLLABORATOR_MESSAGES = {
   },
 } as const;
 
->>>>>>> 66bd2fd (Remove permission change functionality from app-level collaborators)
 
 // ============================================================================
 // PROJECT/ORGANIZATION MESSAGES
