@@ -338,6 +338,30 @@ export class ReleaseRetrievalService {
       // Fetch cron job
       const cronJobRecord = await this.cronJobRepo.findByReleaseId(release.id);
 
+      // Derive current active stage and release phase (same logic as getReleaseById)
+      const currentActiveStage = deriveCurrentActiveStage(cronJobRecord, release.status);
+      
+      // Fetch latest regression cycle for phase derivation (only if cronJob exists)
+      const latestCycle = cronJobRecord 
+        ? await this.regressionCycleRepo.findLatest(release.id)
+        : null;
+      const currentCycleStatus = latestCycle?.status ?? null;
+
+      // Derive detailed release phase
+      const releasePhase = cronJobRecord
+        ? derivePhase({
+            releaseStatus: release.status,
+            stage1Status: cronJobRecord.stage1Status,
+            stage2Status: cronJobRecord.stage2Status,
+            stage3Status: cronJobRecord.stage3Status,
+            stage4Status: cronJobRecord.stage4Status ?? 'PENDING',
+            cronStatus: cronJobRecord.cronStatus,
+            pauseType: cronJobRecord.pauseType ?? 'NONE',
+            currentCycleStatus: currentCycleStatus,
+            hasNextCycle: cronJobRecord.upcomingRegressions && cronJobRecord.upcomingRegressions.length > 0
+          })
+        : 'NOT_STARTED';
+
       // Fetch release pilot account details
       const releasePilot = await this.getAccountDetails(release.releasePilotAccountId);
       
@@ -351,6 +375,8 @@ export class ReleaseRetrievalService {
         tenantId: release.tenantId,
         type: release.type,
         status: release.status,
+        currentActiveStage: currentActiveStage,
+        releasePhase: releasePhase,
         branch: release.branch,
         baseBranch: release.baseBranch,
         baseReleaseId: release.baseReleaseId,
