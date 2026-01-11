@@ -8,8 +8,8 @@ export const AUTH_CONFIG = {
   DEFAULT_BACKEND_URL: 'http://localhost:3010',
   
   // Token expiration
-  TOKEN_EXPIRY_MS: 3600 * 1000, // 1 hour
-  TOKEN_REFRESH_BUFFER_MS: 5 * 60 * 1000, // 5 minutes before expiry
+  TOKEN_EXPIRY_MS: 60 * 60 * 1000, // 1 hour
+  TOKEN_REFRESH_BUFFER_MS: 5 * 30 * 1000, // 5 minutes before expiry
   
   // OAuth settings
   OAUTH_ACCESS_TYPE: 'offline' as const,

@@ -1,0 +1,89 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle
+    cx="32"
+    cy="32"
+    r="28"
+    fill="rgba(20, 184, 166, 0.4)"
+  />
+  
+  <!-- Elegant tilted rocket logo representing release and deployment -->
+  <g transform="translate(32, 32) rotate(45)">
+    <!-- Rocket body -->
+    <rect
+      x="-4"
+      y="-12"
+      width="8"
+      height="24"
+      rx="2"
+      fill="white"
+      opacity="0.95"
+    />
+    
+    <!-- Rocket nose cone -->
+    <path
+      d="M-4 -12 L0 -22 L4 -12"
+      fill="white"
+      opacity="0.95"
+    />
+    
+    <!-- Rocket fins (left) -->
+    <path
+      d="M-4 12 L-8 20 L-4 16"
+      fill="white"
+      opacity="0.9"
+    />
+    
+    <!-- Rocket fins (right) -->
+    <path
+      d="M4 12 L8 20 L4 16"
+      fill="white"
+      opacity="0.9"
+    />
+    
+    <!-- Rocket window/port with elegant glow -->
+    <circle
+      cx="0"
+      cy="-2"
+      r="3"
+      fill="rgba(20, 184, 166, 1)"
+    />
+    <circle
+      cx="0"
+      cy="-2"
+      r="2"
+      fill="white"
+      opacity="0.3"
+    />
+    
+    <!-- Dynamic exhaust flames (main) -->
+    <path
+      d="M-4 12 Q-2 18, 0 16 Q2 18, 4 12"
+      stroke="white"
+      stroke-width="2.5"
+      stroke-linecap="round"
+      fill="none"
+      opacity="0.8"
+    />
+    
+    <!-- Secondary exhaust flames -->
+    <path
+      d="M-3 12 Q-1 16, 0 14 Q1 16, 3 12"
+      stroke="white"
+      stroke-width="2"
+      stroke-linecap="round"
+      fill="none"
+      opacity="0.6"
+    />
+    
+    <!-- Outer flame glow -->
+    <path
+      d="M-5 12 Q-3 20, 0 18 Q3 20, 5 12"
+      stroke="white"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      fill="none"
+      opacity="0.4"
+    />
+  </g>
+</svg>

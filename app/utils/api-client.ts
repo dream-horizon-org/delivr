@@ -3,6 +3,8 @@
  * Provides a consistent interface for making API calls with proper error handling
  */
 
+import { showWarningToast } from '~/utils/toast';
+
 interface ApiClientOptions extends RequestInit {
   baseUrl?: string;
   timeout?: number;
@@ -287,6 +289,23 @@ export function getApiErrorMessage(error: unknown, fallback = 'An unexpected err
     return error.message;
   }
   return fallback;
+}
+
+/**
+ * Handle authentication errors with user notification and immediate redirect
+ */
+export async function handleAuthError(error: ApiError): Promise<void> {
+  if (error.isAuthError) {
+    // Show warning toast
+    showWarningToast({
+      title: 'Session Expired',
+      message: 'You have been logged out. Redirecting to login...',
+      duration: 2000, // Short duration since we're redirecting
+    });
+    
+    // Redirect immediately (no delay needed since login page will show message)
+    window.location.href = '/login?sessionExpired=true';
+  }
 }
 
 // Export the error class for instanceof checks

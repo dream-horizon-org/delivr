@@ -1,16 +1,27 @@
-import { Alert, Button, Stack, Text } from '@mantine/core';
+import { 
+  Alert,
+  Button, 
+  Stack, 
+  Text, 
+  Box, 
+  Flex, 
+  Group, 
+  useMantineTheme
+} from '@mantine/core';
 import { IconAlertCircle, IconRefresh, IconLogout } from '@tabler/icons-react';
-import { useNavigate } from '@remix-run/react';
 import { useState } from 'react';
+import { theme as customTheme } from '~/theme/colors';
 
 interface AuthErrorFallbackProps {
   message: string;
 }
 
 export function AuthErrorFallback({ message }: AuthErrorFallbackProps) {
-  const navigate = useNavigate();
+  const theme = useMantineTheme();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  
+  const bgColor = theme.colors?.slate?.[0] || '#f8fafc';
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -116,72 +127,90 @@ export function AuthErrorFallback({ message }: AuthErrorFallbackProps) {
   };
 
   return (
-    <Alert
-      icon={<IconAlertCircle size={16} />}
-      title="Authentication Failed"
-      color="red"
-      variant="light"
+    <Flex 
+      h="100vh" 
+      direction="column" 
+      bg={bgColor}
+      align="center" 
+      justify="center" 
+      p={32}
     >
-      <Stack gap="md">
-        <Text size="sm">{message}</Text>
-        
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <Button
-            leftSection={<IconRefresh size={16} />}
-            onClick={handleRetry}
-            variant="light"
-            loading={isRetrying}
-            disabled={isLoggingOut || isRetrying}
-            style={{
-              border: '1px solid',
-              borderColor: 'var(--mantine-color-gray-4)',
-              transition: 'all 0.2s ease',
-            }}
-            styles={{
-              root: {
-                '&:hover': {
-                  borderColor: 'var(--mantine-color-blue-6)',
-                  transform: 'translateY(-1px)',
-                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                },
-                '&:active': {
-                  transform: 'translateY(0)',
-                },
-              },
-            }}
-          >
-            Retry
-          </Button>
-          <Button
-            leftSection={<IconLogout size={16} />}
-            onClick={handleLogout}
+        <Box style={{ maxWidth: 500, width: '100%' }}>
+          <Alert
+            icon={<IconAlertCircle size={20} />}
+            title="Authentication Failed"
             color="red"
             variant="light"
-            loading={isLoggingOut}
-            disabled={isLoggingOut || isRetrying}
+            radius="lg"
+            p="xl"
             style={{
-              border: '1px solid',
-              borderColor: 'var(--mantine-color-red-4)',
-              transition: 'all 0.2s ease',
-            }}
-            styles={{
-              root: {
-                '&:hover': {
-                  borderColor: 'var(--mantine-color-red-7)',
-                  transform: 'translateY(-1px)',
-                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                },
-                '&:active': {
-                  transform: 'translateY(0)',
-                },
-              },
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
             }}
           >
-            Logout
-          </Button>
-        </div>
-      </Stack>
-    </Alert>
+            <Stack gap="md" mt="sm">
+              <Text size="sm" c="dark.7">
+                {message}
+              </Text>
+              
+              <Group gap="sm" mt="xs">
+                <Button
+                  leftSection={<IconRefresh size={16} />}
+                  onClick={handleRetry}
+                  variant="light"
+                  loading={isRetrying}
+                  disabled={isLoggingOut || isRetrying}
+                  style={{
+                    border: '1px solid',
+                    borderColor: 'var(--mantine-color-gray-4)',
+                    transition: 'all 0.2s ease',
+                  }}
+                  styles={{
+                    root: {
+                      '&:hover': {
+                        borderColor: 'var(--mantine-color-blue-6)',
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                      },
+                      '&:active': {
+                        transform: 'translateY(0)',
+                      },
+                    },
+                  }}
+                >
+                  Retry
+                </Button>
+                <Button
+                  leftSection={<IconLogout size={16} />}
+                  onClick={handleLogout}
+                  color="red"
+                  variant="light"
+                  loading={isLoggingOut}
+                  disabled={isLoggingOut || isRetrying}
+                  style={{
+                    border: '1px solid',
+                    borderColor: 'var(--mantine-color-red-4)',
+                    transition: 'all 0.2s ease',
+                  }}
+                  styles={{
+                    root: {
+                      '&:hover': {
+                        borderColor: 'var(--mantine-color-red-7)',
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                      },
+                      '&:active': {
+                        transform: 'translateY(0)',
+                      },
+                    },
+                  }}
+                >
+                  Logout
+                </Button>
+              </Group>
+            </Stack>
+          </Alert>
+        </Box>
+    </Flex>
   );
 }
 

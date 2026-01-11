@@ -101,24 +101,14 @@ export default function Dashboard() {
   const { shouldShowBanner } = useOfflineStatus();
   if (hasOrgsError) {
     console.error('[Dashboard] Error loading organizations:', orgsError);
-    return (
-      <Flex h="100vh" direction="column" bg={theme.colors?.slate?.[0] || '#f8fafc'} align="center" justify="center" p={32}>
-        <Box style={{ maxWidth: 600, width: '100%' }}>
-          <AuthErrorFallback message={ 'Failed to load organizations' } />
-        </Box>
-      </Flex>
-    );
+    return <AuthErrorFallback message="Failed to load organizations" />;
   }
   
   // Show auth error if present
   if (authError) {
     return (
       <SimpleTermsGuard>
-        <Flex h="100vh" direction="column" bg={theme.colors?.slate?.[0] || '#f8fafc'} align="center" justify="center" p={32}>
-          <Box style={{ maxWidth: 600, width: '100%' }}>
-            <AuthErrorFallback message={authError.message} />
-          </Box>
-        </Flex>
+        <AuthErrorFallback message={authError.message} />
       </SimpleTermsGuard>
     );
   }

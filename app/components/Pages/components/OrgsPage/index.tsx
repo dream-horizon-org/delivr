@@ -21,7 +21,8 @@ import {
   IconCloud,
   IconTerminal2,
   IconGitBranch,
-  IconSparkles,
+  IconBriefcase,
+  IconRoute,
   IconRefresh,
 } from "@tabler/icons-react";
 import { useNavigate } from "@remix-run/react";
@@ -204,9 +205,11 @@ export function OrgsPage() {
       <Box py={CONTENT_PY} px={CONTENT_PX}>
         <Group justify="space-between" align="center" mb="xl">
           <Group gap="md">
-            <Title order={2} c="dark.9" fw={700}>
+          <IconBriefcase size={18} color={theme.colors?.brand?.[5] || '#14b8a6'} />
+             <Title order={4} c="dark.8" fw={700}>
               Projects
-            </Title>
+             </Title>
+             <Badge variant="light" color="brand" radius="sm" size="sm">COMING SOON</Badge>
             <Badge 
               size="lg" 
               variant="filled" 
@@ -258,7 +261,7 @@ export function OrgsPage() {
         {/* Roadmap Section */}
         <Box>
           <Group mb="lg" align="center" gap="sm">
-             <IconSparkles size={18} color={theme.colors?.brand?.[5] || '#14b8a6'} />
+             <IconRoute size={18} color={theme.colors?.brand?.[5] || '#14b8a6'} />
              <Title order={4} c="dark.8" fw={700}>
               Platform Roadmap
              </Title>

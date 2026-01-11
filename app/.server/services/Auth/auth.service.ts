@@ -199,9 +199,10 @@ export class Auth {
     });
   }
 
-  async logout(request: AuthRequest) {
+  async logout(request: AuthRequest, redirectTo?: string) {
+    const redirectUrl = redirectTo || AuthenticatorRoutes.LOGIN;
     return await Auth.authenticator.logout(request, {
-      redirectTo: AuthenticatorRoutes.LOGIN,
+      redirectTo: redirectUrl,
     });
   }
 }

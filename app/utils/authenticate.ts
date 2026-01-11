@@ -23,6 +23,36 @@ export enum ActionMethods {
 
 type AuthenticatedRequestArgs<T> = T & { user: User };
 
+/**
+ * Detects if the request is an API request (expects JSON response)
+ * by checking Accept and Content-Type headers
+ */
+function isApiRequest(request: Request): boolean {
+  const accept = request.headers.get('Accept') || '';
+  const contentType = request.headers.get('Content-Type') || '';
+  return accept.includes('application/json') || contentType.includes('application/json');
+}
+
+/**
+ * Handles authentication failures by returning appropriate response:
+ * - JSON error for API requests
+ * - HTML redirect for browser requests with query parameter
+ */
+async function handleAuthFailure(request: Request): Promise<Response> {
+  if (isApiRequest(request)) {
+    return json(
+      { 
+        success: false, 
+        error: 'Authentication required. Please refresh the page to log in again.',
+        isAuthError: true 
+      },
+      { status: 401 }
+    );
+  }
+  // Browser request - use logout which properly clears session, with query parameter
+  return await AuthenticatorService.logout(request, '/login?sessionExpired=true');
+}
+
 export type AuthenticatedLoaderFunction = (
   args: AuthenticatedRequestArgs<LoaderFunctionArgs>
 ) => ReturnType<LoaderFunction>;
@@ -32,8 +62,18 @@ export const authenticateLoaderRequest = (cb?: AuthenticatedLoaderFunction) => {
     const authResult = await AuthenticatorService.isAuthenticated(args.request);
     
     // If not authenticated, isAuthenticated returns a redirect Response
-    // Return it immediately instead of continuing
+    // For API requests, return JSON error instead of HTML redirect
     if (authResult instanceof Response) {
+      if (isApiRequest(args.request)) {
+        return json(
+          { 
+            success: false, 
+            error: 'Authentication required. Please refresh the page to log in again.',
+            isAuthError: true 
+          },
+          { status: 401 }
+        );
+      }
       return authResult;
     }
     
@@ -84,23 +124,23 @@ export const authenticateLoaderRequest = (cb?: AuthenticatedLoaderFunction) => {
         stack: e instanceof Error ? e.stack : undefined
       }, null, 2));
 
-      // If token refresh fails (no refresh token or invalid refresh token), logout
+      // If token refresh fails (no refresh token or invalid refresh token), handle auth failure
       if (e instanceof Error && (
         e.message === AUTH_ERROR_MESSAGES.REFRESH_TOKEN_INVALID ||
         e.message === AUTH_ERROR_MESSAGES.NO_REFRESH_TOKEN
       )) {
-        return await AuthenticatorService.logout(args.request);
+        return await handleAuthFailure(args.request);
       }
       
       // If backend returns 401 (user doesn't exist, session invalid, etc.)
-      // Automatically logout and redirect to login
+      // Handle auth failure appropriately for API vs browser requests
       if (e instanceof Response && e.status === 401) {
-        return await AuthenticatorService.logout(args.request);
+        return await handleAuthFailure(args.request);
       }
       
       // If API call returns 401 via AxiosError
       if (e instanceof AxiosError && e.response?.status === 401) {
-        return await AuthenticatorService.logout(args.request);
+        return await handleAuthFailure(args.request);
       }
       
       return json(
@@ -138,8 +178,18 @@ export const authenticateActionRequest = (
     const authResult = await AuthenticatorService.isAuthenticated(args.request);
     
     // If not authenticated, isAuthenticated returns a redirect Response
-    // Return it immediately instead of continuing
+    // For API requests, return JSON error instead of HTML redirect
     if (authResult instanceof Response) {
+      if (isApiRequest(args.request)) {
+        return json(
+          { 
+            success: false, 
+            error: 'Authentication required. Please refresh the page to log in again.',
+            isAuthError: true 
+          },
+          { status: 401 }
+        );
+      }
       return authResult;
     }
     
@@ -188,23 +238,23 @@ export const authenticateActionRequest = (
         stack: e instanceof Error ? e.stack : undefined
       }, null, 2));
 
-      // If token refresh fails (no refresh token or invalid refresh token), logout
+      // If token refresh fails (no refresh token or invalid refresh token), handle auth failure
       if (e instanceof Error && (
         e.message === AUTH_ERROR_MESSAGES.REFRESH_TOKEN_INVALID ||
         e.message === AUTH_ERROR_MESSAGES.NO_REFRESH_TOKEN
       )) {
-        return await AuthenticatorService.logout(args.request);
+        return await handleAuthFailure(args.request);
       }
       
       // If backend returns 401 (user doesn't exist, session invalid, etc.)
-      // Automatically logout and redirect to login
+      // Handle auth failure appropriately for API vs browser requests
       if (e instanceof Response && e.status === 401) {
-        return await AuthenticatorService.logout(args.request);
+        return await handleAuthFailure(args.request);
       }
       
       // If API call returns 401 via AxiosError
       if (e instanceof AxiosError && e.response?.status === 401) {
-        return await AuthenticatorService.logout(args.request);
+        return await handleAuthFailure(args.request);
       }
       
       return json(
