@@ -138,11 +138,11 @@ export default function AppDetails() {
             fontWeight: 500,
             fontSize: 14,
             color: theme.colors.slate[6],
-            "&[data-active]": {
+            "&[dataActive]": {
               color: "#ffffff",
               background: theme.colors.brand[5],
             },
-            "&:hover:not([data-active])": {
+            "&:hover:not([dataActive])": {
               background: theme.colors.slate[2],
               color: theme.colors.slate[8],
             },

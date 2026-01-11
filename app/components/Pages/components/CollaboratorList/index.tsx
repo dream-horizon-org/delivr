@@ -4,7 +4,6 @@ import {
   Stack,
   Group,
   Text,
-  Select,
   Skeleton,
   Badge,
   ActionIcon,
@@ -18,7 +17,6 @@ import {
 import { IconTrash, IconUserPlus, IconCrown, IconUsers } from "@tabler/icons-react";
 
 import { useGetAppCollaboratorList } from "./hooks/useGetAppCollaboratorList";
-import { useUpdateCollabarator } from "./hooks/useUpdateCollabarator";
 import { useRemoveCollabarator } from "./hooks/useRemoveCollabarator";
 import { AddCollboratorForm } from "../AddCollboratorForm";
 import { useParams } from "@remix-run/react";
@@ -102,11 +100,6 @@ export function CollabaratorList({
                   Role
                 </Text>
               </Table.Th>
-              <Table.Th>
-                <Text size="xs" fw={600} c={theme.colors.slate[6]} tt="uppercase">
-                  Permission
-                </Text>
-              </Table.Th>
               <Table.Th style={{ width: 80 }}>
                 <Text size="xs" fw={600} c={theme.colors.slate[6]} tt="uppercase">
                   Actions
@@ -152,33 +145,9 @@ function CollaboratorRow({
   isLoading: boolean;
   onLoadingChange: (loading: boolean) => void;
 }) {
-  const theme = useMantineTheme();
   const params = useParams();
-  const { mutate: updatePermission } = useUpdateCollabarator();
   const { mutate: removeCollaborator } = useRemoveCollabarator();
   const [isDeleting, setIsDeleting] = useState(false);
-
-  const handlePermissionChange = (value: string | null) => {
-    if (!value) return;
-    onLoadingChange(true);
-    updatePermission(
-      {
-        appId: params.app ?? "",
-        tenant: params.org ?? "",
-        email: collaborator.name,
-        role: value as Collaborator["permission"],
-      },
-      {
-        onSuccess: () => {
-          refetch();
-          onLoadingChange(false);
-        },
-        onError: () => {
-          onLoadingChange(false);
-        },
-      }
-    );
-  };
 
   const handleDelete = () => {
     setIsDeleting(true);
@@ -228,28 +197,23 @@ function CollaboratorRow({
           >
             Owner
           </Badge>
+        ) : collaborator.permission === "Editor" ? (
+          <Badge 
+            variant="light" 
+            color="green"
+            size="sm"
+          >
+            Editor
+          </Badge>
         ) : (
           <Badge 
             variant="light" 
             color="gray"
             size="sm"
           >
-            Collaborator
+            Viewer
           </Badge>
         )}
-      </Table.Td>
-      <Table.Td>
-        <Select
-          data={[
-            { value: "Owner", label: "Owner" },
-            { value: "Collaborator", label: "Collaborator" },
-          ]}
-          value={collaborator.permission}
-          onChange={handlePermissionChange}
-          disabled={isLoading}
-          size="xs"
-          w={140}
-        />
       </Table.Td>
       <Table.Td>
         <Tooltip label="Remove Collaborator" withArrow>

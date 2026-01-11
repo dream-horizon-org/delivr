@@ -216,6 +216,44 @@ export const BUILD_COPY_MESSAGES = {
   },
 } as const;
 
+<<<<<<< HEAD
+=======
+// ============================================================================
+// COLLABORATOR MESSAGES
+// ============================================================================
+
+export const COLLABORATOR_MESSAGES = {
+  ADD_SUCCESS: {
+    title: 'Team Member Added',
+    message: 'Team member added successfully',
+  },
+  ADD_ERROR: {
+    title: 'Failed to Add Team Member',
+    message: 'Error While Adding Collaborator',
+  },
+  UPDATE_SUCCESS: {
+    title: 'Permission Updated',
+    message: 'Permission updated successfully',
+  },
+  UPDATE_ERROR: {
+    title: 'Failed to Update Team Member',
+    message: 'Error While Update Collaborator',
+  },
+  REMOVE_SUCCESS: {
+    title: 'Team Member Removed',
+    message: 'Collaborator removed successfully',
+  },
+  REMOVE_ERROR: {
+    title: 'Failed to Remove Team Member',
+    message: 'Error While Removing Collaborator',
+  },
+  EMAIL_REQUIRED: {
+    title: 'Validation Error',
+    message: 'Email is required',
+  },
+} as const;
+
+>>>>>>> 66bd2fd (Remove permission change functionality from app-level collaborators)
 
 // ============================================================================
 // PROJECT/ORGANIZATION MESSAGES

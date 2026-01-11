@@ -209,8 +209,7 @@ export function OrgsPage() {
              <Title order={4} c="dark.8" fw={700}>
               Projects
              </Title>
-             <Badge variant="light" color="brand" radius="sm" size="sm">COMING SOON</Badge>
-            <Badge 
+             {data?.length > 6&& <Badge 
               size="lg" 
               variant="filled" 
               color="dark" 
@@ -218,7 +217,7 @@ export function OrgsPage() {
               fw={600}
             >
               {data?.length || 0}
-            </Badge>
+            </Badge>}
           </Group>
           
           <CTAButton

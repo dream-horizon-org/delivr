@@ -440,6 +440,11 @@ export const getReleaseListForDeployment = async (
     }
   );
 
+  // Add null check for deployment and packageHistory
+  if (!data?.deployment?.packageHistory) {
+    return [];
+  }
+
   return data.deployment.packageHistory.map((item) => {
     return {
       id: item.label,
