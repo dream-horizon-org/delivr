@@ -59,8 +59,8 @@ export function CreateDeploymentForm({ open, onClose }: CreateTokenFormProps) {
         <Group gap="sm">
           <Box
             style={{
-              width: 40,
-              height: 40,
+              width: 32,
+              height: 32,
               borderRadius: theme.radius.md,
               background: `linear-gradient(135deg, ${theme.colors.brand[5]} 0%, ${theme.colors.brand[6]} 100%)`,
               display: "flex",
@@ -70,7 +70,7 @@ export function CreateDeploymentForm({ open, onClose }: CreateTokenFormProps) {
           >
             <IconKey size={20} color="white" />
           </Box>
-          <Title order={3}>Create Deployment Key</Title>
+          <Title order={2} size="h4">Create Deployment Key</Title>
         </Group>
       }
     >

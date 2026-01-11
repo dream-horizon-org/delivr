@@ -234,7 +234,7 @@ class Codepush {
   }
 
   async createDeployentsForApp(data: CreateDeploymentsRequest) {
-    const headers: BaseHeader = data;
+    const headers: CreateDeploymentsRequest = data;
 
     return this.__client.post<null, AxiosResponse<CreateDeploymentsResponse>>(
       `/apps/${encodeURIComponent(data.appId)}/deployments`,

@@ -21,6 +21,11 @@ export const updateReleaseDataForDeployment = async (
       app: data.appId,
       deploymentName: data.deploymentName,
     }),
-    data
+    data,
+    {
+      headers: {
+        tenant: data.tenant,
+      },
+    }
   );
 };
