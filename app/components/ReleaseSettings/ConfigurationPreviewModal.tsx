@@ -3,7 +3,7 @@
  * Shows all details about a release configuration
  */
 
-import { Modal, Stack, Text, Card, Group, List, Divider, ScrollArea } from '@mantine/core';
+import { Modal, Stack, Text, Card, Group, List, Divider, ScrollArea, Anchor } from '@mantine/core';
 import {
   IconSettings,
   IconTarget,
@@ -15,6 +15,7 @@ import {
   IconTicket,
   IconCode,
   IconGitBranch,
+  IconExternalLink,
 } from '@tabler/icons-react';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { BUILD_ENVIRONMENTS, BUILD_PROVIDERS, TEST_PROVIDERS, CONFIG_STATUSES } from '~/types/release-config-constants';
@@ -192,37 +193,68 @@ export function ConfigurationPreviewModal({
                     {FIELD_LABELS.CONFIGURED_WORKFLOWS} ({config.ciConfig.workflows.length})
                   </Text>
                   <List spacing="xs" size="sm">
-                    {config.ciConfig.workflows.map((pipeline) => (
-                      <List.Item
-                        key={pipeline.id}
-                        icon={
-                          pipeline.enabled ? (
-                            <IconCheck size={16} className="text-green-600" />
-                          ) : (
-                            <IconX size={16} className="text-gray-400" />
-                          )
-                        }
-                      >
-                        <Group gap="xs">
-                          <Text size="sm" fw={500}>{pipeline.name}</Text>
-                          <PlatformBadge platform={pipeline.platform} size="xs" />
-                          <AppBadge
-                            type="build-environment"
-                            value={pipeline.environment}
-                            title={ENVIRONMENT_LABELS[pipeline.environment] || pipeline.environment}
-                            size="xs"
-                          />
-                          <AppBadge
-                            type="build-provider"
-                            value={pipeline.provider}
-                            title={getBuildProviderLabel(pipeline.provider)}
-                            size="xs"
-                            variant="outline"
-                          />
-                        </Group>
-                      </List.Item>
-                    ))}
-                  </List>
+                      {config.ciConfig.workflows.map((pipeline) => {
+                        // Get the workflow URL based on provider type
+                        const workflowUrl = 
+                          pipeline.provider === BUILD_PROVIDERS.GITHUB_ACTIONS
+                            ? (pipeline.providerConfig as any).workflowUrl
+                            : pipeline.provider === BUILD_PROVIDERS.JENKINS
+                            ? (pipeline.providerConfig as any).jobUrl
+                            : null;
+
+                        return (
+                          <List.Item
+                            key={pipeline.id}
+                            icon={
+                              pipeline.enabled ? (
+                                <IconCheck size={16} className="text-green-600" />
+                              ) : (
+                                <IconX size={16} className="text-gray-400" />
+                              )
+                            }
+                          >
+                            <Group gap="xs" wrap="wrap">
+                              <Group gap={4}>
+                                {workflowUrl ? (
+                                  <Anchor
+                                    href={workflowUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    size="sm"
+                                    fw={500}
+                                    style={{
+                                      textDecoration: 'none',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                    }}
+                                  >
+                                    {pipeline.name}
+                                    <IconExternalLink size={14} />
+                                  </Anchor>
+                                ) : (
+                                  <Text size="sm" fw={500}>{pipeline.name}</Text>
+                                )}
+                              </Group>
+                              <PlatformBadge platform={pipeline.platform} size="xs" />
+                              <AppBadge
+                                type="build-environment"
+                                value={pipeline.environment}
+                                title={ENVIRONMENT_LABELS[pipeline.environment] || pipeline.environment}
+                                size="xs"
+                              />
+                              <AppBadge
+                                type="build-provider"
+                                value={pipeline.provider}
+                                title={getBuildProviderLabel(pipeline.provider)}
+                                size="xs"
+                                variant="outline"
+                              />
+                            </Group>
+                          </List.Item>
+                        );
+                      })}
+                    </List>
                 </div>
               </>
             )}

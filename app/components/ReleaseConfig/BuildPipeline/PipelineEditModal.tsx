@@ -164,44 +164,55 @@ function PipelineEditModalComponent({
     setIsCreatingWorkflow(true);
     try {
       // Create workflow via API
-      const result = await apiPost<{ success: boolean; error?: string; workflow?: CICDWorkflow }>(
+      const result = await apiPost<{ success: boolean; error?: string; workflowId?: string }>(
         `/api/v1/tenants/${tenantId}/workflows`,
         workflowData
       );
-
       if (result.success) {
         showSuccessToast({ title: 'Success', message: 'Workflow created successfully' });
         
-        const createdWorkflow: CICDWorkflow = {
-          id: "", // Backend generates ID but doesn't return it - will be populated after refresh
-          tenantId,
-          providerType: workflowData.providerType,
-          integrationId: workflowData.integrationId,
-          displayName: workflowData.displayName,
-          workflowUrl: workflowData.workflowUrl,
-          providerIdentifiers: workflowData.providerIdentifiers || null,
-          platform: workflowData.platform,
-          workflowType: workflowData.workflowType,
-          parameters: workflowData.parameters || null,
-          createdAt: "", // Placeholder - set by database, not used by convertCICDWorkflowToWorkflow
-          updatedAt: "", // Placeholder - set by database, not used by convertCICDWorkflowToWorkflow
-        };
+        // Backend returns workflowId, not full workflow object
+        const workflowId = result.data?.workflowId;
         
-        // Convert to Workflow and attach to pipeline config
-        const workflowConfig = convertCICDWorkflowToWorkflow(createdWorkflow);
-        
-        // If we have fixed platform/environment, ensure they match
-        if (fixedPlatform) {
-          workflowConfig.platform = fixedPlatform;
+        if (workflowId) {
+          // Create workflow object with the returned ID
+          const createdWorkflow: CICDWorkflow = {
+            id: workflowId, // Use the ID returned from backend
+            tenantId,
+            providerType: workflowData.providerType,
+            integrationId: workflowData.integrationId,
+            displayName: workflowData.displayName,
+            workflowUrl: workflowData.workflowUrl,
+            providerIdentifiers: workflowData.providerIdentifiers || null,
+            platform: workflowData.platform,
+            workflowType: workflowData.workflowType,
+            parameters: workflowData.parameters || null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          
+          // Convert to Workflow and attach to pipeline config
+          const workflowConfig = convertCICDWorkflowToWorkflow(createdWorkflow);
+          
+          // If we have fixed platform/environment, ensure they match
+          if (fixedPlatform) {
+            workflowConfig.platform = fixedPlatform;
+          }
+          if (fixedEnvironment) {
+            workflowConfig.environment = fixedEnvironment;
+          }
+          
+          // Save the pipeline config
+          onSave(workflowConfig);
+          setWorkflowCreateModalOpened(false);
+          onClose();
+        } else {
+          // Backend didn't return the workflow ID - show error
+          showErrorToast({ 
+            title: 'Error', 
+            message: 'Workflow created but ID not returned. Please refresh the page.' 
+          });
         }
-        if (fixedEnvironment) {
-          workflowConfig.environment = fixedEnvironment;
-        }
-        
-        // Save the pipeline config
-        onSave(workflowConfig);
-        setWorkflowCreateModalOpened(false);
-        onClose();
       } else {
         showErrorToast({ 
           title: 'Error', 
