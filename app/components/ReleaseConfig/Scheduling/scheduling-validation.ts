@@ -366,13 +366,7 @@ function validateRegressionSlot(
     });
   } else {
     // Validate config object properties (all boolean flags are required)
-    if (slot.config.regressionBuilds === undefined || slot.config.regressionBuilds === null) {
-      errors.push({
-        field: `${fieldPrefix}.config.regressionBuilds`,
-        message: 'Regression builds flag is required'
-      });
-    }
-
+    // Note: regressionBuilds flag removed from UI but kept in data structure for backward compatibility
     if (slot.config.postReleaseNotes === undefined || slot.config.postReleaseNotes === null) {
       errors.push({
         field: `${fieldPrefix}.config.postReleaseNotes`,

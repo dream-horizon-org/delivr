@@ -90,7 +90,17 @@ function formatTaskDuration(task: Task): string | null {
   if (task.taskStatus === TaskStatus.COMPLETED && endTime) {
     const duration = endTime.getTime() - startTime.getTime();
     const minutes = Math.floor(duration / 60000);
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
     const seconds = Math.floor((duration % 60000) / 1000);
+    
+    // Show hours if >= 60 minutes
+    if (hours > 0) {
+      if (remainingMinutes > 0) {
+        return `${hours}h ${remainingMinutes}m`;
+      }
+      return `${hours}h`;
+    }
     
     if (minutes > 0) {
       return `${minutes}m ${seconds}s`;

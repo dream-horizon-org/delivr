@@ -15,6 +15,7 @@ interface PreReleaseTasksListProps {
   onRetry: (taskId: string) => void;
   uploadedBuilds?: BuildInfo[];
   isArchived?: boolean;
+  lastUpdatedAt?: number; // React Query dataUpdatedAt timestamp
 }
 
 export function PreReleaseTasksList({
@@ -24,6 +25,7 @@ export function PreReleaseTasksList({
   onRetry,
   uploadedBuilds = [],
   isArchived = false,
+  lastUpdatedAt,
 }: PreReleaseTasksListProps) {
   return (
     <TasksList
@@ -35,6 +37,7 @@ export function PreReleaseTasksList({
       uploadedBuilds={uploadedBuilds}
       isArchived={isArchived}
       stage={TaskStage.PRE_RELEASE}
+      lastUpdatedAt={lastUpdatedAt}
     />
   );
 }

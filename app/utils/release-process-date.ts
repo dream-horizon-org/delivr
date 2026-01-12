@@ -76,4 +76,42 @@ export function formatTimestamp(dateString: string): string {
   });
 }
 
+/**
+ * Format timestamp to relative time showing seconds
+ * Format: "5 seconds ago", "30 seconds ago", "2 minutes ago", etc.
+ * Used for displaying when stage data was last fetched/updated
+ * @param timestamp - Timestamp in milliseconds (from React Query's dataUpdatedAt)
+ * @returns Formatted relative time string, or empty string if invalid
+ */
+export function formatLastUpdated(timestamp: number | null | undefined): string {
+  if (!timestamp || timestamp === 0) return '';
+  
+  const now = Date.now();
+  const diffMs = now - timestamp;
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  
+  if (diffSeconds < 10) {
+    return 'just now';
+  }
+  if (diffSeconds < 60) {
+    return `${diffSeconds} seconds ago`;
+  }
+  if (diffMins < 60) {
+    return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+  }
+  if (diffHours < 24) {
+    return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  }
+  
+  // For older than 24 hours, show date
+  const date = new Date(timestamp);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
 

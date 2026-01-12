@@ -24,7 +24,7 @@ export function KickoffStage({ tenantId, releaseId, className }: KickoffStagePro
   // Validate required props
   validateStageProps({ tenantId, releaseId }, 'KickoffStage');
 
-  const { data, isLoading, error, refetch } = useKickoffStage(tenantId, releaseId);
+  const { data, isLoading, error, refetch, dataUpdatedAt } = useKickoffStage(tenantId, releaseId);
   const { release } = useRelease(tenantId, releaseId);
   const isArchived = release?.status === ReleaseStatus.ARCHIVED;
 
@@ -74,6 +74,7 @@ export function KickoffStage({ tenantId, releaseId, className }: KickoffStagePro
             uploadedBuilds={uploadedBuilds}
             isArchived={isArchived}
             stage={TaskStage.KICKOFF}
+            lastUpdatedAt={dataUpdatedAt}
           />
         )}
       </Stack>

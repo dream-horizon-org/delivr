@@ -35,7 +35,7 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
   // Validate required props
   validateStageProps({ tenantId, releaseId }, 'PreReleaseStage');
 
-  const { data, isLoading, error, refetch } = usePreReleaseStage(tenantId, releaseId);
+  const { data, isLoading, error, refetch, dataUpdatedAt } = usePreReleaseStage(tenantId, releaseId);
   
   // Get release data to access releaseConfigId
   const { release } = useRelease(tenantId, releaseId);
@@ -213,6 +213,7 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
             isArchived={release?.status === ReleaseStatus.ARCHIVED}
             onRetry={handleRetry}
             uploadedBuilds={uploadedBuilds}
+            lastUpdatedAt={dataUpdatedAt}
           />
         )}
 

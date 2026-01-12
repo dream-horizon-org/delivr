@@ -18,8 +18,6 @@ import {
   TextInput,
   NumberInput,
   Button,
-  Divider,
-  Switch,
   useMantineTheme,
 } from '@mantine/core';
 import { IconEdit, IconTrash, IconCheck } from '@tabler/icons-react';
@@ -212,18 +210,9 @@ export function RegressionSlotCard({
                 </Text>
               )}
             </Group>
-            <Text size="xs" c={theme.colors.slate[5]} mb={slot.config.regressionBuilds ? 8 : 0}>
+            <Text size="xs" c={theme.colors.slate[5]}>
               Day {slot.regressionSlotOffsetFromKickoff} at {slot.time}
             </Text>
-            {slot.config.regressionBuilds && (
-              <AppBadge
-                type="status"
-                value="info"
-                title="Regression Builds Enabled"
-                size="xs"
-                mt={4}
-              />
-            )}
           </Box>
           <Group gap="xs">
             <ActionIcon variant="subtle" color="brand" onClick={onEdit} radius="sm">
@@ -349,39 +338,6 @@ export function RegressionSlotCard({
             />
           </Group>
         </Stack>
-
-        <Divider 
-          label={
-            <Text size="xs" fw={500} c={theme.colors.slate[5]} tt="uppercase" style={{ letterSpacing: '0.5px' }}>
-              Slot Configuration
-            </Text>
-          } 
-          labelPosition="center"
-          my="xs"
-        />
-
-        <Box
-          p="md"
-          style={{
-            backgroundColor: theme.colors.slate[0],
-            borderRadius: theme.radius.md,
-            border: `1px solid ${theme.colors.slate[2]}`,
-          }}
-        >
-          <Switch
-            label="Enable Regression Builds"
-            description="Trigger regression builds in this slot."
-            checked={slot.config.regressionBuilds}
-            onChange={(e) =>
-              onUpdate({
-                ...slot,
-                config: { ...slot.config, regressionBuilds: e.currentTarget.checked },
-              })
-            }
-            size="sm"
-            color="brand"
-          />
-        </Box>
       </Stack>
     </Paper>
   );

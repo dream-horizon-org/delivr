@@ -4,13 +4,14 @@
  * Tasks are displayed in execution order
  */
 
-import { Alert, Stack, Text } from '@mantine/core';
+import { Alert, Stack, Text, Group } from '@mantine/core';
 import { IconArchive } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { sortTasksByExecutionOrder } from '~/utils/task-filtering';
 import type { Task, BuildInfo } from '~/types/release-process.types';
 import { TaskStage } from '~/types/release-process-enums';
 import { TaskCard } from '../TaskCard';
+import { formatLastUpdated } from '~/utils/release-process-date';
 
 interface TasksListProps {
   tasks: Task[];
@@ -21,6 +22,7 @@ interface TasksListProps {
   uploadedBuilds?: BuildInfo[];
   isArchived?: boolean;
   stage?: TaskStage; // Stage for ordering tasks
+  lastUpdatedAt?: number; // React Query dataUpdatedAt timestamp
 }
 
 export function TasksList({
@@ -32,6 +34,7 @@ export function TasksList({
   uploadedBuilds = [],
   isArchived = false,
   stage,
+  lastUpdatedAt,
 }: TasksListProps) {
   // Sort tasks by execution order if stage provided
   const sortedTasks = useMemo(() => {
@@ -62,9 +65,16 @@ export function TasksList({
 
       {/* Tasks Header */}
       {hasTasks && (
-        <Text fw={600} size="lg">
-          Tasks
-        </Text>
+        <Group justify="space-between" align="center">
+          <Text fw={600} size="lg">
+            Tasks
+          </Text>
+          {lastUpdatedAt && lastUpdatedAt > 0 && (
+            <Text size="xs" c="dimmed">
+              Updated {formatLastUpdated(lastUpdatedAt)}
+            </Text>
+          )}
+        </Group>
       )}
 
       {/* Tasks - Full width, stacked */}

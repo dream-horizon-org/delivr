@@ -86,15 +86,7 @@ export function RegressionSlotEditor({
           </Text>
           
           <Stack gap="sm">
-            <Switch
-              label="Trigger Regression Builds"
-              description="Build regression versions for testing"
-              checked={config.regressionBuilds}
-              onChange={(e) =>
-                setConfig({ ...config, regressionBuilds: e.currentTarget.checked })
-              }
-            />
-            
+            {/* Regression Builds flag removed - not used to create tasks */}
             <Switch
               label="Post Release Notes"
               description="Post release notes to communication channels"
