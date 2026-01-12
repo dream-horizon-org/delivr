@@ -130,7 +130,7 @@ export const createWorkflow = async (req: Request, res: Response): Promise<any> 
 
     const wfRepository = getWorkflowRepository();
 
-    await wfRepository.create({
+    const createdWorkflow = await wfRepository.create({
       id: shortid.generate(),
       tenantId,
       providerType: integration.providerType as CICDProviderType,
@@ -144,7 +144,10 @@ export const createWorkflow = async (req: Request, res: Response): Promise<any> 
       createdByAccountId: accountId,
     });
 
-    return res.status(HTTP_STATUS.CREATED).json({ success: RESPONSE_STATUS.SUCCESS });
+    return res.status(HTTP_STATUS.CREATED).json({ 
+      success: RESPONSE_STATUS.SUCCESS,
+      workflowId: createdWorkflow.id
+    });
   } catch (e: unknown) {
     const message = formatErrorMessage(e, ERROR_MESSAGES.WORKFLOW_CREATE_FAILED);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
