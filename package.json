@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "NODE_OPTIONS=\"--import tsx/esm\" remix vite:build",
-    "start": "NODE_ENV=production node server.mjs",
+    "start": "NODE_ENV=production node --env-file=.env server.mjs",
     "dev": "remix vite:dev",
     "dev:mock": "concurrently \"pnpm run mock\" \"pnpm run dev\"",
     "mock": "node mock-server/server.js",

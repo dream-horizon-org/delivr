@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Stack, Button, Box, Group, Alert, Text, List, Divider } from '@mantine/core';
-import { IconRocket, IconArrowLeft, IconAlertCircle, IconInfoCircle } from '@tabler/icons-react';
+import { IconRocket, IconArrowLeft, IconAlertCircle } from '@tabler/icons-react';
 import { useMantineTheme } from '@mantine/core';
 import { useNavigate } from '@remix-run/react';
 import { showErrorToast, showWarningToast, showSuccessToast } from '~/utils/toast';
@@ -553,24 +553,6 @@ export function CreateReleaseForm({
   return (
     <Box>
       <Stack gap="xl">
-        {/* Info Banner */}
-        {!isEditMode && (
-          <Alert
-            icon={<IconInfoCircle size={18} />}
-            color="blue"
-            variant="light"
-            radius="md"
-          >
-            <Text size="sm" fw={500} mb={4}>
-              Creating a New Release
-            </Text>
-            <Text size="xs" c={theme.colors.slate[6]}>
-              This form will create a new release branch, configure platform targets and versions, and schedule the release timeline. 
-              All required fields are marked with an asterisk (*). Fill in the form below to get started.
-            </Text>
-          </Alert>
-        )}
-
         {/* Edit Mode Info */}
         {isEditMode && (
           <Alert icon={<IconAlertCircle size={16} />} color="blue" variant="light" radius="md">
@@ -590,14 +572,7 @@ export function CreateReleaseForm({
         {!isEditMode && (
           <Box>
             <Stack gap="md">
-              <Box>
-                <Text fw={600} size="lg" mb={4}>
-                  Configuration
-                </Text>
-                <Text size="sm" c={theme.colors.slate[5]}>
-                  Choose a configuration template that defines your release settings, platform targets, and build pipelines.
-                </Text>
-              </Box>
+
               <ConfigurationSelector
                 configurations={configurations}
                 selectedMode={'WITH_CONFIG'}

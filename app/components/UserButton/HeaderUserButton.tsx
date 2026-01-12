@@ -41,9 +41,13 @@ export function HeaderUserButton({ user }: HeaderUserButtonProps) {
               style={{ 
                 cursor: "pointer",
                 backgroundColor: brandColor,
-                color: "white",
-                fontWeight: 600,
-                fontSize: "13px",
+              }}
+              styles={{
+                placeholder: {
+                  color: "white",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                },
               }}
             />
           </UnstyledButton>
@@ -59,8 +63,12 @@ export function HeaderUserButton({ user }: HeaderUserButtonProps) {
                 size={40}
                 style={{ 
                   backgroundColor: brandColor,
-                  color: "white",
-                  fontWeight: 600,
+                }}
+                styles={{
+                  placeholder: {
+                    color: "white",
+                    fontWeight: 600,
+                  },
                 }}
               />
               <Box style={{ flex: 1, minWidth: 0 }}>

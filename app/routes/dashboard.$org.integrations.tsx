@@ -137,26 +137,42 @@ export default function IntegrationsPage() {
     }, {} as Record<IntegrationCategory, Integration[]>);
   }, [allIntegrations]);
 
-  // Get active tab from URL, default to SOURCE_CONTROL
+  // Define the desired tab order
+  const tabOrder: IntegrationCategory[] = [
+    IntegrationCategory.SOURCE_CONTROL,      // 1. SCM
+    IntegrationCategory.APP_DISTRIBUTION,    // 2. App Distribution
+    IntegrationCategory.CI_CD,              // 3. Workflows
+    IntegrationCategory.COMMUNICATION,       // 4. Slack
+    IntegrationCategory.TEST_MANAGEMENT,     // 5. Test Management
+    IntegrationCategory.PROJECT_MANAGEMENT,  // 6. Project Management
+  ];
+
+  // Get ordered categories that have integrations
+  const orderedCategories = useMemo(() => {
+    return tabOrder.filter(category => 
+      integrationsByCategory[category] && integrationsByCategory[category].length > 0
+    );
+  }, [integrationsByCategory]);
+
+  // Get active tab from URL, default to first available category
   const activeTabFromUrl = searchParams.get('tab');
   
   // Validate that the tab exists in available categories and convert to enum
   const validTab = useMemo(() => {
-    const availableCategories = Object.keys(integrationsByCategory) as IntegrationCategory[];
-    
     // Check if URL param matches any enum value
     if (activeTabFromUrl) {
       const enumValue = Object.values(IntegrationCategory).find(
         (cat) => cat === activeTabFromUrl
       ) as IntegrationCategory | undefined;
       
-      if (enumValue && availableCategories.includes(enumValue)) {
+      if (enumValue && orderedCategories.includes(enumValue)) {
         return enumValue;
       }
     }
     
-    return IntegrationCategory.SOURCE_CONTROL;
-  }, [activeTabFromUrl, integrationsByCategory]);
+    // Default to first available category in the desired order
+    return orderedCategories[0] || IntegrationCategory.SOURCE_CONTROL;
+  }, [activeTabFromUrl, orderedCategories]);
 
   // Handle tab change - update URL with enum value
   const handleTabChange = useCallback((value: string | null) => {
@@ -314,8 +330,8 @@ export default function IntegrationsPage() {
         activeTab={validTab}
         onTabChange={handleTabChange}
         tabs={useMemo(() => 
-          Object.keys(integrationsByCategory).map((category) => {
-            const categoryIntegrations = integrationsByCategory[category as IntegrationCategory] ?? [];
+          orderedCategories.map((category) => {
+            const categoryIntegrations = integrationsByCategory[category] ?? [];
             const connectedInCategory = categoryIntegrations.filter(
               i => i.status === IntegrationStatus.CONNECTED
             ).length;
@@ -327,10 +343,12 @@ export default function IntegrationsPage() {
               count: connectedInCategory > 0 ? connectedInCategory : undefined,
             };
           }),
-          [integrationsByCategory]
+          [orderedCategories, integrationsByCategory]
         )}
       >
-        {Object.entries(integrationsByCategory).map(([category, integrations]) => (
+        {orderedCategories.map((category) => {
+          const integrations = integrationsByCategory[category] ?? [];
+          return (
           <Tabs.Panel key={category} value={category}>
             {/* Category Description */}
             <Paper
@@ -377,7 +395,8 @@ export default function IntegrationsPage() {
               ))}
             </SimpleGrid>
           </Tabs.Panel>
-        ))}
+          );
+        })}
       </StandardizedTabs>
 
       {/* Modals */}

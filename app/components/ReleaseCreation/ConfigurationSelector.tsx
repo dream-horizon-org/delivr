@@ -97,7 +97,7 @@ export function ConfigurationSelector({
           required
           withAsterisk
           searchable
-          description="Select a release configuration template. This will pre-fill platform targets, build settings, and scheduling preferences."
+          description="Select a release configuration template to create a new release."
           style={{ flex: 1 }}
           error={errors?.releaseConfigId}
           styles={{

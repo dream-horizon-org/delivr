@@ -68,6 +68,7 @@ export const ReleasesTabs = memo(function ReleasesTabs({
               releases={releases}
               org={org}
               emptyMessage={tabConfig.emptyMessage}
+              tabValue={tabConfig.value}
             />
           </Tabs.Panel>
         );
