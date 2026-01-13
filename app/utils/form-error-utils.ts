@@ -5,7 +5,7 @@
 
 import { FIELD_GROUPS } from '~/constants/release-creation';
 import { TARGET_PLATFORM_LABELS } from '~/constants/release-config-ui';
-import type { TargetPlatform } from '~/types/release-config-constants';
+import type { TargetPlatform } from '~/types/release-config';
 
 /**
  * Clear errors for updated fields and their related fields
@@ -80,6 +80,11 @@ export function clearErrorsForFields(
  * formatFieldLabel('platformTargets[0].version') // → 'Platform Target 1 Version'
  */
 export function formatFieldLabel(field: string): string {
+  // Handle slot-{number} format - message already includes slot number, so return empty
+  if (field.startsWith('slot-')) {
+    return '';
+  }
+
   // Handle version-{TARGET} format (e.g., "version-PLAY_STORE" → "Play Store Version")
   if (field.startsWith('version-')) {
     const target = field.replace('version-', '') as TargetPlatform;

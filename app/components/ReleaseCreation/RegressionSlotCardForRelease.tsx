@@ -17,8 +17,6 @@ import {
   ActionIcon,
   Stack,
   Button,
-  Divider,
-  Switch,
   useMantineTheme,
   Alert,
   TextInput,
@@ -154,15 +152,6 @@ export function RegressionSlotCardForRelease({
                 minute: '2-digit',
               })}
             </Text>
-            {localSlot.config.regressionBuilds && (
-              <AppBadge
-                type="status"
-                value="info"
-                title={REGRESSION_SLOT_CARD.REGRESSION_BUILDS_ENABLED}
-                size="xs"
-                mt={4}
-              />
-            )}
             {isPastSlot && isAfterKickoff && (
               <Alert icon={<IconX size={14} />} color="orange" variant="light" mt="xs">
                 <Text size="xs">
@@ -267,39 +256,6 @@ export function RegressionSlotCardForRelease({
             />
           </Group>
         </Stack>
-
-        <Divider 
-          label={
-            <Text size="xs" fw={500} c={theme.colors.slate[5]} tt="uppercase" style={{ letterSpacing: '0.5px' }}>
-              {REGRESSION_SLOT_CARD.SLOT_CONFIGURATION_LABEL}
-            </Text>
-          } 
-          labelPosition="center"
-          my="xs"
-        />
-
-        <Box
-          p="md"
-          style={{
-            backgroundColor: theme.colors.slate[0],
-            borderRadius: theme.radius.md,
-            border: `1px solid ${theme.colors.slate[2]}`,
-          }}
-        >
-          <Switch
-            label={REGRESSION_SLOT_CARD.ENABLE_REGRESSION_BUILDS}
-            description={REGRESSION_SLOT_CARD.ENABLE_REGRESSION_BUILDS_DESC}
-            checked={localSlot.config.regressionBuilds}
-            onChange={(e) =>
-              setLocalSlot({
-                ...localSlot,
-                config: { ...localSlot.config, regressionBuilds: e.currentTarget.checked },
-              })
-            }
-            size="sm"
-            color="brand"
-          />
-        </Box>
 
         {/* Save/Cancel buttons */}
         <Group justify="flex-end" mt="md">

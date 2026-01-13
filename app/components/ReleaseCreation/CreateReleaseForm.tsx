@@ -35,6 +35,23 @@ import { RELEASE_ACTIVE_STATUS } from '~/constants/release-ui';
 import { applyVersionSuggestions } from '~/utils/release-version-suggestions';
 import { clearErrorsForFields, formatFieldLabel } from '~/utils/form-error-utils';
 
+/**
+ * Format slot error message by splitting on delimiter and bolding the label part
+ * Message format: "Slot X:|error message" where | is the delimiter
+ */
+function formatSlotErrorMessage(message: string) {
+  const [boldPart, ...restParts] = message.split('|');
+  if (restParts.length > 0) {
+    return (
+      <>
+        <Text component="span" fw={600}>{boldPart}{" "}</Text>
+        {restParts.join('|')}
+      </>
+    );
+  }
+  return message;
+}
+
 interface CreateReleaseFormProps {
   org: string;
   userId: string;
@@ -651,7 +668,13 @@ export function CreateReleaseForm({
                 return (
                   <List.Item key={field}>
                     <Text size="sm">
-                      <Text component="span" fw={600}>{fieldLabel}:</Text> {message}
+                      {fieldLabel ? (
+                        <>
+                          <Text component="span" fw={600}>{fieldLabel}:</Text> {message}
+                        </>
+                      ) : (
+                        formatSlotErrorMessage(message)
+                      )}
                     </Text>
                   </List.Item>
                 );

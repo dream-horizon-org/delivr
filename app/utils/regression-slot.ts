@@ -24,13 +24,13 @@ export function sortRegressionSlots(slots: RegressionSlot[]): RegressionSlot[] {
  * Get activity badge labels for a regression slot
  * @param slot - Regression slot to extract activities from
  * @returns Array of activity label strings
+ * 
+ * Note: regressionBuilds flag removed from UI but kept in data structure for backward compatibility
  */
 export function getSlotActivityLabels(slot: RegressionSlot): string[] {
   const activities: string[] = [];
   
-  if (slot.config.regressionBuilds) {
-    activities.push(REGRESSION_ACTIVITY_LABELS.REGRESSION_BUILDS);
-  }
+  // regressionBuilds removed - not used to create tasks
   if (slot.config.postReleaseNotes) {
     activities.push(REGRESSION_ACTIVITY_LABELS.POST_RELEASE_NOTES);
   }

@@ -84,8 +84,7 @@ export function useKickoffStage(
   shouldPoll: boolean = false
 ) {
   const isEnabled = !!tenantId && !!releaseId;
-  
-  console.log('[useKickoffStage] Hook called with:', { tenantId, releaseId, isEnabled, shouldPoll });
+
   
   return useQuery<KickoffStageResponse, Error>(
     QUERY_KEYS.stage(tenantId || '', releaseId || '', TaskStage.KICKOFF),

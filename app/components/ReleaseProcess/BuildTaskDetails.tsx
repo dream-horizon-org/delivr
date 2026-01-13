@@ -55,7 +55,7 @@ export function BuildTaskDetails({
   // - If NOT COMPLETED → use uploadedBuilds (staging, can change)
   // Note: task.builds is always present (required field), empty array if no builds
   const effectiveBuilds: BuildInfo[] = useMemo(() => {
-    if (task.taskStatus === TaskStatus.COMPLETED) {
+    if (task.taskStatus === TaskStatus.COMPLETED || task.taskStatus === TaskStatus.FAILED) {
       // Task completed: builds are consumed, use task.builds
       if (Array.isArray(task.builds) && task.builds.length > 0) {
         return task.builds;

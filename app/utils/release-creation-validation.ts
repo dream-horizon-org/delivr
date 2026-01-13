@@ -264,15 +264,16 @@ export function validateReleaseCreationState(
       const targetRelease = new Date(targetReleaseDateTime);
 
       state.regressionBuildSlots.forEach((slot, index) => {
+        const slotNumber = index + 1;
         const slotDate = new Date(slot.date);
         if (isNaN(slotDate.getTime())) {
-          errors[`regressionBuildSlots[${index}].date`] = 'Invalid slot date format';
+          errors[`slot-${slotNumber}`] = `Slot ${slotNumber}:|Invalid slot date format`;
         } else {
           if (slotDate <= kickOff) {
-            errors[`regressionBuildSlots[${index}].date`] = 'Slot date and time must be after kickoff date and time';
+            errors[`slot-${slotNumber}`] = `Slot ${slotNumber}:|Slot date and time must be after kickoff date and time`;
           }
           if (slotDate >= targetRelease) {
-            errors[`regressionBuildSlots[${index}].date`] = 'Slot date and time must be before target release date and time';
+            errors[`slot-${slotNumber}`] = `Slot ${slotNumber}:|Slot date and time must be before target release date and time`;
           }
         }
       });
