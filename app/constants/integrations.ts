@@ -158,58 +158,43 @@ export type VerificationStatusType = typeof VERIFICATION_STATUS[keyof typeof VER
 export const DISCONNECT_CONFIG: Record<
   string,
   {
-    message: string;
     endpoint: (tenantId: string, config?: any) => string;
   }
 > = {
   slack: {
-    message: 'Are you sure you want to disconnect Slack? This will stop all release notifications.',
     endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/slack`,
   },
   jenkins: {
-    message: 'Are you sure you want to disconnect Jenkins? This will stop all CI/CD pipeline integrations.',
     endpoint: (tenantId, config) => {
       if (!config?.id) throw new Error('Integration ID required for Jenkins');
       return `/api/v1/tenants/${tenantId}/integrations/ci-cd/jenkins`;
     },
   },
   github_actions: {
-    message:
-      'Are you sure you want to disconnect GitHub Actions? This will stop all workflow integrations.',
     endpoint: (tenantId, config) => {
       if (!config?.id) throw new Error('Integration ID required for GitHub Actions');
       return `/api/v1/tenants/${tenantId}/integrations/ci-cd/github-actions`;
     },
   },
   github: {
-    message:
-      'Are you sure you want to disconnect GitHub? This will stop all source control integrations.',
     endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/scm`,
   },
   scm: {
-    message:
-      'Are you sure you want to disconnect Source Control? This will stop all repository integrations.',
     endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/scm`,
   },
   jira: {
-    message:
-      'Are you sure you want to disconnect Jira? This will stop all project management integrations.',
     endpoint: (tenantId, config) => {
       if (!config?.id) throw new Error('Integration ID required for Jira');
       return `/api/v1/tenants/${tenantId}/integrations/project-management?integrationId=${config.id}`;
     },
   },
   checkmate: {
-    message:
-      'Are you sure you want to disconnect Checkmate? This will stop all test management integrations.',
     endpoint: (tenantId, config) => {
       if (!config?.id) throw new Error('Integration ID required for Checkmate');
       return `/api/v1/tenants/${tenantId}/integrations/test-management?integrationId=${config.id}`;
     },
   },
   play_store: {
-    message:
-      'Are you sure you want to disconnect Play Store? This will stop all app distribution integrations.',
     endpoint: (tenantId, config) => {
       const storeType = config?.storeType || 'play_store';
       const platform = config?.platform || 'ANDROID';
@@ -217,8 +202,6 @@ export const DISCONNECT_CONFIG: Record<
     },
   },
   app_store: {
-    message:
-      'Are you sure you want to disconnect App Store? This will stop all app distribution integrations.',
     endpoint: (tenantId, config) => {
       const storeType = config?.storeType || 'app_store';
       const platform = config?.platform || 'IOS';

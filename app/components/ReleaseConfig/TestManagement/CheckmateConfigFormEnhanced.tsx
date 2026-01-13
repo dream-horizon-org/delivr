@@ -451,7 +451,11 @@ export function CheckmateConfigFormEnhanced({
                               <Stack gap="sm">
                                 <MultiSelect
                                   label="Sections"
-                                  placeholder={`Select sections for ${label}`}
+                                  placeholder={
+                                    platformMetadata.sections.length === 0 
+                                      ? "No sections available in this project"
+                                      : `Select sections for ${label}`
+                                  }
                                   data={platformMetadata.sections.map(s => ({ 
                                     value: s.sectionId.toString(), 
                                     label: s.sectionName 
@@ -465,12 +469,22 @@ export function CheckmateConfigFormEnhanced({
                                     )
                                   }
                                   searchable
-                                  description="Filter tests by sections (optional)"
+                                  description={
+                                    platformMetadata.sections.length === 0
+                                      ? "This project has no sections configured in Checkmate"
+                                      : "Filter tests by sections (optional)"
+                                  }
+                                  disabled={platformMetadata.sections.length === 0}
+                                  nothingFoundMessage="No sections found"
                                 />
 
                                 <MultiSelect
                                   label="Labels"
-                                  placeholder={`Select labels for ${label}`}
+                                  placeholder={
+                                    platformMetadata.labels.length === 0 
+                                      ? "No labels available in this project"
+                                      : `Select labels for ${label}`
+                                  }
                                   data={platformMetadata.labels.map(l => ({ 
                                     value: l.labelId.toString(), 
                                     label: l.labelName 
@@ -484,12 +498,22 @@ export function CheckmateConfigFormEnhanced({
                                     )
                                   }
                                   searchable
-                                  description="Filter tests by labels (optional)"
+                                  description={
+                                    platformMetadata.labels.length === 0
+                                      ? "This project has no labels configured in Checkmate"
+                                      : "Filter tests by labels (optional)"
+                                  }
+                                  disabled={platformMetadata.labels.length === 0}
+                                  nothingFoundMessage="No labels found"
                                 />
 
                                 <MultiSelect
                                   label="Squads"
-                                  placeholder={`Select squads for ${label}`}
+                                  placeholder={
+                                    platformMetadata.squads.length === 0 
+                                      ? "No squads available in this project"
+                                      : `Select squads for ${label}`
+                                  }
                                   data={platformMetadata.squads.map(s => ({ 
                                     value: s.squadId.toString(), 
                                     label: s.squadName 
@@ -503,7 +527,13 @@ export function CheckmateConfigFormEnhanced({
                                     )
                                   }
                                   searchable
-                                  description="Filter tests by squads (optional)"
+                                  description={
+                                    platformMetadata.squads.length === 0
+                                      ? "This project has no squads configured in Checkmate"
+                                      : "Filter tests by squads (optional)"
+                                  }
+                                  disabled={platformMetadata.squads.length === 0}
+                                  nothingFoundMessage="No squads found"
                                 />
                               </Stack>
                             )}

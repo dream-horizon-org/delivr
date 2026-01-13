@@ -6,7 +6,7 @@ interface ConfirmationModalProps {
   onClose: () => void;
   onConfirm: () => void;
   title: string;
-  message: string;
+  message: string | React.ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   confirmColor?: string;
@@ -36,7 +36,7 @@ export function ConfirmationModal({
       centered
       title={
         <div className="flex items-center gap-2">
-          <IconAlertTriangle size={24} className="text-yellow-500" />
+          <IconAlertTriangle size={24} className="text-red-500" />
           <span className="font-semibold">{title}</span>
         </div>
       }

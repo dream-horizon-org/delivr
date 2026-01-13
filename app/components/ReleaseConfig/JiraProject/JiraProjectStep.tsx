@@ -18,7 +18,7 @@ import {
   Loader,
 } from '@mantine/core';
 import { useParams } from '@remix-run/react';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { IconAlertCircle, IconCheck } from '@tabler/icons-react';
 import type { JiraProjectConfig, Platform, JiraPlatformConfig } from '~/types/release-config';
 import type { JiraProjectStepProps } from '~/types/release-config-props';
 import { PLATFORMS } from '~/types/release-config-constants';
@@ -202,22 +202,38 @@ export function JiraProjectStep({
 
           {selectedPlatforms.length > 0 && (
             <>
-              {/* Integration Selector */}
+              {/* Integration Connection Status - Same pattern as Test Management */}
               <Paper p="lg" radius="md" withBorder>
                 <Stack gap="md">
                   {integrationOptions.length > 0 ? (
-                    <Select
-                      label="Integration"
-                      placeholder="Select a JIRA integration"
-                      description="Choose the integration to use for this configuration"
-                      data={integrationOptions}
-                      value={config.integrationId || null}
-                      onChange={handleIntegrationChange}
-                      required
-                      withAsterisk
-                      searchable
-                      size="sm"
-                    />
+                    <>
+                      {/* Connection Status */}
+                      <Paper
+                        p="md"
+                        radius="md"
+                        style={{
+                          backgroundColor: theme.colors.green[0],
+                          border: `1px solid ${theme.colors.green[2]}`,
+                        }}
+                      >
+                        <Group gap="sm">
+                          <ThemeIcon size={28} radius="md" variant="light" color="green">
+                            <IconCheck size={16} />
+                          </ThemeIcon>
+                          <Box>
+                            <Text size="sm" fw={600} c={theme.colors.green[8]}>
+                              Connected: {availableIntegrations[0].name}
+                            </Text>
+                            <Text size="xs" c={theme.colors.green[6]}>
+                              Using your Jira integration
+                            </Text>
+                          </Box>
+                        </Group>
+                      </Paper>
+
+                      {/* Auto-select the first (and only) integration */}
+                      {!config.integrationId && handleIntegrationChange(integrationOptions[0].value)}
+                    </>
                   ) : (
                     <NoIntegrationAlert
                       category={IntegrationCategory.PROJECT_MANAGEMENT}

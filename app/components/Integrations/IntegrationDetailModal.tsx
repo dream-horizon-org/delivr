@@ -11,6 +11,7 @@ import {
   ThemeIcon,
   Divider,
   useMantineTheme,
+  Alert,
 } from '@mantine/core';
 import { 
   IconCheck, 
@@ -472,18 +473,27 @@ export function IntegrationDetailModal({
 
       {/* Confirmation Modal */}
       {integration && DISCONNECT_CONFIG[integration.id.toLowerCase()] && (
-        <ConfirmationModal
-          opened={showConfirmDisconnect}
-          onClose={() => setShowConfirmDisconnect(false)}
-          onConfirm={handleConfirmDisconnect}
-          title="Disconnect Integration"
-          message={DISCONNECT_CONFIG[integration.id.toLowerCase()].message}
-          confirmLabel="Disconnect"
-          cancelLabel="Cancel"
-          confirmColor="red"
-          isLoading={isDisconnecting}
-        />
-      )}
+      <ConfirmationModal
+        opened={showConfirmDisconnect}
+        onClose={() => setShowConfirmDisconnect(false)}
+        onConfirm={handleConfirmDisconnect}
+        title="Disconnect Integration"
+        message={
+          <Alert color="red">
+            <Text size="sm" fw={600} mb={4}>
+              This action may cause failures!
+            </Text>
+            <Text size="xs">
+              Disconnecting this integration will affect all release configurations and active releases using it.
+            </Text>
+          </Alert>
+        }
+        confirmLabel="Disconnect"
+        cancelLabel="Cancel"
+        confirmColor="red"
+        isLoading={isDisconnecting}
+      />
+    )}
     </>
   );
 }
