@@ -478,7 +478,8 @@ export class DistributionService {
         const iosSubmission = await this.iosSubmissionRepository.findLatestByDistributionId(distribution.id);
         const androidSubmission = await this.androidSubmissionRepository.findLatestByDistributionId(distribution.id);
 
-        // Filter by platform if specified (case-insensitive)
+        // ALWAYS collect ALL submissions (don't filter by platform here)
+        // The platform filter determines which distributions to show, not which submissions to include
         const submissions: Array<{
           id: string;
           platform: 'ANDROID' | 'IOS';
@@ -491,7 +492,7 @@ export class DistributionService {
           isActive: boolean;
         }> = [];
 
-        if (androidSubmission && (!normalizedPlatform || normalizedPlatform === 'ANDROID')) {
+        if (androidSubmission) {
           submissions.push({
             id: androidSubmission.id,
             platform: 'ANDROID',
@@ -505,7 +506,7 @@ export class DistributionService {
           });
         }
 
-        if (iosSubmission && (!normalizedPlatform || normalizedPlatform === 'IOS')) {
+        if (iosSubmission) {
           submissions.push({
             id: iosSubmission.id,
             platform: 'IOS',
@@ -519,9 +520,13 @@ export class DistributionService {
           });
         }
 
-        // If platform filter is specified and no submissions match, return null to filter out
-        if (normalizedPlatform && submissions.length === 0) {
-          return null;
+        // Platform filter: determine if this distribution should appear in results
+        // Only show distributions that have a submission matching the filter
+        if (normalizedPlatform) {
+          const hasMatchingSubmission = submissions.some(s => s.platform === normalizedPlatform);
+          if (!hasMatchingSubmission) {
+            return null;
+          }
         }
 
         // Enrich iOS submissions with current rollout percentage from Apple API
