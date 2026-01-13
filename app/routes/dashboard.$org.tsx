@@ -100,15 +100,9 @@ export type OrgLayoutLoaderData = {
 /**
  * Control revalidation behavior for parent route
  * ONLY revalidate on navigation - never on actions from child routes
+ * Uses the same strategy as the root dashboard route
  */
-export function shouldRevalidate({ 
-  currentUrl, 
-  nextUrl
-}: any) {
-  // ONLY revalidate on navigation (URL change)
-  // Block ALL other revalidation (actions, manual revalidation from children)
-  return currentUrl.pathname !== nextUrl.pathname;
-}
+export { shouldRevalidate } from './dashboard';
 
 export default function OrgLayout() {
   const { tenantId, initialTenantConfig } = useLoaderData<OrgLayoutLoaderData>();
