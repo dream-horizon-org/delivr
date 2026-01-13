@@ -14,12 +14,14 @@
  */
 
 import { TaskType, TaskStatus, PlatformName } from '~models/release/release.interface';
+import type { ReleaseTask } from '~models/release/release.interface';
 import { ReleaseUploadsRepository, ReleaseUpload } from '~models/release/release-uploads.repository';
 import { UploadStage } from '~models/release/release-uploads.sequelize.model';
 import { ReleaseTaskRepository } from '~models/release/release-task.repository';
 import { BuildRepository, CreateBuildDto } from '~models/release/build.repository';
 import { v4 as uuidv4 } from 'uuid';
 import { BUILD_STAGE } from '~types/release-management/builds';
+import type { BuildNotificationService } from '~services/release/build/build-notification.service';
 
 // ============================================================================
 // TYPES
@@ -167,13 +169,15 @@ export const getRequiredPlatformsForTask = (
  * @param releaseUploadsRepo - Repository for release_uploads table
  * @param releaseTaskRepo - Repository for release_tasks table
  * @param buildRepo - Repository for builds table (for creating build records)
+ * @param buildNotificationService - Service for sending build notifications
  * @returns Result object with check outcome
  */
 export const checkAndConsumeManualBuilds = async (
   context: ManualBuildCheckContext,
   releaseUploadsRepo: ReleaseUploadsRepository,
   releaseTaskRepo: ReleaseTaskRepository,
-  buildRepo?: BuildRepository
+  buildRepo: BuildRepository,
+  buildNotificationService: BuildNotificationService
 ): Promise<ManualBuildCheckResult> => {
   const { releaseId, taskId, taskType, cycleId, platforms, platformVersionMappings } = context;
   
@@ -242,7 +246,7 @@ export const checkAndConsumeManualBuilds = async (
   }
 
   // Create build records from consumed uploads
-  if (buildRepo && uploadsToConsume.length > 0) {
+  if (uploadsToConsume.length > 0) {
     console.log(`[ManualBuildHandler] Creating ${uploadsToConsume.length} build records...`);
     
     for (const upload of uploadsToConsume) {
@@ -312,6 +316,31 @@ export const checkAndConsumeManualBuilds = async (
     }
   }
 
+  // Send build notifications
+  try {
+    // Fetch builds that were just created for this task
+    const builds = await buildRepo.findByTaskId(taskId);
+    
+    const hasBuilds = builds.length > 0;
+    if (hasBuilds) {
+      // Construct minimal task object for notification (only fields used by notifyBuildCompletions)
+      const task = {
+        id: taskId,
+        taskType,
+        releaseId,
+      } as ReleaseTask;
+      
+      await buildNotificationService.notifyBuildCompletions(task, builds);
+    }
+  } catch (error) {
+    // Log but don't fail - notification failure shouldn't break the flow
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(
+      `[ManualBuildHandler] Error sending build notifications: ` +
+      `taskId=${taskId}, releaseId=${releaseId}, taskType=${taskType}, error=${errorMessage}`
+    );
+  }
+
   // Update task status to COMPLETED
   await releaseTaskRepo.update(taskId, {
     taskStatus: TaskStatus.COMPLETED,
@@ -344,6 +373,7 @@ export const checkAndConsumeManualBuilds = async (
  * @param releaseUploadsRepo - Repository for release_uploads table
  * @param releaseTaskRepo - Repository for release_tasks table
  * @param buildRepo - Repository for builds table (for creating build records)
+ * @param buildNotificationService - Service for sending build notifications
  * @returns Array of results for each waiting task
  */
 export const processAwaitingManualBuildTasks = async (
@@ -353,7 +383,8 @@ export const processAwaitingManualBuildTasks = async (
   platformVersionMappings: PlatformVersionMapping[],
   releaseUploadsRepo: ReleaseUploadsRepository,
   releaseTaskRepo: ReleaseTaskRepository,
-  buildRepo?: BuildRepository
+  buildRepo: BuildRepository,
+  buildNotificationService: BuildNotificationService
 ): Promise<Map<string, ManualBuildCheckResult>> => {
   const results = new Map<string, ManualBuildCheckResult>();
 
@@ -397,7 +428,8 @@ export const processAwaitingManualBuildTasks = async (
       },
       releaseUploadsRepo,
       releaseTaskRepo,
-      buildRepo
+      buildRepo,
+      buildNotificationService
     );
 
     results.set(task.id, result);

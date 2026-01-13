@@ -268,7 +268,8 @@ export function createTestStorage(sequelize: Sequelize) {
     cronJobRepository,
     releaseNotificationService,
     sequelize,  // ✅ Pass Sequelize directly instead of TaskExecutor calling getStorage()
-    regressionCycleRepository  // ✅ Pass RegressionCycleRepository from storage instead of creating new instance
+    regressionCycleRepository,  // ✅ Pass RegressionCycleRepository from storage instead of creating new instance
+    undefined as any  // buildNotificationService (optional for tests)
   );
 
   // Initialize GlobalSchedulerService (centralized initialization - replaces factory)
@@ -329,19 +330,19 @@ export function createTestStorage(sequelize: Sequelize) {
     buildArtifactService
   );
 
-  // Initialize Release Retrieval Service (needed for BuildCallbackService)
-  // For tests, we'll create a minimal mock
-  const releaseRetrievalService = null as any; // TODO: Create proper instance if needed
-
   // Initialize Build Callback Service (centralized initialization - replaces factory)
+  // Create a mock buildNotificationService for tests
+  const mockBuildNotificationService = {
+    notifyBuildCompletions: jest.fn().mockResolvedValue(undefined)
+  } as any;
+  
   const buildCallbackService = new BuildCallbackService(
     buildRepository,
     releaseTaskRepository,
     releaseRepository,
     cronJobRepository,
-    releaseRetrievalService,
     releaseNotificationService,
-    buildArtifactService
+    mockBuildNotificationService
   );
 
   // Initialize TestFlight Build Verification Service (centralized initialization - replaces factory)

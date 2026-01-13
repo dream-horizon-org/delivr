@@ -23,7 +23,6 @@ import { PreReleaseState } from './pre-release.state';
 import { processAwaitingManualBuildTasks } from '~utils/awaiting-manual-build.utils';
 import { NotificationType } from '~types/release-notification';
 import { buildDelivrUrl } from '../../task-executor/task-executor.utils';
-import { StorageWithReleaseServices } from '~types/release/storage-with-services.interface';
 
 export class RegressionState implements ICronJobState {
   constructor(public context: CronJobStateMachine) {}
@@ -338,6 +337,9 @@ export class RegressionState implements ICronJobState {
           // Get build repository for creating build records
           const buildRepo = this.context.getBuildRepo?.();
           
+          // Get build notification service from context
+          const buildNotificationService = this.context.getBuildNotificationService();
+          
           const manualBuildResults = await processAwaitingManualBuildTasks(
             releaseId,
             tasksWithCycle,
@@ -345,7 +347,8 @@ export class RegressionState implements ICronJobState {
             platformVersionMappings,
             releaseUploadsRepo,
             releaseTaskRepo,
-            buildRepo
+            buildRepo,
+            buildNotificationService
           );
 
           // Track which tasks were just completed by manual build handler
@@ -566,9 +569,7 @@ export class RegressionState implements ICronJobState {
   private async sendApprovalRequestNotification(): Promise<void> {
     try {
       const releaseId = this.context.getReleaseId();
-      const storage = this.context.getStorage();
-      const storageWithServices = storage as StorageWithReleaseServices;
-      const releaseNotificationService = storageWithServices.releaseNotificationService;
+      const releaseNotificationService = this.context.getReleaseNotificationService();
 
       // Get release for tenantId
       const releaseRepo = this.context.getReleaseRepo();

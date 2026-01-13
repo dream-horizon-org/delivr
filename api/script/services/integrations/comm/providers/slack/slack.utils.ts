@@ -10,6 +10,7 @@ import {
   type PlatformTemplate,
   isPlatformTemplate
 } from '../../messaging/messaging.interface';
+import { SLACK_FILE_DEFAULTS } from './slack.constants';
 
 let templatesCache: TemplatesCollection | null = null;
 
@@ -187,13 +188,17 @@ export const buildSlackMessage = (
  * Download file from URL and convert to MessageFile format for Slack upload
  * 
  * @param url - File URL to download (e.g., Firebase build URL)
+ * @param fileName - Optional filename to use (e.g., "1.0.0.apk"). Defaults to "attachment"
  * @returns MessageFile array ready for Slack API upload
  * 
  * @example
- * const files = await downloadFileFromUrl('https://firebase.dev/builds/app-v6.4.1.apk');
- * // Returns: [{ buffer: Buffer, filename: 'app-v6.4.1.apk', contentType: '...', ... }]
+ * const files = await downloadFileFromUrl('https://s3.../build.apk', '1.0.0.apk');
+ * // Returns: [{ buffer: Buffer, filename: '1.0.0.apk', contentType: '...', ... }]
  */
-export const downloadFileFromUrl = async (url: string): Promise<MessageFile[]> => {
+export const downloadFileFromUrl = async (
+  url: string,
+  fileName?: string
+): Promise<MessageFile[]> => {
   try {
     console.log(`[FileDownload] Downloading file from: ${url}`);
     
@@ -210,9 +215,8 @@ export const downloadFileFromUrl = async (url: string): Promise<MessageFile[]> =
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Extract filename from URL path
-    const urlParts = url.split('/');
-    const filename = urlParts[urlParts.length - 1] || 'attachment';
+    // Use provided fileName or default to "attachment"
+    const filename = fileName ?? SLACK_FILE_DEFAULTS.DEFAULT_FILENAME;
 
     // Detect content type from response headers or file extension
     const contentType = response.headers.get('content-type') ?? 
@@ -225,12 +229,12 @@ export const downloadFileFromUrl = async (url: string): Promise<MessageFile[]> =
 
     console.log(`[FileDownload] Downloaded ${filename} (${buffer.length} bytes, ${contentType})`);
 
+    // Note: Don't set initialComment - let the template message be used instead
     return [{
       buffer,
       filename,
       contentType,
-      title: filename,
-      initialComment: `Build file: ${filename}`
+      title: filename
     }];
   } catch (error: any) {
     const errorMessage = `Failed to download file from URL: ${error.message}`;

@@ -1,4 +1,5 @@
 export { BuildArtifactService } from './build-artifact.service';
+export { BuildNotificationService } from './build-notification.service';
 export { TestFlightBuildVerificationService } from '../testflight-build-verification.service';
 
 // Service-specific types

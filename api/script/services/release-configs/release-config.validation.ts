@@ -221,6 +221,7 @@ export const validateScheduling = (scheduling: ReleaseSchedule): FieldValidation
 
 /**
  * Validate individual regression slot
+ * Note: config and config flags are optional - defaults applied at runtime
  */
 const validateRegressionSlot = (
   slot: RegressionSlot, 
@@ -230,7 +231,7 @@ const validateRegressionSlot = (
   const errors: FieldValidationError[] = [];
   const fieldPrefix = `scheduling.regressionSlots[${index}]`;
 
-  // Validate required fields (name is optional)
+  // Validate required fields (name and config are optional)
   if (slot.regressionSlotOffsetFromKickoff === undefined || slot.regressionSlotOffsetFromKickoff === null) {
     errors.push({
       field: `${fieldPrefix}.regressionSlotOffsetFromKickoff`,
@@ -245,38 +246,34 @@ const validateRegressionSlot = (
     });
   }
 
-  if (!slot.config) {
-    errors.push({
-      field: `${fieldPrefix}.config`,
-      message: 'Regression slot config is required'
-    });
-  } else {
-    // Validate config object properties
-    if (slot.config.regressionBuilds === undefined || slot.config.regressionBuilds === null) {
+  // config is optional - defaults applied at runtime via applyRegressionSlotConfigDefaults()
+  // Only validate type if config flags are explicitly provided
+  if (slot.config) {
+    if (slot.config.regressionBuilds !== undefined && typeof slot.config.regressionBuilds !== 'boolean') {
       errors.push({
         field: `${fieldPrefix}.config.regressionBuilds`,
-        message: 'Regression builds flag is required'
+        message: 'Regression builds must be a boolean'
       });
     }
 
-    if (slot.config.postReleaseNotes === undefined || slot.config.postReleaseNotes === null) {
+    if (slot.config.postReleaseNotes !== undefined && typeof slot.config.postReleaseNotes !== 'boolean') {
       errors.push({
         field: `${fieldPrefix}.config.postReleaseNotes`,
-        message: 'Post release notes flag is required'
+        message: 'Post release notes must be a boolean'
       });
     }
 
-    if (slot.config.automationBuilds === undefined || slot.config.automationBuilds === null) {
+    if (slot.config.automationBuilds !== undefined && typeof slot.config.automationBuilds !== 'boolean') {
       errors.push({
         field: `${fieldPrefix}.config.automationBuilds`,
-        message: 'Automation builds flag is required'
+        message: 'Automation builds must be a boolean'
       });
     }
 
-    if (slot.config.automationRuns === undefined || slot.config.automationRuns === null) {
+    if (slot.config.automationRuns !== undefined && typeof slot.config.automationRuns !== 'boolean') {
       errors.push({
         field: `${fieldPrefix}.config.automationRuns`,
-        message: 'Automation runs flag is required'
+        message: 'Automation runs must be a boolean'
       });
     }
   }

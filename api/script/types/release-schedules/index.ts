@@ -7,14 +7,19 @@ export type {
   WorkingDay,
   InitialVersion,
   RegressionSlot,
+  RegressionSlotConfig,
   ReleaseSchedule,
   ReleaseScheduleRecord,
   CreateReleaseScheduleDto,
   UpdateReleaseScheduleDto
 } from './release-schedule.interface';
 
-// Export runtime constants (values, not types)
-export { RELEASE_FREQUENCIES } from './release-schedule.interface';
+// Export runtime constants and functions (values, not types)
+export { 
+  RELEASE_FREQUENCIES,
+  DEFAULT_REGRESSION_SLOT_CONFIG,
+  applyRegressionSlotConfigDefaults
+} from './release-schedule.interface';
 
 export type {
   SemanticVersion,

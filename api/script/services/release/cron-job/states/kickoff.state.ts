@@ -105,6 +105,9 @@ export class KickoffState implements ICronJobState {
           // Get build repository for creating build records
           const buildRepo = this.context.getBuildRepo?.();
           
+          // Get build notification service from context
+          const buildNotificationService = this.context.getBuildNotificationService();
+          
           const manualBuildResults = await processAwaitingManualBuildTasks(
             releaseId,
             tasks,
@@ -112,7 +115,8 @@ export class KickoffState implements ICronJobState {
             platformVersionMappings,
             releaseUploadsRepo,
             releaseTaskRepo,
-            buildRepo
+            buildRepo,
+            buildNotificationService
           );
 
           // Track which tasks were just completed by manual build handler

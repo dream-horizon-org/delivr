@@ -159,7 +159,8 @@ describe('TaskExecutor - Partial Failure Handling (TDD - RED Phase)', () => {
       {} as any, // cronJobRepo - ✅ Required - actively initialized in aws-storage.ts
       undefined, // releaseNotificationService
       mockSequelize,  // ✅ Pass Sequelize directly instead of TaskExecutor calling getStorage()
-      {} as any  // regressionCycleRepo - ✅ Required - actively initialized in aws-storage.ts
+      {} as any,  // regressionCycleRepo - ✅ Required - actively initialized in aws-storage.ts
+      {} as any  // buildNotificationService - ✅ Required for build notifications
     );
   });
 

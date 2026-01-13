@@ -19,7 +19,6 @@ import { createStage3Tasks } from '~utils/task-creation';
 import { getOrderedTasks, getTaskBlockReason, OptionalTaskConfig, isTaskRequired } from '~utils/task-sequencing';
 import { processAwaitingManualBuildTasks } from '~utils/awaiting-manual-build.utils';
 import { deleteWorkflowPollingJobs } from '~services/release/workflow-polling';
-import { StorageWithReleaseServices } from '~types/release/storage-with-services.interface';
 import { NotificationType } from '~types/release-notification';
 import { buildDelivrUrl } from '../../task-executor/task-executor.utils';
 
@@ -153,6 +152,9 @@ export class PreReleaseState implements ICronJobState {
           // Get build repository for creating build records
           const buildRepo = this.context.getBuildRepo?.();
           
+          // Get build notification service from context
+          const buildNotificationService = this.context.getBuildNotificationService();
+          
           const manualBuildResults = await processAwaitingManualBuildTasks(
             releaseId,
             existingStage3Tasks,
@@ -160,7 +162,8 @@ export class PreReleaseState implements ICronJobState {
             platformVersionMappings,
             releaseUploadsRepo,
             releaseTaskRepo,
-            buildRepo
+            buildRepo,
+            buildNotificationService
           );
 
           // Track which tasks were just completed by manual build handler
@@ -356,9 +359,7 @@ export class PreReleaseState implements ICronJobState {
   private async sendApprovalRequestNotification(): Promise<void> {
     try {
       const releaseId = this.context.getReleaseId();
-      const storage = this.context.getStorage();
-      const storageWithServices = storage as StorageWithReleaseServices;
-      const releaseNotificationService = storageWithServices.releaseNotificationService;
+      const releaseNotificationService = this.context.getReleaseNotificationService();
 
       // Get release for tenantId
       const releaseRepo = this.context.getReleaseRepo();
@@ -393,9 +394,7 @@ export class PreReleaseState implements ICronJobState {
    * Called when the release workflow completes (Stage 3 done).
    */
   private async deleteWorkflowPollingJobs(releaseId: string): Promise<void> {
-    const storage = this.context.getStorage();
-    const storageWithServices = storage as StorageWithReleaseServices;
-    const cronicleService = storageWithServices.cronicleService;
+    const cronicleService = this.context.getCronicleService();
     
     const cronicleNotAvailable = !cronicleService;
     if (cronicleNotAvailable) {

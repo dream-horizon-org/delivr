@@ -166,12 +166,18 @@ describe('Build Callback & Retry Tests (TDD)', () => {
           update: jest.fn().mockResolvedValue(undefined)
         },
         releaseRepo: {
-          findById: jest.fn().mockResolvedValue({ id: 'release-1', status: ReleaseStatus.IN_PROGRESS }),
+          findById: jest.fn().mockResolvedValue({ id: 'release-1', status: ReleaseStatus.IN_PROGRESS, tenantId: 'tenant-1' }),
           update: jest.fn().mockResolvedValue(undefined)
         },
         cronJobRepo: {
           findByReleaseId: jest.fn().mockResolvedValue({ id: 'cron-1', releaseId: 'release-1' }),
           update: jest.fn().mockResolvedValue(undefined)
+        },
+        releaseNotificationService: {
+          notify: jest.fn().mockResolvedValue(undefined)
+        },
+        buildNotificationService: {
+          notifyBuildCompletions: jest.fn().mockResolvedValue(undefined)
         }
       };
     };
@@ -183,7 +189,9 @@ describe('Build Callback & Retry Tests (TDD)', () => {
         mocks.buildRepo as any,
         mocks.taskRepo as any,
         mocks.releaseRepo as any,
-        mocks.cronJobRepo as any
+        mocks.cronJobRepo as any,
+        mocks.releaseNotificationService as any,
+        mocks.buildNotificationService as any
       );
       const result = await service.processCallback('task-123');
       
@@ -203,7 +211,9 @@ describe('Build Callback & Retry Tests (TDD)', () => {
         mocks.buildRepo as any,
         mocks.taskRepo as any,
         mocks.releaseRepo as any,
-        mocks.cronJobRepo as any
+        mocks.cronJobRepo as any,
+        mocks.releaseNotificationService as any,
+        mocks.buildNotificationService as any
       );
       const result = await service.processCallback('task-123');
       
@@ -230,7 +240,9 @@ describe('Build Callback & Retry Tests (TDD)', () => {
         mocks.buildRepo as any,
         mocks.taskRepo as any,
         mocks.releaseRepo as any,
-        mocks.cronJobRepo as any
+        mocks.cronJobRepo as any,
+        mocks.releaseNotificationService as any,
+        mocks.buildNotificationService as any
       );
       const result = await service.processCallback('task-123');
       
@@ -248,7 +260,9 @@ describe('Build Callback & Retry Tests (TDD)', () => {
         mocks.buildRepo as any,
         mocks.taskRepo as any,
         mocks.releaseRepo as any,
-        mocks.cronJobRepo as any
+        mocks.cronJobRepo as any,
+        mocks.releaseNotificationService as any,
+        mocks.buildNotificationService as any
       );
       const result = await service.processCallback('task-123');
       
@@ -264,7 +278,9 @@ describe('Build Callback & Retry Tests (TDD)', () => {
         mocks.buildRepo as any,
         mocks.taskRepo as any,
         mocks.releaseRepo as any,
-        mocks.cronJobRepo as any
+        mocks.cronJobRepo as any,
+        mocks.releaseNotificationService as any,
+        mocks.buildNotificationService as any
       );
       const result = await service.processCallback('task-123');
       
@@ -281,7 +297,9 @@ describe('Build Callback & Retry Tests (TDD)', () => {
         mocks.buildRepo as any,
         mocks.taskRepo as any,
         mocks.releaseRepo as any,
-        mocks.cronJobRepo as any
+        mocks.cronJobRepo as any,
+        mocks.releaseNotificationService as any,
+        mocks.buildNotificationService as any
       );
       const result = await service.processCallback('task-123');
       

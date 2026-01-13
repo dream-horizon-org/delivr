@@ -81,6 +81,7 @@ import { SCMService } from "../services/integrations/scm/scm.service";
 import { ReleaseActivityLogService } from "../services/release/release-activity-log.service";
 import { CronJobService } from "../services/release/cron-job/cron-job.service";
 import { BuildArtifactService } from "../services/release/build/build-artifact.service";
+import { BuildNotificationService } from "../services/release/build/build-notification.service";
 import { TaskExecutor } from "../services/release/task-executor/task-executor";
 import { GlobalSchedulerService, type StateMachineFactory } from "../services/release/cron-job/global-scheduler.service";
 import { CronJobStateMachine } from "../services/release/cron-job/cron-job-state-machine";
@@ -901,6 +902,7 @@ export class S3Storage implements storage.Storage {
     public releaseActivityLogService!: ReleaseActivityLogService;  // Release activity log service
     public cronJobService!: CronJobService;  // Cron job service
     public buildArtifactService!: BuildArtifactService;  // Build artifact service
+    public buildNotificationService!: BuildNotificationService;  // Build notification service (for CI/CD and manual uploads)
     public taskExecutor!: TaskExecutor;  // Task executor service (centralized initialization)
     public globalSchedulerService!: GlobalSchedulerService;  // ✅ Required - actively initialized in aws-storage.ts (works in both setInterval and Cronicle webhook modes)
     public activityLogRepository!: ActivityLogRepository;  // Activity log repository
@@ -1302,6 +1304,14 @@ export class S3Storage implements storage.Storage {
           this.buildArtifactService = new BuildArtifactService(this);
           console.log("Build Artifact Service initialized");
           
+          // Initialize Build Notification Service (needs ReleaseRetrievalService, ReleaseNotificationService, BuildArtifactService)
+          this.buildNotificationService = new BuildNotificationService(
+            this.releaseRetrievalService,
+            this.releaseNotificationService,
+            this.buildArtifactService
+          );
+          console.log("Build Notification Service initialized");
+          
           // Initialize Upload Validation Service (centralized initialization - replaces factory)
           this.uploadValidationService = new UploadValidationService(
             this.releaseRepository,
@@ -1328,9 +1338,8 @@ export class S3Storage implements storage.Storage {
             this.releaseTaskRepository,
             this.releaseRepository,
             this.cronJobRepository,
-            this.releaseRetrievalService,
             this.releaseNotificationService,
-            this.buildArtifactService
+            this.buildNotificationService
           );
           console.log("Build Callback Service initialized");
           
@@ -1362,7 +1371,8 @@ export class S3Storage implements storage.Storage {
             this.cronJobRepository,
             this.releaseNotificationService,
             this.sequelize,  // ✅ Pass Sequelize directly instead of TaskExecutor calling getStorage()
-            this.regressionCycleRepository  // ✅ Pass RegressionCycleRepository from storage instead of creating new instance
+            this.regressionCycleRepository,  // ✅ Pass RegressionCycleRepository from storage instead of creating new instance
+            this.buildNotificationService  // ✅ For build artifact notifications (CI/CD and manual uploads)
           );
           console.log("Task Executor initialized");
           

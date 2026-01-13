@@ -12,6 +12,7 @@ import type {
   ScheduledReleaseBuildResult,
   LatestVersionEntry
 } from '~types/release-schedules';
+import { applyRegressionSlotConfigDefaults } from '~types/release-schedules';
 import type { ReleaseConfiguration } from '~types/release-configs';
 import type { CreateReleasePayload, PlatformTargetVersion } from '~types/release';
 import {
@@ -112,6 +113,7 @@ const parseDate = (isoString: string): Date => {
 
 /**
  * Build regression build slots array for CreateReleasePayload
+ * Applies default config values if not provided
  */
 const buildRegressionBuildSlots = (
   kickoffDateStr: string,
@@ -126,7 +128,7 @@ const buildRegressionBuildSlots = (
   
   return slotDates.map(slot => ({
     date: parseDate(slot.date),
-    config: slot.config
+    config: applyRegressionSlotConfigDefaults(slot.config)  // Apply defaults here
   }));
 };
 

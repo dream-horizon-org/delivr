@@ -25,6 +25,10 @@ import { ReleasePlatformTargetMappingRepository } from '~models/release/release-
 import { BuildRepository } from '~models/release/build.repository';
 import { TaskExecutor } from '~services/release/task-executor/task-executor';
 import { Storage } from '~storage/storage';
+import type { StorageWithReleaseServices } from '~types/release/storage-with-services.interface';
+import type { BuildNotificationService } from '~services/release/build/build-notification.service';
+import type { ReleaseNotificationService } from '~services/release-notification/release-notification.service';
+import type { CronicleService } from '~services/cronicle';
 import { StageStatus, CronStatus, ReleaseStatus, PauseType, PlatformName } from '~models/release/release.interface';
 import type { PlatformVersionMapping } from '~utils/awaiting-manual-build.utils';
 // Note: stopCronJob from cron-scheduler is deprecated. Using DB-only updates via cronJobRepo.
@@ -421,6 +425,43 @@ export class CronJobStateMachine {
       .filter((m): m is PlatformVersionMapping => Object.values(PlatformName).includes(m.platform));
     
     return platformVersionMappings;
+  }
+
+  // ========================================================================
+  // Service Getters (typed access to storage services - centralizes casting)
+  // ========================================================================
+
+  /**
+   * Get typed storage with release services.
+   * Centralizes the casting so states don't need to cast individually.
+   */
+  private getTypedStorage(): StorageWithReleaseServices {
+    return this.storage as StorageWithReleaseServices;
+  }
+
+  /**
+   * Get build notification service from storage.
+   * Used for sending build artifact notifications.
+   */
+  getBuildNotificationService(): BuildNotificationService {
+    return this.getTypedStorage().buildNotificationService;
+  }
+
+  /**
+   * Get release notification service from storage.
+   * Used for sending stage approval requests and other notifications.
+   */
+  getReleaseNotificationService(): ReleaseNotificationService {
+    return this.getTypedStorage().releaseNotificationService;
+  }
+
+  /**
+   * Get cronicle service from storage (optional).
+   * Used for managing workflow polling jobs.
+   * @returns CronicleService or undefined if not configured
+   */
+  getCronicleService(): CronicleService | undefined {
+    return this.getTypedStorage().cronicleService;
   }
 }
 

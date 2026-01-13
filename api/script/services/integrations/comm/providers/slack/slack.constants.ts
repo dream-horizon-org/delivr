@@ -96,3 +96,7 @@ export const SLACK_MESSAGE_OPTIONS = {
   UNFURL_MEDIA: false
 } as const;
 
+export const SLACK_FILE_DEFAULTS = {
+  DEFAULT_FILENAME: 'attachment'
+} as const;
+

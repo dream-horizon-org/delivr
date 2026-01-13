@@ -187,6 +187,15 @@ const createMockTaskRepo = () => ({
   findById: jest.fn(async (taskId: string) => state.tasks.get(taskId)),
 });
 
+const createMockBuildRepo = () => ({
+  create: jest.fn(async () => ({})),
+  findByTaskId: jest.fn(async () => []),
+});
+
+const createMockBuildNotificationService = () => ({
+  notifyBuildCompletions: jest.fn(async () => {}),
+});
+
 // ============================================================================
 // SIMULATION HELPERS
 // ============================================================================
@@ -292,6 +301,8 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       
       // Step 4: Cron checks for manual builds
       log('Step 4: Cron checks for manual builds');
+      const buildRepo = createMockBuildRepo();
+      const buildNotificationService = createMockBuildNotificationService();
       const result = await checkAndConsumeManualBuilds(
         {
           releaseId: release.id,
@@ -302,7 +313,9 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
           platformVersionMappings: toPlatformVersionMappings(platforms),
         },
         uploadsRepo as any,
-        taskRepo as any
+        taskRepo as any,
+        buildRepo as any,
+        buildNotificationService as any
       );
       
       // Step 5: Verify completion
@@ -343,10 +356,14 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
         artifactPath: 's3://builds/android.apk',
       });
       
+      const buildRepo = createMockBuildRepo();
+      const buildNotificationService = createMockBuildNotificationService();
       let result = await checkAndConsumeManualBuilds(
         { releaseId: release.id, taskId: task.id, taskType: task.taskType, cycleId: null, platforms, platformVersionMappings: toPlatformVersionMappings(platforms) },
         uploadsRepo as any,
-        taskRepo as any
+        taskRepo as any,
+        buildRepo as any,
+        buildNotificationService as any
       );
       
       expect(result.allReady).toBe(false);
@@ -366,7 +383,9 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       result = await checkAndConsumeManualBuilds(
         { releaseId: release.id, taskId: task.id, taskType: task.taskType, cycleId: null, platforms, platformVersionMappings: toPlatformVersionMappings(platforms) },
         uploadsRepo as any,
-        taskRepo as any
+        taskRepo as any,
+        buildRepo as any,
+        buildNotificationService as any
       );
       
       expect(result.allReady).toBe(true);
@@ -400,10 +419,14 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.ANDROID, stage: 'REGRESSION', artifactPath: 's3://cycle1/android.apk' });
       await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.IOS, stage: 'REGRESSION', artifactPath: 's3://cycle1/ios.ipa' });
       
+      const buildRepo = createMockBuildRepo();
+      const buildNotificationService = createMockBuildNotificationService();
       const result1 = await checkAndConsumeManualBuilds(
         { releaseId: release.id, taskId: task1.id, taskType: task1.taskType, cycleId: cycle1.id, platforms, platformVersionMappings: toPlatformVersionMappings(platforms) },
         uploadsRepo as any,
-        taskRepo as any
+        taskRepo as any,
+        buildRepo as any,
+        buildNotificationService as any
       );
       
       expect(result1.consumed).toBe(true);
@@ -430,7 +453,9 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       const result2 = await checkAndConsumeManualBuilds(
         { releaseId: release.id, taskId: task2.id, taskType: task2.taskType, cycleId: cycle2.id, platforms, platformVersionMappings: toPlatformVersionMappings(platforms) },
         uploadsRepo as any,
-        taskRepo as any
+        taskRepo as any,
+        buildRepo as any,
+        buildNotificationService as any
       );
       
       expect(result2.consumed).toBe(true);
@@ -464,11 +489,16 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       log('Step 1: Upload iOS build');
       await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.IOS, stage: 'PRE_RELEASE', artifactPath: 's3://pre-release/ios.ipa' });
       
+      const buildRepo = createMockBuildRepo();
+      const buildNotificationService = createMockBuildNotificationService();
+      
       // Check iOS task (should complete)
       const iosResult = await checkAndConsumeManualBuilds(
         { releaseId: release.id, taskId: iosTask.id, taskType: iosTask.taskType, cycleId: null, platforms: [PlatformName.IOS], platformVersionMappings: toPlatformVersionMappings([PlatformName.IOS]) },
         uploadsRepo as any,
-        taskRepo as any
+        taskRepo as any,
+        buildRepo as any,
+        buildNotificationService as any
       );
       expect(iosResult.consumed).toBe(true);
       log(`iOS Task: consumed=${iosResult.consumed}`);
@@ -477,7 +507,9 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       const androidResult1 = await checkAndConsumeManualBuilds(
         { releaseId: release.id, taskId: androidTask.id, taskType: androidTask.taskType, cycleId: null, platforms: [PlatformName.ANDROID], platformVersionMappings: toPlatformVersionMappings([PlatformName.ANDROID]) },
         uploadsRepo as any,
-        taskRepo as any
+        taskRepo as any,
+        buildRepo as any,
+        buildNotificationService as any
       );
       expect(androidResult1.allReady).toBe(false);
       log(`Android Task (before upload): allReady=${androidResult1.allReady}`);
@@ -490,7 +522,9 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       const androidResult2 = await checkAndConsumeManualBuilds(
         { releaseId: release.id, taskId: androidTask.id, taskType: androidTask.taskType, cycleId: null, platforms: [PlatformName.ANDROID], platformVersionMappings: toPlatformVersionMappings([PlatformName.ANDROID]) },
         uploadsRepo as any,
-        taskRepo as any
+        taskRepo as any,
+        buildRepo as any,
+        buildNotificationService as any
       );
       expect(androidResult2.consumed).toBe(true);
       log('✅ Scenario 3 PASSED: Per-platform uploads handled correctly');
@@ -567,6 +601,9 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.ANDROID, stage: 'KICK_OFF', artifactPath: 's3://pre-reg/android.apk' });
       await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.IOS, stage: 'KICK_OFF', artifactPath: 's3://pre-reg/ios.ipa' });
       
+      const buildRepo = createMockBuildRepo();
+      const buildNotificationService = createMockBuildNotificationService();
+      
       // Process batch
       const results = await processAwaitingManualBuildTasks(
         release.id,
@@ -574,7 +611,9 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
         true,
         toPlatformVersionMappings(platforms),
         uploadsRepo as any,
-        taskRepo as any
+        taskRepo as any,
+        buildRepo as any,
+        buildNotificationService as any
       );
       
       // Should only process task-1 (AWAITING_MANUAL_BUILD + build task type)
@@ -606,10 +645,14 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       // Upload Android only
       await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.ANDROID, stage: 'KICK_OFF', artifactPath: 's3://android.apk' });
       
+      const buildRepo = createMockBuildRepo();
+      const buildNotificationService = createMockBuildNotificationService();
       const result = await checkAndConsumeManualBuilds(
         { releaseId: release.id, taskId: task.id, taskType: task.taskType, cycleId: null, platforms, platformVersionMappings: toPlatformVersionMappings(platforms) },
         uploadsRepo as any,
-        taskRepo as any
+        taskRepo as any,
+        buildRepo as any,
+        buildNotificationService as any
       );
       
       expect(result.allReady).toBe(true);
@@ -640,10 +683,14 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.IOS, stage: 'KICK_OFF', artifactPath: 's3://ios.ipa' });
       await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.WEB, stage: 'KICK_OFF', artifactPath: 's3://web.zip' });
       
+      const buildRepo = createMockBuildRepo();
+      const buildNotificationService = createMockBuildNotificationService();
       const result = await checkAndConsumeManualBuilds(
         { releaseId: release.id, taskId: task.id, taskType: task.taskType, cycleId: null, platforms, platformVersionMappings: toPlatformVersionMappings(platforms) },
         uploadsRepo as any,
-        taskRepo as any
+        taskRepo as any,
+        buildRepo as any,
+        buildNotificationService as any
       );
       
       expect(result.allReady).toBe(true);

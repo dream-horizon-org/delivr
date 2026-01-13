@@ -105,7 +105,8 @@ export function createTaskExecutorForTests(sequelize: Sequelize): TaskExecutor {
     undefined,  // cronJobRepo (optional)
     undefined,  // releaseNotificationService (optional)
     sequelize,  // ✅ Pass Sequelize directly instead of TaskExecutor calling getStorage()
-    undefined  // regressionCycleRepo (optional - not needed for all tests)
+    undefined,  // regressionCycleRepo (optional - not needed for all tests)
+    undefined as any  // buildNotificationService (optional for tests)
   );
   
   return cachedTestTaskExecutor;

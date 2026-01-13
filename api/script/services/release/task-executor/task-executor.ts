@@ -34,6 +34,7 @@ import type { ReleaseConfigRepository } from '../../../models/release-configs/re
 import { RELEASE_ERROR_MESSAGES, RELEASE_DEFAULTS, CICD_JOB_BUILD_TYPE } from '../release.constants';
 import { ReleaseNotificationService } from '../../release-notification/release-notification.service';
 import { NotificationType } from '~types/release-notification';
+import type { BuildNotificationService } from '../build/build-notification.service';
 import { ReleaseUploadsRepository } from '../../../models/release/release-uploads.repository';
 import { PlatformName } from '../../../models/release/release.interface';
 import {
@@ -124,6 +125,7 @@ export class TaskExecutor {
   private cicdConfigService: CICDConfigService;
   private cronJobRepo: CronJobRepository;
   private regressionCycleRepo: RegressionCycleRepository;
+  private buildNotificationService: BuildNotificationService;
 
   constructor(
     private scmService: SCMService,
@@ -140,7 +142,8 @@ export class TaskExecutor {
     cronJobRepo: CronJobRepository,  // ✅ Required - actively initialized in aws-storage.ts
     private releaseNotificationService: ReleaseNotificationService | undefined,
     sequelize: Sequelize,  // ✅ Pass Sequelize directly instead of calling getStorage() (avoids circular dependency)
-    regressionCycleRepo: RegressionCycleRepository  // ✅ Required - actively initialized in aws-storage.ts
+    regressionCycleRepo: RegressionCycleRepository,  // ✅ Required - actively initialized in aws-storage.ts
+    buildNotificationService: BuildNotificationService  // ✅ Required - for build artifact notifications
   ) {
     this.releaseTaskRepo = releaseTaskRepo;
     this.releaseRepo = releaseRepo;
@@ -148,6 +151,7 @@ export class TaskExecutor {
     this.cicdConfigService = cicdConfigService;
     this.cronJobRepo = cronJobRepo;  // ✅ Active initialization - no lazy initialization
     this.regressionCycleRepo = regressionCycleRepo;  // ✅ Active initialization - no lazy initialization
+    this.buildNotificationService = buildNotificationService;  // ✅ Active initialization - no lazy initialization
     
     // ✅ Use passed Sequelize instance instead of calling getStorage() (avoids circular dependency)
     // This allows TaskExecutor to be created during storage setup without requiring storage to be initialized first
@@ -1154,6 +1158,21 @@ export class TaskExecutor {
         }
       }
 
+      // Send build artifact notifications
+      const hasBuildsToNotify = buildIds.length > 0 && BuildModel;
+      if (hasBuildsToNotify) {
+        try {
+          const builds = await BuildModel.findAll({ where: { id: buildIds } });
+          await this.buildNotificationService.notifyBuildCompletions(
+            task,
+            builds.map(b => b.get({ plain: true }))
+          );
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`[TaskExecutor] Failed to send build artifact notification:`, errorMessage);
+        }
+      }
+
       console.log(`[TaskExecutor] Manual mode KICKOFF completed: ${buildIds.join(',')}`);
       return buildIds.join(',');
     }
@@ -1568,6 +1587,21 @@ export class TaskExecutor {
 
           buildIds.push(buildId);
           console.log(`[TaskExecutor] Consumed manual upload for ${platformName} (cycle ${task.regressionId}): ${upload.id}`);
+        }
+      }
+
+      // Send build artifact notifications
+      const hasBuildsToNotifyRegression = buildIds.length > 0 && BuildModel;
+      if (hasBuildsToNotifyRegression) {
+        try {
+          const builds = await BuildModel.findAll({ where: { id: buildIds } });
+          await this.buildNotificationService.notifyBuildCompletions(
+            task,
+            builds.map(b => b.get({ plain: true }))
+          );
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`[TaskExecutor] Failed to send build artifact notification:`, errorMessage);
         }
       }
 
@@ -2052,6 +2086,20 @@ export class TaskExecutor {
           testflightNumber: iosUpload.testflightNumber
         });
 
+        // Send build artifact notification
+        try {
+          const build = await BuildModel.findByPk(buildId);
+          if (build) {
+            await this.buildNotificationService.notifyBuildCompletions(
+              task,
+              [build.get({ plain: true })]
+            );
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`[TaskExecutor] Failed to send build artifact notification:`, errorMessage);
+        }
+
         console.log(`[TaskExecutor] Consumed manual upload for IOS (TestFlight): buildNumber=${buildNumber}, file=${uploadFileName}`);
         return buildNumber;
       }
@@ -2248,6 +2296,20 @@ export class TaskExecutor {
           internalTrackLink: androidUpload.internalTrackLink ?? null,
           testflightNumber: null
         });
+
+        // Send build artifact notification
+        try {
+          const build = await BuildModel.findByPk(buildId);
+          if (build) {
+            await this.buildNotificationService.notifyBuildCompletions(
+              task,
+              [build.get({ plain: true })]
+            );
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`[TaskExecutor] Failed to send build artifact notification:`, errorMessage);
+        }
 
         console.log(`[TaskExecutor] Consumed manual upload for ANDROID (AAB): buildNumber=${buildNumber}, file=${uploadFileName}`);
         return buildNumber;

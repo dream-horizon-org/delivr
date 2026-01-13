@@ -17,12 +17,11 @@ import { BuildRepository } from '../../models/release/build.repository';
 import { ReleaseTaskRepository } from '../../models/release/release-task.repository';
 import { ReleaseRepository } from '../../models/release/release.repository';
 import { CronJobRepository } from '../../models/release/cron-job.repository';
-import { TaskStatus, ReleaseStatus, PauseType, TaskType, PlatformName, TargetName } from '../../models/release/release.interface';
+import { TaskStatus, ReleaseStatus, PauseType } from '../../models/release/release.interface';
 import type { ReleaseTask } from '../../models/release/release.interface';
 import type { Build } from '../../models/release/build.repository';
-import { ReleaseRetrievalService } from './release-retrieval.service';
 import { ReleaseNotificationService } from '../release-notification/release-notification.service';
-import { BuildArtifactService } from './build/build-artifact.service';
+import { BuildNotificationService } from './build/build-notification.service';
 import { NotificationType } from '~types/release-notification';
 import { getTaskNameWithStage } from './task-executor/task-executor.constants';
 import { buildDelivrUrl } from './task-executor/task-executor.utils';
@@ -49,9 +48,8 @@ export class BuildCallbackService {
     private readonly taskRepo: ReleaseTaskRepository,
     private readonly releaseRepo: ReleaseRepository,
     private readonly cronJobRepo: CronJobRepository,
-    private readonly releaseRetrievalService?: ReleaseRetrievalService,
-    private readonly releaseNotificationService?: ReleaseNotificationService,
-    private readonly buildArtifactService?: BuildArtifactService
+    private readonly releaseNotificationService: ReleaseNotificationService,
+    private readonly buildNotificationService: BuildNotificationService
   ) {}
 
   /**
@@ -138,10 +136,6 @@ export class BuildCallbackService {
    * Send TASK_FAILED notification
    */
   private async notifyTaskFailure(task: ReleaseTask): Promise<void> {
-    if (!this.releaseNotificationService) {
-      return; // Service not available, skip notification
-    }
-
     try {
       // Fetch release to get tenantId
       const release = await this.releaseRepo.findById(task.releaseId);
@@ -170,7 +164,10 @@ export class BuildCallbackService {
     } catch (error) {
       // Log but don't throw - notification failure shouldn't break the flow
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[BuildCallbackService] Failed to send TASK_FAILED notification:`, errorMessage);
+      console.error(
+        `[BuildCallbackService] Failed to send TASK_FAILED notification: ` +
+        `taskId=${task.id}, releaseId=${task.releaseId}, taskType=${task.taskType}, error=${errorMessage}`
+      );
     }
   }
 
@@ -191,7 +188,7 @@ export class BuildCallbackService {
     );
     
     // Send notifications for each build
-    await this.notifyBuildCompletions(task, builds);
+    await this.sendBuildNotifications(task, builds);
     
     return { 
       success: true, 
@@ -203,158 +200,15 @@ export class BuildCallbackService {
   }
 
   /**
-   * Send build completion notifications
+   * Send build completion notifications using BuildNotificationService
    * For pre-regression and regression: 1 notification per build
    * For test-flight and AAB: 1 notification per build (should be single build)
    */
-  private async notifyBuildCompletions(
+  private async sendBuildNotifications(
     task: ReleaseTask,
     builds: Build[]
   ): Promise<void> {
-    if (!this.releaseRetrievalService || !this.releaseNotificationService) {
-      console.log('[BuildCallbackService] Notification services not available, skipping notifications');
-      return;
-    }
-
-    if (builds.length === 0) {
-      console.log('[BuildCallbackService] No builds to notify');
-      return;
-    }
-
-    try {
-      // Fetch release data with platform mappings
-      const releaseData = await this.releaseRetrievalService.getReleaseById(task.releaseId);
-      if (!releaseData) {
-        console.error('[BuildCallbackService] Release not found, cannot send notifications');
-        return;
-      }
-
-      // Map task type to notification type
-      const notificationType = this.mapTaskTypeToNotificationType(task.taskType);
-      if (!notificationType) {
-        console.log(`[BuildCallbackService] No notification type for task ${task.taskType}`);
-        return;
-      }
-
-      // Send notification for each build
-      for (const build of builds) {
-        await this.notifySingleBuild(task, build, releaseData, notificationType);
-      }
-
-      console.log(`[BuildCallbackService] Sent ${builds.length} build notification(s) for task ${task.id}`);
-    } catch (error) {
-      console.error('[BuildCallbackService] Error sending build notifications:', error);
-      // Don't fail the task if notifications fail
-    }
-  }
-
-  /**
-   * Send notification for a single build
-   */
-  private async notifySingleBuild(
-    task: ReleaseTask,
-    build: Build,
-    releaseData: any,
-    notificationType: NotificationType
-  ): Promise<void> {
-    try {
-      // Find matching platform-target mapping for version
-      const mapping = releaseData.platformTargetMappings?.find((m: any) => 
-        m.platform === build.platform && m.target === build.storeType
-      );
-      const version = mapping?.version ?? releaseData.branch ?? 'Unknown';
-
-      // Generate URLs
-      const { displayUrl, artifactDownloadUrl } = await this.generateBuildUrls(build);
-
-      // Construct and send payload
-      const payload: any = {
-        type: notificationType,
-        tenantId: releaseData.tenantId,
-        releaseId: releaseData.id,
-        taskId: task.id,
-        version: version,
-        branch: releaseData.branch ?? 'Unknown',
-        isSystemGenerated: true
-      };
-
-      // Add platform/target for platform-specific notifications
-      if (this.isPlatformSpecificNotification(notificationType)) {
-        payload.platform = build.platform;
-        payload.target = build.storeType;
-        payload.displayUrl = displayUrl;
-        payload.artifactDownloadUrl = artifactDownloadUrl;
-      }
-
-      await this.releaseNotificationService!.notify(payload);
-      
-      console.log(
-        `[BuildCallbackService] Sent ${notificationType} notification for ` +
-        `${build.platform}/${build.storeType}`
-      );
-    } catch (error) {
-      console.error(`[BuildCallbackService] Error notifying build ${build.id}:`, error);
-      // Continue with other builds even if one fails
-    }
-  }
-
-  /**
-   * Generate displayUrl and artifactDownloadUrl for a build
-   */
-  private async generateBuildUrls(build: Build): Promise<{
-    displayUrl: string | undefined;
-    artifactDownloadUrl: string | undefined;
-  }> {
-    let displayUrl: string | undefined;
-    let artifactDownloadUrl: string | undefined;
-
-    // Generate displayUrl based on platform
-    if (build.platform === PlatformName.ANDROID && build.internalTrackLink) {
-      displayUrl = build.internalTrackLink;
-    } else if (build.platform === PlatformName.IOS && build.testflightNumber) {
-      displayUrl = build.testflightNumber;  // Just the number
-    }
-
-    // Generate artifactDownloadUrl if artifact path exists
-    if (build.artifactPath && this.buildArtifactService) {
-      try {
-        artifactDownloadUrl = await this.buildArtifactService.generatePresignedUrl(build.artifactPath);
-      } catch (error) {
-        console.error(`[BuildCallbackService] Error generating presigned URL for build ${build.id}:`, error);
-      }
-    }
-
-    return { displayUrl, artifactDownloadUrl };
-  }
-
-  /**
-   * Map task type to notification type
-   */
-  private mapTaskTypeToNotificationType(taskType: TaskType): NotificationType | null {
-    switch (taskType) {
-      case TaskType.TRIGGER_PRE_REGRESSION_BUILDS:
-        return NotificationType.PREREGRESSION_BUILDS;
-      case TaskType.TRIGGER_REGRESSION_BUILDS:
-        return NotificationType.REGRESSION_BUILDS;
-      case TaskType.TRIGGER_TEST_FLIGHT_BUILD:
-        return NotificationType.IOS_TEST_FLIGHT_BUILD;
-      case TaskType.CREATE_AAB_BUILD:
-        return NotificationType.ANDROID_AAB_BUILD;
-      default:
-        return null;
-    }
-  }
-
-  /**
-   * Check if notification type is platform-specific
-   */
-  private isPlatformSpecificNotification(notificationType: NotificationType): boolean {
-    return [
-      NotificationType.PREREGRESSION_BUILDS,
-      NotificationType.REGRESSION_BUILDS,
-      NotificationType.IOS_TEST_FLIGHT_BUILD,
-      NotificationType.ANDROID_AAB_BUILD
-    ].includes(notificationType);
+    await this.buildNotificationService.notifyBuildCompletions(task, builds);
   }
 }
 

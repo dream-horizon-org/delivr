@@ -5,7 +5,7 @@
  * - services/release-schedules/utils/
  */
 
-import type { ReleaseScheduleRecord, RegressionSlot, InitialVersion } from './release-schedule.interface';
+import type { ReleaseScheduleRecord, RegressionSlot, InitialVersion, RegressionSlotConfig } from './release-schedule.interface';
 import type { ReleaseConfiguration } from '~types/release-configs';
 import type { CreateReleasePayload, PlatformTargetVersion } from '~types/release';
 import type { RELEASE_TYPE } from '~services/release-schedules/release-schedule.constants';
@@ -44,11 +44,12 @@ export type ReleaseDates = {
 
 /**
  * Calculated regression slot date with config
+ * Note: config is optional here; defaults are applied in buildRegressionBuildSlots
  */
 export type RegressionSlotDate = {
   name: string | null;
   date: string;                 // UTC ISO string
-  config: RegressionSlot['config'];
+  config?: RegressionSlotConfig;  // Optional; defaults applied downstream
 };
 
 // ============================================================================

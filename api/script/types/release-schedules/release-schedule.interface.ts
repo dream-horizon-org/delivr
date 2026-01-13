@@ -33,18 +33,43 @@ export type InitialVersion = {
 };
 
 /**
+ * Regression slot config - all flags are optional with defaults
+ */
+export type RegressionSlotConfig = {
+  regressionBuilds?: boolean;   // Default: true
+  postReleaseNotes?: boolean;   // Default: true
+  automationBuilds?: boolean;   // Default: false
+  automationRuns?: boolean;     // Default: false
+};
+
+/**
+ * Default values for regression slot config flags
+ */
+export const DEFAULT_REGRESSION_SLOT_CONFIG: Required<RegressionSlotConfig> = {
+  regressionBuilds: true,
+  postReleaseNotes: true,
+  automationBuilds: false,
+  automationRuns: false
+} as const;
+
+/**
+ * Apply default values to regression slot config
+ */
+export const applyRegressionSlotConfigDefaults = (config?: RegressionSlotConfig): Required<RegressionSlotConfig> => ({
+  regressionBuilds: config?.regressionBuilds ?? DEFAULT_REGRESSION_SLOT_CONFIG.regressionBuilds,
+  postReleaseNotes: config?.postReleaseNotes ?? DEFAULT_REGRESSION_SLOT_CONFIG.postReleaseNotes,
+  automationBuilds: config?.automationBuilds ?? DEFAULT_REGRESSION_SLOT_CONFIG.automationBuilds,
+  automationRuns: config?.automationRuns ?? DEFAULT_REGRESSION_SLOT_CONFIG.automationRuns
+});
+
+/**
  * Regression slot configuration
  */
 export type RegressionSlot = {
   name?: string;
   regressionSlotOffsetFromKickoff: number; // Should be <= targetReleaseDateOffsetFromKickoff
   time: string; // Format: "HH:mm", should be <= targetReleaseTime if regressionSlotOffsetFromKickoff == targetReleaseDateOffsetFromKickoff
-  config: {
-    regressionBuilds: boolean;
-    postReleaseNotes: boolean;
-    automationBuilds: boolean;
-    automationRuns: boolean;
-  };
+  config?: RegressionSlotConfig; // Optional - defaults applied at runtime
 };
 
 /**

@@ -64,7 +64,15 @@ export class SlackProvider implements ICommService {
     
     try {
       // Download file if URL provided
-      const files = fileUrl ? await downloadFileFromUrl(fileUrl) : undefined;
+      // Construct filename from version (parameters[0]) and extension from URL
+      let fileName: string | undefined;
+      if (fileUrl && parameters[0]) {
+        const urlWithoutQuery = fileUrl.split('?')[0];
+        const extensionMatch = urlWithoutQuery.match(/\.[^.]+$/);
+        const extension = extensionMatch ? extensionMatch[0] : '';
+        fileName = `${parameters[0]}${extension}`;
+      }
+      const files = fileUrl ? await downloadFileFromUrl(fileUrl, fileName) : undefined;
 
       // Build message from template
       const message = buildSlackMessage(task, parameters, platform);

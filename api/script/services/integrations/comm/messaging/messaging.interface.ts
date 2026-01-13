@@ -122,7 +122,7 @@ export const isPlatformTemplate = (template: Template): template is PlatformTemp
  */
 export enum ChannelBucket {
   RELEASE = 'releases',
-  BUILD = 'build',
+  BUILD = 'builds',
   REGRESSION = 'regression',
   CRITICAL = 'critical'
 }
