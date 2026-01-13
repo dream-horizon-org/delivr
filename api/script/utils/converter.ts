@@ -69,7 +69,9 @@ export function appFromBody(body: App): App {
 export function appCreationRequestFromBody(body: AppCreationRequest): AppCreationRequest {
   const appCreationRequest: AppCreationRequest = <AppCreationRequest>{};
 
-  appCreationRequest.name = body.name;
+  // Trim whitespace from app name (prefix and suffix) to prevent duplicates
+  // Example: "   Android App" and "Android App" should be treated as the same
+  appCreationRequest.name = body.name?.trim() ?? body.name;
   appCreationRequest.manuallyProvisionDeployments = body.manuallyProvisionDeployments;
   if(body.organisation !== undefined) {
     appCreationRequest.organisation = {};

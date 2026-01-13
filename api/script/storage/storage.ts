@@ -293,17 +293,31 @@ export class NameResolver {
   public static isDuplicateApp<T extends { name: string }>(items: T[], appRequest: AppCreationRequest): boolean {
     if (!items.length) return false;
 
+    // Trim the requested app name for comparison
+    // This handles cases where existing apps in DB have spaces
+    const trimmedRequestName = appRequest.name?.trim() ?? appRequest.name;
+
     if ((<App>(<any>items[0])).collaborators) {
-      // Use 'app' overload
+      // Use 'app' overload - compare trimmed names
       for (let i = 0; i < items.length; i++) {
         const app = <App>(<any>items[i]);
-        if (app.name === appRequest.name && NameResolver.findByTentantId(app, appRequest) && isOwnedByCurrentUser(app)) return true;
+        // Trim existing app name for comparison
+        const trimmedAppName = app.name?.trim() ?? app.name;
+        if (trimmedAppName === trimmedRequestName && NameResolver.findByTentantId(app, appRequest) && isOwnedByCurrentUser(app)) return true;
       }
 
       return false;
     } else {
-      // Use general overload
-      return !!NameResolver.findByName(items, appRequest.name);
+      // Use general overload - find by trimmed name
+      // Note: findByName does exact match, so we need to check trimmed names manually
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const trimmedItemName = item.name?.trim() ?? item.name;
+        if (trimmedItemName === trimmedRequestName) {
+          return true;
+        }
+      }
+      return false;
     }
   }
 
