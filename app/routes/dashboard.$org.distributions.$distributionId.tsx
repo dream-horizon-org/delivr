@@ -175,17 +175,40 @@ export const action = authenticateLoaderRequest(
         default:
           return json({ success: false, error: 'Unknown intent' }, { status: 400 });
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Extract backend error message and status code
+      const backendError = error?.response?.data?.error || error?.message || 'Unknown error';
+      const statusCode = error?.response?.status || 500;
+      
       return json(
         {
           success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: backendError,
         },
-        { status: 500 }
+        { status: statusCode }
       );
     }
   }
 );
+
+/**
+ * Control revalidation for distribution detail route
+ * Block automatic revalidation from fetcher submissions to API routes
+ * Allow manual revalidation via revalidator.revalidate()
+ */
+export function shouldRevalidate({ 
+  formAction,
+  defaultShouldRevalidate
+}: any) {
+  // If formAction exists and points to API route, block automatic revalidation
+  // (Resubmit/Cancel submit to API routes, not Remix routes)
+  if (formAction?.startsWith('/api/v1/')) {
+    return false;
+  }
+  
+  // Allow manual revalidation (no formAction) and Remix route actions
+  return defaultShouldRevalidate;
+}
 
 export default function DistributionDetailPage() {
   const { org, distribution, loadedAt, error } = useLoaderData<LoaderData>();
@@ -328,42 +351,44 @@ export default function DistributionDetailPage() {
     fetcher.submit(formData, { method: 'post' });
   }, [selectedSubmission, distribution.releaseId, fetcher]);
 
-  // Helper: Revalidate data and then close dialogs
-  const revalidateAndCloseSpecific = useCallback((dialogType: 'pause' | 'resume' | 'updateRollout' | 'cancel') => {
-    // Close only the specific dialog immediately
+  // Helper: Close dialog after action completes
+  // Note: Remix automatically revalidates all route loaders when fetcher completes
+  // No manual revalidation needed - prevents duplicate API calls
+  const closeSpecificDialog = useCallback((dialogType: 'pause' | 'resume' | 'updateRollout' | 'cancel') => {
     handleCloseSpecificDialog(dialogType);
-    // Trigger revalidation to fetch fresh data
-    revalidator.revalidate();
-  }, [revalidator, handleCloseSpecificDialog]);
+  }, [handleCloseSpecificDialog]);
 
   const handleCancelComplete = useCallback(() => {
-    revalidateAndCloseSpecific('cancel');
-  }, [revalidateAndCloseSpecific]);
-
-  const handlePromoteComplete = useCallback(() => {
-    // Promote dialogs are platform-specific, close all and reset
+    // Cancel submits to API route, needs manual revalidation to refresh data
     revalidator.revalidate();
     setShouldCloseAfterRevalidation(true);
   }, [revalidator]);
 
+  const handlePromoteComplete = useCallback(() => {
+    // Promote submits to Remix route action, automatic revalidation happens
+    // Just wait for revalidation to complete before closing dialog
+    setShouldCloseAfterRevalidation(true);
+  }, []);
+
   const handleResubmitComplete = useCallback(() => {
     // Resubmit creates new submission, close all and reset
+    // Trigger single revalidation to refresh data
     revalidator.revalidate();
     setShouldCloseAfterRevalidation(true);
   }, [revalidator]);
 
   const handlePauseComplete = useCallback(() => {
-    revalidateAndCloseSpecific('pause');
-  }, [revalidateAndCloseSpecific]);
+    closeSpecificDialog('pause');
+  }, [closeSpecificDialog]);
 
   const handleResumeComplete = useCallback(() => {
-    revalidateAndCloseSpecific('resume');
-  }, [revalidateAndCloseSpecific]);
+    closeSpecificDialog('resume');
+  }, [closeSpecificDialog]);
 
 
   const handleUpdateRolloutComplete = useCallback(() => {
-    revalidateAndCloseSpecific('updateRollout');
-  }, [revalidateAndCloseSpecific]);
+    closeSpecificDialog('updateRollout');
+  }, [closeSpecificDialog]);
 
   // Watch fetcher state and trigger revalidation when API calls complete
   useEffect(() => {

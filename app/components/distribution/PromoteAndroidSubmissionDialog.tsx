@@ -101,7 +101,7 @@ export function PromoteAndroidSubmissionDialog({
       form.reset();
       onPromoteComplete?.();
     }
-  }, [fetcher.state, isSuccess, form, onPromoteComplete]);
+  }, [fetcher.state, isSuccess, onPromoteComplete]);
 
   const handleSubmit = (values: AndroidPromoteFormData) => {
     const formData = new FormData();

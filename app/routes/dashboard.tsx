@@ -91,6 +91,19 @@ export type DashboardLoaderData = {
   } | null;
 };
 
+/**
+ * Control revalidation behavior for root dashboard route
+ * ONLY revalidate on navigation - never on actions from child routes
+ */
+export function shouldRevalidate({ 
+  currentUrl, 
+  nextUrl
+}: any) {
+  // ONLY revalidate on navigation (URL change)
+  // Block ALL other revalidation (actions, manual revalidation from children)
+  return currentUrl.pathname !== nextUrl.pathname;
+}
+
 export default function Dashboard() {
   const theme = useMantineTheme();
   const { user, authError } = useLoaderData<DashboardLoaderData>();
