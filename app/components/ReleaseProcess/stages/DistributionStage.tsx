@@ -117,7 +117,7 @@ function NoDistributionState() {
           </ThemeIcon>
           <Text fw={600} size="lg">Distribution Not Created</Text>
           <Text size="sm" c="dimmed" ta="center" maw={400}>
-            Distribution will be automatically created when pre-release is completed.
+            Please wait while we are fetching the distribution data for this release.
           </Text>
         </Stack>
       </Center>
@@ -426,6 +426,7 @@ export function DistributionStage({
         <PromoteAndroidSubmissionDialog
           opened={isPromoteAndroidDialogOpen}
           submission={latestAndroidSubmission}
+          releaseId={releaseId}
           onClose={() => setIsPromoteAndroidDialogOpen(false)}
           onPromoteComplete={handlePromoteComplete}
           action={`/dashboard/${tenantId}/distributions/${distribution.id}`}
@@ -436,6 +437,7 @@ export function DistributionStage({
         <PromoteIOSSubmissionDialog
           opened={isPromoteIOSDialogOpen}
           submission={latestIOSSubmission}
+          releaseId={releaseId}
           onClose={() => setIsPromoteIOSDialogOpen(false)}
           onPromoteComplete={handlePromoteComplete}
           action={`/dashboard/${tenantId}/distributions/${distribution.id}`}

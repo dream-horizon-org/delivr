@@ -113,12 +113,18 @@ export function validateScheduling(
     });
   }
 
-  if (!scheduling.firstReleaseKickoffDate || scheduling.firstReleaseKickoffDate.trim() === '') {
-    errors.push({
-      field: 'firstReleaseKickoffDate',
-      message: 'First release kickoff date is required'
-    });
-  } else {
+  // Skip required validation in edit mode since field is disabled
+  if (!isEditMode) {
+    if (!scheduling.firstReleaseKickoffDate || scheduling.firstReleaseKickoffDate.trim() === '') {
+      errors.push({
+        field: 'firstReleaseKickoffDate',
+        message: 'First release kickoff date is required'
+      });
+    }
+  }
+
+  // If field exists (or we're in edit mode), validate future date only when creating
+  if (scheduling.firstReleaseKickoffDate && scheduling.firstReleaseKickoffDate.trim() !== '') {
     // Validate that first release kickoff date + time is in the future
     // Only apply this validation when creating (not editing) a config
     if (!isEditMode) {

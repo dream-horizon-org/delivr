@@ -3,6 +3,7 @@
  * Optional step for configuring release train scheduling
  */
 
+import { useState, useEffect, useRef } from 'react';
 import {
   Stack,
   Switch,
@@ -56,12 +57,42 @@ export function SchedulingStepWrapper({
   communicationConfig,
   platformTargets = [],
   isEditMode = false,
+  originalSchedulingRef: originalSchedulingRefProp,
 }: SchedulingStepWrapperProps & { communicationConfig?: CommunicationConfig; platformTargets?: PlatformTarget[] }) {
   const theme = useMantineTheme();
   const isEnabled = scheduling !== undefined && scheduling !== null;
+  
+  // Store current scheduling in ref when it changes (for restoration when disabling)
+  const currentSchedulingRef = useRef<SchedulingConfigType | undefined>(scheduling);
+  useEffect(() => {
+    if (scheduling && isEnabled) {
+      currentSchedulingRef.current = scheduling;
+    }
+  }, [scheduling, isEnabled]);
 
   const handleToggle = (enabled: boolean) => {
     if (enabled) {
+      // In edit mode, restore scheduling data in priority order:
+      // 1. Current scheduling (if it exists)
+      // 2. Previously saved scheduling (from ref)
+      // 3. Original scheduling (from ref passed from wizard - persists across navigation)
+      // 4. Create new default config
+      if (isEditMode) {
+        if (scheduling) {
+          // Already has scheduling, just re-enable
+          onChange(scheduling);
+          return;
+        }
+        if (currentSchedulingRef.current) {
+          onChange(currentSchedulingRef.current);
+          return;
+        }
+        if (originalSchedulingRefProp?.current) {
+          onChange(originalSchedulingRefProp.current);
+          return;
+        }
+      }
+      
       // Use platformTargets if available, otherwise derive from selectedPlatforms
       const targets = platformTargets.length > 0 
         ? platformTargets 
@@ -71,6 +102,14 @@ export function SchedulingStepWrapper({
           } as PlatformTarget));
       onChange(createDefaultSchedulingConfig(targets));
     } else {
+      // Before disabling, save current scheduling data to ref (for edit mode)
+      if (isEditMode && scheduling) {
+        currentSchedulingRef.current = scheduling;
+        // Also update original ref if it's not set (first time disabling)
+        if (originalSchedulingRefProp && !originalSchedulingRefProp.current) {
+          originalSchedulingRefProp.current = scheduling;
+        }
+      }
       onChange(undefined);
     }
   };

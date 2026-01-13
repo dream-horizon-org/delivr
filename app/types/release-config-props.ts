@@ -16,6 +16,7 @@
  * - Shared/Utility Components
  */
 
+import type React from 'react';
 import type {
   ReleaseConfiguration,
   Workflow,
@@ -280,6 +281,7 @@ export interface SchedulingStepWrapperProps {
   selectedPlatforms: Platform[];
   showValidation?: boolean;
   isEditMode?: boolean;
+  originalSchedulingRef?: React.MutableRefObject<SchedulingConfig | undefined>; // Ref to original scheduling (persists across navigation)
 }
 
 export interface SchedulingConfigProps {

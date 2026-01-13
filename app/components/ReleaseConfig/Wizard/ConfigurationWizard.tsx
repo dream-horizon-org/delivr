@@ -87,6 +87,9 @@ export function ConfigurationWizard({
   // Track if draft restoration has already happened (to prevent infinite loop)
   const hasRestoredDraft = useRef(false);
   
+  // Store original scheduling in ref (persists across navigation, initialized from existingConfig)
+  const originalSchedulingRef = useRef(existingConfig?.releaseSchedule);
+  
   // Restore wizard step from metadata when draft is loaded (ONCE on mount)
   useEffect(() => {
     // IMPORTANT: Only restore ONCE to prevent infinite loop with auto-save
@@ -340,6 +343,7 @@ export function ConfigurationWizard({
             communicationConfig={config.communicationConfig}
             platformTargets={config.platformTargets || []}
             isEditMode={isEditMode}
+            originalSchedulingRef={originalSchedulingRef}
           />
         );
         
