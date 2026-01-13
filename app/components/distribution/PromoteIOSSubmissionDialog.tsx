@@ -91,7 +91,7 @@ export function PromoteIOSSubmissionDialog({
       form.reset();
       onPromoteComplete?.();
     }
-  }, [fetcher.state, isSuccess, form, onPromoteComplete]);
+  }, [fetcher.state, isSuccess, onPromoteComplete]);
 
   const handleSubmit = (values: IOSPromoteFormData) => {
     const formData = new FormData();

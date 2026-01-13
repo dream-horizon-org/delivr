@@ -97,6 +97,13 @@ export type OrgLayoutLoaderData = {
  * Child routes can access this data via:
  * const { organisation } = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
  */
+/**
+ * Control revalidation behavior for parent route
+ * ONLY revalidate on navigation - never on actions from child routes
+ * Uses the same strategy as the root dashboard route
+ */
+export { shouldRevalidate } from './dashboard';
+
 export default function OrgLayout() {
   const { tenantId, initialTenantConfig } = useLoaderData<OrgLayoutLoaderData>();
   

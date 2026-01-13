@@ -122,9 +122,9 @@ export function CancelSubmissionDialog({
   useEffect(() => {
     if (fetcher.data?.success && onCancelComplete) {
       onCancelComplete();
-      handleClose();
+      // Don't close here - let parent handle closing after revalidation completes
     }
-  }, [fetcher.data, onCancelComplete, handleClose]);
+  }, [fetcher.data, onCancelComplete]);
 
   return (
     <Modal

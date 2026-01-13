@@ -220,7 +220,7 @@ export function ResubmissionDialog({
       // Note: Don't call onClose() here - let parent close after revalidation completes
     }
     // On error, dialog stays open so user can see error message and retry
-  }, [fetcher.state, fetcher.data, isAndroid, androidForm, iosForm, onResubmitComplete]);
+  }, [fetcher.state, fetcher.data, isAndroid, onResubmitComplete]);
 
   const handleClose = useCallback(() => {
     if (isAndroid) {
