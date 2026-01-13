@@ -417,6 +417,7 @@ export class DistributionService {
   ): Promise<{
     distributions: Array<{
       id: string;
+      releaseId: string;
       branch: string;
       status: string;
       platforms: string[];
@@ -548,6 +549,7 @@ export class DistributionService {
 
         return {
           id: distribution.id,
+          releaseId: distribution.releaseId,
           branch: distribution.branch,
           status: distribution.status,
           platforms: distribution.configuredListOfPlatforms,
@@ -562,6 +564,7 @@ export class DistributionService {
     // Filter out null distributions (those that don't match platform filter)
     const filteredDistributions = distributionsWithSubmissions.filter(d => d !== null) as Array<{
       id: string;
+      releaseId: string;
       branch: string;
       status: string;
       platforms: string[];

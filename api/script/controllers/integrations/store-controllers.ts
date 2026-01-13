@@ -1014,6 +1014,7 @@ export const patchStoreIntegration = async (req: Request, res: Response): Promis
         privateKeyPem: mergedCredentials.privateKeyPem,
         appIdentifier: mergedMetadata.appIdentifier,
         displayName: mergedMetadata.displayName,
+        targetAppId: mergedMetadata.targetAppId,
       });
     } else if (isPlayStoreType) {
       verificationResult = await verifyGooglePlayStore({

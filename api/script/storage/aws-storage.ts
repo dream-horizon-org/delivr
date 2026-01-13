@@ -1418,7 +1418,11 @@ export class S3Storage implements storage.Storage {
             this.submissionActionHistoryRepository,
             this.distributionRepository,
             this.buildArtifactService,  // Already initialized above
-            this.cronicleService  // For submission status sync
+            this.cronicleService,  // For submission status sync
+            undefined,  // testflightBuildVerificationService (not used yet)
+            undefined,  // appleAppStoreConnectService (not used yet)
+            undefined,  // cronJobService (will be injected later via setter)
+            this.releaseNotificationService  // For submission notifications
           );
           console.log("Submission Service initialized");
           
@@ -1456,6 +1460,10 @@ export class S3Storage implements storage.Storage {
           // Set CronJobService in ReleaseCreationService (for auto-start cron on release creation)
           this.releaseCreationService.setCronJobService(this.cronJobService);
           console.log("Cron Job Service injected into Release Creation Service");
+          
+          // Set CronJobService in SubmissionService (for completing release when distribution submitted)
+          this.submissionService.setCronJobService(this.cronJobService);
+          console.log("Cron Job Service injected into Submission Service");
           
           // Initialize ReleaseUpdateService (depends on CronJobService)
           this.releaseUpdateService = new ReleaseUpdateService(
