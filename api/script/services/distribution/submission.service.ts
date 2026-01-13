@@ -259,9 +259,17 @@ export class SubmissionService {
     private readonly cronicleService: CronicleService | null,
     private readonly testflightBuildVerificationService?: TestFlightBuildVerificationService,
     private readonly appleAppStoreConnectService?: AppleAppStoreConnectService,
-    private readonly cronJobService?: CronJobService,
+    private cronJobService?: CronJobService,
     private readonly releaseNotificationService?: ReleaseNotificationService
   ) {}
+
+  /**
+   * Set CronJobService after initialization (resolves circular dependency)
+   */
+  setCronJobService(cronJobService: CronJobService): void {
+    this.cronJobService = cronJobService;
+    console.log('[SubmissionService] CronJobService injected');
+  }
 
   /**
    * Get user email from user ID
