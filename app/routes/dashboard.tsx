@@ -1,10 +1,8 @@
 import { json } from '@remix-run/node';
 import { Flex, Group, Text, Box, Skeleton, useMantineTheme } from "@mantine/core";
-import { IconRocket } from "@tabler/icons-react";
 import { Outlet, useLoaderData, useNavigate, useParams, useLocation } from "@remix-run/react";
 import { route } from "routes-gen";
 import type { User } from '~/.server/services/Auth/auth.interface';
-import { SimpleTermsGuard } from "~/components/TermsAndConditions/SimpleTermsGuard";
 import { authenticateLoaderRequest } from "~/utils/authenticate";
 import { HeaderUserButton } from "~/components/UserButton/HeaderUserButton";
 import { Sidebar } from "~/components/Pages/components/Sidebar/Sidebar";
@@ -15,7 +13,7 @@ import type { SystemMetadataBackend } from '~/types/system-metadata';
 import { AuthErrorFallback } from '~/components/Auth/AuthErrorFallback';
 import { OfflineBanner } from '~/components/Common/OfflineBanner';
 import { useOfflineStatus } from '~/hooks/useOfflineStatus';
-import { i } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
+import { IconRocket } from '@tabler/icons-react';
 
 export const loader = authenticateLoaderRequest(async ({ user, request }) => {
   try {
@@ -119,11 +117,7 @@ export default function Dashboard() {
   
   // Show auth error if present
   if (authError) {
-    return (
-      <SimpleTermsGuard>
-        <AuthErrorFallback message={authError.message} />
-      </SimpleTermsGuard>
-    );
+    return <AuthErrorFallback message={authError.message} />;
   }
 
   // Handle both /dashboard and /dashboard/ (with or without trailing slash)
@@ -138,7 +132,7 @@ export default function Dashboard() {
   const brandColor = theme.colors?.brand?.[5] || '#14b8a6';
 
   return (
-    <SimpleTermsGuard>
+    <>
       {orgsLoading ? (
         <Flex h="100vh" direction="column" bg={bgColor}>
           {/* Header Skeleton */}
@@ -264,6 +258,6 @@ export default function Dashboard() {
           </Flex>
         </Flex>
       )}
-    </SimpleTermsGuard>
+    </>
   );
 }
