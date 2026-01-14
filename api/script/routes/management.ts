@@ -475,7 +475,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       return res.status(201).send({ message: "Collaborator added successfully" });
     } catch (error: any) {
       console.error("Error adding tenant collaborator:", error);
-      return next(error);
+      return errorUtils.restErrorHandler(res, error, next);
     }
   });
 
@@ -494,7 +494,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       return res.status(200).send({ message: "Collaborator updated successfully" });
     } catch (error: any) {
       console.error("Error updating tenant collaborator:", error);
-      return next(error);
+      return errorUtils.restErrorHandler(res, error, next);
     }
   });
 
@@ -508,7 +508,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       return res.status(200).send({ message: "Collaborator removed successfully" });
     } catch (error: any) {
       console.error("Error removing tenant collaborator:", error);
-      return next(error);
+      return errorUtils.restErrorHandler(res, error, next);
     }
   });
 
