@@ -118,14 +118,20 @@ export function CreateReleaseForm({
   // Check if pre-release stage or later stages have started (to determine if slots can be added)
   const isPreReleaseInProgress = checkPreReleaseInProgress(isEditMode, existingRelease);
 
-  // Check if target release date is being extended (for delayReason requirement)
-  const isExtendingTargetDate = useMemo(() => {
+  // Check if target release date/time has changed (for reason requirement)
+  const isTargetDateChanged = useMemo(() => {
     if (!isEditMode || !existingRelease?.targetReleaseDate || !state.targetReleaseDate) {
       return false;
     }
-    const oldDateTime = new Date(existingRelease.targetReleaseDate);
+    // Extract date and time from existing release's targetReleaseDate (ISO string)
+    const oldDateAndTime = extractDateAndTime(existingRelease.targetReleaseDate);
+    const oldTime = oldDateAndTime?.time || '00:00';
     const newDateTime = new Date(combineDateAndTime(state.targetReleaseDate, state.targetReleaseTime || '00:00'));
-    return newDateTime > oldDateTime;
+    const newTime = state.targetReleaseTime || '00:00';
+    const oldDateTime = new Date(combineDateAndTime(oldDateAndTime?.date || '', oldTime));
+    
+    // Check if date or time has changed
+    return oldDateTime.getTime() !== newDateTime.getTime() || oldTime !== newTime;
   }, [isEditMode, existingRelease, state.targetReleaseDate, state.targetReleaseTime]);
 
   // Calculate if original reminder date was in the past (for validation)
@@ -429,7 +435,7 @@ export function CreateReleaseForm({
     // Track this field as touched
     setTouchedFields(prev => new Set(prev).add(fieldName));
     
-    const validation = validateReleaseCreationState(state, isEditMode, activeStatus || undefined, isPreReleaseInProgress, isExtendingTargetDate, isOriginalReminderDatePassed);
+    const validation = validateReleaseCreationState(state, isEditMode, activeStatus || undefined, isPreReleaseInProgress, isTargetDateChanged, isOriginalReminderDatePassed);
     const updatedErrors = { ...errors };
     
     // Update error for the blurred field
@@ -570,7 +576,7 @@ export function CreateReleaseForm({
       ? { ...state, regressionBuildSlots: slotsForValidation }
       : state;
     
-    const validation = validateReleaseCreationState(stateWithEditingSlot, isEditMode, activeStatus || undefined, isPreReleaseInProgress, isExtendingTargetDate, isOriginalReminderDatePassed);
+    const validation = validateReleaseCreationState(stateWithEditingSlot, isEditMode, activeStatus || undefined, isPreReleaseInProgress, isTargetDateChanged, isOriginalReminderDatePassed);
     
     // Console log validation errors for debugging
     console.log('Validation Errors:', validation.errors);
@@ -674,7 +680,7 @@ export function CreateReleaseForm({
     setHasAttemptedValidation(true);
     
     // Mark all fields as touched when attempting to submit (so all errors are shown)
-    const validation = validateReleaseCreationState(state, isEditMode, activeStatus || undefined, isPreReleaseInProgress, isExtendingTargetDate, isOriginalReminderDatePassed);
+    const validation = validateReleaseCreationState(state, isEditMode, activeStatus || undefined, isPreReleaseInProgress, isTargetDateChanged, isOriginalReminderDatePassed);
     const allFieldNames = Object.keys(validation.errors);
     setTouchedFields(new Set(allFieldNames));
     
@@ -724,7 +730,7 @@ export function CreateReleaseForm({
             updateState.targetReleaseDate = state.targetReleaseDate;
             updateState.targetReleaseTime = state.targetReleaseTime;
             
-            // Include delayReason if provided (required when extending targetReleaseDate)
+            // Always include delayReason when targetReleaseDate is changed
             if (state.delayReason !== undefined) {
               updateState.delayReason = state.delayReason;
             }
@@ -755,7 +761,7 @@ export function CreateReleaseForm({
             updateState.targetReleaseDate = state.targetReleaseDate;
             updateState.targetReleaseTime = state.targetReleaseTime;
             
-            // Include delayReason if provided (required when extending targetReleaseDate)
+            // Always include delayReason when targetReleaseDate is changed
             if (state.delayReason !== undefined) {
               updateState.delayReason = state.delayReason;
             }

@@ -244,17 +244,21 @@ export function ReleaseSchedulingPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, targetReleaseDate]);
 
-  // Check if target release date is being extended (for delayReason requirement)
-  // Compare full datetimes (date + time) to match backend validation logic
-  const isExtendingTargetDate = useMemo(() => {
+  // Check if target release date/time has changed (for reason requirement)
+  const isTargetDateChanged = useMemo(() => {
     if (!isEditMode || !existingRelease?.targetReleaseDate || !targetReleaseDate) {
       return false;
     }
-    // Backend compares full datetimes, so we need to compare date + time here too
-    const oldDateTime = new Date(existingRelease.targetReleaseDate);
+    // Extract date and time from existing release's targetReleaseDate (ISO string)
+    const oldDateAndTime = extractDateAndTime(existingRelease.targetReleaseDate);
+    const oldTime = oldDateAndTime?.time || '00:00';
     const newDateTime = new Date(combineDateAndTime(targetReleaseDate, targetReleaseTimeValue));
-    return newDateTime > oldDateTime;
-  }, [isEditMode, existingRelease, targetReleaseDate, targetReleaseTimeValue]);
+    const newTime = targetReleaseTime || targetReleaseTimeValue;
+    const oldDateTime = new Date(combineDateAndTime(oldDateAndTime?.date || '', oldTime));
+    
+    // Check if date or time has changed
+    return oldDateTime.getTime() !== newDateTime.getTime() || oldTime !== newTime;
+  }, [isEditMode, existingRelease, targetReleaseDate, targetReleaseTime, targetReleaseTimeValue]);
 
   // Handle release date change - only auto-update kickoff date if it hasn't been manually set
   const handleReleaseDateChange = (date: string) => {
@@ -271,14 +275,7 @@ export function ReleaseSchedulingPanel({
       updates.kickOffDate = kd.toISOString().split('T')[0] || '';
     }
 
-    // Clear delayReason if shortening target date
-    if (isEditMode && existingRelease?.targetReleaseDate) {
-      const oldDate = new Date(existingRelease.targetReleaseDate);
-      const newDate = new Date(date);
-      if (newDate < oldDate) {
-        updates.delayReason = undefined;
-      }
-    }
+    // Don't clear delayReason when changing target date - always require reason
 
     onChange({
       ...state,
@@ -604,8 +601,8 @@ export function ReleaseSchedulingPanel({
               required
             />
             
-            {/* Delay Reason - Required when extending target release date */}
-            {isExtendingTargetDate && (
+            {/* Reason for Change - Required when target release date/time is modified */}
+            {isTargetDateChanged && (
               <Textarea
                 label={SCHEDULING_PANEL.DELAY_REASON_LABEL}
                 placeholder={SCHEDULING_PANEL.DELAY_REASON_PLACEHOLDER}

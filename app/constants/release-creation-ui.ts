@@ -48,10 +48,10 @@ export const SCHEDULING_PANEL = {
   RELEASE_DATE_DESCRIPTION: 'Release time must be after kickoff time.',
   RELEASE_TIME_DESCRIPTION: 'Use 24-hour format (e.g., 10:00, 15:30).',
   
-  // Delay Reason
-  DELAY_REASON_LABEL: 'Delay Reason',
+  // Reason for Change (when target release date is modified)
+  DELAY_REASON_LABEL: 'Reason for Change',
   DELAY_REASON_PLACEHOLDER: 'e.g., Additional testing required due to critical bug fixes',
-  DELAY_REASON_DESCRIPTION: 'Please provide a reason for extending the target release date. This is required when moving the release date to a later time.',
+  DELAY_REASON_DESCRIPTION: 'Please provide a reason for changing the target release date.',
   
   // Pre-Regression Builds
   PRE_REGRESSION_BUILDS_TITLE: 'Pre-Regression Builds',

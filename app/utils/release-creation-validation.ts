@@ -24,7 +24,7 @@ export function validateReleaseCreationState(
   isEditMode: boolean = false,
   activeStatus?: string,
   isPreReleaseInProgress?: boolean,
-  isExtendingTargetDate?: boolean,
+  isTargetDateChanged?: boolean,
   isOriginalReminderDatePassed?: boolean
 ): ValidationResult {
   const errors: Record<string, string> = {};
@@ -172,10 +172,10 @@ export function validateReleaseCreationState(
     errors.targetReleaseTime = 'Target release time is required';
   }
 
-  // Validate delay reason when extending target release date in edit mode
-  if (isEditMode && isExtendingTargetDate) {
+  // Validate reason for change when target release date/time is modified in edit mode
+  if (isEditMode && isTargetDateChanged) {
     if (!state.delayReason || state.delayReason.trim().length === 0) {
-      errors.delayReason = 'Delay reason is required when extending target release date';
+      errors.delayReason = 'Reason for change is required when modifying target release date';
     }
   }
 
