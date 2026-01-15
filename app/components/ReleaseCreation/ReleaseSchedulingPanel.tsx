@@ -269,6 +269,12 @@ export function ReleaseSchedulingPanel({
       ...state,
       ...updates,
     });
+
+    // Mark both date and time as touched when date changes to trigger validation
+    if (onFieldBlur) {
+      onFieldBlur('targetReleaseDate');
+      onFieldBlur('targetReleaseTime');
+    }
   };
 
   // Validate slots when kickoff date changes
@@ -339,6 +345,11 @@ export function ReleaseSchedulingPanel({
                   ...state,
                   kickOffDate: date,
                 });
+                // Mark both date and time as touched when date changes to trigger validation
+                if (onFieldBlur) {
+                  onFieldBlur('kickOffDate');
+                  onFieldBlur('kickOffTime');
+                }
               }}
               onTimeChange={(time) => {
                 onChange({

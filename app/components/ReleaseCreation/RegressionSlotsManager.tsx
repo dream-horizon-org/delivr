@@ -113,9 +113,10 @@ export function RegressionSlotsManager({
 
     const now = new Date();
     
-    // Calculate next slot date
-    const lastSlot = committedSlots.length > 0 
-      ? committedSlots[committedSlots.length - 1] 
+    // Calculate next slot date based on number of saved slots
+    const numberOfSlots = committedSlots.length;
+    const lastSlot = numberOfSlots > 0 
+      ? committedSlots[numberOfSlots - 1] 
       : null;
     
     let nextSlotDate: Date;
@@ -129,10 +130,18 @@ export function RegressionSlotsManager({
       nextSlotDate.setHours(9, 0, 0, 0);
     }
     
-    // Clamp to target release date
+    // Clamp to target release date with max time of 6:00 PM (18:00)
     const targetDate = new Date(targetReleaseISO);
-    if (nextSlotDate > targetDate) {
-      nextSlotDate = new Date(targetDate);
+    const targetDateOnly = new Date(targetDate);
+    targetDateOnly.setHours(0, 0, 0, 0);
+    
+    // Create max clamp date: target release date at 6:00 PM
+    const maxClampDate = new Date(targetDateOnly);
+    maxClampDate.setHours(18, 0, 0, 0);
+    
+    // Clamp if slot exceeds 6:00 PM on target release date
+    if (nextSlotDate > maxClampDate) {
+      nextSlotDate = new Date(maxClampDate);
     }
     
     // Ensure it's in the future
