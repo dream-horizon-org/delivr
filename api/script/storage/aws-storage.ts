@@ -1262,6 +1262,9 @@ export class S3Storage implements storage.Storage {
           );
           console.log("Release Retrieval Service initialized");
           
+          // Inject release retrieval service into config service for deletion checks
+          this.releaseConfigService.setReleaseRetrievalService(this.releaseRetrievalService);
+          
           // Initialize Release Notification Service (after releaseConfigService and releaseRetrievalService)
           this.releaseNotificationService = new ReleaseNotificationService(
             this.messagingService,

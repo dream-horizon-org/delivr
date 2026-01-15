@@ -5,6 +5,7 @@
 
 import * as shortid from 'shortid';
 import { ReleaseConfigRepository, ReleaseConfigActivityLogRepository } from '~models/release-configs';
+import type { ReleaseRetrievalService } from '~services/release/release-retrieval.service';
 import type {
   CreateReleaseConfigDto,
   CreateReleaseConfigRequest,
@@ -43,6 +44,8 @@ shortid.characters('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWX
 // ============================================================================
 
 export class ReleaseConfigService {
+  private releaseRetrievalService!: ReleaseRetrievalService;
+
   constructor(
     private readonly configRepo: ReleaseConfigRepository,
     private readonly releaseScheduleService?: ReleaseScheduleService,
@@ -54,6 +57,14 @@ export class ReleaseConfigService {
     private readonly activityLogRepository?: ReleaseConfigActivityLogRepository,
     private readonly storeIntegrationController?: StoreIntegrationController
   ) {}
+
+  /**
+   * Set the release retrieval service (for checking releases before config deletion)
+   * Called after initialization since ReleaseRetrievalService is created after ReleaseConfigService
+   */
+  setReleaseRetrievalService(service: ReleaseRetrievalService): void {
+    this.releaseRetrievalService = service;
+  }
 
   /**
    * Validate all integration configurations
@@ -1993,12 +2004,25 @@ export class ReleaseConfigService {
 
   /**
    * Delete config with cascade deletion of integration configs
+   * 
+   * Throws an error if any releases exist that use this config.
+   * Note: We don't allow deletion even for completed releases to maintain
+   * data integrity and historical reference.
    */
   async deleteConfig(id: string): Promise<boolean> {
     const config = await this.configRepo.findById(id);
 
     if (!config) {
       return false;
+    }
+
+    // Check if any releases exist for this config
+    const hasReleases = await this.releaseRetrievalService.existsReleasesByConfigId(id);
+    if (hasReleases) {
+      throw new Error(
+        `Cannot delete release config. One or more releases are associated with this config. ` +
+        `Archive the config instead.`
+      );
     }
 
     console.log('[deleteConfig] Deleting release config and associated integration configs:', id);

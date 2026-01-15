@@ -316,6 +316,14 @@ export class ReleaseRetrievalService {
     this.releaseStatusService = service;
   }
 
+  /**
+   * Check if any releases exist for a release config
+   * Used by ReleaseConfigService before config deletion
+   */
+  async existsReleasesByConfigId(releaseConfigId: string): Promise<boolean> {
+    return this.releaseRepo.existsByReleaseConfigId(releaseConfigId);
+  }
+
   private async getAccountDetails(accountId: string | null): Promise<AccountDetails | null> {
     return getAccountDetailsUtil(this.storage, accountId, 'Release Retrieval');
   }

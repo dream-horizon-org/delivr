@@ -72,6 +72,17 @@ export class ReleaseRepository {
     return this.toPlainObject(release);
   }
 
+  /**
+   * Check if any releases exist for a release config
+   * Used to prevent deletion of configs that have releases
+   */
+  async existsByReleaseConfigId(releaseConfigId: string): Promise<boolean> {
+    const count = await this.model.count({
+      where: { releaseConfigId }
+    });
+    return count > 0;
+  }
+
   async update(id: string, data: UpdateReleaseDto): Promise<Release | null> {
     await this.model.update(data, {
       where: { id }
