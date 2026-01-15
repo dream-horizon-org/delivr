@@ -28,9 +28,10 @@ import {
   convertStateToBackendRequest, 
   convertUpdateStateToBackendRequest,
   convertReleaseToFormState,
+  combineDateAndTime,
 } from '~/utils/release-creation-converter';
 import { DEFAULT_KICKOFF_TIME, DEFAULT_RELEASE_TIME, DEFAULT_VERSIONS, getDefaultKickoffTime } from '~/constants/release-creation';
-import { getReleaseActiveStatus } from '~/utils/release-utils';
+import { getReleaseActiveStatus, isPreReleaseInProgress as checkPreReleaseInProgress } from '~/utils/release-utils';
 import { RELEASE_ACTIVE_STATUS } from '~/constants/release-ui';
 import { applyVersionSuggestions } from '~/utils/release-version-suggestions';
 import { clearErrorsForFields, formatFieldLabel } from '~/utils/form-error-utils';
@@ -114,24 +115,17 @@ export function CreateReleaseForm({
   const isAfterKickoff = activeStatus === RELEASE_ACTIVE_STATUS.RUNNING || activeStatus === RELEASE_ACTIVE_STATUS.PAUSED;
   
   // Check if pre-release stage or later stages have started (to determine if slots can be added)
-  const isPreReleaseInProgress = useMemo(() => {
-    if (!isEditMode || !existingRelease || !existingRelease.cronJob) return false;
-    const cronJob = existingRelease.cronJob as any;
-    const stage3Status = cronJob.stage3Status;
-    const stage4Status = cronJob.stage4Status;
-    
-    // Disallow if pre-release has started or completed
-    if (stage3Status === StageStatus.IN_PROGRESS || stage3Status === StageStatus.COMPLETED) {
-      return true;
+  const isPreReleaseInProgress = checkPreReleaseInProgress(isEditMode, existingRelease);
+
+  // Check if target release date is being extended (for delayReason requirement)
+  const isExtendingTargetDate = useMemo(() => {
+    if (!isEditMode || !existingRelease?.targetReleaseDate || !state.targetReleaseDate) {
+      return false;
     }
-    
-    // Disallow if any later stage has started or completed
-    if (stage4Status === StageStatus.IN_PROGRESS || stage4Status === StageStatus.COMPLETED) {
-      return true;
-    }
-    
-    return false;
-  }, [isEditMode, existingRelease]);
+    const oldDateTime = new Date(existingRelease.targetReleaseDate);
+    const newDateTime = new Date(combineDateAndTime(state.targetReleaseDate, state.targetReleaseTime || '00:00'));
+    return newDateTime > oldDateTime;
+  }, [isEditMode, existingRelease, state.targetReleaseDate, state.targetReleaseTime]);
 
   // Release creation state
   const [selectedConfigId, setSelectedConfigId] = useState<string | undefined>();
@@ -403,7 +397,7 @@ export function CreateReleaseForm({
     // Track this field as touched
     setTouchedFields(prev => new Set(prev).add(fieldName));
     
-    const validation = validateReleaseCreationState(state, isEditMode, activeStatus || undefined);
+    const validation = validateReleaseCreationState(state, isEditMode, activeStatus || undefined, isPreReleaseInProgress, isExtendingTargetDate);
     const updatedErrors = { ...errors };
     
     // Update error for the blurred field
@@ -510,26 +504,26 @@ export function CreateReleaseForm({
   // Continuous validation - always check validity for button state
   // Only show errors after first validation attempt (user interaction)
   useEffect(() => {
-    // Include editing slot in validation if one exists
-    const slotsForValidation = editingSlot 
+    // Include editing slot in validation if one exists (but NOT pending slots)
+    // Pending slots (index === -1) should not be included in validation until saved
+    // console.log('[CreateReleaseForm] editingSlot:', editingSlot);
+    const slotsForValidation = editingSlot && editingSlot.index >= 0
       ? (() => {
           const slots = [...(state.regressionBuildSlots || [])];
-          if (editingSlot.index >= 0 && editingSlot.index < slots.length) {
-            // Replace the slot at the editing index with the editing slot
+          // Only include if it's an existing slot being edited (index >= 0)
+          if (editingSlot.index < slots.length) {
             slots[editingSlot.index] = editingSlot.slot;
-          } else if (editingSlot.index === -1) {
-            // Pending slot (new slot being added)
-            slots.push(editingSlot.slot);
           }
           return slots;
         })()
-      : state.regressionBuildSlots;
+      : state.regressionBuildSlots; // Don't include pending slots (index === -1)
     
-    const stateWithEditingSlot = editingSlot 
+    // Only include editing slot in state if it's an existing slot being edited (not pending)
+    const stateWithEditingSlot = editingSlot && editingSlot.index >= 0
       ? { ...state, regressionBuildSlots: slotsForValidation }
       : state;
     
-    const validation = validateReleaseCreationState(stateWithEditingSlot, isEditMode, activeStatus || undefined);
+    const validation = validateReleaseCreationState(stateWithEditingSlot, isEditMode, activeStatus || undefined, isPreReleaseInProgress, isExtendingTargetDate);
     
     // Console log validation errors for debugging
     console.log('Validation Errors:', validation.errors);
@@ -547,8 +541,29 @@ export function CreateReleaseForm({
           // Check if field has been touched, or if it's a slot error (always show slot errors when editing or after validation attempt)
           const isSlotError = fieldName.startsWith('slot-');
           const isEditingSlotError = editingSlot && isSlotError && fieldName === `slot-${editingSlot.index + 1}`;
-          // Always show slot errors once validation has been attempted (similar to edit release mode)
-          const shouldShowSlotError = isSlotError && hasAttemptedValidation;
+          
+          // Show slot errors if:
+          // 1. Validation has been attempted, OR
+          // 2. Target release date/time has been touched AND the resulting date+time is invalid (less than slot)
+          const targetReleaseDateTouched = touchedFields.has('targetReleaseDate') || touchedFields.has('targetReleaseTime');
+          
+          // Check if the current state's date+time is actually invalid (less than any slot)
+          let isTargetReleaseInvalid = false;
+          if (targetReleaseDateTouched && state.targetReleaseDate && state.regressionBuildSlots && state.regressionBuildSlots.length > 0) {
+            const targetReleaseDateTime = combineDateAndTime(
+              state.targetReleaseDate,
+              state.targetReleaseTime || '00:00'
+            );
+            const targetReleaseDate = new Date(targetReleaseDateTime);
+            
+            // Check if any slot is after or equal to the target release date (invalid)
+            isTargetReleaseInvalid = state.regressionBuildSlots.some(slot => {
+              const slotDate = new Date(slot.date);
+              return slotDate >= targetReleaseDate;
+            });
+          }
+          
+          const shouldShowSlotError = isSlotError && (hasAttemptedValidation || (targetReleaseDateTouched && isTargetReleaseInvalid));
           
           // For combined datetime errors, check if either date or time field has been touched
           const isKickoffDateTimeError = fieldName === 'kickOffDateTime';
@@ -569,6 +584,15 @@ export function CreateReleaseForm({
           }
         });
         
+        // Also clear combined datetime errors when either component field is touched and validation passes
+        if ((touchedFields.has('targetReleaseDate') || touchedFields.has('targetReleaseTime')) && !validation.errors.targetReleaseDateTime && prevErrors.targetReleaseDateTime) {
+          delete updatedErrors.targetReleaseDateTime;
+        }
+        
+        if ((touchedFields.has('kickOffDate') || touchedFields.has('kickOffTime')) && !validation.errors.kickOffDateTime && prevErrors.kickOffDateTime) {
+          delete updatedErrors.kickOffDateTime;
+        }
+        
         // Also clear slot errors that are no longer in validation (even if not in touchedFields)
         // This ensures slot errors are cleared when slots are fixed or when dependent fields change
         Object.keys(prevErrors).forEach(fieldName => {
@@ -581,7 +605,7 @@ export function CreateReleaseForm({
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, isEditMode, activeStatus, hasAttemptedValidation, editingSlot, touchedFields]);
+  }, [state, isEditMode, activeStatus, hasAttemptedValidation, touchedFields]);
 
   // Handle review and submit
   const handleReviewAndSubmit = () => {
@@ -589,7 +613,7 @@ export function CreateReleaseForm({
     setHasAttemptedValidation(true);
     
     // Mark all fields as touched when attempting to submit (so all errors are shown)
-    const validation = validateReleaseCreationState(state, isEditMode, activeStatus || undefined);
+    const validation = validateReleaseCreationState(state, isEditMode, activeStatus || undefined, isPreReleaseInProgress, isExtendingTargetDate);
     const allFieldNames = Object.keys(validation.errors);
     setTouchedFields(new Set(allFieldNames));
     
@@ -864,7 +888,13 @@ export function CreateReleaseForm({
               <Button
                 variant="subtle"
                 leftSection={<IconArrowLeft size={18} />}
-                onClick={onCancel}
+                onClick={() => {
+                  // If a slot is being edited, cancel it first (same as cancel button behavior)
+                  if (editingSlot) {
+                    setEditingSlot(null);
+                  }
+                  onCancel();
+                }}
                 disabled={isSubmitting}
                 size="md"
               >
@@ -875,7 +905,13 @@ export function CreateReleaseForm({
               <Button
                 variant="subtle"
                 leftSection={<IconArrowLeft size={18} />}
-                onClick={() => navigate(`/dashboard/${org}/releases`)}
+                onClick={() => {
+                  // If a slot is being edited, cancel it first (same as cancel button behavior)
+                  if (editingSlot) {
+                    setEditingSlot(null);
+                  }
+                  navigate(`/dashboard/${org}/releases`);
+                }}
                 size="md"
               >
                 Cancel

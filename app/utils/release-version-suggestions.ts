@@ -192,7 +192,6 @@ export function getVersionSuggestions(
   platformTargets: PlatformTargetWithVersion[]
 ): VersionSuggestionsResult {
 
-  console.log('[getVersionSuggestions] releases:', releases, releaseType, platformTargets);
   // Extract latest versions per platform-target
   const latestVersions = extractLatestVersions(releases);
   

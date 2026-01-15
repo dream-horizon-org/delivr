@@ -129,25 +129,10 @@ export function ReleaseDetailsForm({
     [TARGET_PLATFORMS.APP_STORE]: PLATFORMS.IOS,
   } as const;
 
-  // Auto-populate platformTargets from config when creating release for the first time
+  // Filter platformTargets to only include targets that exist in config
+  // This handles cases where config changes and removes invalid platforms
+  // NOTE: We never auto-populate platforms - users must manually select them
   useEffect(() => {
-    if (config && (!state.platformTargets || state.platformTargets.length === 0)) {
-      // Use platformTargets from config if available
-      if (config.platformTargets && config.platformTargets.length > 0) {
-        const preFilledTargets: PlatformTargetWithVersion[] = config.platformTargets.map((pt) => ({
-          platform: pt.platform as PlatformTargetWithVersion['platform'],
-          target: pt.target as TargetPlatform,
-          version: getDefaultVersion(), // Use default version for pre-filled targets
-        }));
-        
-        onChange({
-          ...state,
-          platformTargets: preFilledTargets,
-        });
-        return; // Exit early to avoid filtering logic below
-      }
-    }
-    
     // Filter platformTargets to only include targets that exist in config
     // This handles cases where a draft had targets that are no longer in the current config
     if (config?.platformTargets && config.platformTargets.length > 0 && state.platformTargets && state.platformTargets.length > 0) {
@@ -167,7 +152,7 @@ export function ReleaseDetailsForm({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config?.platformTargets]);
+  }, [config?.id, config?.platformTargets, state.platformTargets?.length]);
 
   // Pre-fill release type from config or default to MINOR
   // Update release type whenever config changes (not just on initial load)

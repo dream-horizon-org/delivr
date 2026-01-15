@@ -22,7 +22,9 @@ import { validateSlot } from './regression-slot-validation';
 export function validateReleaseCreationState(
   state: Partial<ReleaseCreationState>,
   isEditMode: boolean = false,
-  activeStatus?: string
+  activeStatus?: string,
+  isPreReleaseInProgress?: boolean,
+  isExtendingTargetDate?: boolean
 ): ValidationResult {
   const errors: Record<string, string> = {};
   const isAfterKickoff = activeStatus === RELEASE_ACTIVE_STATUS.RUNNING || activeStatus === RELEASE_ACTIVE_STATUS.PAUSED;
@@ -169,6 +171,13 @@ export function validateReleaseCreationState(
     errors.targetReleaseTime = 'Target release time is required';
   }
 
+  // Validate delay reason when extending target release date in edit mode
+  if (isEditMode && isExtendingTargetDate) {
+    if (!state.delayReason || state.delayReason.trim().length === 0) {
+      errors.delayReason = 'Delay reason is required when extending target release date';
+    }
+  }
+
   // Skip kickoff time validation in edit mode post-kickoff (not editable)
   if (!isAfterKickoff) {
     if (!state.kickOffTime) {
@@ -254,45 +263,50 @@ export function validateReleaseCreationState(
     }
   }
 
-  // Validate regression slots (required, must have at least one element)
-  if (!state.regressionBuildSlots || !Array.isArray(state.regressionBuildSlots) || state.regressionBuildSlots.length === 0) {
-    errors.regressionBuildSlots = 'At least one regression slot is required. Please add regression build slots to proceed.';
-  } else {
-    // Validate slot dates if kickoff and target release dates are available
-    if (state.kickOffDate && state.targetReleaseDate) {
-      // Combine date and time for accurate comparison
-      const kickOffDateTime = combineDateAndTime(
-        state.kickOffDate,
-        state.kickOffTime || '00:00'
-      );
-      const targetReleaseDateTime = combineDateAndTime(
-        state.targetReleaseDate,
-        state.targetReleaseTime || '00:00'
-      );
-      
-      const kickOffISO = new Date(kickOffDateTime).toISOString();
-      const targetReleaseISO = new Date(targetReleaseDateTime).toISOString();
-      
-      // Use the comprehensive slot validation function
-      // isAfterKickoff is true when release is RUNNING or PAUSED (same logic as in CreateReleaseForm)
-      const isAfterKickoff = activeStatus === RELEASE_ACTIVE_STATUS.RUNNING || activeStatus === RELEASE_ACTIVE_STATUS.PAUSED;
-
-      state.regressionBuildSlots.forEach((slot, index) => {
-        const slotNumber = index + 1;
-        const slotValidation = validateSlot(
-          slot,
-          state.regressionBuildSlots!,
-          index,
-          kickOffISO,
-          targetReleaseISO,
-          isAfterKickoff || false
+  // Validate regression slots (required only when component would be shown)
+  // Condition matches UI: targetReleaseDate && !isPreReleaseInProgress
+  const shouldRequireSlots = state.targetReleaseDate && !(isEditMode && isPreReleaseInProgress);
+  
+  if (shouldRequireSlots) {
+    if (!state.regressionBuildSlots || !Array.isArray(state.regressionBuildSlots) || state.regressionBuildSlots.length === 0) {
+      errors.regressionBuildSlots = 'At least one regression slot is required. Please add regression build slots to proceed.';
+    } else {
+      // Validate slot dates if kickoff and target release dates are available
+      if (state.kickOffDate && state.targetReleaseDate) {
+        // Combine date and time for accurate comparison
+        const kickOffDateTime = combineDateAndTime(
+          state.kickOffDate,
+          state.kickOffTime || '00:00'
+        );
+        const targetReleaseDateTime = combineDateAndTime(
+          state.targetReleaseDate,
+          state.targetReleaseTime || '00:00'
         );
         
-        if (!slotValidation.isValid && slotValidation.errors.length > 0) {
-          // Use the first error message, formatted for display
-          errors[`slot-${slotNumber}`] = `Slot ${slotNumber}:|${slotValidation.errors[0]}`;
-        }
-      });
+        const kickOffISO = new Date(kickOffDateTime).toISOString();
+        const targetReleaseISO = new Date(targetReleaseDateTime).toISOString();
+        
+        // Use the comprehensive slot validation function
+        // isAfterKickoff is true when release is RUNNING or PAUSED (same logic as in CreateReleaseForm)
+        const isAfterKickoff = activeStatus === RELEASE_ACTIVE_STATUS.RUNNING || activeStatus === RELEASE_ACTIVE_STATUS.PAUSED;
+
+        state.regressionBuildSlots.forEach((slot, index) => {
+          const slotNumber = index + 1;
+          const slotValidation = validateSlot(
+            slot,
+            state.regressionBuildSlots!,
+            index,
+            kickOffISO,
+            targetReleaseISO,
+            isAfterKickoff || false
+          );
+          
+          if (!slotValidation.isValid && slotValidation.errors.length > 0) {
+            // Use the first error message, formatted for display
+            errors[`slot-${slotNumber}`] = `Slot ${slotNumber}:|${slotValidation.errors[0]}`;
+          }
+        });
+      }
     }
   }
 

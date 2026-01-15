@@ -5,6 +5,7 @@
 
 import { RELEASE_TYPE, RELEASE_STATUS, TASK_STATUS, MANTINE_COLORS, RELEASE_ACTIVE_STATUS } from '~/constants/release-ui';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
+import { StageStatus } from '~/types/release-process-enums';
 
 /**
  * Format date for display in release cards
@@ -191,3 +192,30 @@ export function getActiveStatusColor(status: typeof RELEASE_ACTIVE_STATUS[keyof 
   }
 }
 
+/**
+ * Check if pre-release stage or later stages have started
+ * Used to determine if regression slots can be added/edited
+ * 
+ * @param isEditMode - Whether we're in edit mode
+ * @param existingRelease - The existing release (optional)
+ * @returns true if pre-release has started or completed, false otherwise
+ */
+export function isPreReleaseInProgress(
+  isEditMode: boolean,
+  existingRelease?: BackendReleaseResponse | null
+): boolean {
+  if (!isEditMode || !existingRelease || !existingRelease.cronJob) return false;
+  const cronJob = existingRelease.cronJob as any;
+  const stage3Status = cronJob.stage3Status;
+  const stage4Status = cronJob.stage4Status;
+  
+  if (stage3Status === StageStatus.IN_PROGRESS || stage3Status === StageStatus.COMPLETED) {
+    return true;
+  }
+  
+  if (stage4Status === StageStatus.IN_PROGRESS || stage4Status === StageStatus.COMPLETED) {
+    return true;
+  }
+  
+  return false;
+}

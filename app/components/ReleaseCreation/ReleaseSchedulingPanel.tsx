@@ -45,7 +45,7 @@ import { canEnableKickoffReminder } from '~/utils/communication-helpers';
 import { StageStatus } from '~/types/release-process-enums';
 import { SCHEDULING_PANEL } from '~/constants/release-creation-ui';
 import { BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
-import { getReleaseActiveStatus } from '~/utils/release-utils';
+import { getReleaseActiveStatus, isPreReleaseInProgress as checkPreReleaseInProgress } from '~/utils/release-utils';
 import { RELEASE_ACTIVE_STATUS } from '~/constants/release-ui';
 
 interface ReleaseSchedulingPanelProps {
@@ -101,26 +101,7 @@ export function ReleaseSchedulingPanel({
 
   // Check if pre-release stage or later stages have started
   // Disable adding regression slots once pre-release has started or any later stage is active
-  // Allow adding slots: Until regression stage is not completed OR is in "awaiting pre release" (stage2Status === 'COMPLETED' && stage3Status === 'PENDING')
-  // Disallow adding slots: Once pre-release has started (stage3Status === 'IN_PROGRESS') OR further stages
-  const isPreReleaseInProgress = useMemo(() => {
-    if (!isEditMode || !existingRelease || !existingRelease.cronJob) return false;
-    const cronJob = existingRelease.cronJob as any;
-    const stage3Status = cronJob.stage3Status;
-    const stage4Status = cronJob.stage4Status;
-    
-    // Disallow if pre-release has started or completed
-    if (stage3Status === StageStatus.IN_PROGRESS || stage3Status === StageStatus.COMPLETED) {
-      return true;
-    }
-    
-    // Disallow if any later stage has started or completed
-    if (stage4Status === StageStatus.IN_PROGRESS || stage4Status === StageStatus.COMPLETED) {
-      return true;
-    }
-    
-    return false;
-  }, [isEditMode, existingRelease]);
+  const isPreReleaseInProgress = checkPreReleaseInProgress(isEditMode, existingRelease);
 
   // Check if reminder date has passed (for upcoming releases in edit mode)
   const isReminderDatePassed = useMemo(() => {
