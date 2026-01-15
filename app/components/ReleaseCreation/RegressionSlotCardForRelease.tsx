@@ -8,7 +8,7 @@
  * which uses offset-based format.
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -28,6 +28,23 @@ import { validateSlot } from '~/utils/regression-slot-validation';
 import { REGRESSION_SLOT_CARD } from '~/constants/release-creation-ui';
 import { AppBadge } from '~/components/Common/AppBadge';
 
+/**
+ * Format slot error message by splitting on delimiter and bolding the label part
+ * Message format: "Slot X:|error message" where | is the delimiter
+ */
+function formatSlotErrorMessage(message: string) {
+  const [boldPart, ...restParts] = message.split('|');
+  if (restParts.length > 0) {
+    return (
+      <>
+        <Text component="span" fw={600}>{boldPart}{" "}</Text>
+        {restParts.join('|')}
+      </>
+    );
+  }
+  return message;
+}
+
 interface RegressionSlotCardForReleaseProps {
   slot: RegressionBuildSlotBackend;
   index: number; // -1 if pending (new slot not yet saved)
@@ -41,6 +58,8 @@ interface RegressionSlotCardForReleaseProps {
   targetReleaseISO: string;
   allSlots: RegressionBuildSlotBackend[];
   isAfterKickoff: boolean;
+  onEditingSlotChange?: (slot: RegressionBuildSlotBackend | null, index: number) => void;
+  slotError?: string; // Validation error for this slot
 }
 
 export function RegressionSlotCardForRelease({
@@ -56,16 +75,17 @@ export function RegressionSlotCardForRelease({
   targetReleaseISO,
   allSlots,
   isAfterKickoff,
+  onEditingSlotChange,
+  slotError,
 }: RegressionSlotCardForReleaseProps) {
   const theme = useMantineTheme();
   const [localSlot, setLocalSlot] = useState<RegressionBuildSlotBackend>(slot);
+  const originalSlotRef = useRef<RegressionBuildSlotBackend | null>(null);
   
-  // Extract date and time from ISO string for editing
   const { date: slotDateStr, time: slotTimeStr } = extractDateAndTime(localSlot.date);
   const [localDate, setLocalDate] = useState(slotDateStr);
   const [localTime, setLocalTime] = useState(slotTimeStr);
   
-  // Update local slot when prop changes
   useEffect(() => {
     setLocalSlot(slot);
     const { date, time } = extractDateAndTime(slot.date);
@@ -73,13 +93,34 @@ export function RegressionSlotCardForRelease({
     setLocalTime(time);
   }, [slot]);
   
-  // Update slot date when date/time changes
   useEffect(() => {
     if (localDate && localTime) {
       const newISO = combineDateAndTime(localDate, localTime);
       setLocalSlot((prev) => ({ ...prev, date: newISO }));
     }
   }, [localDate, localTime]);
+
+  // Reset local state to original slot when canceling edit
+  useEffect(() => {
+    if (isEditing) {
+      originalSlotRef.current = { ...slot };
+    } else if (originalSlotRef.current && originalSlotRef.current.date === slot.date) {
+      setLocalSlot(originalSlotRef.current);
+      const { date, time } = extractDateAndTime(originalSlotRef.current.date);
+      setLocalDate(date);
+      setLocalTime(time);
+      originalSlotRef.current = null;
+    }
+  }, [isEditing, slot]);
+
+  // Notify parent when editing slot changes
+  useEffect(() => {
+    if (isEditing && onEditingSlotChange) {
+      onEditingSlotChange(localSlot, index);
+    } else if (!isEditing && onEditingSlotChange) {
+      onEditingSlotChange(null, -1);
+    }
+  }, [isEditing, localSlot, index, onEditingSlotChange]);
   
   // Validation
   const validation = useMemo(() => {
@@ -115,12 +156,16 @@ export function RegressionSlotCardForRelease({
         radius="md"
         withBorder
         style={{
-          borderColor: isPastSlot && isAfterKickoff 
-            ? theme.colors.orange[3] 
-            : theme.colors.slate[2],
-          backgroundColor: isPastSlot && isAfterKickoff 
-            ? theme.colors.orange[0] 
-            : 'transparent',
+          borderColor: slotError 
+            ? theme.colors.red[3]
+            : (isPastSlot && isAfterKickoff 
+              ? theme.colors.orange[3] 
+              : theme.colors.slate[2]),
+          backgroundColor: slotError
+            ? theme.colors.red[0]
+            : (isPastSlot && isAfterKickoff 
+              ? theme.colors.orange[0] 
+              : 'transparent'),
         }}
       >
         <Group justify="space-between" align="flex-start">
@@ -133,7 +178,7 @@ export function RegressionSlotCardForRelease({
                 size="sm"
                 color="grape"
               />
-              {isPastSlot && isAfterKickoff && (
+              {isPastSlot && isAfterKickoff && !slotError && (
                 <AppBadge
                   type="status"
                   value="warning"
@@ -152,7 +197,14 @@ export function RegressionSlotCardForRelease({
                 minute: '2-digit',
               })}
             </Text>
-            {isPastSlot && isAfterKickoff && (
+            {slotError && (
+              <Alert icon={<IconX size={14} />} color="red" variant="light" mt="xs">
+                <Text size="xs">
+                  {slotError.includes('|') ? formatSlotErrorMessage(slotError) : slotError}
+                </Text>
+              </Alert>
+            )}
+            {isPastSlot && isAfterKickoff && !slotError && (
               <Alert icon={<IconX size={14} />} color="orange" variant="light" mt="xs">
                 <Text size="xs">
                   {REGRESSION_SLOT_CARD.PAST_SLOT_MESSAGE}
@@ -193,21 +245,9 @@ export function RegressionSlotCardForRelease({
       }}
     >
       <Stack gap="md">
-        <Group justify="space-between" align="center">
-          <Text fw={600} size="md" c={theme.colors.slate[8]}>
-            {isPending ? REGRESSION_SLOT_CARD.NEW_SLOT_TITLE : REGRESSION_SLOT_CARD.EDIT_SLOT_TITLE(index)}
-          </Text>
-          {!isPending && (
-            <Button 
-              size="sm" 
-              variant="subtle" 
-              onClick={onCancel}
-              color="gray"
-            >
-              {REGRESSION_SLOT_CARD.CANCEL}
-            </Button>
-          )}
-        </Group>
+        <Text fw={600} size="md" c={theme.colors.slate[8]}>
+          {isPending ? REGRESSION_SLOT_CARD.NEW_SLOT_TITLE : REGRESSION_SLOT_CARD.EDIT_SLOT_TITLE(index)}
+        </Text>
 
         {/* Validation errors */}
         {!validation.isValid && (
@@ -249,6 +289,7 @@ export function RegressionSlotCardForRelease({
               onChange={(e) => setLocalTime(e.target.value)}
               required
               withAsterisk
+              error={validation.errors.length > 0 ? validation.errors[0] : undefined}
               description={REGRESSION_SLOT_CARD.TIME_DESCRIPTION}
               styles={{
                 label: { fontWeight: 500, marginBottom: 6 },

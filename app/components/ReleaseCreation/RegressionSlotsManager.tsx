@@ -39,6 +39,7 @@ interface RegressionSlotsManagerProps {
   isAfterKickoff?: boolean; // Whether release has already kicked off
   disableAddSlot?: boolean; // Whether to disable adding new slots (e.g., when regression is completed)
   isEditMode?: boolean; // Whether this is edit mode (prevents auto-populating from config)
+  onEditingSlotChange?: (slot: RegressionBuildSlotBackend | null, index: number) => void;
 }
 
 export function RegressionSlotsManager({
@@ -53,6 +54,7 @@ export function RegressionSlotsManager({
   isAfterKickoff = false,
   disableAddSlot = false,
   isEditMode = false,
+  onEditingSlotChange,
 }: RegressionSlotsManagerProps) {
   const theme = useMantineTheme();
   const [editingSlotIndex, setEditingSlotIndex] = useState<number | null>(null);
@@ -178,6 +180,9 @@ export function RegressionSlotsManager({
     setPendingSlot(null);
     setIsPendingNew(false);
     setEditingSlotIndex(null);
+    if (onEditingSlotChange) {
+      onEditingSlotChange(null, -1);
+    }
   };
 
   // Handle canceling pending slot
@@ -208,6 +213,9 @@ export function RegressionSlotsManager({
     updated[index] = updatedSlot;
     onChange(updated);
     setEditingSlotIndex(null);
+    if (onEditingSlotChange) {
+      onEditingSlotChange(null, -1);
+    }
   };
 
   // Handle deleting a slot
@@ -254,6 +262,7 @@ export function RegressionSlotsManager({
               </ThemeIcon>
               <Text fw={600} size="lg">
                 {REGRESSION_SLOTS_MANAGER.TITLE}
+                <Text component="span" c="red" ml={4}>*</Text>
               </Text>
             </Group>
             <Text size="sm" c={theme.colors.slate[5]} ml={42}>
@@ -281,22 +290,35 @@ export function RegressionSlotsManager({
         {/* Committed slots */}
         {committedSlots.length > 0 && (
           <Stack gap="md">
-            {committedSlots.map((slot, index) => (
-              <RegressionSlotCardForRelease
-                key={`slot-${index}-${slot.date}`}
-                slot={slot}
-                index={index}
-                isEditing={editingSlotIndex === index}
-                onEdit={() => setEditingSlotIndex(index)}
-                onDelete={() => handleDeleteSlot(index)}
-                onSave={(updated) => handleUpdateSlot(index, updated)}
-                onCancel={() => setEditingSlotIndex(null)}
-                kickOffISO={kickOffISO}
-                targetReleaseISO={targetReleaseISO}
-                allSlots={committedSlots}
-                isAfterKickoff={isAfterKickoff}
-              />
-            ))}
+            {committedSlots.map((slot, index) => {
+              const slotNumber = index + 1;
+              const slotErrorKey = `slot-${slotNumber}`;
+              const slotError = errors[slotErrorKey];
+              
+              return (
+                <RegressionSlotCardForRelease
+                  key={`slot-${index}-${slot.date}`}
+                  slot={slot}
+                  index={index}
+                  isEditing={editingSlotIndex === index}
+                  onEdit={() => setEditingSlotIndex(index)}
+                  onDelete={() => handleDeleteSlot(index)}
+                  onSave={(updated) => handleUpdateSlot(index, updated)}
+                  onCancel={() => {
+                    setEditingSlotIndex(null);
+                    if (onEditingSlotChange) {
+                      onEditingSlotChange(null, -1);
+                    }
+                  }}
+                  kickOffISO={kickOffISO}
+                  targetReleaseISO={targetReleaseISO}
+                  allSlots={committedSlots}
+                  isAfterKickoff={isAfterKickoff}
+                  onEditingSlotChange={onEditingSlotChange}
+                  slotError={slotError}
+                />
+              );
+            })}
           </Stack>
         )}
 
@@ -308,11 +330,18 @@ export function RegressionSlotsManager({
             isEditing={true}
             isPending={true}
             onSave={handleSavePendingSlot}
-            onCancel={handleCancelPendingSlot}
+            onCancel={() => {
+              handleCancelPendingSlot();
+              if (onEditingSlotChange) {
+                onEditingSlotChange(null, -1);
+              }
+            }}
             kickOffISO={kickOffISO}
             targetReleaseISO={targetReleaseISO}
             allSlots={committedSlots}
             isAfterKickoff={isAfterKickoff}
+            onEditingSlotChange={onEditingSlotChange}
+            slotError={errors['slot-0']}
           />
         )}
 

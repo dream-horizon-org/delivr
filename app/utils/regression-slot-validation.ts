@@ -48,10 +48,17 @@ export function validateSlot(
   }
   
   // 1. Must be between kickoff and target release
-  if (slotDate < kickoffDate) {
-    errors.push('Slot must be after kickoff date');
+  // Backend requires strictly after kickoff (not equal)
+  if (slotDate <= kickoffDate) {
+    // Check if it's exactly equal (same date and time)
+    const isEqual = slotDate.getTime() === kickoffDate.getTime();
+    if (isEqual) {
+      errors.push('Regression slot datetime cannot be the same as kickoff datetime. It must be after the kickoff time.');
+    } else {
+      errors.push('Regression slot datetime must be after kickoff datetime');
+    }
   }
-  if (slotDate > targetDate) {
+  if (slotDate >= targetDate) {
     errors.push('Slot must be before target release date');
   }
   

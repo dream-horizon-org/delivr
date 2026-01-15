@@ -20,8 +20,19 @@ export const RELEASE_TYPES = [
 
 // Default time values for scheduling
 export const DEFAULT_RELEASE_TIME = '17:00'; // 5 PM
-export const DEFAULT_KICKOFF_TIME = '10:00'; // 10 AM
+export const DEFAULT_KICKOFF_TIME = '10:00'; // 10 AM (fallback, but getDefaultKickoffTime() should be used)
 export const DEFAULT_REGRESSION_SLOT_TIME = '10:00'; // 10 AM
+
+/**
+ * Get default kickoff time as current time in HH:MM format
+ * @returns Current time in HH:MM format (24-hour)
+ */
+export function getDefaultKickoffTime(): string {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
 
 // Default offset values (in days)
 export const DEFAULT_KICKOFF_OFFSET_DAYS = 2; // Kickoff is 2 days before release

@@ -20,6 +20,7 @@ import {
   useMantineTheme,
 } from '@mantine/core';
 import { IconTarget, IconInfoCircle } from '@tabler/icons-react';
+import { INFO_MESSAGES } from '~/constants/release-config-ui';
 import type { PlatformTargetWithVersion } from '~/types/release-creation-backend';
 import type { ReleaseConfiguration, TargetPlatform, Platform } from '~/types/release-config';
 import { PLATFORMS, TARGET_PLATFORMS } from '~/types/release-config-constants';
@@ -172,6 +173,13 @@ export function PlatformTargetsSelector({
   // Validation: Check if at least 1 platform target is selected
   const hasMinimumSelection = platformTargets.length >= 1;
   const showMinimumError = !hasMinimumSelection && errors.platformTargets;
+
+  // Check if both iOS and Android platforms are selected
+  const hasBothPlatforms = useMemo(() => {
+    const hasIOS = platformTargets.some((pt) => pt.target === TARGET_PLATFORMS.APP_STORE);
+    const hasAndroid = platformTargets.some((pt) => pt.target === TARGET_PLATFORMS.PLAY_STORE);
+    return hasIOS && hasAndroid;
+  }, [platformTargets]);
   
   // Get version error for a specific target
   const getVersionError = (target: TargetPlatform): string | undefined => {
@@ -199,7 +207,10 @@ export function PlatformTargetsSelector({
           <IconTarget size={20} color={theme.colors.brand[6]} />
           <Box style={{ flex: 1 }}>
             <Text fw={600} size="sm" mb={4}>
-              Platform Targets
+              Platform Targets{' '}
+              <Text component="span" c="red" fw={600}>
+                *
+              </Text>
             </Text>
             <Text size="xs" c={theme.colors.slate[5]}>
               Select the platforms and distribution targets for this release. At least one must be selected.
@@ -216,6 +227,20 @@ export function PlatformTargetsSelector({
         {showMinimumError && (
           <Alert icon={<IconInfoCircle size={16} />} color="red" variant="light" radius="md">
             <Text size="sm">{errors.platformTargets}</Text>
+          </Alert>
+        )}
+
+        {/* Multi-Platform Warning */}
+        {hasBothPlatforms && (
+          <Alert
+            icon={<IconInfoCircle size={16} />}
+            color="yellow"
+            variant="light"
+            radius="md"
+          >
+            <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
+              {INFO_MESSAGES.MULTI_PLATFORM_WARNING_RELEASE}
+            </Text>
           </Alert>
         )}
 

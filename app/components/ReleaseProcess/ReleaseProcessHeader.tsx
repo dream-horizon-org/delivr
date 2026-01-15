@@ -5,7 +5,7 @@
  * Displays:
  * - Release branch and version
  * - Current stage and status badges
- * - Action buttons: Edit, Pause/Resume, Activity Log, Post Slack Message
+ * - Action buttons: Edit, Archive, Pause/Resume, Activity Log, Post Slack Message
  * 
  * Data Source:
  * - Uses existing `GET /api/v1/tenants/:tenantId/releases/:releaseId` (backend)
@@ -21,7 +21,7 @@ import { useRouteLoaderData } from '@remix-run/react';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { BUTTON_LABELS } from '~/constants/release-process-ui';
 import { RELEASE_MESSAGES } from '~/constants/toast-messages';
-import { usePauseResumeRelease } from '~/hooks/useReleaseProcess';
+import { usePauseResumeRelease, useArchiveRelease } from '~/hooks/useReleaseProcess';
 import { usePermissions } from '~/hooks/usePermissions';
 import { Phase, ReleaseStatus, PauseType, TaskStage } from '~/types/release-process-enums';
 import type { MessageTypeEnum } from '~/types/release-process.types';
@@ -64,6 +64,7 @@ export function ReleaseProcessHeader({
   const [slackMessageModalOpened, setSlackMessageModalOpened] = useState(false);
   const [selectedMessageType, setSelectedMessageType] = useState<MessageTypeEnum | null>(null);
   const [pauseConfirmModalOpened, setPauseConfirmModalOpened] = useState(false);
+  const [archiveConfirmModalOpened, setArchiveConfirmModalOpened] = useState(false);
   const [isRefetching, setIsRefetching] = useState(false);
   const queryClient = useQueryClient();
 
@@ -137,6 +138,9 @@ export function ReleaseProcessHeader({
   // Pause/Resume hook
   const pauseResumeMutation = usePauseResumeRelease(org, release.id);
 
+  // Archive hook
+  const archiveMutation = useArchiveRelease(org, release.id);
+
   // Handle pause/resume
   const handlePauseResume = async () => {
     try {
@@ -184,6 +188,52 @@ export function ReleaseProcessHeader({
     setEditModalOpened(true);
   };
 
+  // Handle archive - matches Modify pattern exactly
+  const handleArchive = async (): Promise<void> => {
+    try {
+      await archiveMutation.mutateAsync();
+      
+      // Optimistically update cache for instant UI feedback (same as Modify)
+      queryClient.setQueryData<{ success: boolean; release?: BackendReleaseResponse; error?: string }>(
+        ['release', org, release.id],
+        (old) => {
+          if (!old) {
+            return { success: true, release: { ...release, status: ReleaseStatus.ARCHIVED } };
+          }
+          return {
+            ...old,
+            release: old.release ? { ...old.release, status: ReleaseStatus.ARCHIVED } : undefined,
+          };
+        }
+      );
+
+      // Background invalidation to ensure consistency with server (same as Modify)
+      queryClient.invalidateQueries(['release', org, release.id]);
+      // Invalidate all stage queries to refetch stage data (same as Modify)
+      Object.values(TaskStage).forEach((stage) => {
+        queryClient.invalidateQueries(['release-process', 'stage', org, release.id, stage]);
+      });
+      // Invalidate activity logs to show archive action (same as Modify)
+      await queryClient.invalidateQueries(['release-process', 'activity', org, release.id]);
+      
+      showSuccessToast(RELEASE_MESSAGES.UPDATE_SUCCESS);
+
+      if (onUpdate) {
+        onUpdate();
+      }
+
+      setArchiveConfirmModalOpened(false);
+    } catch (error) {
+      const errorMessage = getApiErrorMessage(error, 'Failed to archive release');
+      showErrorToast({ message: errorMessage });
+    }
+  };
+
+  // Handle archive button click - show confirmation modal
+  const handleArchiveClick = () => {
+    setArchiveConfirmModalOpened(true);
+  };
+
 
   return (
     <>
@@ -213,6 +263,7 @@ export function ReleaseProcessHeader({
               onResumeClick={handleResumeClick}
               onActivityLogClick={() => setActivityDrawerOpened(true)}
               onSlackMessageClick={() => setSlackMessageModalOpened(true)}
+              onArchiveClick={handleArchiveClick}
               isRefetching={isRefetching}
             />
           </Group>
@@ -227,14 +278,17 @@ export function ReleaseProcessHeader({
         activityDrawerOpened={activityDrawerOpened}
         slackMessageModalOpened={slackMessageModalOpened}
         pauseConfirmModalOpened={pauseConfirmModalOpened}
+        archiveConfirmModalOpened={archiveConfirmModalOpened}
         selectedMessageType={selectedMessageType}
         onEditModalClose={() => setEditModalOpened(false)}
         onActivityDrawerClose={() => setActivityDrawerOpened(false)}
         onSlackMessageModalClose={() => setSlackMessageModalOpened(false)}
         onPauseConfirmModalClose={() => setPauseConfirmModalOpened(false)}
+        onArchiveConfirmModalClose={() => setArchiveConfirmModalOpened(false)}
         onSelectedMessageTypeChange={setSelectedMessageType}
         onUpdate={handleUpdate}
         onPauseResume={handlePauseResume}
+        onArchive={handleArchive}
         onUpdateCallback={onUpdate}
       />
     </>

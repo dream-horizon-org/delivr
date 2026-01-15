@@ -248,6 +248,18 @@ export function ReleaseDetailsForm({
         </Text>
       </Box>
 
+      {/* Platform Targets - Show first */}
+      {!disablePlatformTargets && (
+        <PlatformTargetsSelector
+          platformTargets={state.platformTargets || []}
+          onChange={(platformTargets) => onChange({ ...state, platformTargets })}
+          config={config}
+          defaultVersion={getDefaultVersion()}
+          errors={errors}
+          disabled={disablePlatformTargets}
+        />
+      )}
+
       {/* Base Branch */}
       <Stack gap="md">
         <Group gap="md" grow align="flex-start">
@@ -285,18 +297,6 @@ export function ReleaseDetailsForm({
           description={RELEASE_DETAILS_FORM.DESCRIPTION_DESCRIPTION}
         />
       </Stack>
-
-      {/* Hide platform targets selector completely in edit mode before kickoff */}
-      {!disablePlatformTargets && (
-        <PlatformTargetsSelector
-          platformTargets={state.platformTargets || []}
-          onChange={(platformTargets) => onChange({ ...state, platformTargets })}
-          config={config}
-          defaultVersion={getDefaultVersion()}
-          errors={errors}
-          disabled={disablePlatformTargets}
-        />
-      )}
     </Stack>
   );
 }

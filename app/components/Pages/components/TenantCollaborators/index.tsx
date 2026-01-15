@@ -1,23 +1,22 @@
-import { useState } from "react";
 import {
-  Table,
+  ActionIcon,
+  Alert,
+  Badge,
   Button,
   Group,
-  Badge,
-  ActionIcon,
+  Loader,
   Modal,
-  TextInput,
   Select,
   Stack,
+  Table,
   Text,
-  Loader,
-  Alert,
+  TextInput,
 } from "@mantine/core";
-import { IconUserPlus, IconTrash, IconEdit, IconAlertCircle } from "@tabler/icons-react";
-import { useQuery, useMutation, useQueryClient } from "react-query";
-import axios from "axios";
-import { showSuccessToast, showErrorToast } from "~/utils/toast";
+import { IconAlertCircle, IconEdit, IconTrash, IconUserPlus } from "@tabler/icons-react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "react-query";
 import { COLLABORATOR_MESSAGES } from "~/constants/toast-messages";
+import { showErrorToast, showSuccessToast } from "~/utils/toast";
 
 interface Collaborator {
   email: string;
@@ -320,6 +319,7 @@ export function TenantCollaboratorsPage({ tenantId, userId }: TenantCollaborator
             value={newPermission}
             onChange={(value) => setNewPermission(value || "Viewer")}
             data={[
+              { value: "Owner", label: "Owner - Full access, can manage team" },
               { value: "Editor", label: "Editor - Can create apps and releases" },
               { value: "Viewer", label: "Viewer - Read-only access" },
             ]}
@@ -364,6 +364,7 @@ export function TenantCollaboratorsPage({ tenantId, userId }: TenantCollaborator
             value={editPermission}
             onChange={(value) => setEditPermission(value || "Viewer")}
             data={[
+              { value: "Owner", label: "Owner - Full access, can manage team" },
               { value: "Editor", label: "Editor - Can create apps and releases" },
               { value: "Viewer", label: "Viewer - Read-only access" },
             ]}

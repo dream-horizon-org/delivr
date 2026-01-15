@@ -336,8 +336,12 @@ export function getBadgeConfig(type: BadgeType, value?: string): {
   } else if (type === 'release-type' && value) {
     color = getReleaseTypeBadgeColor(value);
   } else if (type === 'platform-target') {
-    // For combined badges, use brand color
-    color = 'brand';
+    // For combined badges, use target-specific color if value (target) is provided
+    if (value) {
+      color = getTargetBadgeColor(value);
+    } else {
+      color = 'brand'; // Fallback to brand if no target specified
+    }
   }
   
   return {

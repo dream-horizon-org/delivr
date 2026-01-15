@@ -16,12 +16,14 @@ import {
   useMantineTheme,
 } from '@mantine/core';
 import {
-  IconRocket,
+  IconAutomation,
   IconPlug,
 } from '@tabler/icons-react';
 import { Link } from '@remix-run/react';
 import { WorkflowList } from './WorkflowList';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
+import { CICD_PROVIDER_TYPES } from '~/constants/integrations';
+import { WORKFLOW_EMPTY_STATE_MESSAGES } from '~/constants/workflow-tabs';
 
 export interface WorkflowsTabContentProps {
   workflows: CICDWorkflow[];
@@ -32,6 +34,7 @@ export interface WorkflowsTabContentProps {
   tenantId: string;
   cicdIntegrationsCount: number;
   hasIntegrations: boolean;
+  providerType?: string; // CICD_PROVIDER_TYPES value to determine which tab this is
   onRefresh: () => void;
   onCreate: (workflow: any) => Promise<void>;
   onUpdate: (workflowId: string, workflow: any) => Promise<void>;
@@ -44,6 +47,7 @@ export const WorkflowsTabContent = memo(function WorkflowsTabContent({
   tenantId,
   cicdIntegrationsCount,
   hasIntegrations,
+  providerType,
   onRefresh,
   onCreate,
   onUpdate,
@@ -82,7 +86,32 @@ export const WorkflowsTabContent = memo(function WorkflowsTabContent({
     );
   }
 
-  // If no workflows, return null (tabs handle empty states)
+  // Empty state for specific provider tab when no workflows exist
+  if (workflows.length === 0 && providerType) {
+    const emptyMessage = 
+      providerType === CICD_PROVIDER_TYPES.JENKINS
+        ? WORKFLOW_EMPTY_STATE_MESSAGES.JENKINS
+        : providerType === CICD_PROVIDER_TYPES.GITHUB_ACTIONS
+        ? WORKFLOW_EMPTY_STATE_MESSAGES.GITHUB_ACTIONS
+        : 'Your workflows will be shown here.';
+
+    return (
+      <Center py={60}>
+        <Stack align="center" gap="md" maw={450}>
+          <ThemeIcon size={64} radius="xl" variant="light" color="gray">
+            <IconAutomation size={32} />
+          </ThemeIcon>
+          <Box ta="center">
+            <Text size="sm" c={theme.colors.slate[6]}>
+              {emptyMessage}
+            </Text>
+          </Box>
+        </Stack>
+      </Center>
+    );
+  }
+
+  // If no workflows and no provider type specified, return null (fallback)
   if (workflows.length === 0) {
     return null;
   }

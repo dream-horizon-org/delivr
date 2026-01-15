@@ -29,7 +29,7 @@ import {
   convertUpdateStateToBackendRequest,
   convertReleaseToFormState,
 } from '~/utils/release-creation-converter';
-import { DEFAULT_KICKOFF_TIME, DEFAULT_RELEASE_TIME, DEFAULT_VERSIONS } from '~/constants/release-creation';
+import { DEFAULT_KICKOFF_TIME, DEFAULT_RELEASE_TIME, DEFAULT_VERSIONS, getDefaultKickoffTime } from '~/constants/release-creation';
 import { getReleaseActiveStatus } from '~/utils/release-utils';
 import { RELEASE_ACTIVE_STATUS } from '~/constants/release-ui';
 import { applyVersionSuggestions } from '~/utils/release-version-suggestions';
@@ -84,7 +84,10 @@ export function CreateReleaseForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [reviewModalOpened, setReviewModalOpened] = useState(false);
-  
+  const [hasAttemptedValidation, setHasAttemptedValidation] = useState(false);
+  const [isFormValid, setIsFormValid] = useState(false);
+  const [editingSlot, setEditingSlot] = useState<{ slot: any; index: number } | null>(null);
+  const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
 
   // Initialize form state from existing release if in edit mode
   const initialReleaseState: Partial<ReleaseCreationState> = isEditMode && existingRelease
@@ -95,7 +98,7 @@ export function CreateReleaseForm({
     baseBranch: '',
     branch: '', // Start with empty branch - will be populated by version suggestions
     kickOffDate: '',
-    kickOffTime: DEFAULT_KICKOFF_TIME,
+    kickOffTime: getDefaultKickoffTime(),
     targetReleaseDate: '',
     targetReleaseTime: DEFAULT_RELEASE_TIME,
   };
@@ -172,12 +175,10 @@ export function CreateReleaseForm({
     // Start with user-provided cronConfig if it exists
     const userCronConfig = state.cronConfig || {};
     
-    // Determine kickoff reminder: use user-provided value if kickOffReminderDate is set,
-    // otherwise derive from config
+    // Determine kickoff reminder: only set to true if both date and time are actually set
+    // This prevents setting kickOffReminder: true when there's no reminder date (data inconsistency)
     const hasKickOffReminderDate = !!(state.kickOffReminderDate && state.kickOffReminderTime);
-    const kickOffReminder = hasKickOffReminderDate 
-      ? true 
-      : (userCronConfig.kickOffReminder ?? selectedConfig?.releaseSchedule?.kickoffReminderEnabled ?? false);
+    const kickOffReminder = hasKickOffReminderDate;
 
     if (!selectedConfig) {
       return {
@@ -396,7 +397,13 @@ export function CreateReleaseForm({
 
   // Validate a specific field on blur
   const handleFieldBlur = (fieldName: string) => {
-    const validation = validateReleaseCreationState(state);
+    // Mark that validation has been attempted when user interacts with fields
+    setHasAttemptedValidation(true);
+    
+    // Track this field as touched
+    setTouchedFields(prev => new Set(prev).add(fieldName));
+    
+    const validation = validateReleaseCreationState(state, isEditMode, activeStatus || undefined);
     const updatedErrors = { ...errors };
     
     // Update error for the blurred field
@@ -407,26 +414,185 @@ export function CreateReleaseForm({
       delete updatedErrors[fieldName];
     }
     
-    // Also validate dependent fields
+    // For datetime fields, also mark the paired field as touched and update errors
     if (fieldName === 'kickOffDate' || fieldName === 'kickOffTime') {
-      if (validation.errors.targetReleaseDate) {
-        updatedErrors.targetReleaseDate = validation.errors.targetReleaseDate;
-      } else if (updatedErrors.targetReleaseDate?.includes('after kickoff')) {
-        delete updatedErrors.targetReleaseDate;
+      setTouchedFields(prev => new Set(prev).add('kickOffDate').add('kickOffTime'));
+      // Update combined datetime error for kickoff
+      if (validation.errors.kickOffDateTime) {
+        updatedErrors.kickOffDateTime = validation.errors.kickOffDateTime;
+      } else {
+        delete updatedErrors.kickOffDateTime;
+      }
+      // Also handle individual field errors (for required, format errors, etc.)
+      if (validation.errors.kickOffDate) {
+        updatedErrors.kickOffDate = validation.errors.kickOffDate;
+      } else {
+        delete updatedErrors.kickOffDate;
+      }
+      if (validation.errors.kickOffTime) {
+        updatedErrors.kickOffTime = validation.errors.kickOffTime;
+      } else {
+        delete updatedErrors.kickOffTime;
+      }
+      
+      // Also validate dependent fields (only if they've been touched)
+      if (touchedFields.has('targetReleaseDate') || touchedFields.has('targetReleaseTime')) {
+        if (validation.errors.targetReleaseDateTime) {
+          updatedErrors.targetReleaseDateTime = validation.errors.targetReleaseDateTime;
+        } else if (updatedErrors.targetReleaseDateTime) {
+          delete updatedErrors.targetReleaseDateTime;
+        }
+        if (validation.errors.targetReleaseDate) {
+          updatedErrors.targetReleaseDate = validation.errors.targetReleaseDate;
+        } else if (updatedErrors.targetReleaseDate?.includes('after kickoff')) {
+          delete updatedErrors.targetReleaseDate;
+        }
+        if (validation.errors.targetReleaseTime) {
+          updatedErrors.targetReleaseTime = validation.errors.targetReleaseTime;
+        } else if (updatedErrors.targetReleaseTime?.includes('after kickoff')) {
+          delete updatedErrors.targetReleaseTime;
+        }
       }
     }
     
     if (fieldName === 'targetReleaseDate' || fieldName === 'targetReleaseTime') {
-      if (validation.errors.kickOffDate) {
-        updatedErrors.kickOffDate = validation.errors.kickOffDate;
+      setTouchedFields(prev => new Set(prev).add('targetReleaseDate').add('targetReleaseTime'));
+      // Update combined datetime error for target release
+      if (validation.errors.targetReleaseDateTime) {
+        updatedErrors.targetReleaseDateTime = validation.errors.targetReleaseDateTime;
+      } else {
+        delete updatedErrors.targetReleaseDateTime;
+      }
+      // Also handle individual field errors (for required, format errors, etc.)
+      if (validation.errors.targetReleaseDate) {
+        updatedErrors.targetReleaseDate = validation.errors.targetReleaseDate;
+      } else {
+        delete updatedErrors.targetReleaseDate;
+      }
+      if (validation.errors.targetReleaseTime) {
+        updatedErrors.targetReleaseTime = validation.errors.targetReleaseTime;
+      } else {
+        delete updatedErrors.targetReleaseTime;
+      }
+      
+      // Also validate dependent fields (only if they've been touched)
+      if (touchedFields.has('kickOffDate') || touchedFields.has('kickOffTime')) {
+        if (validation.errors.kickOffDateTime) {
+          updatedErrors.kickOffDateTime = validation.errors.kickOffDateTime;
+        } else {
+          delete updatedErrors.kickOffDateTime;
+        }
+        if (validation.errors.kickOffDate) {
+          updatedErrors.kickOffDate = validation.errors.kickOffDate;
+        } else {
+          delete updatedErrors.kickOffDate;
+        }
+        if (validation.errors.kickOffTime) {
+          updatedErrors.kickOffTime = validation.errors.kickOffTime;
+        } else {
+          delete updatedErrors.kickOffTime;
+        }
       }
     }
     
     setErrors(updatedErrors);
   };
 
+  // Handle editing slot change
+  const handleEditingSlotChange = (slot: any | null, index: number) => {
+    if (slot) {
+      setEditingSlot({ slot, index });
+    } else {
+      setEditingSlot(null);
+    }
+  };
+
+  // Continuous validation - always check validity for button state
+  // Only show errors after first validation attempt (user interaction)
+  useEffect(() => {
+    // Include editing slot in validation if one exists
+    const slotsForValidation = editingSlot 
+      ? (() => {
+          const slots = [...(state.regressionBuildSlots || [])];
+          if (editingSlot.index >= 0 && editingSlot.index < slots.length) {
+            // Replace the slot at the editing index with the editing slot
+            slots[editingSlot.index] = editingSlot.slot;
+          } else if (editingSlot.index === -1) {
+            // Pending slot (new slot being added)
+            slots.push(editingSlot.slot);
+          }
+          return slots;
+        })()
+      : state.regressionBuildSlots;
+    
+    const stateWithEditingSlot = editingSlot 
+      ? { ...state, regressionBuildSlots: slotsForValidation }
+      : state;
+    
+    const validation = validateReleaseCreationState(stateWithEditingSlot, isEditMode, activeStatus || undefined);
+    
+    // Console log validation errors for debugging
+    console.log('Validation Errors:', validation.errors);
+    
+    // Always update form validity (for button disable state)
+    setIsFormValid(validation.isValid);
+    
+    // Only update errors for touched fields (to avoid showing errors on untouched fields)
+    if (hasAttemptedValidation) {
+      setErrors(prevErrors => {
+        const updatedErrors = { ...prevErrors };
+        
+        // Only update errors for fields that have been touched
+        Object.keys(validation.errors).forEach(fieldName => {
+          // Check if field has been touched, or if it's a slot error (always show slot errors when editing or after validation attempt)
+          const isSlotError = fieldName.startsWith('slot-');
+          const isEditingSlotError = editingSlot && isSlotError && fieldName === `slot-${editingSlot.index + 1}`;
+          // Always show slot errors once validation has been attempted (similar to edit release mode)
+          const shouldShowSlotError = isSlotError && hasAttemptedValidation;
+          
+          // For combined datetime errors, check if either date or time field has been touched
+          const isKickoffDateTimeError = fieldName === 'kickOffDateTime';
+          const isTargetReleaseDateTimeError = fieldName === 'targetReleaseDateTime';
+          const shouldShowCombinedError = 
+            (isKickoffDateTimeError && (touchedFields.has('kickOffDate') || touchedFields.has('kickOffTime'))) ||
+            (isTargetReleaseDateTimeError && (touchedFields.has('targetReleaseDate') || touchedFields.has('targetReleaseTime')));
+          
+          if (touchedFields.has(fieldName) || isEditingSlotError || shouldShowCombinedError || shouldShowSlotError) {
+            updatedErrors[fieldName] = validation.errors[fieldName];
+          }
+        });
+        
+        // Clear errors for touched fields that are now valid
+        touchedFields.forEach(fieldName => {
+          if (!validation.errors[fieldName] && prevErrors[fieldName]) {
+            delete updatedErrors[fieldName];
+          }
+        });
+        
+        // Also clear slot errors that are no longer in validation (even if not in touchedFields)
+        // This ensures slot errors are cleared when slots are fixed or when dependent fields change
+        Object.keys(prevErrors).forEach(fieldName => {
+          if (fieldName.startsWith('slot-') && !validation.errors[fieldName]) {
+            delete updatedErrors[fieldName];
+          }
+        });
+        
+        return updatedErrors;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, isEditMode, activeStatus, hasAttemptedValidation, editingSlot, touchedFields]);
+
   // Handle review and submit
   const handleReviewAndSubmit = () => {
+    // Mark that validation has been attempted
+    setHasAttemptedValidation(true);
+    
+    // Mark all fields as touched when attempting to submit (so all errors are shown)
+    const validation = validateReleaseCreationState(state, isEditMode, activeStatus || undefined);
+    const allFieldNames = Object.keys(validation.errors);
+    setTouchedFields(new Set(allFieldNames));
+    
     // In edit mode, submit directly without review modal
     if (isEditMode) {
       handleConfirmSubmit();
@@ -434,7 +600,6 @@ export function CreateReleaseForm({
     }
 
     // Validate before opening modal
-    const validation = validateReleaseCreationState(state, isEditMode, activeStatus || undefined);
     if (!validation.isValid) {
       if (process.env.NODE_ENV === 'development') {
         console.error('[CreateRelease] Validation Errors:', validation.errors);
@@ -634,6 +799,8 @@ export function CreateReleaseForm({
                 errors={errors}
                 isEditMode={isEditMode}
                 existingRelease={existingRelease}
+                onFieldBlur={handleFieldBlur}
+                onEditingSlotChange={handleEditingSlotChange}
               />
             ) : isAfterKickoff ? (
               <ReleaseSchedulingPanel
@@ -644,6 +811,8 @@ export function CreateReleaseForm({
                 showOnlyTargetDateAndSlots={true}
                 isEditMode={isEditMode}
                 existingRelease={existingRelease}
+                onFieldBlur={handleFieldBlur}
+                onEditingSlotChange={handleEditingSlotChange}
               />
             ) : null}
           </Box>
@@ -718,7 +887,7 @@ export function CreateReleaseForm({
               onClick={handleReviewAndSubmit}
               size="md"
               loading={isSubmitting}
-              disabled={hasValidationErrors}
+              disabled={!isFormValid || isSubmitting}
             >
               {isEditMode ? 'Update Release' : 'Review & Create Release'}
             </Button>

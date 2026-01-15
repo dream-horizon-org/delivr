@@ -13,7 +13,7 @@ import { ActivityLogsDrawer } from '../ActivityLogsDrawer';
 import { BUTTON_LABELS } from '~/constants/release-process-ui';
 import type { MessageTypeEnum } from '~/types/release-process.types';
 import type { UpdateReleaseBackendRequest } from '~/types/release-creation-backend';
-import { useSendNotification, usePauseResumeRelease } from '~/hooks/useReleaseProcess';
+import { useSendNotification, usePauseResumeRelease, useArchiveRelease } from '~/hooks/useReleaseProcess';
 import { getApiErrorMessage } from '~/utils/api-client';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
 
@@ -24,14 +24,17 @@ interface ReleaseHeaderModalsProps {
   activityDrawerOpened: boolean;
   slackMessageModalOpened: boolean;
   pauseConfirmModalOpened: boolean;
+  archiveConfirmModalOpened: boolean;
   selectedMessageType: MessageTypeEnum | null;
   onEditModalClose: () => void;
   onActivityDrawerClose: () => void;
   onSlackMessageModalClose: () => void;
   onPauseConfirmModalClose: () => void;
+  onArchiveConfirmModalClose: () => void;
   onSelectedMessageTypeChange: (value: MessageTypeEnum | null) => void;
   onUpdate: (updateRequest: UpdateReleaseBackendRequest) => Promise<void>;
   onPauseResume: () => Promise<void>;
+  onArchive: () => Promise<void>;
   onUpdateCallback?: () => void;
 }
 
@@ -42,18 +45,22 @@ export function ReleaseHeaderModals({
   activityDrawerOpened,
   slackMessageModalOpened,
   pauseConfirmModalOpened,
+  archiveConfirmModalOpened,
   selectedMessageType,
   onEditModalClose,
   onActivityDrawerClose,
   onSlackMessageModalClose,
   onPauseConfirmModalClose,
+  onArchiveConfirmModalClose,
   onSelectedMessageTypeChange,
   onUpdate,
   onPauseResume,
+  onArchive,
   onUpdateCallback,
 }: ReleaseHeaderModalsProps) {
   const queryClient = useQueryClient();
   const sendNotificationMutation = useSendNotification(org, release.id);
+  const archiveMutation = useArchiveRelease(org, release.id);
   
   // Refetch release data when edit modal opens to get latest upcomingRegressions
   useEffect(() => {
@@ -231,6 +238,32 @@ export function ReleaseHeaderModals({
             </Button>
             <Button color="orange" onClick={onPauseResume}>
               Pause Release
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Archive Confirmation Modal - Same pattern as Pause Confirmation */}
+      <Modal
+        opened={archiveConfirmModalOpened}
+        onClose={onArchiveConfirmModalClose}
+        title="Archive Release"
+        size="md"
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            Are you sure you want to archive this release? This action cannot be undone.
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="outline" onClick={onArchiveConfirmModalClose}>
+              Cancel
+            </Button>
+            <Button 
+              color="red" 
+              onClick={onArchive}
+              loading={archiveMutation.isLoading}
+            >
+              Archive Release
             </Button>
           </Group>
         </Stack>

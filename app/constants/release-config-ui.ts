@@ -206,6 +206,8 @@ export const INFO_MESSAGES = {
   MANUAL_UPLOAD_DASHBOARD_INFO: 'Builds will be uploaded manually through the release dashboard',
   REVIEW_DESCRIPTION: 'Review your release management configuration before saving',
   SETTINGS_CONFIGURED: 'Settings configured',
+  MULTI_PLATFORM_WARNING_CONFIG: '📋 Important: Multi-Platform Release Requirements\n\nThis configuration includes both iOS and Android platforms. Before release submission you must have:\n• iOS: TestFlight build link ready\n• Android: Play Store Internal Track link ready.',
+  MULTI_PLATFORM_WARNING_RELEASE: '📋 Important: Multi-Platform Release Requirements\n\nThis release includes both iOS and Android platforms. Before release submission you must have:\n• iOS: TestFlight build link ready\n• Android: Play Store Internal Track link ready.',
 } as const;
 
 // ============================================================================

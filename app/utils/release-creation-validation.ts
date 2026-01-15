@@ -9,6 +9,7 @@ import type { ReleaseCreationState, ValidationResult } from '~/types/release-cre
 import { combineDateAndTime } from './release-creation-converter';
 import { RELEASE_ACTIVE_STATUS } from '~/constants/release-ui';
 import { PLATFORMS, TARGET_PLATFORMS } from '~/types/release-config-constants';
+import { validateSlot } from './regression-slot-validation';
 
 /**
  * Validate release creation state
@@ -109,15 +110,19 @@ export function validateReleaseCreationState(
     if (isNaN(kickOffDateOnly.getTime())) {
       errors.kickOffDate = 'Invalid kickoff date format';
     } else {
-      // Validate datetime (date + time) is not in the past
-      const kickOffDateTime = combineDateAndTime(
-        state.kickOffDate,
-        state.kickOffTime || '00:00'
-      );
-      const kickOff = new Date(kickOffDateTime);
-      const now = new Date();
-      if (kickOff <= now) {
-        errors.kickOffDate = 'Kickoff date and time cannot be in the past';
+      // Skip "must be in the future" validation in edit mode after kickoff (not editable)
+      if (!isAfterKickoff) {
+        // Validate datetime (date + time) is not in the past
+        const kickOffDateTime = combineDateAndTime(
+          state.kickOffDate,
+          state.kickOffTime || '00:00'
+        );
+        const kickOff = new Date(kickOffDateTime);
+        const now = new Date();
+        if (kickOff <= now) {
+          const errorMessage = 'Kickoff date and time must be in the future';
+          errors.kickOffDateTime = errorMessage;
+        }
       }
     }
   }
@@ -137,7 +142,8 @@ export function validateReleaseCreationState(
       const targetRelease = new Date(targetReleaseDateTime);
       const now = new Date();
       if (targetRelease <= now) {
-        errors.targetReleaseDate = 'Target release date and time cannot be in the past';
+        const errorMessage = 'Target release date and time must be in the future';
+        errors.targetReleaseDateTime = errorMessage;
       }
 
       // Validate target release date is after kickoff date (including time)
@@ -151,7 +157,8 @@ export function validateReleaseCreationState(
         
         // Reuse already computed targetRelease datetime
         if (targetRelease <= kickOff) {
-          errors.targetReleaseDate = 'Target release date and time must be after kickoff date and time';
+          const errorMessage = 'Target release date and time must be after kickoff date and time';
+          errors.targetReleaseDateTime = errorMessage;
         }
       }
     }
@@ -171,9 +178,10 @@ export function validateReleaseCreationState(
 
   // Validate kickoff reminder date and time (only if reminder is enabled)
   // Skip in edit mode post-kickoff (not editable)
-  // Reminder is enabled if: cronConfig.kickOffReminder is true OR both date and time are set
-  const isReminderEnabled = state.cronConfig?.kickOffReminder === true || 
-                            (!!state.kickOffReminderDate && !!state.kickOffReminderTime);
+  // Reminder is enabled only if both date and time are set (not just cronConfig flag)
+  // This prevents validation errors when cronConfig.kickOffReminder is true but component isn't shown
+  // or when there's a data inconsistency (kickOffReminder: true but no date)
+  const isReminderEnabled = !!(state.kickOffReminderDate && state.kickOffReminderTime);
   
   if (!isAfterKickoff && isReminderEnabled) {
     // Both date and time should be provided together when reminder is enabled
@@ -231,8 +239,10 @@ export function validateReleaseCreationState(
         errors.kickOffReminderTime = 'Invalid kickoff reminder date and time format';
       } else {
         // Validate reminder date is not in the past
-        if (reminder <= now) {
-          const errorMessage = 'Kickoff reminder date and time cannot be in the past. All updated dates must be future dates.';
+        // Skip this check in edit mode if reminder date has already passed (field is disabled)
+        const isReminderDatePassed = isEditMode && reminder <= now;
+        if (!isReminderDatePassed && reminder <= now) {
+          const errorMessage = 'Kickoff reminder date and time must be in the future. All updated dates must be future dates.';
           errors.kickOffReminderDate = errorMessage;
           errors.kickOffReminderTime = errorMessage;
         } else if (reminder >= kickOff) {
@@ -260,21 +270,27 @@ export function validateReleaseCreationState(
         state.targetReleaseTime || '00:00'
       );
       
-      const kickOff = new Date(kickOffDateTime);
-      const targetRelease = new Date(targetReleaseDateTime);
+      const kickOffISO = new Date(kickOffDateTime).toISOString();
+      const targetReleaseISO = new Date(targetReleaseDateTime).toISOString();
+      
+      // Use the comprehensive slot validation function
+      // isAfterKickoff is true when release is RUNNING or PAUSED (same logic as in CreateReleaseForm)
+      const isAfterKickoff = activeStatus === RELEASE_ACTIVE_STATUS.RUNNING || activeStatus === RELEASE_ACTIVE_STATUS.PAUSED;
 
       state.regressionBuildSlots.forEach((slot, index) => {
         const slotNumber = index + 1;
-        const slotDate = new Date(slot.date);
-        if (isNaN(slotDate.getTime())) {
-          errors[`slot-${slotNumber}`] = `Slot ${slotNumber}:|Invalid slot date format`;
-        } else {
-          if (slotDate <= kickOff) {
-            errors[`slot-${slotNumber}`] = `Slot ${slotNumber}:|Slot date and time must be after kickoff date and time`;
-          }
-          if (slotDate >= targetRelease) {
-            errors[`slot-${slotNumber}`] = `Slot ${slotNumber}:|Slot date and time must be before target release date and time`;
-          }
+        const slotValidation = validateSlot(
+          slot,
+          state.regressionBuildSlots!,
+          index,
+          kickOffISO,
+          targetReleaseISO,
+          isAfterKickoff || false
+        );
+        
+        if (!slotValidation.isValid && slotValidation.errors.length > 0) {
+          // Use the first error message, formatted for display
+          errors[`slot-${slotNumber}`] = `Slot ${slotNumber}:|${slotValidation.errors[0]}`;
         }
       });
     }

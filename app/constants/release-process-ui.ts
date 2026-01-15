@@ -134,7 +134,7 @@ export const BUTTON_LABELS = {
   EDIT_RELEASE: 'Modify',
   PAUSE: 'Pause',
   RESUME: 'Resume',
-  ARCHIVE: 'Archive Release',
+  ARCHIVE: 'Archive',
   ACTIVITY_LOG: 'Activity',
   NOTIFY: 'Notify',
   

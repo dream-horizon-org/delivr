@@ -42,8 +42,10 @@ import { ColorSchemeScript, MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { mantineTheme } from "~/theme";
 import { ErrorBoundary } from "~/components/Common/ErrorBoundary";
+import delivrFavicon from "~/assets/images/delivr-favicon.svg";
 
 export const links: LinksFunction = () => [
+  { rel: "icon", type: "image/svg+xml", href: delivrFavicon },
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
     rel: "preconnect",

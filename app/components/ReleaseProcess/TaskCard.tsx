@@ -80,54 +80,6 @@ function formatTimeAgo(dateString: string): string {
   return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
 }
 
-function formatTaskDuration(task: Task): string | null {
-  // Use createdAt and updatedAt for duration calculation
-  const startTime = task.createdAt ? new Date(task.createdAt) : null;
-  const endTime = task.updatedAt ? new Date(task.updatedAt) : null;
-  
-  if (!startTime) return null;
-  
-  if (task.taskStatus === TaskStatus.COMPLETED && endTime) {
-    const duration = endTime.getTime() - startTime.getTime();
-    const minutes = Math.floor(duration / 60000);
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    const seconds = Math.floor((duration % 60000) / 1000);
-    
-    // Show hours if >= 60 minutes
-    if (hours > 0) {
-      if (remainingMinutes > 0) {
-        return `${hours}h ${remainingMinutes}m`;
-      }
-      return `${hours}h`;
-    }
-    
-    if (minutes > 0) {
-      return `${minutes}m ${seconds}s`;
-    }
-    return `${seconds}s`;
-  }
-  
-  // For in-progress tasks, show elapsed time
-  if ((task.taskStatus === TaskStatus.IN_PROGRESS || 
-       task.taskStatus === TaskStatus.AWAITING_CALLBACK || 
-       task.taskStatus === TaskStatus.AWAITING_MANUAL_BUILD) && startTime) {
-    const duration = Date.now() - startTime.getTime();
-    const minutes = Math.floor(duration / 60000);
-    const hours = Math.floor(minutes / 60);
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes % 60}m`;
-    }
-    if (minutes > 0) {
-      return `${minutes}m`;
-    }
-    return '< 1m';
-  }
-  
-  return null;
-}
-
 export function TaskCard({
   task,
   tenantId,
@@ -140,7 +92,6 @@ export function TaskCard({
   const statusColor = getTaskStatusColor(task.taskStatus);
   const statusLabel = getTaskStatusLabel(task.taskStatus);
   const typeLabel = getTaskTypeLabel(task.taskType);
-  const duration = formatTaskDuration(task);
   const canRetry = task.taskStatus === TaskStatus.FAILED && onRetry && !isArchived;
 
   // Determine if this is a build task
@@ -243,11 +194,6 @@ export function TaskCard({
                   {task.updatedAt && (
                     <Text size="xs" c="dimmed">
                       Updated {formatTimeAgo(task.updatedAt)}
-                    </Text>
-                  )}
-                  {duration && (
-                    <Text size="xs" c="dimmed">
-                      • {duration}
                     </Text>
                   )}
                 </Group>

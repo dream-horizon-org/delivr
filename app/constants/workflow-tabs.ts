@@ -35,3 +35,15 @@ export const WORKFLOW_TAB_CONFIGS: WorkflowTabConfig[] = [
   },
 ] as const;
 
+// ============================================================================
+// EMPTY STATE MESSAGES
+// ============================================================================
+
+/**
+ * Empty state messages for workflow tabs
+ */
+export const WORKFLOW_EMPTY_STATE_MESSAGES = {
+  JENKINS: 'Your Jenkins workflows will be shown here.',
+  GITHUB_ACTIONS: 'Your GitHub Actions workflows will be shown here.',
+} as const;
+

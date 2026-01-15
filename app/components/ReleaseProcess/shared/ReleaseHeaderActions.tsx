@@ -10,6 +10,7 @@ import {
   IconMessageCircle,
   IconPlayerPause,
   IconPlayerPlay,
+  IconArchive,
 } from '@tabler/icons-react';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { Phase, ReleaseStatus, PauseType } from '~/types/release-process-enums';
@@ -24,6 +25,7 @@ interface ReleaseHeaderActionsProps {
   onResumeClick: () => void;
   onActivityLogClick: () => void;
   onSlackMessageClick: () => void;
+  onArchiveClick: () => void;
   isRefetching?: boolean;
 }
 
@@ -36,6 +38,7 @@ export function ReleaseHeaderActions({
   onResumeClick,
   onActivityLogClick,
   onSlackMessageClick,
+  onArchiveClick,
   isRefetching = false,
 }: ReleaseHeaderActionsProps) {
   const releaseStatus: ReleaseStatus = release.status;
@@ -45,6 +48,9 @@ export function ReleaseHeaderActions({
     pauseType === PauseType.AWAITING_STAGE_TRIGGER || 
     pauseType === PauseType.TASK_FAILURE
   );
+
+  // Only show archive if release is not already archived
+  const canArchive = releaseStatus !== ReleaseStatus.ARCHIVED;
 
   return (
     <Group gap="sm" wrap="wrap">
@@ -58,6 +64,18 @@ export function ReleaseHeaderActions({
           disabled={isRefetching}
         >
           {BUTTON_LABELS.EDIT_RELEASE}
+        </Button>
+      )}
+      
+      {/* Archive - Only visible to release pilot or org owner, and only if not archived */}
+      {canPerformReleaseAction && canArchive && (
+        <Button 
+          variant="outline" 
+          color="red"
+          leftSection={<IconArchive size={16} />}
+          onClick={onArchiveClick}
+        >
+          {BUTTON_LABELS.ARCHIVE}
         </Button>
       )}
       

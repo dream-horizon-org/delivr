@@ -16,6 +16,7 @@ import {
   ThemeIcon,
   UnstyledButton,
   useMantineTheme,
+  Alert,
 } from '@mantine/core';
 import {
   IconChevronDown,
@@ -23,6 +24,7 @@ import {
   IconBrandAndroid,
   IconBrandApple,
   IconTarget,
+  IconInfoCircle,
 } from '@tabler/icons-react';
 import { useParams } from '@remix-run/react';
 import type { TargetPlatform, Platform } from '~/types/release-config';
@@ -34,6 +36,7 @@ import { INTEGRATION_IDS } from '~/constants/integration-ui';
 import { IntegrationCategory } from '~/types/integrations';
 import { AppBadge } from '~/components/Common/AppBadge';
 import { NoIntegrationAlert } from '~/components/Common/NoIntegrationAlert';
+import { INFO_MESSAGES } from '~/constants/release-config-ui';
 
 // Map target platforms to their integration provider IDs
 const TARGET_TO_INTEGRATION_MAP: Record<TargetPlatform, string> = {
@@ -145,6 +148,13 @@ export function PlatformSelector({ platformTargets, onChange }: PlatformSelector
     return platformTargets.some((pt) => pt.platform === platformId);
   };
 
+  // Check if both iOS and Android platforms are selected
+  const hasBothPlatforms = useMemo(() => {
+    const hasIOS = platformTargets.some((pt) => pt.platform === PLATFORMS.IOS && pt.target === TARGET_PLATFORMS.APP_STORE);
+    const hasAndroid = platformTargets.some((pt) => pt.platform === PLATFORMS.ANDROID && pt.target === TARGET_PLATFORMS.PLAY_STORE);
+    return hasIOS && hasAndroid;
+  }, [platformTargets]);
+
   const handlePlatformToggle = (platformId: Platform) => {
     const availableTargets = getAvailableTargetsForPlatform(platformId);
     const availableTargetIds = availableTargets.map((t) => t.id as TargetPlatform);
@@ -221,6 +231,20 @@ export function PlatformSelector({ platformTargets, onChange }: PlatformSelector
           </Box>
         </Group>
       </Paper>
+
+      {/* Multi-Platform Warning */}
+      {hasBothPlatforms && (
+        <Alert
+          icon={<IconInfoCircle size={16} />}
+          color="yellow"
+          variant="light"
+          radius="md"
+        >
+          <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
+            {INFO_MESSAGES.MULTI_PLATFORM_WARNING_CONFIG}
+          </Text>
+        </Alert>
+      )}
 
       {/* Platform Cards */}
       {PLATFORM_CONFIGS.map((platform) => {
@@ -383,27 +407,6 @@ export function PlatformSelector({ platformTargets, onChange }: PlatformSelector
           </Paper>
         );
       })}
-
-      {/* No Selection Warning */}
-      {platformTargets.length === 0 && (
-        <Paper
-          p="md"
-          radius="md"
-          style={{
-            backgroundColor: theme.colors.red[0],
-            border: `1px solid ${theme.colors.red[2]}`,
-          }}
-        >
-          <Group gap="sm">
-            <ThemeIcon size={32} radius="md" variant="light" color="red">
-              <IconTarget size={18} />
-            </ThemeIcon>
-            <Text size="sm" fw={500} c={theme.colors.red[8]}>
-              Please select at least one distribution target to continue
-            </Text>
-          </Group>
-        </Paper>
-      )}
     </Stack>
   );
 }

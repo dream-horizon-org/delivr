@@ -23,9 +23,10 @@ export const SCHEDULING_PANEL = {
   KICKOFF_TIME_LABEL: 'Kickoff Time',
   KICKOFF_DATE_DESCRIPTION: 'Date when the release branch will be created and release process is initiated.',
   KICKOFF_TIME_DESCRIPTION: 'Use 24-hour format (e.g., 09:00, 14:30).',
-  BRANCH_FORK_MESSAGE_PREFIX: 'Branch will fork off on',
-  BRANCH_FORK_MESSAGE_SUFFIX: 'days before release',
-  AT: 'at',
+  BRANCH_FORK_MESSAGE_PREFIX: 'Branch will fork off on ',
+  BRANCH_FORK_MESSAGE_SUFFIX: ' day(s) before release',
+  BRANCH_FORK_SAME_DAY: 'same day as release',
+  AT: ' at ',
   
   // Kickoff Reminder
   KICKOFF_REMINDER_TITLE: 'Kickoff Reminder',

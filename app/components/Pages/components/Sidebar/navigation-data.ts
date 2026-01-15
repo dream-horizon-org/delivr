@@ -8,6 +8,7 @@ import {
   IconRocket,
   IconSend,
   IconUsers,
+  IconAutomation,
 } from "@tabler/icons-react";
 import type { Organization } from "./types";
 
@@ -60,7 +61,7 @@ export function getNavigationModules(org: Organization): ModuleConfig[] {
         },
         {
           label: "Workflows",
-          icon: IconGitBranch,
+          icon: IconAutomation,
           path: `/dashboard/${org.id}/releases/workflows`,
           prefetch: "intent",
           isEditorOnly: true,

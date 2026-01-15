@@ -35,6 +35,7 @@ import {
   DEFAULT_KICKOFF_OFFSET_DAYS,
   DEFAULT_RELEASE_TIME,
   DEFAULT_KICKOFF_TIME,
+  getDefaultKickoffTime,
 } from '~/constants/release-creation';
 import { showInfoToast } from '~/utils/toast';
 import { validateAllSlots } from '~/utils/regression-slot-validation';
@@ -44,6 +45,8 @@ import { canEnableKickoffReminder } from '~/utils/communication-helpers';
 import { StageStatus } from '~/types/release-process-enums';
 import { SCHEDULING_PANEL } from '~/constants/release-creation-ui';
 import { BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
+import { getReleaseActiveStatus } from '~/utils/release-utils';
+import { RELEASE_ACTIVE_STATUS } from '~/constants/release-ui';
 
 interface ReleaseSchedulingPanelProps {
   state: Partial<ReleaseCreationState>;
@@ -53,6 +56,8 @@ interface ReleaseSchedulingPanelProps {
   showOnlyTargetDateAndSlots?: boolean; // For edit mode after kickoff
   isEditMode?: boolean; // Whether this is edit mode
   existingRelease?: any; // Existing release data for comparison
+  onFieldBlur?: (fieldName: string) => void; // Callback for field blur validation
+  onEditingSlotChange?: (slot: any | null, index: number) => void; // Callback when editing slot changes
 }
 
 export function ReleaseSchedulingPanel({
@@ -63,6 +68,8 @@ export function ReleaseSchedulingPanel({
   showOnlyTargetDateAndSlots = false,
   isEditMode = false,
   existingRelease,
+  onFieldBlur,
+  onEditingSlotChange,
 }: ReleaseSchedulingPanelProps) {
   const theme = useMantineTheme();
   const { getConnectedIntegrations } = useConfig();
@@ -87,7 +94,7 @@ export function ReleaseSchedulingPanel({
 
   // Ensure times have default values if not set
   const targetReleaseTimeValue = targetReleaseTime || DEFAULT_RELEASE_TIME;
-  const kickOffTimeValue = kickOffTime || DEFAULT_KICKOFF_TIME;
+  const kickOffTimeValue = kickOffTime || getDefaultKickoffTime();
   
   // Pre-fill kickoff reminder time from config if available
   const kickOffReminderTimeValue = kickOffReminderTime || config?.releaseSchedule?.kickoffReminderTime || '';
@@ -114,6 +121,28 @@ export function ReleaseSchedulingPanel({
     
     return false;
   }, [isEditMode, existingRelease]);
+
+  // Check if reminder date has passed (for upcoming releases in edit mode)
+  const isReminderDatePassed = useMemo(() => {
+    if (!isEditMode || !existingRelease || !kickOffReminderDate || !kickOffReminderTime) {
+      return false;
+    }
+    
+    // Only check for upcoming releases
+    const activeStatus = getReleaseActiveStatus(existingRelease);
+    const isUpcoming = activeStatus === RELEASE_ACTIVE_STATUS.UPCOMING;
+    
+    if (!isUpcoming) {
+      return false;
+    }
+    
+    // Check if reminder date/time has passed
+    const reminderDateTime = combineDateAndTime(kickOffReminderDate, kickOffReminderTime);
+    const reminder = new Date(reminderDateTime);
+    const now = new Date();
+    
+    return reminder <= now;
+  }, [isEditMode, existingRelease, kickOffReminderDate, kickOffReminderTime]);
 
   // Check if kickoff reminder is enabled
   const isKickoffReminderEnabled = !!(
@@ -336,8 +365,18 @@ export function ReleaseSchedulingPanel({
                   kickOffTime: time,
                 });
               }}
-              dateError={errors.kickOffDate}
-              timeError={errors.kickOffTime}
+              onDateBlur={() => {
+                if (onFieldBlur) {
+                  onFieldBlur('kickOffDate');
+                }
+              }}
+              onTimeBlur={() => {
+                if (onFieldBlur) {
+                  onFieldBlur('kickOffTime');
+                }
+              }}
+              dateError={errors.kickOffDateTime || errors.kickOffDate}
+              timeError={errors.kickOffDateTime || errors.kickOffTime}
               dateDescription={SCHEDULING_PANEL.KICKOFF_DATE_DESCRIPTION}
               timeDescription={SCHEDULING_PANEL.KICKOFF_TIME_DESCRIPTION}
               dateMin={new Date().toISOString().split('T')[0]}
@@ -347,23 +386,34 @@ export function ReleaseSchedulingPanel({
           )}
 
           {/* Hide "Branch will fork off" message in edit mode */}
-          {!isEditMode && kickOffDate && targetReleaseDate && (
-            <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
-              <Text size="xs">
-                {SCHEDULING_PANEL.BRANCH_FORK_MESSAGE_PREFIX}
-                <strong>
-                  {new Date(kickOffDate).toLocaleDateString()} {SCHEDULING_PANEL.AT} {kickOffTimeValue}
-                </strong>
-                {', '}
-                {Math.ceil(
-                  (new Date(targetReleaseDate).getTime() -
-                    new Date(kickOffDate).getTime()) /
-                    (1000 * 60 * 60 * 24)
-                )}{' '}
-                {SCHEDULING_PANEL.BRANCH_FORK_MESSAGE_SUFFIX}
-              </Text>
-            </Alert>
-          )}
+          {!isEditMode && kickOffDate && targetReleaseDate && (() => {
+            const daysDiff = Math.ceil(
+              (new Date(targetReleaseDate).getTime() -
+                new Date(kickOffDate).getTime()) /
+                (1000 * 60 * 60 * 24)
+            );
+            const isSameDay = daysDiff === 0;
+            
+            return (
+              <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
+                <Text size="xs">
+                  {SCHEDULING_PANEL.BRANCH_FORK_MESSAGE_PREFIX}
+                  <strong>
+                    {new Date(kickOffDate).toLocaleDateString()}{SCHEDULING_PANEL.AT}{kickOffTimeValue}
+                  </strong>
+                  {', '}
+                  {isSameDay ? (
+                    <strong>{SCHEDULING_PANEL.BRANCH_FORK_SAME_DAY}</strong>
+                  ) : (
+                    <>
+                      <strong>{daysDiff}</strong>
+                      {SCHEDULING_PANEL.BRANCH_FORK_MESSAGE_SUFFIX}
+                    </>
+                  )}
+                </Text>
+              </Alert>
+            );
+          })()}
         </Stack>
       </Box>
       )}
@@ -442,6 +492,16 @@ export function ReleaseSchedulingPanel({
                     },
                   })
                 }
+                onDateBlur={() => {
+                  if (onFieldBlur) {
+                    onFieldBlur('kickOffReminderDate');
+                  }
+                }}
+                onTimeBlur={() => {
+                  if (onFieldBlur) {
+                    onFieldBlur('kickOffReminderTime');
+                  }
+                }}
                 dateError={
                   errors.kickOffReminderDate || 
                   (reminderValidation.hasError && kickOffReminderDate ? reminderValidation.message : undefined)
@@ -455,6 +515,7 @@ export function ReleaseSchedulingPanel({
                 dateMax={kickOffDate || undefined}
                 dateMin={new Date().toISOString().split('T')[0]}
                 required={false}
+                disabled={isReminderDatePassed}
               />
             )}
             
@@ -513,8 +574,18 @@ export function ReleaseSchedulingPanel({
                   targetReleaseTime: time,
                 })
               }
-              dateError={errors.targetReleaseDate}
-              timeError={errors.targetReleaseTime}
+              onDateBlur={() => {
+                if (onFieldBlur) {
+                  onFieldBlur('targetReleaseDate');
+                }
+              }}
+              onTimeBlur={() => {
+                if (onFieldBlur) {
+                  onFieldBlur('targetReleaseTime');
+                }
+              }}
+              dateError={errors.targetReleaseDateTime || errors.targetReleaseDate}
+              timeError={errors.targetReleaseDateTime || errors.targetReleaseTime}
               dateDescription={SCHEDULING_PANEL.RELEASE_DATE_DESCRIPTION}
               timeDescription={SCHEDULING_PANEL.RELEASE_TIME_DESCRIPTION}
               dateMin={kickOffDate ? new Date(kickOffDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
@@ -649,6 +720,7 @@ export function ReleaseSchedulingPanel({
           isAfterKickoff={showOnlyTargetDateAndSlots}
           disableAddSlot={false}
           isEditMode={isEditMode}
+          onEditingSlotChange={onEditingSlotChange}
         />
       )}
 

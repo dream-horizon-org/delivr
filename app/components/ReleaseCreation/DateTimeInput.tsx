@@ -23,6 +23,9 @@ interface DateTimeInputProps {
   dateMin?: string;
   dateMax?: string;
   required?: boolean;
+  onDateBlur?: () => void;
+  onTimeBlur?: () => void;
+  disabled?: boolean;
 }
 
 export function DateTimeInput({
@@ -39,6 +42,9 @@ export function DateTimeInput({
   dateMin,
   dateMax,
   required = true,
+  onDateBlur,
+  onTimeBlur,
+  disabled = false,
 }: DateTimeInputProps) {
   return (
     <Group grow align="flex-start">
@@ -47,12 +53,14 @@ export function DateTimeInput({
         type="date"
         value={dateValue}
         onChange={(e) => onDateChange(e.target.value)}
+        onBlur={onDateBlur}
         error={dateError}
         required={required}
         withAsterisk={required}
         min={dateMin}
         max={dateMax}
         description={dateDescription}
+        disabled={disabled}
         styles={{
           label: { fontWeight: 500, marginBottom: 6 },
         }}
@@ -63,10 +71,12 @@ export function DateTimeInput({
         type="time"
         value={timeValue}
         onChange={(e) => onTimeChange(e.target.value)}
+        onBlur={onTimeBlur}
         error={timeError}
         required={required}
         withAsterisk={required}
         description={timeDescription}
+        disabled={disabled}
         styles={{
           label: { fontWeight: 500, marginBottom: 6 },
         }}

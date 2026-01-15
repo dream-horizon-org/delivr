@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { Box, Text, Group, Stack, Button, Select, ActionIcon, useMantineTheme } from '@mantine/core';
-import { IconSettings, IconPlus, IconEye } from '@tabler/icons-react';
+import { IconAdjustmentsHorizontal, IconPlus, IconEye } from '@tabler/icons-react';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { ConfigurationPreviewModal } from '~/components/ReleaseSettings/ConfigurationPreviewModal';
 import { PLATFORM_LABELS, TARGET_PLATFORM_LABELS } from '~/constants/release-config-ui';
@@ -129,7 +129,7 @@ export function ConfigurationSelector({
           <Group justify="space-between" wrap="nowrap" align="flex-start">
             <Box style={{ flex: 1 }}>
               <Group gap="xs" mb="xs">
-                <IconSettings size={18} color={theme.colors.blue[6]} />
+                <IconAdjustmentsHorizontal size={18} color={theme.colors.blue[6]} />
                 <Text fw={600} size="md">
                   {selectedConfig.name}
                 </Text>

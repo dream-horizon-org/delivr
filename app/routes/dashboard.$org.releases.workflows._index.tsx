@@ -25,6 +25,7 @@ import {
   IconGitBranch,
   IconRefresh,
   IconRocket,
+  IconAutomation,
 } from '@tabler/icons-react';
 import { sanitizeUser } from '~/.server/services/Auth';
 import { Breadcrumb } from '~/components/Common';
@@ -364,7 +365,7 @@ export default function WorkflowsPage() {
       <PageHeader
         title={WORKFLOWS_PAGE_HEADER.TITLE}
         description={WORKFLOWS_PAGE_HEADER.DESCRIPTION}
-        icon={IconGitBranch}
+        icon={IconAutomation}
         descriptionMaxWidth={600}
         rightSection={
           <Group gap="md">
@@ -446,6 +447,7 @@ export default function WorkflowsPage() {
                   tenantId={org}
                   cicdIntegrationsCount={cicdIntegrations.length}
                   hasIntegrations={hasIntegrations}
+                  providerType={tabConfig.providerType}
                   onRefresh={fetchWorkflows}
                   onCreate={handleCreateWorkflow}
                   onUpdate={handleUpdateWorkflow}

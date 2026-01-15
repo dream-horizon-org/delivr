@@ -11,7 +11,7 @@ import {
   IconFlag, 
   IconGitBranch, 
   IconRocket, 
-  IconSettings, 
+  IconAdjustmentsHorizontal, 
   IconTarget,
   IconCheck,
   IconX,
@@ -241,32 +241,8 @@ export const ReleaseCard = memo(function ReleaseCard({
                 </Group>
               </Stack>
 
-              {/* Right: Release Config Name and Menu */}
+              {/* Right: Three-dot menu for actions */}
               <Group gap="xs" onClick={(e) => e.stopPropagation()}>
-                {releaseConfig && (
-                  <Box
-                    onClick={handleConfigClick}
-                    style={{
-                      cursor: 'pointer',
-                      zIndex: 10,
-                      position: 'relative',
-                    }}
-                  >
-                    <Text
-                      size="sm"
-                      fw={500}
-                      c="brand"
-                      className="hover:underline"
-                      span
-                    >
-                      <Group gap={4}>
-                        <IconSettings size={14} />
-                        <span>{releaseConfig.name}</span>
-                      </Group>
-                    </Text>
-                  </Box>
-                )}
-                
                 {/* Three-dot menu for actions */}
                 {canArchive && (
                   <Menu shadow="md" width={200} position="bottom-end">
@@ -274,14 +250,20 @@ export const ReleaseCard = memo(function ReleaseCard({
                       <Button
                         variant="subtle"
                         size="xs"
-                        p={4}
+                        px={4}
+                        // py={2}
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
                         }}
-                        style={{ cursor: 'pointer' }}
+                        style={{ 
+                          cursor: 'pointer',
+                          // backgroundColor: theme.colors.brand[5],
+                          // border: `1px solid ${theme.colors.brand[5]}`,
+                          // borderRadius: theme.radius.lg,
+                        }}
                       >
-                        <IconDots size={16} />
+                        <IconDots size={20} />
                       </Button>
                     </Menu.Target>
 
@@ -385,9 +367,9 @@ export const ReleaseCard = memo(function ReleaseCard({
                 )}
               </div>
 
-              {/* Footer - Created Date and Pilot Info */}
+              {/* Footer - Created Date, Configuration, and Pilot Info */}
               <Divider />
-              <Group justify="space-between" align="center">
+              <Group justify="space-between" align="center" wrap="wrap" gap="md">
                 <Group gap={6}>
                   <IconClock size={14} color={theme.colors.gray[6]} />
                   <Text size="xs" c="dimmed">
@@ -395,32 +377,59 @@ export const ReleaseCard = memo(function ReleaseCard({
                   </Text>
                 </Group>
                 
-                {/* Show pilot info if available, otherwise show created by */}
-                {release.releasePilot ? (
-                  <AppBadge
-                    type="status"
-                    value="info"
-                    title={`Pilot: ${release.releasePilot.name || release.releasePilot.email}`}
-                    size="sm"
-                    style={{ textTransform: 'none' }}
-                  />
-                ) : release.releasePilotAccountId ? (
-                  <AppBadge
-                    type="status"
-                    value="info"
-                    title="Pilot: Unknown"
-                    size="sm"
-                    style={{ textTransform: 'none' }}
-                  />
-                ) : release.createdBy ? (
-                  <AppBadge
-                    type="status"
-                    value="info"
-                    title="Created by: Unknown"
-                    size="sm"
-                    style={{ textTransform: 'none' }}
-                  />
-                ) : null}
+                <Group gap="md" align="center">
+                  {/* Configuration Name */}
+                  {releaseConfig && (
+                    <Box
+                      onClick={handleConfigClick}
+                      style={{
+                        cursor: 'pointer',
+                        zIndex: 10,
+                        position: 'relative',
+                      }}
+                    >
+                      <Text
+                        size="xs"
+                        fw={500}
+                        c="brand"
+                        className="hover:underline"
+                        span
+                      >
+                        <Group gap={4}>
+                          <IconAdjustmentsHorizontal size={12} />
+                          <span>{releaseConfig.name}</span>
+                        </Group>
+                      </Text>
+                    </Box>
+                  )}
+                  
+                  {/* Show pilot info if available, otherwise show created by */}
+                  {release.releasePilot ? (
+                    <AppBadge
+                      type="status"
+                      value="info"
+                      title={`Pilot: ${release.releasePilot.name || release.releasePilot.email}`}
+                      size="sm"
+                      style={{ textTransform: 'none' }}
+                    />
+                  ) : release.releasePilotAccountId ? (
+                    <AppBadge
+                      type="status"
+                      value="info"
+                      title="Pilot: Unknown"
+                      size="sm"
+                      style={{ textTransform: 'none' }}
+                    />
+                  ) : release.createdBy ? (
+                    <AppBadge
+                      type="status"
+                      value="info"
+                      title="Created by: Unknown"
+                      size="sm"
+                      style={{ textTransform: 'none' }}
+                    />
+                  ) : null}
+                </Group>
               </Group>
             </Stack>
           </Box>

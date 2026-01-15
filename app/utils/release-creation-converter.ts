@@ -432,6 +432,13 @@ export function convertReleaseToFormState(
     config: reg.config || {},
   }));
 
+  // Clean up cronConfig: if kickOffReminder is true but there's no reminder date, set it to false
+  // This fixes data inconsistency where cronConfig.kickOffReminder: true but kickOffReminderDate: null
+  const cronConfig = release.cronJob?.cronConfig ? { ...release.cronJob.cronConfig } : undefined;
+  if (cronConfig?.kickOffReminder === true && !kickOffReminderDate) {
+    cronConfig.kickOffReminder = false;
+  }
+
   return {
     type: release.type,
     releaseConfigId: release.releaseConfigId || undefined,
@@ -447,7 +454,7 @@ export function convertReleaseToFormState(
     kickOffReminderTime: kickOffReminderDate?.time || undefined,
     regressionBuildSlots,
     hasManualBuildUpload: release.hasManualBuildUpload || false,
-    cronConfig: release.cronJob?.cronConfig || undefined,
+    cronConfig,
   };
 }
 

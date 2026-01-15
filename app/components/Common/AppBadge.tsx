@@ -166,6 +166,7 @@ export function PlatformTargetBadge({
   return (
     <AppBadge
       type="platform-target"
+      value={targetUpper}
       title={title}
       size={size}
       leftSection={<PlatformIcon platform={platformUpper} size={14} />}
