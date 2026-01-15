@@ -39,7 +39,7 @@ import {
 } from '~/constants/release-creation';
 import { showInfoToast } from '~/utils/toast';
 import { validateAllSlots } from '~/utils/regression-slot-validation';
-import { combineDateAndTime } from '~/utils/release-creation-converter';
+import { combineDateAndTime, extractDateAndTime } from '~/utils/release-creation-converter';
 import { useConfig } from '~/contexts/ConfigContext';
 import { canEnableKickoffReminder } from '~/utils/communication-helpers';
 import { StageStatus } from '~/types/release-process-enums';
@@ -104,8 +104,10 @@ export function ReleaseSchedulingPanel({
   const isPreReleaseInProgress = checkPreReleaseInProgress(isEditMode, existingRelease);
 
   // Check if reminder date has passed (for upcoming releases in edit mode)
+  // Only disable if the ORIGINAL reminder date from existingRelease was in the past
+  // Don't disable based on current state (user might be correcting a mistake)
   const isReminderDatePassed = useMemo(() => {
-    if (!isEditMode || !existingRelease || !kickOffReminderDate || !kickOffReminderTime) {
+    if (!isEditMode || !existingRelease) {
       return false;
     }
     
@@ -117,13 +119,26 @@ export function ReleaseSchedulingPanel({
       return false;
     }
     
-    // Check if reminder date/time has passed
-    const reminderDateTime = combineDateAndTime(kickOffReminderDate, kickOffReminderTime);
-    const reminder = new Date(reminderDateTime);
+    // Check if the ORIGINAL reminder date/time from existingRelease has passed
+    // Use existingRelease.kickOffReminderDate (the original value), not current state
+    const originalReminderDate = existingRelease.kickOffReminderDate;
+    if (!originalReminderDate) {
+      return false; // No original reminder date, don't disable
+    }
+    
+    // Extract date and time from the original reminder date (it's in ISO format)
+    const { date: originalDate, time: originalTime } = extractDateAndTime(originalReminderDate);
+    if (!originalDate || !originalTime) {
+      return false;
+    }
+    
+    // Check if original reminder date/time has passed
+    const originalReminderDateTime = combineDateAndTime(originalDate, originalTime);
+    const originalReminder = new Date(originalReminderDateTime);
     const now = new Date();
     
-    return reminder <= now;
-  }, [isEditMode, existingRelease, kickOffReminderDate, kickOffReminderTime]);
+    return originalReminder <= now;
+  }, [isEditMode, existingRelease]);
 
   // Check if kickoff reminder is enabled
   const isKickoffReminderEnabled = !!(
@@ -464,7 +479,7 @@ export function ReleaseSchedulingPanel({
                 timeLabel={SCHEDULING_PANEL.KICKOFF_REMINDER_TIME_LABEL}
                 dateValue={kickOffReminderDate || ''}
                 timeValue={kickOffReminderTimeValue}
-                onDateChange={(date) =>
+                onDateChange={(date) => {
                   onChange({
                     ...state,
                     kickOffReminderDate: date,
@@ -472,8 +487,13 @@ export function ReleaseSchedulingPanel({
                       ...(state.cronConfig || {}),
                       kickOffReminder: true,
                     },
-                  })
-                }
+                  });
+                  // Mark both date and time as touched when date changes to trigger validation
+                  if (onFieldBlur) {
+                    onFieldBlur('kickOffReminderDate');
+                    onFieldBlur('kickOffReminderTime');
+                  }
+                }}
                 onTimeChange={(time) =>
                   onChange({
                     ...state,

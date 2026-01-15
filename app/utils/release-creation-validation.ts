@@ -24,7 +24,8 @@ export function validateReleaseCreationState(
   isEditMode: boolean = false,
   activeStatus?: string,
   isPreReleaseInProgress?: boolean,
-  isExtendingTargetDate?: boolean
+  isExtendingTargetDate?: boolean,
+  isOriginalReminderDatePassed?: boolean
 ): ValidationResult {
   const errors: Record<string, string> = {};
   const isAfterKickoff = activeStatus === RELEASE_ACTIVE_STATUS.RUNNING || activeStatus === RELEASE_ACTIVE_STATUS.PAUSED;
@@ -187,12 +188,18 @@ export function validateReleaseCreationState(
 
   // Validate kickoff reminder date and time (only if reminder is enabled)
   // Skip in edit mode post-kickoff (not editable)
+  // Skip in edit mode if original reminder date was in the past (field is disabled)
   // Reminder is enabled only if both date and time are set (not just cronConfig flag)
   // This prevents validation errors when cronConfig.kickOffReminder is true but component isn't shown
   // or when there's a data inconsistency (kickOffReminder: true but no date)
   const isReminderEnabled = !!(state.kickOffReminderDate && state.kickOffReminderTime);
   
-  if (!isAfterKickoff && isReminderEnabled) {
+  // Skip all reminder validation if original reminder date was in the past (field is disabled)
+  // Only skip for upcoming releases (same logic as disable in ReleaseSchedulingPanel)
+  const isUpcoming = activeStatus === RELEASE_ACTIVE_STATUS.UPCOMING;
+  const shouldSkipReminderValidation = isEditMode && isUpcoming && isOriginalReminderDatePassed === true;
+  
+  if (!isAfterKickoff && isReminderEnabled && !shouldSkipReminderValidation) {
     // Both date and time should be provided together when reminder is enabled
     if (!state.kickOffReminderDate) {
       errors.kickOffReminderDate = 'Kickoff reminder date is required when reminder is enabled';
@@ -248,9 +255,8 @@ export function validateReleaseCreationState(
         errors.kickOffReminderTime = 'Invalid kickoff reminder date and time format';
       } else {
         // Validate reminder date is not in the past
-        // Skip this check in edit mode if reminder date has already passed (field is disabled)
-        const isReminderDatePassed = isEditMode && reminder <= now;
-        if (!isReminderDatePassed && reminder <= now) {
+        // (No need to check isOriginalReminderDatePassed here since we already skipped validation above)
+        if (reminder <= now) {
           const errorMessage = 'Kickoff reminder date and time must be in the future. All updated dates must be future dates.';
           errors.kickOffReminderDate = errorMessage;
           errors.kickOffReminderTime = errorMessage;

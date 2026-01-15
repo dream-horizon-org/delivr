@@ -29,6 +29,7 @@ import {
   convertUpdateStateToBackendRequest,
   convertReleaseToFormState,
   combineDateAndTime,
+  extractDateAndTime,
 } from '~/utils/release-creation-converter';
 import { DEFAULT_KICKOFF_TIME, DEFAULT_RELEASE_TIME, DEFAULT_VERSIONS, getDefaultKickoffTime } from '~/constants/release-creation';
 import { getReleaseActiveStatus, isPreReleaseInProgress as checkPreReleaseInProgress } from '~/utils/release-utils';
@@ -126,6 +127,37 @@ export function CreateReleaseForm({
     const newDateTime = new Date(combineDateAndTime(state.targetReleaseDate, state.targetReleaseTime || '00:00'));
     return newDateTime > oldDateTime;
   }, [isEditMode, existingRelease, state.targetReleaseDate, state.targetReleaseTime]);
+
+  // Calculate if original reminder date was in the past (for validation)
+  // Only check for upcoming releases (same logic as disable in ReleaseSchedulingPanel)
+  const isOriginalReminderDatePassed = useMemo(() => {
+    if (!isEditMode || !existingRelease?.kickOffReminderDate) {
+      return false;
+    }
+    
+    // Only check for upcoming releases
+    const activeStatus = getReleaseActiveStatus(existingRelease);
+    const isUpcoming = activeStatus === RELEASE_ACTIVE_STATUS.UPCOMING;
+    if (!isUpcoming) {
+      return false;
+    }
+    
+    const { date: originalDate, time: originalTime } = extractDateAndTime(existingRelease.kickOffReminderDate);
+    if (!originalDate || !originalTime) {
+      return false;
+    }
+    
+    const originalReminderDateTime = combineDateAndTime(originalDate, originalTime);
+    const originalReminder = new Date(originalReminderDateTime);
+    const now = new Date();
+    
+    // Check if date is valid before comparing
+    if (isNaN(originalReminder.getTime())) {
+      return false;
+    }
+    
+    return originalReminder <= now;
+  }, [isEditMode, existingRelease]);
 
   // Release creation state
   const [selectedConfigId, setSelectedConfigId] = useState<string | undefined>();
@@ -397,7 +429,7 @@ export function CreateReleaseForm({
     // Track this field as touched
     setTouchedFields(prev => new Set(prev).add(fieldName));
     
-    const validation = validateReleaseCreationState(state, isEditMode, activeStatus || undefined, isPreReleaseInProgress, isExtendingTargetDate);
+    const validation = validateReleaseCreationState(state, isEditMode, activeStatus || undefined, isPreReleaseInProgress, isExtendingTargetDate, isOriginalReminderDatePassed);
     const updatedErrors = { ...errors };
     
     // Update error for the blurred field
@@ -489,6 +521,21 @@ export function CreateReleaseForm({
       }
     }
     
+    if (fieldName === 'kickOffReminderDate' || fieldName === 'kickOffReminderTime') {
+      setTouchedFields(prev => new Set(prev).add('kickOffReminderDate').add('kickOffReminderTime'));
+      // Update errors for reminder fields
+      if (validation.errors.kickOffReminderDate) {
+        updatedErrors.kickOffReminderDate = validation.errors.kickOffReminderDate;
+      } else {
+        delete updatedErrors.kickOffReminderDate;
+      }
+      if (validation.errors.kickOffReminderTime) {
+        updatedErrors.kickOffReminderTime = validation.errors.kickOffReminderTime;
+      } else {
+        delete updatedErrors.kickOffReminderTime;
+      }
+    }
+    
     setErrors(updatedErrors);
   };
 
@@ -523,7 +570,7 @@ export function CreateReleaseForm({
       ? { ...state, regressionBuildSlots: slotsForValidation }
       : state;
     
-    const validation = validateReleaseCreationState(stateWithEditingSlot, isEditMode, activeStatus || undefined, isPreReleaseInProgress, isExtendingTargetDate);
+    const validation = validateReleaseCreationState(stateWithEditingSlot, isEditMode, activeStatus || undefined, isPreReleaseInProgress, isExtendingTargetDate, isOriginalReminderDatePassed);
     
     // Console log validation errors for debugging
     console.log('Validation Errors:', validation.errors);
@@ -568,9 +615,13 @@ export function CreateReleaseForm({
           // For combined datetime errors, check if either date or time field has been touched
           const isKickoffDateTimeError = fieldName === 'kickOffDateTime';
           const isTargetReleaseDateTimeError = fieldName === 'targetReleaseDateTime';
+          const isKickoffReminderDateError = fieldName === 'kickOffReminderDate';
+          const isKickoffReminderTimeError = fieldName === 'kickOffReminderTime';
           const shouldShowCombinedError = 
             (isKickoffDateTimeError && (touchedFields.has('kickOffDate') || touchedFields.has('kickOffTime'))) ||
-            (isTargetReleaseDateTimeError && (touchedFields.has('targetReleaseDate') || touchedFields.has('targetReleaseTime')));
+            (isTargetReleaseDateTimeError && (touchedFields.has('targetReleaseDate') || touchedFields.has('targetReleaseTime'))) ||
+            (isKickoffReminderDateError && (touchedFields.has('kickOffReminderDate') || touchedFields.has('kickOffReminderTime'))) ||
+            (isKickoffReminderTimeError && (touchedFields.has('kickOffReminderDate') || touchedFields.has('kickOffReminderTime')));
           
           if (touchedFields.has(fieldName) || isEditingSlotError || shouldShowCombinedError || shouldShowSlotError) {
             updatedErrors[fieldName] = validation.errors[fieldName];
@@ -593,6 +644,16 @@ export function CreateReleaseForm({
           delete updatedErrors.kickOffDateTime;
         }
         
+        // Clear reminder errors when either field is touched and validation passes
+        if ((touchedFields.has('kickOffReminderDate') || touchedFields.has('kickOffReminderTime'))) {
+          if (!validation.errors.kickOffReminderDate && prevErrors.kickOffReminderDate) {
+            delete updatedErrors.kickOffReminderDate;
+          }
+          if (!validation.errors.kickOffReminderTime && prevErrors.kickOffReminderTime) {
+            delete updatedErrors.kickOffReminderTime;
+          }
+        }
+        
         // Also clear slot errors that are no longer in validation (even if not in touchedFields)
         // This ensures slot errors are cleared when slots are fixed or when dependent fields change
         Object.keys(prevErrors).forEach(fieldName => {
@@ -613,7 +674,7 @@ export function CreateReleaseForm({
     setHasAttemptedValidation(true);
     
     // Mark all fields as touched when attempting to submit (so all errors are shown)
-    const validation = validateReleaseCreationState(state, isEditMode, activeStatus || undefined, isPreReleaseInProgress, isExtendingTargetDate);
+    const validation = validateReleaseCreationState(state, isEditMode, activeStatus || undefined, isPreReleaseInProgress, isExtendingTargetDate, isOriginalReminderDatePassed);
     const allFieldNames = Object.keys(validation.errors);
     setTouchedFields(new Set(allFieldNames));
     

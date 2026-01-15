@@ -154,14 +154,7 @@ export default function ReleaseDetailsPage() {
       stageData = preReleaseData.data;
     }
 
-    if (stageData?.tasks) {
-      console.log(`[Release Process] Current Stage: ${selectedStage} | Release: ${release.branch || releaseId} | Tasks:`, stageData.tasks.map((t) => ({
-        id: t.id,
-        taskType: t.taskType,
-        taskStatus: t.taskStatus,
-        stage: t.stage,
-      })));
-    }
+
   }, [selectedStage, release, releaseId, kickoffData.data, regressionData.data, preReleaseData.data]);
 
   // Handle retry with loading state

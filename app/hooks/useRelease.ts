@@ -37,8 +37,8 @@ export function useRelease(tenantId?: string, releaseId?: string) {
       const result = await apiGet<{ release?: BackendReleaseResponse }>(
         `/api/v1/tenants/${tenantId}/releases/${releaseId}`
       );
-      console.log('[useRelease] API GET:', `/api/v1/tenants/${tenantId}/releases/${releaseId}`);
-      console.log('[useRelease] Result:', result);
+      // console.log('[useRelease] API GET:', `/api/v1/tenants/${tenantId}/releases/${releaseId}`);
+      // console.log('[useRelease] Result:', result);
       
       return {
         success: result.success,

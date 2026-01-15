@@ -10,7 +10,7 @@ import { IconArrowLeft } from '@tabler/icons-react';
 interface FormPageHeaderProps {
   title: string;
   description?: string;
-  backUrl: string;
+  backUrl?: string;
 }
 
 export const FormPageHeader = memo(function FormPageHeader({
@@ -21,18 +21,22 @@ export const FormPageHeader = memo(function FormPageHeader({
   const navigate = useNavigate();
 
   const handleBack = () => {
-    navigate(backUrl);
+    if (backUrl) {
+      navigate(backUrl);
+    }
   };
 
   return (
     <div className="flex items-center gap-2 mb-6">
-      <button
-        type="button"
-        onClick={handleBack}
-        className="text-gray-400 hover:text-gray-600"
-      >
-        <IconArrowLeft size={20} />
-      </button>
+      {backUrl && (
+        <button
+          type="button"
+          onClick={handleBack}
+          className="text-gray-400 hover:text-gray-600"
+        >
+          <IconArrowLeft size={20} />
+        </button>
+      )}
       <div>
         <div className="text-lg font-semibold text-gray-700">{title}</div>
         {description && (

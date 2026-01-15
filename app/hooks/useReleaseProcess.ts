@@ -89,18 +89,16 @@ export function useKickoffStage(
   return useQuery<KickoffStageResponse, Error>(
     QUERY_KEYS.stage(tenantId || '', releaseId || '', TaskStage.KICKOFF),
     async () => {
-      console.log('[useKickoffStage] Query function executing...');
       
       if (!tenantId || !releaseId) {
         throw new Error('tenantId and releaseId are required');
       }
 
       const endpoint = `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/kickoff`;
-      console.log('[useKickoffStage] Making API call to:', endpoint);
 
       const result = await apiGet<KickoffStageResponse>(endpoint);
 
-      console.log('[useKickoffStage] API result:', result);
+      // console.log('[useKickoffStage] API result:', result);
 
       if (!result.success || !result.data) {
         const errorMsg = extractErrorFromResponse(result) || 'Failed to fetch kickoff stage';
@@ -151,11 +149,9 @@ export function useRegressionStage(
       }
 
       const endpoint = `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/regression`;
-      console.log('[useRegressionStage] Making API call to:', endpoint);
 
       const result = await apiGet<RegressionStageResponse>(endpoint);
 
-      console.log('[useRegressionStage] API result:', result);
 
       if (!result.success || !result.data) {
         const errorMessage = extractErrorFromResponse(result) || 'Failed to fetch regression stage';

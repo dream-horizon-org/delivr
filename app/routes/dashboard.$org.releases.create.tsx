@@ -135,7 +135,6 @@ export default function CreateReleasePage() {
             <FormPageHeader
               title="Create Release"
               description="Fill in the form below to create a new release"
-              backUrl={`/dashboard/${org}/releases`}
             />
 
             <CreateReleaseForm org={org} userId={userId} onSubmit={handleSubmit} />
