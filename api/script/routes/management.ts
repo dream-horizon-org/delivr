@@ -20,7 +20,6 @@ import * as diffErrorUtils from "../utils/diff-error-handling";
 import * as hashUtils from "../utils/hash-utils";
 import * as packageDiffing from "../utils/package-diffing";
 import * as errorUtils from "../utils/rest-error-handling";
-import { getIpAddress } from "../utils/rest-headers";
 import { isUnfinishedRollout } from "../utils/rollout-selector";
 import * as security from "../utils/security";
 import * as validationUtils from "../utils/validation";
@@ -132,7 +131,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     }
 
     if (!accessKeyRequest.createdBy) {
-      accessKeyRequest.createdBy = getIpAddress(req);
+      accessKeyRequest.createdBy = accountId;
     }
 
     const validationErrors: validationUtils.ValidationError[] = validationUtils.validateAccessKeyRequest(

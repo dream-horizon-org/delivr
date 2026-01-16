@@ -107,7 +107,7 @@ export function requireTenantMembership(config: TenantPermissionConfig) {
 export function requireEditor(config: TenantPermissionConfig) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.id;
-    const tenantId = req.params.tenantId || req.body.tenantId;
+    const tenantId = req.params.tenantId || req.body.tenantId || req.headers.tenant;
     
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -153,7 +153,7 @@ export const allowAll = (_config: TenantPermissionConfig) => {
 export function requireOwner(config: TenantPermissionConfig) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.id;
-    const tenantId = req.params.tenantId || req.body.tenantId;
+    const tenantId = req.params.tenantId || req.body.tenantId || req.headers.tenant;
     
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
