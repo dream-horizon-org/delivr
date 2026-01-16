@@ -11,7 +11,7 @@
  * 
  * @since 0.0.6 - Tenant header became mandatory for app resolution
  */
-export const MIN_CLI_VERSION_REQUIRING_TENANT = '0.0.6' as const;
+export const MIN_CLI_VERSION_REQUIRING_TENANT = '0.0.7' as const;
 
 /**
  * CLI version header name
