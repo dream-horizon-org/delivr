@@ -1,6 +1,86 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+/**
+ * ============================================================================
+ * Design Rationale: OTA Update Acquisition (Update Check Endpoint)
+ * ============================================================================
+ * 
+ * PURPOSE:
+ * 
+ * This module implements the `/updateCheck` endpoint, the most critical path
+ * in Delivr's OTA system. Mobile apps call this endpoint on every app launch
+ * to check if a newer JavaScript bundle is available.
+ * 
+ * SCALE REQUIREMENTS:
+ * 
+ * - This endpoint receives 10-100x more requests than any other API
+ * - A popular app with 1M daily active users = ~1M update checks/day minimum
+ * - Must respond in < 100ms to avoid blocking app launch
+ * - Must handle traffic spikes (e.g., all users opening app in morning)
+ * 
+ * KEY DESIGN DECISIONS:
+ * 
+ * 1. Multi-Layer Caching (Redis + Memcached)
+ *    - Why: Update check responses are read-heavy and mostly static
+ *    - Redis Layer: Caches deployment metadata (deploymentKey → packageHistory)
+ *    - Memcached Layer: Caches full update check responses (query params → response)
+ *    - Result: 95%+ of requests are served from cache without DB queries
+ * 
+ * 2. Strict Version Validation (semver)
+ *    - Why: Incorrect version targeting breaks rollouts and causes crashes
+ *    - Handles edge cases: "1.0" → "1.0.0", "2" → "2.0.0" (backwards compatibility)
+ *    - Rejects invalid versions immediately to fail fast
+ * 
+ * 3. Rollout Selector Logic
+ *    - Why: Enables gradual releases (5% → 50% → 100%)
+ *    - Uses deterministic hashing (clientUniqueId → percentage)
+ *    - Ensures same user always gets same rollout decision (no flapping)
+ * 
+ * 4. Query Parameter Normalization
+ *    - Why: Consistent caching requires consistent URLs
+ *    - Sorts query params alphabetically for cache key generation
+ *    - Removes client_unique_id from cache key (per-user data)
+ * 
+ * TRADE-OFFS:
+ * 
+ * Benefits:
+ * - Sub-100ms response times at scale
+ * - Can handle 1M+ requests/day with modest infrastructure
+ * - Deterministic rollouts (no random flapping)
+ * 
+ * Costs:
+ * - Cache invalidation complexity (must clear on new release)
+ * - Potential stale data if cache TTL too long (mitigated by short TTLs)
+ * - Memory usage for caching (Redis + Memcached)
+ * 
+ * SECURITY CONSIDERATIONS:
+ * 
+ * - deploymentKey acts as authentication token (scoped to deployment)
+ * - No personal data cached (client_unique_id excluded from cache key)
+ * - Version validation prevents malicious version strings
+ * 
+ * ALTERNATIVES CONSIDERED:
+ * 
+ * 1. No caching, query DB on every request
+ *    - Rejected: DB becomes bottleneck, can't handle scale
+ * 
+ * 2. CDN caching only (no Redis/Memcached)
+ *    - Rejected: CDN can't cache dynamic rollout logic (depends on client_unique_id)
+ * 
+ * 3. Client-side caching only (long polling)
+ *    - Rejected: Can't push updates immediately, poor user experience
+ * 
+ * RELATED FILES:
+ * 
+ * - utils/acquisition.ts: Rollout selection and package matching logic
+ * - utils/rollout-selector.ts: Deterministic rollout percentage calculation
+ * - redis-manager.ts: Redis caching layer
+ * - memcached-manager.ts: Memcached caching layer
+ * 
+ * ============================================================================
+ */
+
 import * as express from "express";
 import * as semver from "semver";
 

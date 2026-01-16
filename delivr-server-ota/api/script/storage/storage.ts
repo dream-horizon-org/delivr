@@ -1,6 +1,55 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+/**
+ * ============================================================================
+ * Design Rationale: Storage Abstraction Layer
+ * ============================================================================
+ * 
+ * WHY THIS ABSTRACTION EXISTS:
+ * 
+ * Delivr needs to support multiple deployment environments and cloud providers
+ * without vendor lock-in. Teams should be able to:
+ * - Deploy on AWS (S3 + RDS), Azure (Blob + SQL), or on-premises (Local FS + MySQL)
+ * - Switch providers without rewriting application code
+ * - Test locally without cloud dependencies (using JSON file storage)
+ * 
+ * TRADE-OFFS OF THIS DESIGN:
+ * 
+ * Benefits:
+ * - Vendor Independence: No hard dependency on Azure Cosmos DB or AWS DynamoDB
+ * - Testability: Can swap storage implementation with in-memory mock for tests
+ * - Flexibility: Easy to add new backends (e.g., Google Cloud Storage, PostgreSQL)
+ * - Local Development: JSON storage allows developers to run without cloud credentials
+ * 
+ * Costs:
+ * - Abstraction Overhead: Extra interface layer to maintain vs. direct SDK usage
+ * - Feature Lag: Abstraction may not expose provider-specific optimizations
+ * - Performance: May miss provider-specific caching or query optimizations
+ * 
+ * ALTERNATIVES CONSIDERED:
+ * 
+ * 1. Direct Azure Cosmos DB throughout codebase
+ *    - Rejected: Vendor lock-in, hard to test, expensive for self-hosting
+ * 
+ * 2. ORM (e.g., TypeORM, Sequelize)
+ *    - Partially adopted: Using Sequelize for relational data (users, tenants)
+ *    - Rejected for OTA package storage: ORMs don't map well to blob storage patterns
+ * 
+ * 3. No abstraction (duplicate logic per provider)
+ *    - Rejected: Unmaintainable, high risk of implementation drift
+ * 
+ * IMPLEMENTATION NOTES:
+ * 
+ * - This file defines the Storage interface contract
+ * - Concrete implementations: aws-storage.ts (S3+MySQL), azure-storage.ts (Blob+SQL), 
+ *   json-storage.ts (local files)
+ * - All storage operations return Promises (async by design)
+ * - Error codes (ErrorCode enum) are provider-agnostic
+ * 
+ * ============================================================================
+ */
+
 import * as stream from "stream";
 import * as error from "../error";
 

@@ -1,6 +1,411 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+/**
+ * ============================================================================
+ * Design Rationale: Management SDK - CLI-to-Server HTTP Client
+ * ============================================================================
+ * 
+ * PURPOSE:
+ * 
+ * This is the HTTP client that the Delivr CLI uses to communicate with the
+ * server's management API. It wraps all backend endpoints for:
+ * 1. Authentication (login with access keys)
+ * 2. App management (create, list, delete apps)
+ * 3. Deployment management (create, list deployment keys)
+ * 4. Release management (upload bundles, promote, rollback)
+ * 5. Metrics (get deployment stats, rollback rates)
+ * 
+ * USER JOURNEY 1: DEVELOPER RELEASES OTA UPDATE (Step 1.5)
+ * 
+ * Step 1.5: Upload Bundle to Server
+ * - command-executor.ts calls this SDK's `release()` method
+ * - This SDK uploads bundle via multipart/form-data
+ * - Server responds with release metadata (label, hash, etc.)
+ * 
+ * ============================================================================
+ * WHY SEPARATE SDK? (vs. Inline HTTP in command-executor)
+ * ============================================================================
+ * 
+ * Separation of concerns:
+ * - command-executor.ts: Business logic (bundling, validation, progress UI)
+ * - management-sdk.ts: HTTP transport layer (requests, auth, retries)
+ * 
+ * Benefits:
+ * - Testability: Mock SDK independently of executor logic
+ * - Reusability: Can use SDK in other tools (CI/CD scripts, Node.js scripts)
+ * - Maintainability: All HTTP logic centralized (easier to add auth, retries)
+ * 
+ * Similar pattern to:
+ * - AWS SDK (aws-sdk): Wraps AWS APIs
+ * - Stripe SDK (stripe-node): Wraps Stripe APIs
+ * - Twilio SDK (twilio-node): Wraps Twilio APIs
+ * 
+ * ============================================================================
+ * KEY API METHODS (Most Used)
+ * ============================================================================
+ * 
+ * 1. **release(appName, deploymentName, filePath, appVersion, metadata)**
+ *    - Uploads OTA bundle to server
+ *    - Used by: `delivr release-react` command
+ *    - HTTP: POST /apps/:app/deployments/:deployment/release
+ * 
+ * 2. **addApp(appName)**
+ *    - Creates new app
+ *    - Used by: `delivr app add` command
+ *    - HTTP: POST /apps
+ * 
+ * 3. **addDeployment(appName, deploymentName)**
+ *    - Creates new deployment (Staging, Production, etc.)
+ *    - Used by: `delivr deployment add` command
+ *    - HTTP: POST /apps/:app/deployments
+ * 
+ * 4. **getDeploymentMetrics(appName, deploymentName)**
+ *    - Gets release statistics (installs, rollbacks, active devices)
+ *    - Used by: `delivr deployment history` command
+ *    - HTTP: GET /apps/:app/deployments/:deployment/metrics
+ * 
+ * 5. **login(accessKey)**
+ *    - Authenticates user with access key
+ *    - Stores session token locally (~/.code-push.config)
+ *    - HTTP: POST /auth/login
+ * 
+ * ============================================================================
+ * AUTHENTICATION: ACCESS KEYS vs. SESSION TOKENS
+ * ============================================================================
+ * 
+ * Problem: How does CLI authenticate with server?
+ * - Can't use username/password (insecure for CI/CD)
+ * - Can't use OAuth (too complex for CLI)
+ * 
+ * Solution: Access Keys (like GitHub Personal Access Tokens)
+ * 
+ * User workflow:
+ * 1. Developer logs into web dashboard
+ * 2. Generate access key: "abc-123-xyz-789"
+ * 3. Run: `delivr login --accessKey abc-123-xyz-789`
+ * 4. CLI stores access key in ~/.code-push.config
+ * 5. All future commands use stored access key
+ * 
+ * Implementation:
+ * ```typescript
+ * class AccountManager {
+ *   private _accessKey: string;
+ *   
+ *   async login(accessKey: string): Promise<void> {
+ *     // Test access key by calling /account
+ *     const account = await this.get("/account");
+ *     
+ *     // Store in ~/.code-push.config
+ *     fs.writeFileSync(CONFIG_FILE, JSON.stringify({ accessKey }));
+ *     
+ *     this._accessKey = accessKey;
+ *   }
+ *   
+ *   private get(url: string): Promise<any> {
+ *     return superagent
+ *       .get(url)
+ *       .set("Authorization", `Bearer ${this._accessKey}`)  // ← Auth header
+ *       .then(res => res.body);
+ *   }
+ * }
+ * ```
+ * 
+ * Security:
+ * - Access keys are scoped to user (not global admin)
+ * - Access keys can be revoked (via web dashboard)
+ * - Access keys have expiration (default: 60 days)
+ * - Access keys stored in ~/.code-push.config (user-owned file)
+ * 
+ * ============================================================================
+ * FILE UPLOAD: MULTIPART FORM-DATA
+ * ============================================================================
+ * 
+ * Problem: How to upload 10MB bundle + metadata in one request?
+ * - JSON body can't handle binary data (bundle.zip)
+ * - Need both file (binary) and metadata (JSON)
+ * 
+ * Solution: multipart/form-data (like HTML file upload forms)
+ * 
+ * ```typescript
+ * async release(
+ *   appName: string,
+ *   deploymentName: string,
+ *   filePath: string,
+ *   appVersion: string,
+ *   metadata: ReleasePackageInfo
+ * ): Promise<void> {
+ *   // 1. Zip the bundle (single file or directory)
+ *   const zipFile = await this.zipBundle(filePath);
+ *   
+ *   // 2. Build multipart form
+ *   const request = superagent
+ *     .post(`/apps/${appName}/deployments/${deploymentName}/release`)
+ *     .attach("package", zipFile.path)  // ← Binary bundle
+ *     .field("packageInfo", JSON.stringify(metadata));  // ← JSON metadata
+ *   
+ *   // 3. Track upload progress
+ *   request.on("progress", (event) => {
+ *     const percent = Math.floor((event.loaded / event.total) * 100);
+ *     progressCallback(percent);  // Update progress bar
+ *   });
+ *   
+ *   // 4. Send request
+ *   await request;
+ * }
+ * ```
+ * 
+ * Server receives:
+ * ```
+ * Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+ * 
+ * ------WebKitFormBoundary
+ * Content-Disposition: form-data; name="package"; filename="bundle.zip"
+ * Content-Type: application/zip
+ * 
+ * [Binary bundle data: 10MB]
+ * ------WebKitFormBoundary
+ * Content-Disposition: form-data; name="packageInfo"
+ * 
+ * {"description":"Bug fixes","isMandatory":false,"rollout":100}
+ * ------WebKitFormBoundary--
+ * ```
+ * 
+ * ============================================================================
+ * ZIP BUNDLING: SINGLE FILE vs. DIRECTORY
+ * ============================================================================
+ * 
+ * Problem: React Native bundles can be:
+ * - Single file: main.jsbundle (iOS, no assets)
+ * - Directory: /tmp/CodePush/ (Android, with assets/images)
+ * 
+ * Solution: Always zip before upload (normalize to single .zip file)
+ * 
+ * ```typescript
+ * private async zipBundle(filePath: string): Promise<PackageFile> {
+ *   const zipFile = new yazl.ZipFile();
+ *   
+ *   if (fs.lstatSync(filePath).isDirectory()) {
+ *     // Recursive directory zip
+ *     const files = await recursiveFs.readdirr(filePath);
+ *     files.forEach((file) => {
+ *       const relativePath = path.relative(filePath, file);
+ *       zipFile.addFile(file, relativePath);
+ *     });
+ *   } else {
+ *     // Single file zip
+ *     const fileName = path.basename(filePath);
+ *     zipFile.addFile(filePath, fileName);
+ *   }
+ *   
+ *   zipFile.end();
+ *   
+ *   // Write to temp file
+ *   const tempPath = path.join(os.tmpdir(), "bundle.zip");
+ *   await pipeToFile(zipFile.outputStream, tempPath);
+ *   
+ *   return { path: tempPath, isTemporary: true };
+ * }
+ * ```
+ * 
+ * Why zip:
+ * - Consistent upload format (server always expects .zip)
+ * - Compression (saves bandwidth, faster uploads)
+ * - Preserves directory structure (for Android assets)
+ * 
+ * ============================================================================
+ * PROGRESS TRACKING: UPLOAD PROGRESS EVENTS
+ * ============================================================================
+ * 
+ * Problem: Large bundles (10MB+) take 30-60 seconds to upload
+ * - Without progress: User thinks CLI is frozen
+ * - With progress: User sees upload is happening
+ * 
+ * Solution: Superagent progress events
+ * ```typescript
+ * const request = superagent.post(url);
+ * 
+ * request.on("progress", (event) => {
+ *   // event.loaded: bytes uploaded so far
+ *   // event.total: total bytes to upload
+ *   const percent = Math.floor((event.loaded / event.total) * 100);
+ *   
+ *   progressCallback(percent);  // Update CLI progress bar
+ * });
+ * 
+ * await request;
+ * ```
+ * 
+ * command-executor.ts receives progress updates:
+ * ```typescript
+ * const progressBar = new progress("Upload progress:[:bar] :percent", {
+ *   total: 100
+ * });
+ * 
+ * await managementSdk.release(
+ *   appName,
+ *   deploymentName,
+ *   filePath,
+ *   appVersion,
+ *   metadata,
+ *   (percent) => progressBar.tick(percent)  // ← Progress callback
+ * );
+ * 
+ * // Output:
+ * // Upload progress:[=========>          ] 45%
+ * ```
+ * 
+ * ============================================================================
+ * COMPRESSION: DEFLATE vs. GZIP (Optional)
+ * ============================================================================
+ * 
+ * Problem: ZIP files are already compressed, but what about JSON metadata?
+ * - Large deployments have 100+ releases in history
+ * - GET /apps/:app/deployments/:deployment/history → 500KB JSON
+ * 
+ * Solution: Optional HTTP compression
+ * ```typescript
+ * const request = superagent
+ *   .get(url)
+ *   .set("Accept-Encoding", "gzip, deflate");  // ← Request compression
+ * 
+ * // Server responds with:
+ * // Content-Encoding: gzip
+ * // [Compressed JSON data]
+ * 
+ * // Superagent auto-decompresses
+ * const data = await request;  // ← Decompressed automatically
+ * ```
+ * 
+ * Compression for uploads:
+ * ```typescript
+ * const compressedBundle = zlib.deflateSync(bundleBuffer);  // Deflate
+ * 
+ * superagent
+ *   .post(url)
+ *   .set("Content-Encoding", "deflate")
+ *   .send(compressedBundle);
+ * ```
+ * 
+ * When to compress:
+ * - Large JSON responses (> 100KB)
+ * - Not binary files (already zipped/compressed)
+ * 
+ * ============================================================================
+ * ERROR HANDLING: HTTP STATUS CODES
+ * ============================================================================
+ * 
+ * Problem: Server returns errors for invalid requests
+ * - 400 Bad Request: Invalid semver, missing required field
+ * - 401 Unauthorized: Invalid access key
+ * - 409 Conflict: Duplicate release (same hash)
+ * - 500 Internal Server Error: Server crash
+ * 
+ * Solution: Parse status codes and throw meaningful errors
+ * ```typescript
+ * try {
+ *   await superagent.post(url);
+ * } catch (err) {
+ *   const statusCode = err.status;
+ *   const body = err.response?.body;
+ *   
+ *   if (statusCode === 401) {
+ *     throw new CodePushError("Authentication failed. Run 'delivr login'.");
+ *   } else if (statusCode === 409) {
+ *     throw new CodePushError("Duplicate release (same hash already exists).");
+ *   } else if (statusCode === 400) {
+ *     throw new CodePushError(`Invalid request: ${body.error}`);
+ *   } else {
+ *     throw new CodePushError(`Server error: ${statusCode}`);
+ *   }
+ * }
+ * ```
+ * 
+ * command-executor.ts handles these errors:
+ * ```typescript
+ * try {
+ *   await managementSdk.release(...);
+ * } catch (error) {
+ *   if (error.statusCode === 409) {
+ *     console.log(chalk.yellow("[Warning] Duplicate release, skipping"));
+ *     return;  // Idempotent operation, success
+ *   } else {
+ *     throw error;  // Re-throw other errors
+ *   }
+ * }
+ * ```
+ * 
+ * ============================================================================
+ * ORGANIZATION MANAGEMENT: MULTI-TENANT SUPPORT
+ * ============================================================================
+ * 
+ * Problem: Developers may belong to multiple organizations
+ * - Company A: "acme-corp" (Production apps)
+ * - Company B: "startup-xyz" (Client apps)
+ * 
+ * Solution: Store organization list locally
+ * ```typescript
+ * // ~/.code-push.config stores:
+ * {
+ *   "accessKey": "abc-123",
+ *   "organizations": [
+ *     { "id": "org1", "name": "acme-corp", "default": true },
+ *     { "id": "org2", "name": "startup-xyz", "default": false }
+ *   ]
+ * }
+ * 
+ * // CLI command:
+ * delivr app list --org acme-corp
+ * delivr release-react -a MyApp -d Production --org startup-xyz
+ * ```
+ * 
+ * HTTP header:
+ * ```typescript
+ * superagent
+ *   .get("/apps")
+ *   .set("X-Tenant-Id", organizationId);  // ← Scope to org
+ * ```
+ * 
+ * ============================================================================
+ * LESSON LEARNED: SDK WRAPS COMPLEXITY
+ * ============================================================================
+ * 
+ * Without SDK (inline HTTP in command-executor):
+ * - 500+ lines of HTTP logic mixed with business logic
+ * - Hard to test (can't mock HTTP separately)
+ * - Hard to reuse (copy-paste HTTP code for new tools)
+ * 
+ * With SDK:
+ * - command-executor.ts: 1700 lines of business logic
+ * - management-sdk.ts: 700 lines of HTTP logic (reusable!)
+ * - Easy to test: Mock SDK, test executor logic independently
+ * - Easy to reuse: Import SDK in CI/CD scripts, Node.js tools
+ * 
+ * ============================================================================
+ * ALTERNATIVES CONSIDERED
+ * ============================================================================
+ * 
+ * 1. Axios (instead of superagent)
+ *    - Considered: Similar API, more popular
+ *    - Decision: Superagent was used by Microsoft CodePush (legacy compatibility)
+ * 
+ * 2. Native fetch API (no library)
+ *    - Rejected: No progress events, no multipart form-data helpers
+ * 
+ * 3. GraphQL API (instead of REST)
+ *    - Rejected: REST is simpler for management operations
+ * 
+ * ============================================================================
+ * RELATED FILES:
+ * ============================================================================
+ * 
+ * - command-executor.ts: Calls this SDK for all server operations
+ * - delivr-server-ota/api/script/routes/management.ts: Backend API
+ * - delivr-sdk-ota/acquisition-sdk.js: Similar SDK for mobile app update checks
+ * 
+ * ============================================================================
+ */
+
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";

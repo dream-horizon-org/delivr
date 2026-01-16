@@ -1,6 +1,123 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+/**
+ * ============================================================================
+ * Design Rationale: Server Initialization and Middleware Stack
+ * ============================================================================
+ * 
+ * PURPOSE:
+ * 
+ * This module initializes the Express server and configures the middleware
+ * pipeline for Delivr's backend API. Middleware order is CRITICAL for
+ * security, performance, and correctness.
+ * 
+ * MIDDLEWARE ORDER (AND WHY IT MATTERS):
+ * 
+ * 1. Domain Middleware (first)
+ *    - Why: Catches ALL exceptions, even from other middleware
+ *    - Must be first to wrap entire request lifecycle
+ * 
+ * 2. Response Monkey-Patching (second)
+ *    - Why: Prevents "Can't set headers after they are sent" crashes
+ *    - Edge case: Multiple error handlers try to send responses
+ * 
+ * 3. Request Timeout Handler (early)
+ *    - Why: Enforces timeouts before expensive middleware runs
+ *    - Default: 30 seconds to prevent hung connections
+ * 
+ * 4. Input Sanitizer (before body parsing)
+ *    - Why: Sanitizes query params/headers before they're used
+ *    - Security: Prevents injection attacks via query strings
+ * 
+ * 5. Body Parser (middle)
+ *    - Why: Parses JSON/form data BEFORE routes need it
+ *    - Note: 10KB limit to prevent DoS via large payloads
+ * 
+ * 6. CORS Headers (before routes)
+ *    - Why: Browsers check CORS before making cross-origin requests
+ *    - Allows web dashboard at different origin to call API
+ * 
+ * 7. Health Check (before auth)
+ *    - Why: Load balancers need to check health without authentication
+ *    - Path: /health (no auth required)
+ * 
+ * 8. Acquisition Routes (before auth)
+ *    - Why: Mobile apps call /updateCheck on every launch (high scale)
+ *    - Auth: deploymentKey in query string, not OAuth (mobile can't do OAuth)
+ * 
+ * 9. Authentication Middleware (before management)
+ *    - Why: Management routes require user identity (create apps, deploy releases)
+ *    - OAuth provider: Google, GitHub, Microsoft
+ * 
+ * 10. Management Routes (last)
+ *     - Why: Require authenticated user from previous middleware
+ *     - Paths: /apps, /deployments, /releases
+ * 
+ * KEY DESIGN DECISIONS:
+ * 
+ * 1. Trust Proxy Configuration
+ *    - Why: Delivr runs behind load balancers (ELB, CloudFront, ALB)
+ *    - Must trust X-Forwarded-For headers to get real client IP
+ *    - Configurable via TRUST_PROXY_HOPS (default: 1 hop)
+ *    - Risk: Trusting too many hops allows IP spoofing
+ * 
+ * 2. Rate Limiting Removed
+ *    - Original: express-rate-limit middleware in application
+ *    - Current: Relies on CloudFront + AWS WAF for throttling
+ *    - Why: Rate limiting at CDN layer is more effective and scalable
+ *    - Trade-off: Less fine-grained control, but better performance
+ * 
+ * 3. CSRF Protection Disabled (Commented Out)
+ *    - Original: lusca.csrf() middleware enabled
+ *    - Current: Disabled for API server (not a traditional web app)
+ *    - Why: Mobile apps can't handle CSRF tokens, API uses bearer tokens instead
+ *    - Note: Web dashboard handles CSRF separately
+ * 
+ * 4. Optional Acquisition/Management Routes
+ *    - Can disable via DISABLE_ACQUISITION or DISABLE_MANAGEMENT env vars
+ *    - Why: Allows testing, maintenance, or dedicated server roles
+ *    - Example: Dedicated acquisition server (no management routes)
+ * 
+ * 5. Debug Auth Bypass
+ *    - When DEBUG_DISABLE_AUTH=true, skips OAuth authentication
+ *    - Why: Local development without OAuth provider setup
+ *    - Risk: NEVER enable in production (security bypass)
+ * 
+ * STORAGE BACKEND SELECTION:
+ * 
+ * - useJsonStorage flag determines storage implementation
+ * - Production: S3Storage (AWS S3 + MySQL)
+ * - Development/Testing: JsonStorage (local files)
+ * - Future: Could add Azure, GCP, or other storage backends
+ * 
+ * ERROR HANDLING STRATEGY:
+ * 
+ * - Domain middleware catches sync + async errors
+ * - Monkey-patched res.send prevents double-send errors
+ * - Body parser errors are caught and set req.body = null (fail gracefully)
+ * 
+ * ALTERNATIVES CONSIDERED:
+ * 
+ * 1. No middleware, handle everything in routes
+ *    - Rejected: Duplicates logic, error-prone
+ * 
+ * 2. Rate limiting in application (express-rate-limit)
+ *    - Rejected: CloudFront + WAF is more scalable
+ * 
+ * 3. CSRF tokens for API (like traditional web apps)
+ *    - Rejected: Mobile apps can't handle CSRF, use bearer tokens instead
+ * 
+ * RELATED FILES:
+ * 
+ * - api.ts: Route handlers for acquisition, management, health
+ * - file-upload-manager.ts: Handles multipart file uploads (for .ipa/.apk)
+ * - redis-manager.ts: Redis connection pool
+ * - memcached-manager.ts: Memcached connection pool
+ * 
+ * ============================================================================
+ */
+
 import * as api from "./api";
 import { S3 } from "aws-sdk"; // Amazon S3
 import { SecretsManager } from "aws-sdk";
