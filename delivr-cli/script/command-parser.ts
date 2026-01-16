@@ -1,6 +1,333 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+/**
+ * ============================================================================
+ * Design Rationale: CLI Argument Parser - Command & Flag Validation
+ * ============================================================================
+ * 
+ * PURPOSE:
+ * 
+ * This file parses command-line arguments (argv) and converts them into
+ * structured command objects that command-executor.ts can execute.
+ * 
+ * KEY RESPONSIBILITIES:
+ * 1. Parse argv → structured command object
+ * 2. Validate required arguments (--app, --deployment, etc.)
+ * 3. Show help text for invalid commands
+ * 4. Validate data types (rollout must be 1-100, ttl must be duration)
+ * 5. Provide auto-complete suggestions (--app vs --appName)
+ * 
+ * WHY USE YARGS? (vs. Manual argv Parsing)
+ * 
+ * Manual approach (process.argv):
+ * ```typescript
+ * const args = process.argv.slice(2); // ["release-react", "-a", "MyApp", "-d", "Production"]
+ * let appName, deploymentName;
+ * for (let i = 0; i < args.length; i++) {
+ *   if (args[i] === "-a" || args[i] === "--app") {
+ *     appName = args[++i];
+ *   } else if (args[i] === "-d" || args[i] === "--deployment") {
+ *     deploymentName = args[++i];
+ *   }
+ * }
+ * // 100+ lines of parsing logic...
+ * ```
+ * 
+ * Yargs approach:
+ * ```typescript
+ * yargs
+ *   .command("release-react", "Release React Native update")
+ *   .option("app", { alias: "a", type: "string", demand: true })
+ *   .option("deployment", { alias: "d", type: "string", demand: true })
+ *   .parse();
+ * // Result: { app: "MyApp", deployment: "Production" }
+ * ```
+ * 
+ * Benefits:
+ * - Auto-generates help text (--help)
+ * - Validates required arguments
+ * - Handles aliases (-a vs --app)
+ * - Type coercion (--rollout "10" → number 10)
+ * - Error messages ("Missing required argument: --app")
+ * 
+ * ============================================================================
+ * USER JOURNEY 1: DEVELOPER RELEASES OTA UPDATE (Step 1.1)
+ * ============================================================================
+ * 
+ * Step 1.1: CLI Parses Arguments
+ * 
+ * Developer runs:
+ * ```bash
+ * delivr release-react \
+ *   --app MyApp \
+ *   --deployment Production \
+ *   --description "Bug fixes" \
+ *   --mandatory \
+ *   --targetBinaryVersion "~1.0.0" \
+ *   --rollout 10%
+ * ```
+ * 
+ * THIS FILE parses into:
+ * ```typescript
+ * {
+ *   type: "release-react",
+ *   appName: "MyApp",
+ *   deploymentName: "Production",
+ *   description: "Bug fixes",
+ *   mandatory: true,
+ *   appStoreVersion: "~1.0.0",
+ *   rollout: 10,
+ *   platform: "ios",  // default if not specified
+ *   entryFile: "index.js",  // default
+ *   bundleName: null,  // default (auto-detect)
+ *   // ... other defaults
+ * }
+ * ```
+ * 
+ * Then cli.ts passes this object to command-executor.ts for execution.
+ * 
+ * ============================================================================
+ * CRITICAL VALIDATION: ROLLOUT PERCENTAGE
+ * ============================================================================
+ * 
+ * Problem: Rollout must be 1-100, but users might enter invalid values
+ * - "0" → Invalid (no users get update)
+ * - "150" → Invalid (can't exceed 100%)
+ * - "ten" → Invalid (not a number)
+ * - "10%" or "10" → Both valid (normalize to 10)
+ * 
+ * Solution: Regex validation + coercion
+ * ```typescript
+ * const ROLLOUT_PERCENTAGE_REGEX = /^(100|[1-9][0-9]|[1-9])%?$/;
+ * // Matches: 1, 5, 10, 25, 50, 75, 100, 10%, 100%
+ * // Rejects: 0, 150, 200, abc, 10.5
+ * 
+ * yargs.option("rollout", {
+ *   type: "string",  // Accept "10" or "10%"
+ *   coerce: (value) => {
+ *     if (!ROLLOUT_PERCENTAGE_REGEX.test(value)) {
+ *       throw new Error("Rollout must be 1-100");
+ *     }
+ *     return parseInt(value.replace("%", ""), 10);  // "10%" → 10
+ *   }
+ * });
+ * ```
+ * 
+ * Why this matters:
+ * - Prevents accidental 0% rollout (nobody gets update)
+ * - Prevents accidental 200% rollout (undefined behavior)
+ * - User-friendly: Accepts both "10" and "10%" notation
+ * 
+ * ============================================================================
+ * TTL PARSING: HUMAN-READABLE DURATIONS
+ * ============================================================================
+ * 
+ * Problem: Access keys have expiration (Time To Live)
+ * - Developers want to specify: "5 minutes" or "60 days" or "1 year"
+ * - But backend expects: milliseconds (e.g., 5184000000 for 60 days)
+ * 
+ * Solution: Parse human-readable duration strings
+ * ```typescript
+ * import parseDuration = require("parse-duration");
+ * 
+ * yargs.option("ttl", {
+ *   type: "string",
+ *   default: "60d",  // 60 days
+ *   coerce: (value) => parseDuration(value)  // "60d" → 5184000000 ms
+ * });
+ * 
+ * // Supported formats:
+ * parseDuration("5m") // 300000 ms (5 minutes)
+ * parseDuration("1h") // 3600000 ms (1 hour)
+ * parseDuration("60d") // 5184000000 ms (60 days)
+ * parseDuration("1y") // 31536000000 ms (1 year)
+ * ```
+ * 
+ * Why this matters:
+ * - Better UX: "60d" is clearer than "5184000000"
+ * - Prevents mistakes: "60" (60 milliseconds) vs "60d" (60 days)
+ * - Familiar syntax: Same as Docker/Kubernetes TTL notation
+ * 
+ * ============================================================================
+ * HELP TEXT GENERATION: AUTO-DOCUMENTATION
+ * ============================================================================
+ * 
+ * Problem: Users don't know what flags are available
+ * - Running `delivr release-react` without args → error
+ * - Running `delivr release-react --help` → should show all options
+ * 
+ * Solution: Yargs auto-generates help from option definitions
+ * ```typescript
+ * yargs
+ *   .usage("Usage: delivr release-react [options]")
+ *   .example("release-react -a MyApp -d Production", "Release to Production")
+ *   .option("app", {
+ *     alias: "a",
+ *     type: "string",
+ *     demand: true,
+ *     description: "App name to release to"
+ *   })
+ *   .option("deployment", {
+ *     alias: "d",
+ *     type: "string",
+ *     demand: true,
+ *     description: "Deployment name (Staging, Production)"
+ *   })
+ *   .option("mandatory", {
+ *     type: "boolean",
+ *     default: false,
+ *     description: "Force immediate restart (for critical fixes)"
+ *   });
+ * ```
+ * 
+ * Output of `delivr release-react --help`:
+ * ```
+ * Usage: delivr release-react [options]
+ * 
+ * Options:
+ *   -a, --app          App name to release to               [string] [required]
+ *   -d, --deployment   Deployment name (Staging, Production) [string] [required]
+ *   --mandatory        Force immediate restart               [boolean] [default: false]
+ * 
+ * Examples:
+ *   release-react -a MyApp -d Production  Release to Production
+ * ```
+ * 
+ * Benefits:
+ * - Help text always in sync with code (single source of truth)
+ * - No manual documentation to maintain
+ * - Users can discover flags via --help
+ * 
+ * ============================================================================
+ * COMMAND CATEGORIES: HIERARCHICAL CLI STRUCTURE
+ * ============================================================================
+ * 
+ * Commands are organized hierarchically:
+ * ```
+ * delivr
+ * ├── app
+ * │   ├── add <appName>
+ * │   ├── list
+ * │   ├── remove <appName>
+ * │   └── rename <appName> <newAppName>
+ * ├── deployment
+ * │   ├── add <appName> <deploymentName>
+ * │   ├── list <appName>
+ * │   └── remove <appName> <deploymentName>
+ * ├── release-react [options]
+ * ├── release [options]
+ * └── login --accessKey <key>
+ * ```
+ * 
+ * Why hierarchical structure:
+ * - Logical grouping: All app operations under `app`
+ * - Discoverability: `delivr app --help` shows all app commands
+ * - Consistency: Same pattern as Git, Docker, Kubernetes CLIs
+ * 
+ * Implementation:
+ * ```typescript
+ * yargs
+ *   .command("app", "Manage apps", (yargs) => {
+ *     yargs
+ *       .command("add <appName>", "Create a new app", appAdd)
+ *       .command("list", "List all apps", appList)
+ *       .command("remove <appName>", "Delete an app", appRemove);
+ *   })
+ *   .command("release-react [options]", "Release React Native update", releaseReact);
+ * ```
+ * 
+ * ============================================================================
+ * VALIDATION ORDER: FAIL FAST
+ * ============================================================================
+ * 
+ * Order of validation:
+ * 1. Command exists? → If not, show help
+ * 2. Required args present? → If not, error
+ * 3. Data types correct? → If not, coerce or error
+ * 4. Business logic validation → Pass to command-executor
+ * 
+ * Example: Invalid rollout
+ * ```bash
+ * delivr release-react -a MyApp -d Production --rollout 150
+ * ```
+ * 
+ * Validation flow:
+ * 1. Command exists? ✅ (release-react found)
+ * 2. Required args present? ✅ (--app, --deployment)
+ * 3. Data types correct? ❌ (rollout 150 > 100)
+ * 4. → Error: "Rollout must be 1-100"
+ * 5. → Exit without calling command-executor (fail fast)
+ * 
+ * Why fail fast:
+ * - Don't waste time on invalid input
+ * - Better error messages (specific to validation step)
+ * - Prevents downstream errors (command-executor assumes valid input)
+ * 
+ * ============================================================================
+ * BACKSLASH HANDLING: WINDOWS PATH NORMALIZATION
+ * ============================================================================
+ * 
+ * Problem: Windows uses backslashes (\), Unix uses forward slashes (/)
+ * - Windows: C:\Users\dev\MyApp\android\app\build.gradle
+ * - Unix: /Users/dev/MyApp/android/app/build.gradle
+ * 
+ * Solution: Normalize all paths to forward slashes
+ * ```typescript
+ * import backslash = require("backslash");
+ * 
+ * const gradleFile = backslash(process.argv[2]);
+ * // Windows: "C:\path\to\file" → "C:/path/to/file"
+ * // Unix: "/path/to/file" → "/path/to/file" (unchanged)
+ * ```
+ * 
+ * Why this matters:
+ * - Node.js path APIs work with both / and \
+ * - But regex matching is easier with consistent separators
+ * - Prevents "file not found" errors on Windows
+ * 
+ * ============================================================================
+ * LESSON LEARNED: VALIDATE EARLY, FAIL FAST
+ * ============================================================================
+ * 
+ * Real-world bug prevented:
+ * - Developer runs: `delivr release-react -a MyApp` (missing --deployment)
+ * - Without validation: CLI uploads bundle, then fails at server (wasted time)
+ * - With validation: CLI fails immediately ("Missing --deployment")
+ * 
+ * Benefits:
+ * - Save time: Catch errors before expensive operations (bundling, uploading)
+ * - Better UX: Clear error messages at the point of input
+ * - CI/CD safety: Fail early in pipeline (don't deploy broken releases)
+ * 
+ * ============================================================================
+ * ALTERNATIVES CONSIDERED
+ * ============================================================================
+ * 
+ * 1. Commander.js (alternative CLI framework)
+ *    - Considered: Similar to yargs, but different API
+ *    - Decision: Yargs was already used by Microsoft CodePush (legacy compatibility)
+ * 
+ * 2. Manual argv parsing (no framework)
+ *    - Rejected: 500+ lines of parsing logic, error-prone
+ * 
+ * 3. No validation (trust user input)
+ *    - Rejected: Terrible UX, bugs only caught at server
+ * 
+ * 4. Server-side validation only (no CLI validation)
+ *    - Rejected: Slow feedback loop (upload 10MB bundle, then find out --app is wrong)
+ * 
+ * ============================================================================
+ * RELATED FILES:
+ * ============================================================================
+ * 
+ * - cli.ts: Entry point that calls this parser
+ * - command-executor.ts: Executes parsed commands
+ * - types/cli.ts: TypeScript types for command objects
+ * 
+ * ============================================================================
+ */
+
 import * as yargs from "yargs";
 import * as cli from "../script/types/cli";
 import * as chalk from "chalk";

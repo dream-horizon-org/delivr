@@ -1,6 +1,399 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+/**
+ * ============================================================================
+ * Design Rationale: Management API Routes - Setup & Configuration Endpoints
+ * ============================================================================
+ * 
+ * PURPOSE:
+ * 
+ * This is THE BACKEND API for Delivr's setup and management operations. It handles:
+ * 1. POST /apps - Create new app (Journey 0, Step 0.1)
+ * 2. POST /deployments - Create deployment keys (Journey 0, Step 0.2)
+ * 3. POST /deployments/:name/release - Upload OTA update (Journey 1, Step 1.6)
+ * 4. PATCH /deployments/:name/packages/:label - Update rollout (Journey 3)
+ * 5. POST /collaborators - Add team members (Journey 0)
+ * 6. GET /apps/:name - Retrieve app metadata (Dashboard)
+ * 
+ * This file answers ALL user questions about setup and configuration:
+ * - "How do I create deployment keys?" → POST /deployments endpoint
+ * - "How do I create a release?" → POST /deployments/:name/release endpoint
+ * - "How do I add integrations?" → POST /apps/:name/integrations endpoint
+ * - "How do I create a config?" → Stored in deployment metadata
+ * 
+ * ============================================================================
+ * USER JOURNEY 0: INITIAL SETUP & CONFIGURATION (Steps 0.1-0.6)
+ * ============================================================================
+ * 
+ * STEP 0.1: CREATE APP (Web Dashboard → Backend API)
+ * 
+ * Frontend:
+ * ```typescript
+ * // delivr-web-panel/app/routes/apps.new.tsx
+ * POST /apps
+ * {
+ *   name: "MyApp",
+ *   platform: "React-Native"  // or "Cordova", "Electron"
+ * }
+ * ```
+ * 
+ * Backend (THIS FILE, Line ~323):
+ * ```typescript
+ * router.post("/apps", (req, res) => {
+ *   const accountId = req.user.id; // Authenticated user
+ *   const appRequest = converterUtils.appCreationRequestFromBody(req.body);
+ *   
+ *   // Validate app name (no special chars, unique per account)
+ *   validateAppName(appRequest.name);
+ *   
+ *   // Create app in database
+ *   storage.addApp(accountId, appRequest)
+ *     .then(appId => {
+ *       // Auto-create default deployments: "Staging", "Production"
+ *       return Promise.all([
+ *         storage.addDeployment(accountId, appId, "Staging"),
+ *         storage.addDeployment(accountId, appId, "Production")
+ *       ]);
+ *     })
+ *     .then(() => {
+ *       res.status(201).send({ app: { id: appId, name: appRequest.name } });
+ *     });
+ * });
+ * ```
+ * 
+ * Response:
+ * ```json
+ * {
+ *   "app": {
+ *     "id": "abc-123-xyz",
+ *     "name": "MyApp",
+ *     "deployments": ["Staging", "Production"]
+ *   }
+ * }
+ * ```
+ * 
+ * LESSON LEARNED: AUTO-CREATE DEFAULT DEPLOYMENTS
+ * 
+ * Why auto-create Staging + Production:
+ * - 99% of apps use these two environments
+ * - Good practice: Test in Staging before Production
+ * - Saves user time (don't make them create deployments manually)
+ * 
+ * Alternative considered:
+ * - Require manual deployment creation → Rejected (extra step, poor UX)
+ * 
+ * ============================================================================
+ * 
+ * STEP 0.2: CREATE DEPLOYMENT KEY (Web Dashboard → Backend API)
+ * 
+ * When is this needed:
+ * - Adding a third environment (e.g., "QA", "Beta")
+ * - Regenerating compromised deployment key
+ * 
+ * Frontend:
+ * ```typescript
+ * // delivr-web-panel/app/routes/apps.$appId.deployments.new.tsx
+ * POST /apps/MyApp/deployments
+ * {
+ *   name: "Beta"
+ * }
+ * ```
+ * 
+ * Backend (THIS FILE, Line ~638):
+ * ```typescript
+ * router.post("/apps/:appName/deployments", (req, res) => {
+ *   const accountId = req.user.id;
+ *   const appName = req.params.appName;
+ *   const deploymentName = req.body.name; // "Beta"
+ *   
+ *   // Generate deployment key (random UUID)
+ *   const deploymentKey = generateDeploymentKey(); // e.g., "abc-123-xyz-789"
+ *   
+ *   // Store in database
+ *   storage.addDeployment(accountId, appId, deploymentName, deploymentKey)
+ *     .then(() => {
+ *       res.status(201).send({
+ *         deployment: {
+ *           name: deploymentName,
+ *           key: deploymentKey  // ← Developer puts this in app code
+ *         }
+ *       });
+ *     });
+ * });
+ * ```
+ * 
+ * Response:
+ * ```json
+ * {
+ *   "deployment": {
+ *     "name": "Beta",
+ *     "key": "abc-123-xyz-789"  // ← Use this in app's codePush config
+ *   }
+ * }
+ * ```
+ * 
+ * Developer uses deployment key in app:
+ * ```javascript
+ * // In React Native app
+ * import codePush from 'react-native-code-push';
+ * 
+ * codePush.sync({
+ *   deploymentKey: "abc-123-xyz-789"  // ← Beta deployment
+ * });
+ * ```
+ * 
+ * WHY DEPLOYMENT KEYS ARE CRITICAL:
+ * 
+ * Security boundary:
+ * - Each deployment has unique key
+ * - Staging key → only Staging updates
+ * - Production key → only Production updates
+ * - Prevents accidental cross-contamination (push Staging update to Production users)
+ * 
+ * Access control:
+ * - Developer A: Has Staging key → can test updates
+ * - Developer A: NO Production key → can't affect prod users
+ * - Only release managers have Production key
+ * 
+ * LESSON LEARNED: DEPLOYMENT KEYS MUST BE SECRET
+ * 
+ * Real-world mistake:
+ * - Developer hardcodes deployment key in Git → pushed to public GitHub
+ * - Attacker finds key → pushes malicious update
+ * - Solution: Rotate keys immediately, store in environment variables
+ * 
+ * Best practice:
+ * - Store keys in .env file (not in source code)
+ * - Rotate keys after team member leaves
+ * - Use different keys for each environment
+ * 
+ * ============================================================================
+ * 
+ * STEP 1.6: UPLOAD RELEASE (CLI → Backend API)
+ * 
+ * Developer runs:
+ * ```bash
+ * delivr release-react -a MyApp -d Production --description "Bug fixes"
+ * ```
+ * 
+ * CLI calls (command-executor.ts → management-sdk.ts):
+ * ```typescript
+ * POST /apps/MyApp/deployments/Production/release
+ * Content-Type: multipart/form-data
+ * 
+ * --boundary
+ * Content-Disposition: form-data; name="package"; filename="bundle.zip"
+ * [Binary bundle data: 5MB]
+ * --boundary
+ * Content-Disposition: form-data; name="packageInfo"
+ * {
+ *   "description": "Bug fixes",
+ *   "isMandatory": false,
+ *   "rollout": 100,
+ *   "appVersion": "1.0.0"  // Semver target
+ * }
+ * --boundary--
+ * ```
+ * 
+ * Backend (THIS FILE, Line ~898):
+ * ```typescript
+ * router.post("/apps/:appName/deployments/:deploymentName/release", (req, res) => {
+ *   const accountId = req.user.id;
+ *   const appName = req.params.appName;
+ *   const deploymentName = req.params.deploymentName;
+ *   const file = getFileWithField(req, "package"); // Multipart file upload
+ *   const packageInfo = JSON.parse(req.body.packageInfo);
+ *   
+ *   // 1. Validate semver
+ *   if (!semver.valid(packageInfo.appVersion)) {
+ *     return res.status(400).send({ error: "Invalid semver" });
+ *   }
+ *   
+ *   // 2. Check for duplicate (same hash already released)
+ *   const packageHash = hashUtils.generatePackageHash(file.buffer);
+ *   const existingPackage = await storage.getPackageByHash(packageHash);
+ *   if (existingPackage) {
+ *     return res.status(409).send({ error: "Duplicate release" });
+ *   }
+ *   
+ *   // 3. Upload to storage (S3, Azure, or JSON)
+ *   const blobUrl = await storage.uploadBlob(file.buffer, packageHash);
+ *   
+ *   // 4. Generate binary patch (diff from previous release)
+ *   const previousPackage = await storage.getLatestPackage(deploymentId);
+ *   if (previousPackage) {
+ *     const patchUrl = await packageDiffing.generatePatch(
+ *       previousPackage.blobUrl,
+ *       blobUrl
+ *     );
+ *     packageInfo.diffPackageMap = { [previousPackage.label]: patchUrl };
+ *   }
+ *   
+ *   // 5. Save release to database
+ *   const release = await storage.addPackage(
+ *     accountId,
+ *     appId,
+ *     deploymentId,
+ *     packageInfo,
+ *     blobUrl
+ *   );
+ *   
+ *   // 6. Invalidate caches (Redis, Memcached)
+ *   await invalidateCachedPackage(deploymentKey);
+ *   
+ *   // 7. Return release details
+ *   res.status(201).send({
+ *     package: {
+ *       label: "v6",  // Auto-incremented label
+ *       packageHash: packageHash,
+ *       blobUrl: blobUrl,
+ *       uploadTime: Date.now()
+ *     }
+ *   });
+ * });
+ * ```
+ * 
+ * CRITICAL VALIDATION: DUPLICATE DETECTION
+ * 
+ * Problem: Developer accidentally runs release command twice
+ * - Without deduplication: Two identical releases, waste storage
+ * - With deduplication: Return 409 Conflict, no-op
+ * 
+ * Detection:
+ * ```typescript
+ * const packageHash = hashUtils.generatePackageHash(fileBuffer);
+ * const lastPackage = await storage.getLatestPackage(deploymentId);
+ * 
+ * if (packageHash === lastPackage.packageHash) {
+ *   throw errorUtils.restError(
+ *     errorUtils.ErrorCode.Conflict,
+ *     "The uploaded package is identical to the current release."
+ *   );
+ * }
+ * ```
+ * 
+ * CLI handling:
+ * ```typescript
+ * if (error.statusCode === 409) {
+ *   console.log(chalk.yellow("[Warning] Duplicate release, skipping"));
+ *   process.exit(0); // Success (idempotent operation)
+ * }
+ * ```
+ * 
+ * ============================================================================
+ * 
+ * BINARY PATCH GENERATION: Automatic Diff Creation
+ * 
+ * When a new release is uploaded, backend AUTOMATICALLY generates patch:
+ * 
+ * ```typescript
+ * const packageDiffing = new PackageDiffer(storage, 5); // Keep 5 recent patches
+ * 
+ * // After uploading new release (v6)
+ * const previousPackage = await storage.getLatestPackage(deploymentId); // v5
+ * 
+ * if (previousPackage) {
+ *   // Generate binary diff: v5 → v6
+ *   const patchInfo = await packageDiffing.generatePatch(
+ *     previousPackage.blobUrl,  // Base bundle
+ *     newPackage.blobUrl         // New bundle
+ *   );
+ *   
+ *   // Store patch URL in database
+ *   newPackage.diffPackageMap = {
+ *     [previousPackage.label]: patchInfo.url  // "v5": "https://cdn.../v5-to-v6.patch"
+ *   };
+ * }
+ * ```
+ * 
+ * Server-side update check uses this:
+ * ```typescript
+ * // routes/acquisition.ts
+ * if (device.currentLabel === "v5") {
+ *   // Send patch URL (80% smaller)
+ *   return { downloadURL: package.diffPackageMap["v5"] };
+ * } else {
+ *   // Send full bundle (first-time install)
+ *   return { downloadURL: package.blobUrl };
+ * }
+ * ```
+ * 
+ * WHY AUTOMATIC PATCH GENERATION:
+ * 
+ * Benefits:
+ * - Zero developer effort (automatic)
+ * - Always available (generated on every release)
+ * - Space-efficient (keep only N most recent patches)
+ * 
+ * Alternative (manual):
+ * - Developer runs `delivr release --patch` (separate command)
+ * - Rejected: Easy to forget, inconsistent availability
+ * 
+ * ============================================================================
+ * 
+ * RATE LIMITING: Preventing Abuse
+ * 
+ * Release endpoint has rate limiting:
+ * ```typescript
+ * const releaseRateLimiter = rateLimit({
+ *   windowMs: 15 * 60 * 1000,  // 15 minutes
+ *   max: 100,                   // 100 releases per 15 min per IP
+ * });
+ * 
+ * router.post("/apps/:appName/deployments/:deploymentName/release",
+ *   releaseRateLimiter,  // ← Apply rate limit middleware
+ *   (req, res) => { ... }
+ * );
+ * ```
+ * 
+ * Why rate limit:
+ * - Prevent accidental loops (CI script goes wrong, uploads 1000 releases)
+ * - Prevent malicious abuse (attacker tries to fill storage)
+ * - Protect server (release uploads are CPU-intensive for patch generation)
+ * 
+ * Limits:
+ * - 100 releases per 15 minutes per IP address
+ * - Reasonable for CI/CD (typical: 5-10 releases per day)
+ * - Blocks abuse without impacting legitimate use
+ * 
+ * ============================================================================
+ * 
+ * LESSON LEARNED: IDEMPOTENCY IS CRITICAL FOR CI/CD
+ * 
+ * Real-world scenario:
+ * - CI pipeline runs `delivr release` as part of build
+ * - Network glitch → upload succeeds but CLI times out
+ * - CI retries → tries to upload same bundle again
+ * 
+ * Without idempotency:
+ * - Second upload creates duplicate release with different label (v7 instead of v6)
+ * - Confusion: Which label is the "real" release?
+ * 
+ * With idempotency:
+ * - Second upload returns 409 Conflict: "Already exists"
+ * - CLI treats as success (no-op)
+ * - Single label (v6), no duplicates
+ * 
+ * Implementation:
+ * - Check package hash before creating release
+ * - Return 409 if hash matches existing release
+ * - CLI interprets 409 as success (idempotent operation)
+ * 
+ * ============================================================================
+ * 
+ * RELATED FILES:
+ * ============================================================================
+ * 
+ * - delivr-cli/script/command-executor.ts: CLI calls these endpoints
+ * - delivr-cli/script/management-sdk.ts: HTTP client for management API
+ * - delivr-web-panel/app/routes/apps.new.tsx: Frontend UI for app creation
+ * - delivr-server-ota/api/script/storage/storage.ts: Database layer
+ * - delivr-server-ota/api/script/utils/package-diffing.ts: Patch generation
+ * 
+ * ============================================================================
+ */
+
 import { createTempFileFromBuffer, getFileWithField } from "../file-upload-manager";
 import { getIpAddress } from "../utils/rest-headers";
 import { isUnfinishedRollout } from "../utils/rollout-selector";

@@ -1,3 +1,241 @@
+/**
+ * ============================================================================
+ * Design Rationale: React Native SDK - Main Entry Point & Auto-Rollback
+ * ============================================================================
+ * 
+ * PURPOSE:
+ * 
+ * This is THE MOST CRITICAL FILE in Delivr's codebase. It implements the mobile
+ * SDK that end users interact with - the last line of defense against bad releases.
+ * 
+ * KEY RESPONSIBILITIES:
+ * 1. Check for updates on app launch (sync with server)
+ * 2. Download and apply updates (JavaScript bundles + assets)
+ * 3. Restart app with new bundle (multiple restart modes)
+ * 4. AUTOMATIC ROLLBACK on crash detection (Architecture Decision #7)
+ * 5. Report telemetry to server (success/failure/rollback)
+ * 
+ * This file appears in 5 steps of User Journey 2 (End User Receives Update).
+ * 
+ * ============================================================================
+ * ARCHITECTURE DECISION #7: AUTOMATIC ROLLBACK ON CRASH DETECTION
+ * ============================================================================
+ * 
+ * THE PROBLEM: BAD RELEASES CAN BRICK APPS
+ * 
+ * Without auto-rollback:
+ * - Developer deploys update with syntax error or missing dependency
+ * - App crashes immediately on launch for all users who downloaded it
+ * - Users cannot open app AT ALL (bricked until manual rollback)
+ * - Time to recovery: 2-4 hours (detect issue → rollback → users check again)
+ * - Result: Thousands of 1-star reviews, user churn
+ * 
+ * THE SOLUTION: AUTOMATIC CRASH DETECTION & ROLLBACK
+ * 
+ * How it works:
+ * 
+ * 1. User downloads update (v1.1.0) and restarts app
+ * 2. App loads new bundle, SDK starts monitoring
+ * 3. SDK waits for `notifyApplicationReady()` call within 5 minutes
+ * 4. If app crashes BEFORE `notifyApplicationReady()`:
+ *    → SDK detects "failed update"
+ *    → Automatically reverts to previous bundle (v1.0.0)
+ *    → Reports rollback to server
+ *    → User's app is functional again
+ * 5. If `notifyApplicationReady()` called successfully:
+ *    → Update marked as "good"
+ *    → No rollback, app continues with new bundle
+ * 
+ * KEY API: notifyApplicationReady()
+ * 
+ * Developer MUST call this after app successfully initializes:
+ * 
+ * ```javascript
+ * import CodePush from 'react-native-code-push';
+ * 
+ * class MyApp extends Component {
+ *   componentDidMount() {
+ *     // Tell CodePush: "App initialized successfully, don't rollback"
+ *     CodePush.notifyApplicationReady();
+ *   }
+ * }
+ * ```
+ * 
+ * What happens if developer forgets to call notifyApplicationReady():
+ * - Every update is marked as "failed" and rolled back
+ * - App never stays updated (always reverts to previous version)
+ * - This is BY DESIGN (fail-safe: better to rollback than stay crashed)
+ * 
+ * CRASH DETECTION MECHANISM:
+ * 
+ * Native side (iOS/Android):
+ * - Writes "pending update" marker to disk on restart
+ * - If app crashes before `notifyApplicationReady()`, marker remains
+ * - On next launch, SDK sees marker → knows previous launch crashed → rollback
+ * 
+ * JavaScript side (this file):
+ * - `notifyApplicationReady()` removes the "pending update" marker
+ * - `shouldUpdateBeIgnored()` checks if update previously failed
+ * - `validateLatestRollbackInfo()` tracks rollback history (for retry logic)
+ * 
+ * ROLLBACK RETRY OPTIONS:
+ * 
+ * Problem: What if update only crashes on specific devices (e.g., Android 11 only)?
+ * - First attempt: Update crashes → rollback (expected)
+ * - Without retry: User never gets future updates (stuck on v1.0.0 forever)
+ * - With retry: After 24 hours, try update again (maybe it was transient issue)
+ * 
+ * Configuration:
+ * ```javascript
+ * codePush.sync({
+ *   rollbackRetryOptions: {
+ *     delayInHours: 24,        // Wait 24 hours before retrying failed update
+ *     maxRetryAttempts: 3      // Retry up to 3 times, then give up
+ *   }
+ * });
+ * ```
+ * 
+ * Native storage (iOS/Android):
+ * - Tracks: packageHash, rollbackCount, lastRollbackTime
+ * - After maxRetryAttempts exceeded: Stop offering this update to user
+ * 
+ * ============================================================================
+ * USER JOURNEY 2: END USER RECEIVES UPDATE (5 STEPS IN THIS FILE)
+ * ============================================================================
+ * 
+ * Step 2.1: User Opens App
+ * - Function: codePush.sync() (entry point)
+ * - Automatically called on app launch if HOC wrapper used:
+ *   `export default codePush(MyApp);`
+ * 
+ * Step 2.2: SDK Checks for Updates
+ * - Function: checkForUpdate()
+ * - Calls acquisition-sdk.js → queries server /updateCheck
+ * - Handles 4 cases where no update is needed (see comments in code)
+ * 
+ * Step 2.4: SDK Downloads Update
+ * - Function: remotePackage.download()
+ * - Calls native code (iOS/Android) to download bundle from CDN
+ * - Shows progress via downloadProgressCallback
+ * 
+ * Step 2.5: SDK Verifies Signature
+ * - Function: Native code verifies RSA signature
+ * - Rejects update if signature invalid (security)
+ * 
+ * Step 2.7: SDK Restarts App
+ * - Function: restartApp()
+ * - Three restart modes:
+ *   1. IMMEDIATE: Restart right now (for mandatory updates)
+ *   2. ON_NEXT_RESTART: Apply on next app kill/relaunch (default)
+ *   3. ON_NEXT_RESUME: Apply when app comes back from background
+ * 
+ * Step 2.8: SDK Monitors for Crashes (AUTO-ROLLBACK)
+ * - Function: notifyApplicationReady() ← CRITICAL
+ * - Developer MUST call this when app initializes successfully
+ * - If not called within 5 minutes → rollback
+ * 
+ * ============================================================================
+ * SYNC STRATEGIES (InstallMode)
+ * ============================================================================
+ * 
+ * 1. IMMEDIATE (mandatory updates):
+ * ```javascript
+ * codePush.sync({
+ *   installMode: codePush.InstallMode.IMMEDIATE
+ * });
+ * ```
+ * - Check → Download → Install → Restart IMMEDIATELY
+ * - Use for: Critical security patches, breaking bugs
+ * - UX impact: App restarts mid-session (disruptive)
+ * 
+ * 2. ON_NEXT_RESTART (default):
+ * ```javascript
+ * codePush.sync({
+ *   installMode: codePush.InstallMode.ON_NEXT_RESTART
+ * });
+ * ```
+ * - Check → Download → Install → Wait for user to kill app
+ * - Use for: Most updates (non-critical)
+ * - UX impact: Update applied on next natural restart (non-disruptive)
+ * 
+ * 3. ON_NEXT_RESUME (background updates):
+ * ```javascript
+ * codePush.sync({
+ *   installMode: codePush.InstallMode.ON_NEXT_RESUME,
+ *   minimumBackgroundDuration: 60  // 60 seconds
+ * });
+ * ```
+ * - Check → Download → Install → Wait for app to background for 60s → Restart on resume
+ * - Use for: Updates that need to apply quickly but not disruptively
+ * - UX impact: Brief restart when app comes back from background
+ * 
+ * LESSON LEARNED:
+ * 
+ * Automatic rollback is THE killer feature that makes OTA updates viable in
+ * production. Without it, one bad release can brick thousands of apps. With it,
+ * bad releases automatically revert within seconds, and users never notice.
+ * 
+ * Real-world scenario:
+ * - Deploy v1.1.0 with crash on Samsung devices (10% of users)
+ * - Without rollback: 50,000 users can't open app, support tickets flood in
+ * - With rollback: 50,000 users auto-revert to v1.0.0 in < 10 seconds, app usable
+ * - Team has time to fix issue and redeploy (no emergency)
+ * 
+ * TRADE-OFFS:
+ * 
+ * Benefits:
+ * - Prevents apps from being bricked by bad updates
+ * - Recovery time: Seconds (auto) vs. Hours (manual)
+ * - User-facing: No downtime (users barely notice)
+ * - Developer-facing: Peace of mind, less stress
+ * 
+ * Costs:
+ * - Developer MUST call notifyApplicationReady() (extra API)
+ *   - If forgotten: Every update rolls back (fail-safe design)
+ * - False positives possible (legitimate crashes unrelated to update)
+ *   - Mitigated by: Retry logic (rollbackRetryOptions)
+ * - Complex state management (native storage of rollback history)
+ * 
+ * WHEN NOT TO USE AUTOMATIC ROLLBACK:
+ * 
+ * 1. Desktop apps where crashes are less catastrophic (user can reinstall)
+ * 2. Internal tools with < 100 users (can manually rollback quickly)
+ * 3. Apps that intentionally change behavior (rollback would revert intended change)
+ * 
+ * ALTERNATIVES CONSIDERED:
+ * 
+ * 1. Manual rollback only (developer manually reverts on server)
+ *    - Rejected: Too slow (2-4 hours), users suffer during detection window
+ * 
+ * 2. Server-side killswitch (stop serving bad update)
+ *    - Complementary: Use both (server stops NEW installs, SDK reverts EXISTING)
+ * 
+ * 3. No rollback, just better testing
+ *    - Rejected: No amount of testing catches all edge cases (device-specific bugs)
+ * 
+ * 4. Gradual rollout without auto-rollback (rely on slow rollout to limit damage)
+ *    - Rejected: Even 1% of 1M users = 10,000 bricked apps (unacceptable)
+ * 
+ * MONITORING & OBSERVABILITY:
+ * 
+ * SDK reports to server via tryReportStatus():
+ * - DeploymentSucceeded: Update applied successfully (after notifyApplicationReady)
+ * - DeploymentFailed: Update rolled back due to crash
+ * 
+ * Dashboard shows:
+ * - Rollback rate per release (high rate = bad release)
+ * - Which devices are rolling back (helps debug device-specific issues)
+ * 
+ * RELATED FILES:
+ * 
+ * - acquisition-sdk.js: HTTP client for /updateCheck API
+ * - package-mixins.js: Adds download/install methods to package objects
+ * - iOS: ios/CodePush/CodePush.m (native crash detection)
+ * - Android: android/src/.../CodePush.java (native crash detection)
+ * 
+ * ============================================================================
+ */
+
 import { AcquisitionManager as Sdk } from "./acquisition-sdk";
 import { Alert } from "./AlertAdapter";
 import requestFetchAdapter from "./request-fetch-adapter";
