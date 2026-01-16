@@ -425,7 +425,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
 
   router.post(
     "/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight",
-    tenantPermissions.requireOwner({ storage }),
+    tenantPermissions.requireEditor({ storage }),
     verifyTestFlightBuild
   );
 
@@ -434,7 +434,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ciRunId is passed in request body (supports URLs with special characters)
   router.post(
     "/builds/ci/testflight/verify",
-    tenantPermissions.allowAll({ storage }),
+    tenantPermissions.requireOwner({ storage }),
     createCiTestflightVerifyHandler(storage)
   );
 
@@ -443,7 +443,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Body: multipart/form-data with ciRunId, artifactVersion, artifact file, optional buildNumber
   router.post(
     "/builds/ci/artifact",
-    tenantPermissions.allowAll({ storage }),
+    tenantPermissions.requireOwner({ storage }),
     upload.single('artifact'),
     createCiArtifactUploadHandler(storage)
   );

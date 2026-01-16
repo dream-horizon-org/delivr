@@ -132,7 +132,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     }
 
     if (!accessKeyRequest.createdBy) {
-      accessKeyRequest.createdBy = getIpAddress(req);
+      accessKeyRequest.createdBy = accountId;
     }
 
     const validationErrors: validationUtils.ValidationError[] = validationUtils.validateAccessKeyRequest(

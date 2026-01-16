@@ -2,8 +2,11 @@
 // Licensed under the MIT License.
 
 import { Request, Response, NextFunction } from 'express';
+import * as semver from 'semver';
 import { Storage } from '../storage/storage';
 import { getUserTenantPermission } from './tenant-permissions';
+import { getCliVersion } from '~utils/rest-headers';
+import { MIN_CLI_VERSION_REQUIRING_TENANT } from '~constants/cli';
 
 /**
  * App-level permission middleware
@@ -48,7 +51,16 @@ async function resolveApp(
       ? req.headers.tenant[0] 
       : req.headers.tenant;
     
-    if (!tenantId) {
+    // Validate tenant header for newer CLI versions
+    const cliVersion = getCliVersion(req);
+    const cliVersionExists = Boolean(cliVersion);
+    const cliVersionIsValid = cliVersionExists && semver.valid(cliVersion) !== null;
+    const cliVersionRequiresTenant = cliVersionIsValid && 
+      semver.gte(cliVersion, MIN_CLI_VERSION_REQUIRING_TENANT);
+    const tenantIdMissing = !tenantId;
+    const shouldRequireTenantHeader = tenantIdMissing && cliVersionRequiresTenant;
+    
+    if (shouldRequireTenantHeader) {
       throw new Error('Tenant header required');
     }
     
