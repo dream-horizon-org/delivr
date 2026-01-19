@@ -1,0 +1,1802 @@
+openapi: 3.0.3
+info:
+  title: Delivr OTA Server API
+  description: |
+    Delivr OTA Server API enables developers to deploy mobile app updates (JavaScript, assets, etc.) 
+    directly to end users' devices without going through app store review processes.
+    
+    ## Features
+    - Deploy over-the-air updates to React Native applications
+    - Manage apps, deployments, and releases
+    - Gradual rollouts and A/B testing
+    - Rollback capabilities
+    - Deployment metrics and analytics
+    - Multi-platform support
+
+paths:
+  # ==================== Health ====================
+  /:
+    get:
+      tags:
+        - Health
+      summary: Welcome endpoint
+      description: Returns a welcome message
+      security: []
+      responses:
+        '200':
+          description: Welcome message
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Welcome to the CodePush REST API!
+
+  /healthcheck:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Checks the health of storage and Redis connections
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Healthy
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== Authentication ====================
+  /auth/login:
+    get:
+      tags:
+        - Authentication
+      summary: Display login page
+      description: Shows OAuth provider selection for login
+      security: []
+      parameters:
+        - name: hostname
+          in: query
+          schema:
+            type: string
+          description: Server hostname for callback
+      responses:
+        '200':
+          description: Login page HTML
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /auth/register:
+    get:
+      tags:
+        - Authentication
+      summary: Display registration page
+      description: Shows OAuth provider selection for account registration
+      security: []
+      parameters:
+        - name: hostname
+          in: query
+          schema:
+            type: string
+          description: Server hostname for callback
+      responses:
+        '200':
+          description: Registration page HTML
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /auth/link:
+    get:
+      tags:
+        - Authentication
+      summary: Link additional OAuth provider
+      description: Shows OAuth provider selection to link additional authentication providers
+      security: []
+      parameters:
+        - name: access_token
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Current access token
+      responses:
+        '200':
+          description: Link provider page HTML
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /auth/login/{provider}:
+    get:
+      tags:
+        - Authentication
+      summary: Initiate OAuth login
+      description: Redirects to OAuth provider for authentication
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/OAuthProvider'
+      responses:
+        '302':
+          description: Redirect to OAuth provider
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/register/{provider}:
+    get:
+      tags:
+        - Authentication
+      summary: Initiate OAuth registration
+      description: Redirects to OAuth provider to create a new account
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/OAuthProvider'
+      responses:
+        '302':
+          description: Redirect to OAuth provider
+        '403':
+          description: Registration is disabled
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/link/{provider}:
+    get:
+      tags:
+        - Authentication
+      summary: Link OAuth provider to account
+      description: Links an additional OAuth provider to existing account
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/OAuthProvider'
+      responses:
+        '302':
+          description: Redirect to OAuth provider
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/callback/{provider}:
+    get:
+      tags:
+        - Authentication
+      summary: OAuth callback endpoint
+      description: Handles OAuth provider callback after authentication
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/OAuthProvider'
+        - name: code
+          in: query
+          schema:
+            type: string
+          description: OAuth authorization code
+      responses:
+        '200':
+          description: Authentication successful, returns access key
+          content:
+            text/html:
+              schema:
+                type: string
+
+  # ==================== Account ====================
+  /account:
+    get:
+      tags:
+        - Account
+      summary: Get current account
+      description: Returns the authenticated user's account information
+      responses:
+        '200':
+          description: Account details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  account:
+                    $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Account
+      summary: Create account
+      description: Creates a new account (internal use)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                account:
+                  $ref: '#/components/schemas/AccountCreate'
+      responses:
+        '200':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  account:
+                    type: string
+                    description: Account ID
+
+  /account/ownerTermsStatus:
+    get:
+      tags:
+        - Account
+      summary: Check terms acceptance status
+      description: Checks if the user has accepted the latest terms and conditions
+      responses:
+        '200':
+          description: Terms acceptance status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TermsStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /account/acceptTerms:
+    post:
+      tags:
+        - Account
+      summary: Accept terms and conditions
+      description: Records acceptance of terms and conditions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - termsVersion
+              properties:
+                termsVersion:
+                  type: string
+                  example: v1.0
+      responses:
+        '201':
+          description: Terms accepted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  termsAcceptance:
+                    $ref: '#/components/schemas/TermsAcceptance'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /accountByaccessKeyName:
+    get:
+      tags:
+        - Account
+      summary: Get account by access key
+      description: Retrieves account information using an access key name
+      parameters:
+        - name: accesskeyname
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Access key name
+      responses:
+        '200':
+          description: Account details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/AccountStorage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  # ==================== Access Keys ====================
+  /accessKeys:
+    get:
+      tags:
+        - Access Keys
+      summary: List access keys
+      description: Returns all access keys for the authenticated account
+      responses:
+        '200':
+          description: List of access keys
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessKeys:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AccessKey'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Access Keys
+      summary: Create access key
+      description: Creates a new access key for API authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccessKeyRequest'
+      responses:
+        '201':
+          description: Access key created
+          headers:
+            Location:
+              schema:
+                type: string
+              description: URL of the created access key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessKey:
+                    $ref: '#/components/schemas/AccessKey'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /accessKeys/{accessKeyName}:
+    get:
+      tags:
+        - Access Keys
+      summary: Get access key
+      description: Returns details of a specific access key
+      parameters:
+        - $ref: '#/components/parameters/AccessKeyName'
+      responses:
+        '200':
+          description: Access key details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessKey:
+                    $ref: '#/components/schemas/AccessKey'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Access Keys
+      summary: Update access key
+      description: Updates an existing access key's properties
+      parameters:
+        - $ref: '#/components/parameters/AccessKeyName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccessKeyRequest'
+      responses:
+        '200':
+          description: Access key updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessKey:
+                    $ref: '#/components/schemas/AccessKey'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    delete:
+      tags:
+        - Access Keys
+      summary: Delete access key
+      description: Removes an access key
+      parameters:
+        - $ref: '#/components/parameters/AccessKeyName'
+      responses:
+        '201':
+          description: Access key deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== Sessions ====================
+  /sessions/{createdBy}:
+    delete:
+      tags:
+        - Sessions
+      summary: Delete sessions
+      description: Removes all sessions created by a specific machine/client
+      parameters:
+        - name: createdBy
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Machine name or identifier that created the sessions
+      responses:
+        '204':
+          description: Sessions deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== Tenants ====================
+  /tenants:
+    get:
+      tags:
+        - Tenants
+      summary: List organizations
+      description: Returns all organizations/tenants for the authenticated account
+      responses:
+        '200':
+          description: List of organizations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  organisations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Organization'
+
+  /tenants/{tenantId}:
+    delete:
+      tags:
+        - Tenants
+      summary: Remove organization
+      description: Removes an organization/tenant from the account
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Organization/tenant ID
+      responses:
+        '201':
+          description: Organization deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== Apps ====================
+  /apps:
+    get:
+      tags:
+        - Apps
+      summary: List apps
+      description: Returns all apps accessible by the authenticated account
+      parameters:
+        - name: tenant
+          in: header
+          schema:
+            type: string
+          description: Filter apps by tenant/organization ID
+      responses:
+        '200':
+          description: List of apps
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  apps:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/App'
+
+    post:
+      tags:
+        - Apps
+      summary: Create app
+      description: Creates a new application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                app:
+                  $ref: '#/components/schemas/AppCreationRequest'
+      responses:
+        '201':
+          description: App created
+          headers:
+            Location:
+              schema:
+                type: string
+              description: URL of the created app
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  app:
+                    $ref: '#/components/schemas/App'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /apps/{appName}:
+    get:
+      tags:
+        - Apps
+      summary: Get app
+      description: Returns details of a specific app
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - $ref: '#/components/parameters/TenantHeader'
+      responses:
+        '200':
+          description: App details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  app:
+                    $ref: '#/components/schemas/App'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Apps
+      summary: Update app
+      description: Updates app properties (requires Owner permission)
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                app:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      description: New app name
+      responses:
+        '200':
+          description: App updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  app:
+                    $ref: '#/components/schemas/App'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    delete:
+      tags:
+        - Apps
+      summary: Delete app
+      description: Removes an app and all its deployments (requires Owner permission)
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - $ref: '#/components/parameters/TenantHeader'
+      responses:
+        '201':
+          description: App deleted
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /apps/{appName}/transfer/{email}:
+    post:
+      tags:
+        - Apps
+      summary: Transfer app ownership
+      description: Transfers app ownership to another user (requires Owner permission)
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+            format: email
+          description: Email of the new owner
+        - $ref: '#/components/parameters/TenantHeader'
+      responses:
+        '201':
+          description: App ownership transferred
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== Collaborators ====================
+  /apps/{appName}/collaborators:
+    get:
+      tags:
+        - Collaborators
+      summary: List collaborators
+      description: Returns all collaborators for an app
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - $ref: '#/components/parameters/TenantHeader'
+      responses:
+        '200':
+          description: List of collaborators
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  collaborators:
+                    $ref: '#/components/schemas/CollaboratorMap'
+
+  /apps/{appName}/collaborators/{email}:
+    post:
+      tags:
+        - Collaborators
+      summary: Add collaborator
+      description: Adds a collaborator to the app (requires Owner permission)
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+            format: email
+        - $ref: '#/components/parameters/TenantHeader'
+      responses:
+        '201':
+          description: Collaborator added
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Collaborators
+      summary: Update collaborator role
+      description: Updates a collaborator's role (requires Owner permission)
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+            format: email
+        - $ref: '#/components/parameters/TenantHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  enum: [Owner, Collaborator]
+      responses:
+        '200':
+          description: Collaborator role updated
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Collaborators
+      summary: Remove collaborator
+      description: Removes a collaborator from the app (requires Owner permission, or user can remove themselves)
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+            format: email
+        - $ref: '#/components/parameters/TenantHeader'
+      responses:
+        '201':
+          description: Collaborator removed
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== Deployments ====================
+  /apps/{appName}/deployments:
+    get:
+      tags:
+        - Deployments
+      summary: List deployments
+      description: Returns all deployments for an app
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - $ref: '#/components/parameters/TenantHeader'
+      responses:
+        '200':
+          description: List of deployments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deployments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Deployment'
+
+    post:
+      tags:
+        - Deployments
+      summary: Create deployment
+      description: Creates a new deployment environment (requires Owner permission)
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - $ref: '#/components/parameters/TenantHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                deployment:
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                      example: Staging
+                    key:
+                      type: string
+                      description: Optional custom deployment key
+      responses:
+        '201':
+          description: Deployment created
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deployment:
+                    $ref: '#/components/schemas/Deployment'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /apps/{appName}/deployments/{deploymentName}:
+    get:
+      tags:
+        - Deployments
+      summary: Get deployment
+      description: Returns details of a specific deployment
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - $ref: '#/components/parameters/DeploymentName'
+        - $ref: '#/components/parameters/TenantHeader'
+      responses:
+        '200':
+          description: Deployment details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deployment:
+                    $ref: '#/components/schemas/Deployment'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Deployments
+      summary: Update deployment
+      description: Updates deployment properties (requires Owner permission)
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - $ref: '#/components/parameters/DeploymentName'
+        - $ref: '#/components/parameters/TenantHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                deployment:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      description: New deployment name
+      responses:
+        '200':
+          description: Deployment updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deployment:
+                    $ref: '#/components/schemas/Deployment'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    delete:
+      tags:
+        - Deployments
+      summary: Delete deployment
+      description: Removes a deployment (requires Owner permission)
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - $ref: '#/components/parameters/DeploymentName'
+        - $ref: '#/components/parameters/TenantHeader'
+      responses:
+        '204':
+          description: Deployment deleted
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== Releases ====================
+  /apps/{appName}/deployments/{deploymentName}/release:
+    post:
+      tags:
+        - Releases
+      summary: Release update
+      description: Uploads and releases a new package to a deployment
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - $ref: '#/components/parameters/DeploymentName'
+        - $ref: '#/components/parameters/TenantHeader'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - packageInfo
+                - package
+              properties:
+                packageInfo:
+                  type: string
+                  description: JSON-encoded PackageInfo object
+                  example: '{"appVersion":"1.0.0","description":"Bug fixes","isMandatory":false}'
+                package:
+                  type: string
+                  format: binary
+                  description: ZIP file containing the update
+      responses:
+        '201':
+          description: Package released
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  package:
+                    $ref: '#/components/schemas/Package'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          description: Package too large
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      tags:
+        - Releases
+      summary: Patch release metadata
+      description: Updates properties of an existing release without uploading new package
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - $ref: '#/components/parameters/DeploymentName'
+        - $ref: '#/components/parameters/TenantHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                packageInfo:
+                  $ref: '#/components/schemas/PackageInfo'
+                label:
+                  type: string
+                  description: Specific release label to patch (defaults to latest)
+      responses:
+        '200':
+          description: Release metadata updated
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /apps/{appName}/deployments/{deploymentName}/promote/{destDeploymentName}:
+    post:
+      tags:
+        - Releases
+      summary: Promote release
+      description: Promotes a release from one deployment to another
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - $ref: '#/components/parameters/DeploymentName'
+        - name: destDeploymentName
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Destination deployment name
+        - $ref: '#/components/parameters/TenantHeader'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                packageInfo:
+                  $ref: '#/components/schemas/PackageInfo'
+                label:
+                  type: string
+                  description: Specific release label to promote (defaults to latest)
+      responses:
+        '201':
+          description: Release promoted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  package:
+                    $ref: '#/components/schemas/Package'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /apps/{appName}/deployments/{deploymentName}/rollback:
+    post:
+      tags:
+        - Releases
+      summary: Rollback deployment
+      description: Rolls back to a previous release
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - $ref: '#/components/parameters/DeploymentName'
+        - $ref: '#/components/parameters/TenantHeader'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  description: Target release label to rollback to (defaults to previous)
+      responses:
+        '201':
+          description: Rollback successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  package:
+                    $ref: '#/components/schemas/Package'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /apps/{appName}/deployments/{deploymentName}/history:
+    get:
+      tags:
+        - Releases
+      summary: Get release history
+      description: Returns the release history for a deployment
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - $ref: '#/components/parameters/DeploymentName'
+        - $ref: '#/components/parameters/TenantHeader'
+      responses:
+        '200':
+          description: Release history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  history:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Package'
+
+    delete:
+      tags:
+        - Releases
+      summary: Clear release history
+      description: Clears the release history for a deployment (requires Owner permission)
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - $ref: '#/components/parameters/DeploymentName'
+        - $ref: '#/components/parameters/TenantHeader'
+      responses:
+        '204':
+          description: History cleared
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ==================== Metrics ====================
+  /apps/{appName}/deployments/{deploymentName}/metrics:
+    get:
+      tags:
+        - Metrics
+      summary: Get deployment metrics
+      description: Returns installation and usage metrics for a deployment
+      parameters:
+        - $ref: '#/components/parameters/AppName'
+        - $ref: '#/components/parameters/DeploymentName'
+        - $ref: '#/components/parameters/TenantHeader'
+      responses:
+        '200':
+          description: Deployment metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  metrics:
+                    $ref: '#/components/schemas/DeploymentMetrics'
+
+  # ==================== Acquisition (Public/Client) ====================
+  /updateCheck:
+    get:
+      tags:
+        - Acquisition
+      summary: Check for updates
+      description: |
+        Client SDK endpoint to check for available updates.
+        This endpoint does not require authentication - it uses deployment keys.
+      security: []
+      parameters:
+        - name: deploymentKey
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Deployment key from app configuration
+        - name: appVersion
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Current app version (semver format)
+          example: "1.0.0"
+        - name: packageHash
+          in: query
+          schema:
+            type: string
+          description: Hash of currently installed package
+        - name: label
+          in: query
+          schema:
+            type: string
+          description: Label of currently installed release
+        - name: clientUniqueId
+          in: query
+          schema:
+            type: string
+          description: Unique device/client identifier for rollout targeting
+        - name: isCompanion
+          in: query
+          schema:
+            type: boolean
+          description: Whether this is a companion app request
+      responses:
+        '200':
+          description: Update check response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  updateInfo:
+                    $ref: '#/components/schemas/UpdateCheckResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /v0.1/public/codepush/update_check:
+    get:
+      tags:
+        - Acquisition
+      summary: Check for updates (v0.1 API)
+      description: Legacy API endpoint for update checks with snake_case parameters
+      security: []
+      parameters:
+        - name: deployment_key
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: app_version
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: package_hash
+          in: query
+          schema:
+            type: string
+        - name: label
+          in: query
+          schema:
+            type: string
+        - name: client_unique_id
+          in: query
+          schema:
+            type: string
+        - name: is_companion
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Update check response (snake_case format)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  update_info:
+                    $ref: '#/components/schemas/UpdateCheckResponse'
+
+  /reportStatus/deploy:
+    post:
+      tags:
+        - Acquisition
+      summary: Report deployment status
+      description: |
+        Client SDK reports installation success/failure for metrics tracking.
+        This endpoint does not require authentication.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeploymentStatusReport'
+      responses:
+        '200':
+          description: Status recorded
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /v0.1/public/codepush/report_status/deploy:
+    post:
+      tags:
+        - Acquisition
+      summary: Report deployment status (v0.1 API)
+      description: Legacy API endpoint for deployment status reporting
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeploymentStatusReport'
+      responses:
+        '200':
+          description: Status recorded
+
+  /reportStatus/download:
+    post:
+      tags:
+        - Acquisition
+      summary: Report download
+      description: |
+        Client SDK reports package download for metrics tracking.
+        This endpoint does not require authentication.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DownloadReport'
+      responses:
+        '200':
+          description: Download recorded
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /v0.1/public/codepush/report_status/download:
+    post:
+      tags:
+        - Acquisition
+      summary: Report download (v0.1 API)
+      description: Legacy API endpoint for download reporting
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DownloadReport'
+      responses:
+        '200':
+          description: Download recorded
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: AccessKey
+      description: Access key or session token obtained from OAuth authentication
+
+  parameters:
+    AppName:
+      name: appName
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Application name (or 'owner:appName' for disambiguation)
+      example: MyApp-iOS
+
+    DeploymentName:
+      name: deploymentName
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Deployment environment name
+      example: Production
+
+    AccessKeyName:
+      name: accessKeyName
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Access key friendly name or generated name
+
+    TenantHeader:
+      name: tenant
+      in: header
+      schema:
+        type: string
+      description: Organization/tenant ID filter
+
+    OAuthProvider:
+      name: provider
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [github, microsoft, azure-ad, google]
+      description: OAuth provider name
+
+  schemas:
+    # ==================== Account Schemas ====================
+    Account:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        name:
+          type: string
+          example: John Doe
+        linkedProviders:
+          type: array
+          items:
+            type: string
+          example: ["GitHub", "Microsoft"]
+          description: List of linked OAuth providers
+
+    AccountCreate:
+      type: object
+      required:
+        - email
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        gitHubId:
+          type: string
+        microsoftId:
+          type: string
+        azureAdId:
+          type: string
+
+    AccountStorage:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        gitHubId:
+          type: string
+        microsoftId:
+          type: string
+        azureAdId:
+          type: string
+        createdTime:
+          type: integer
+          format: int64
+
+    TermsStatus:
+      type: object
+      properties:
+        accountId:
+          type: string
+        isOwner:
+          type: boolean
+        ownerAppCount:
+          type: integer
+        termsAccepted:
+          type: boolean
+        termsVersion:
+          type: string
+          nullable: true
+        acceptedTime:
+          type: integer
+          format: int64
+          nullable: true
+        isCurrentVersion:
+          type: boolean
+        currentRequiredVersion:
+          type: string
+
+    TermsAcceptance:
+      type: object
+      properties:
+        id:
+          type: string
+        accountId:
+          type: string
+        email:
+          type: string
+        termsVersion:
+          type: string
+        acceptedTime:
+          type: integer
+          format: int64
+
+    # ==================== Access Key Schemas ====================
+    AccessKey:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Generated secure key (hidden in responses)
+          example: (hidden)
+        friendlyName:
+          type: string
+          example: VSTS Integration
+        description:
+          type: string
+          description: Legacy field, same as friendlyName
+        createdTime:
+          type: integer
+          format: int64
+        createdBy:
+          type: string
+          description: IP address or machine name
+        expires:
+          type: integer
+          format: int64
+          description: Expiration timestamp
+        isSession:
+          type: boolean
+          description: Whether this is a session token
+        scope:
+          type: string
+          description: Optional scope restriction
+
+    AccessKeyRequest:
+      type: object
+      properties:
+        friendlyName:
+          type: string
+          example: CI/CD Key
+        description:
+          type: string
+        ttl:
+          type: integer
+          format: int64
+          description: Time-to-live in milliseconds
+          example: 5184000000
+        scope:
+          type: string
+
+    # ==================== Organization Schemas ====================
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        createdBy:
+          type: string
+        createdTime:
+          type: integer
+          format: int64
+        role:
+          type: string
+
+    # ==================== App Schemas ====================
+    App:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: MyApp-iOS
+        collaborators:
+          $ref: '#/components/schemas/CollaboratorMap'
+        deployments:
+          type: array
+          items:
+            type: string
+          example: ["Production", "Staging"]
+        organisation:
+          type: object
+          properties:
+            orgId:
+              type: string
+            orgName:
+              type: string
+
+    AppCreationRequest:
+      allOf:
+        - $ref: '#/components/schemas/App'
+        - type: object
+          properties:
+            manuallyProvisionDeployments:
+              type: boolean
+              default: false
+              description: If true, does not create default Production/Staging deployments
+
+    CollaboratorMap:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/CollaboratorProperties'
+      example:
+        user@example.com:
+          permission: Owner
+          isCurrentAccount: true
+
+    CollaboratorProperties:
+      type: object
+      properties:
+        permission:
+          type: string
+          enum: [Owner, Collaborator]
+        isCurrentAccount:
+          type: boolean
+          description: Whether this is the authenticated user
+
+    # ==================== Deployment Schemas ====================
+    Deployment:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: Production
+        key:
+          type: string
+          description: Deployment key used by clients
+          example: deployment-key-abc123
+        package:
+          $ref: '#/components/schemas/Package'
+
+    # ==================== Package Schemas ====================
+    PackageInfo:
+      type: object
+      properties:
+        appVersion:
+          type: string
+          description: Semver or semver range
+          example: "1.0.0"
+        description:
+          type: string
+          example: Bug fixes and performance improvements
+        isDisabled:
+          type: boolean
+          default: false
+        isMandatory:
+          type: boolean
+          default: false
+          description: Whether update is mandatory
+        rollout:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Percentage of users to receive update
+          example: 50
+        label:
+          type: string
+          description: Generated release label
+          example: v23
+
+    Package:
+      allOf:
+        - $ref: '#/components/schemas/PackageInfo'
+        - type: object
+          properties:
+            blobUrl:
+              type: string
+              format: uri
+              description: URL to download package
+            packageHash:
+              type: string
+              description: SHA256 hash of package
+            size:
+              type: integer
+              format: int64
+              description: Package size in bytes
+            uploadTime:
+              type: integer
+              format: int64
+              description: Upload timestamp
+            releasedBy:
+              type: string
+              description: Email of user who released
+            releaseMethod:
+              type: string
+              enum: [Upload, Promote, Rollback]
+            originalLabel:
+              type: string
+              description: Label of promoted/rolled back release
+            originalDeployment:
+              type: string
+              description: Name of source deployment for promotions
+            diffPackageMap:
+              type: object
+              additionalProperties:
+                type: object
+                properties:
+                  url:
+                    type: string
+                  size:
+                    type: integer
+
+    # ==================== Update Check Schemas ====================
+    UpdateCheckResponse:
+      allOf:
+        - $ref: '#/components/schemas/PackageInfo'
+        - type: object
+          required:
+            - isAvailable
+          properties:
+            isAvailable:
+              type: boolean
+              description: Whether an update is available
+            downloadURL:
+              type: string
+              format: uri
+              description: URL to download the update
+            packageSize:
+              type: integer
+              description: Size of update package in bytes
+            shouldRunBinaryVersion:
+              type: boolean
+              description: Whether to revert to binary version
+            updateAppVersion:
+              type: boolean
+              description: Whether app version changed
+            target_binary_range:
+              type: string
+              description: Target binary version range
+
+    DeploymentStatusReport:
+      type: object
+      required:
+        - deploymentKey
+        - appVersion
+      properties:
+        deploymentKey:
+          type: string
+          description: Deployment key (can use snake_case deployment_key)
+        appVersion:
+          type: string
+          description: App version (can use snake_case app_version)
+        clientUniqueId:
+          type: string
+          description: Unique device identifier (can use snake_case client_unique_id)
+        label:
+          type: string
+          description: Release label
+        status:
+          type: string
+          enum: [DeploymentSucceeded, DeploymentFailed]
+        previousDeploymentKey:
+          type: string
+          description: Previous deployment key (can use snake_case previous_deployment_key)
+        previousLabelOrAppVersion:
+          type: string
+          description: Previous label or version (can use snake_case previous_label_or_app_version)
+
+    DownloadReport:
+      type: object
+      required:
+        - deploymentKey
+        - label
+      properties:
+        deploymentKey:
+          type: string
+          description: Deployment key (can use snake_case deployment_key)
+        label:
+          type: string
+          description: Release label
+        clientUniqueId:
+          type: string
+          description: Unique device identifier (can use snake_case client_unique_id)
+
+    # ==================== Metrics Schemas ====================
+    DeploymentMetrics:
+      type: object
+      description: Metrics keyed by package label or app version
+      additionalProperties:
+        $ref: '#/components/schemas/UpdateMetrics'
+      example:
+        v23:
+          active: 1234
+          downloaded: 1500
+          failed: 10
+          installed: 1450
+
+    UpdateMetrics:
+      type: object
+      properties:
+        active:
+          type: integer
+          description: Number of currently active installations
+        downloaded:
+          type: integer
+          description: Total downloads
+        failed:
+          type: integer
+          description: Number of failed installations
+        installed:
+          type: integer
+          description: Total successful installations
+
+    # ==================== Error Schemas ====================
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid parameters
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/Error'
+              - type: array
+                items:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+
+    Unauthorized:
+      description: Unauthorized - invalid or expired authentication
+      content:
+        text/plain:
+          schema:
+            type: string
+            example: The session or access key being used is invalid, please run "code-push-standalone login" again.
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Conflict:
+      description: Conflict - resource already exists
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    TooManyRequests:
+      description: Too many requests - rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
