@@ -22,9 +22,9 @@ import * as packageDiffing from "../utils/package-diffing";
 import * as errorUtils from "../utils/rest-error-handling";
 import { isUnfinishedRollout } from "../utils/rollout-selector";
 import * as security from "../utils/security";
-import * as validationUtils from "../utils/validation";
 import { buildSystemMetadata } from "../utils/system-metadata.utils";
 import { buildTenantConfig } from "../utils/tenant-metadata.utils";
+import * as validationUtils from "../utils/validation";
 import PackageDiffer = packageDiffing.PackageDiffer;
 import NameResolver = storageTypes.NameResolver;
 import PackageManifest = hashUtils.PackageManifest;
@@ -465,8 +465,8 @@ export function getManagementRouter(config: ManagementConfig): Router {
       return res.status(400).send({ error: "email is required" });
     }
 
-    if (!permission || !['Editor', 'Viewer'].includes(permission)) {
-      return res.status(400).send({ error: "permission must be either 'Editor' or 'Viewer'" });
+    if (!permission || !['Owner', 'Editor', 'Viewer'].includes(permission)) {
+      return res.status(400).send({ error: "permission must be 'Owner', 'Editor', or 'Viewer'" });
     }
 
     try {
@@ -484,8 +484,8 @@ export function getManagementRouter(config: ManagementConfig): Router {
     const email: string = req.params.email;
     const { permission } = req.body;
 
-    if (!permission || !['Editor', 'Viewer'].includes(permission)) {
-      return res.status(400).send({ error: "permission must be either 'Editor' or 'Viewer'" });
+    if (!permission || !['Owner', 'Editor', 'Viewer'].includes(permission)) {
+      return res.status(400).send({ error: "permission must be 'Owner', 'Editor', or 'Viewer'" });
     }
 
     try {
