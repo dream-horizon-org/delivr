@@ -36,7 +36,7 @@ import { ReleaseNotificationService } from '../release-notification/release-noti
 import { NotificationType } from '~types/release-notification';
 import { ReleaseConfigService } from '../release-configs/release-config.service';
 import { validatePreRegressionWorkflows } from './release-creation.validation';
-
+import {formatDate} from '../../utils/date.utils';
 export interface UpdateReleasePayload {
   releaseId: string;
   accountId: string;
@@ -789,8 +789,8 @@ export class ReleaseUpdateService {
         type: NotificationType.TARGET_DATE_CHANGED,
         tenantId: release.tenantId,
         releaseId: releaseId,
-        previousDate: auditInfo.oldDate.toISOString(),
-        newDate: auditInfo.newDate.toISOString(),
+        previousDate: formatDate(auditInfo.oldDate),
+        newDate: formatDate(auditInfo.newDate),
         isSystemGenerated: false,
         userId: accountId
       });
