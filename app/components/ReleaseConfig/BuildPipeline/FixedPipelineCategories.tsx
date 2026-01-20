@@ -324,9 +324,9 @@ export function FixedPipelineCategories({
                     <Button
                       size="sm"
                       variant="filled"
-                      color="blue"
                       leftSection={<IconPlus size={ICON_SIZES.SMALL} />}
                       onClick={() => handleAddPipeline(category)}
+                      className={category.required ? 'bg-blue-600 hover:bg-blue-700' : ''}
                     >
                       {BUTTON_LABELS.ADD_PIPELINE}
                     </Button>
