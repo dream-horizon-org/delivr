@@ -512,7 +512,8 @@ export class ReleaseUpdateService {
       const slotUpdateResult = await this.handleRegressionSlotUpdate(
         releaseId,
         cronJob,
-        newRegressions  // Pass merged regressions, not raw client data
+        newRegressions,  // Pass merged regressions, not raw client data
+        accountId
       );
       
       if (slotUpdateResult.updatedSlots) {
@@ -554,7 +555,8 @@ export class ReleaseUpdateService {
   private async handleRegressionSlotUpdate(
     releaseId: string,
     cronJob: CronJob,
-    newSlots: Array<{ date: string | Date; config?: Record<string, unknown> }>
+    newSlots: Array<{ date: string | Date; config?: Record<string, unknown> }>,
+    accountId: string
   ): Promise<{ updatedSlots: RegressionSlot[] | null; shouldRestartCron: boolean }> {
     // Parse current slots
     const currentSlots = this.parseRegressionSlots(cronJob.upcomingRegressions);
@@ -612,6 +614,11 @@ export class ReleaseUpdateService {
         `Added: ${addedSlots.length}, Removed: ${removedSlots.length}. ` +
         `Stage 2 was ${wasStage2Completed ? 'COMPLETED' : cronJob.stage2Status}.`
       );
+      
+      //  Send notification for added slots
+      if (addedSlots.length > 0 && release) {
+        await this.notifyNewSlotAdded(releaseId, release, addedSlots, accountId);
+      }
     }
 
     return {
@@ -769,7 +776,38 @@ export class ReleaseUpdateService {
       newStatus: TaskStatus.PENDING
     };
   }
+  /**
+   * Send NEW_SLOT_ADDED notification for each added slot
+   */
+  private async notifyNewSlotAdded(
+    releaseId: string,
+    release: Release,
+    addedSlots: RegressionSlot[],
+    accountId: string
+  ): Promise<void> {
+    if (!this.releaseNotificationService) {
+      console.log('[ReleaseUpdateService] ReleaseNotificationService not available, skipping notification');
+      return;
+    }
+    // Send notification for each added slot
+    for (const slot of addedSlots) {
+      try {
+        await this.releaseNotificationService.notify({
+          type: NotificationType.NEW_SLOT_ADDED,
+          tenantId: release.tenantId,
+          releaseId: releaseId,
+          slotDatetime: formatDate(new Date(slot.date)), 
+          isSystemGenerated: false,
+          userId: accountId
+        });
 
+        console.log(`[ReleaseUpdateService] Sent NEW_SLOT_ADDED notification for slot at ${slot.date}`);
+      } catch (error) {
+        console.error(`[ReleaseUpdateService] Error sending NEW_SLOT_ADDED notification:`, error);
+        // Don't fail the update if notification fails
+      }
+    }
+  }
   /**
    * Send TARGET_DATE_CHANGED notification
    */
