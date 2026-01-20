@@ -1,0 +1,372 @@
+/**
+ * Toast Notification Messages
+ * Centralized location for all toast notification messages
+ * used throughout the application
+ */
+
+// ============================================================================
+// RELEASE CONFIGURATION MESSAGES
+// ============================================================================
+
+export const RELEASE_CONFIG_MESSAGES = {
+  SAVE_SUCCESS: {
+    title: 'Configuration Saved',
+    message: 'Configuration has been saved successfully',
+  },
+  UPDATE_SUCCESS: {
+    title: 'Configuration Updated',
+    message: 'Configuration has been updated successfully',
+  },
+  SAVE_ERROR: (action: 'save' | 'update') => ({
+    title: `Failed to ${action} configuration`,
+    message: `Unable to ${action} the configuration. Please try again.`,
+  }),
+  ARCHIVE_SUCCESS: {
+    title: 'Configuration Archived',
+    message: 'Configuration has been archived successfully',
+  },
+  ARCHIVE_ERROR: {
+    title: 'Archive Failed',
+    message: 'Unable to archive the configuration',
+  },
+  UNARCHIVE_SUCCESS: {
+    title: 'Configuration Unarchived',
+    message: 'Configuration has been restored successfully',
+  },
+  UNARCHIVE_ERROR: {
+    title: 'Unarchive Failed',
+    message: 'Unable to unarchive the configuration',
+  },
+  DELETE_SUCCESS: {
+    title: 'Configuration Deleted',
+    message: 'Configuration has been permanently deleted',
+  },
+  DELETE_ERROR: {
+    title: 'Delete Failed',
+    message: 'Unable to delete the configuration',
+  },
+  DELETE_IN_USE_ERROR: {
+    title: 'Cannot Delete Configuration',
+    message: 'This configuration is being used by one or more releases. Please archive it instead, or wait until all related releases are completed or deleted.',
+  },
+  SET_DEFAULT_SUCCESS: {
+    title: 'Default Set',
+    message: 'Configuration set as default successfully',
+  },
+  SET_DEFAULT_ERROR: {
+    title: 'Failed to Set Default',
+    message: 'Unable to set configuration as default',
+  },
+  DELETE_DRAFT_ERROR: {
+    title: 'Delete Failed',
+    message: 'Failed to delete draft',
+  },
+  DUPLICATE_INFO: {
+    title: 'Coming Soon',
+    message: 'Duplicate feature coming soon - will call API to duplicate configuration',
+  },
+} as const;
+
+// ============================================================================
+// INTEGRATION MESSAGES
+// ============================================================================
+
+export const INTEGRATION_MESSAGES = {
+  DISCONNECT_NOT_IMPLEMENTED: (integrationName: string) => ({
+    title: 'Not Available',
+    message: `Disconnect not implemented for ${integrationName}`,
+  }),
+  DISCONNECT_SUCCESS: (integrationName: string) => ({
+    title: 'Disconnected',
+    message: `${integrationName} disconnected successfully!`,
+  }),
+  DISCONNECT_ERROR: (integrationName: string) => ({
+    title: 'Disconnect Failed',
+    message: `Failed to disconnect ${integrationName}`,
+  }),
+  CONNECT_SUCCESS: (integrationName: string, isUpdate: boolean) => ({
+    title: isUpdate ? 'Integration Updated' : 'Integration Connected',
+    message: isUpdate 
+      ? `${integrationName} integration updated successfully!`
+      : `${integrationName} integration connected successfully!`,
+  }),
+  DEMO_MODE: (integrationId: string) => ({
+    title: 'Demo Mode',
+    message: `${integrationId} connection initiated (demo mode)`,
+  }),
+} as const;
+
+// ============================================================================
+// RELEASE CREATION MESSAGES
+// ============================================================================
+
+export const RELEASE_MESSAGES = {
+  CREATE_ERROR: {
+    title: 'Failed to Create Release',
+    message: 'Unable to create the release. Please try again.',
+  },
+  VALIDATION_ERROR: {
+    title: 'Validation Error',
+    message: 'Please fix the validation error before proceeding',
+  },
+  VALIDATION_ERRORS: {
+    title: 'Validation Errors',
+    message: 'Please fix validation errors before submitting',
+  },
+  CREATE_SUCCESS: {
+    title: 'Release Created',
+    message: 'Release has been created successfully',
+  },
+  UPDATE_SUCCESS: {
+    title: 'Release Updated',
+    message: 'Release has been updated successfully',
+  },
+  UPDATE_ERROR: {
+    title: 'Failed to Update Release',
+    message: 'Unable to update the release. Please try again.',
+  },
+  DELETE_SUCCESS: {
+    title: 'Release Deleted',
+    message: 'Release has been deleted successfully',
+  },
+  DELETE_ERROR: {
+    title: 'Failed to Delete Release',
+    message: 'Unable to delete the release. Please try again.',
+  },
+} as const;
+
+// ============================================================================
+// GENERIC MESSAGES
+// ============================================================================
+
+export const GENERIC_MESSAGES = {
+  SUCCESS: {
+    title: 'Success',
+    message: 'Operation completed successfully',
+  },
+  ERROR: {
+    title: 'Error',
+    message: 'An error occurred. Please try again.',
+  },
+  NETWORK_ERROR: {
+    title: 'Network Error',
+    message: 'Unable to connect. Please check your internet connection.',
+  },
+  PERMISSION_ERROR: {
+    title: 'Permission Denied',
+    message: 'You do not have permission to perform this action',
+  },
+  COMING_SOON: {
+    title: 'Coming Soon',
+    message: 'This feature is coming soon',
+  },
+} as const;
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Get a custom error message with title
+ */
+export function getErrorMessage(customMessage: string, title = 'Error') {
+  return {
+    title,
+    message: customMessage,
+  };
+}
+
+/**
+ * Get a custom success message with title
+ */
+export function getSuccessMessage(customMessage: string, title = 'Success') {
+  return {
+    title,
+    message: customMessage,
+  };
+}
+
+// ============================================================================
+// BUILD DOWNLOAD MESSAGES
+// ============================================================================
+
+export const BUILD_DOWNLOAD_MESSAGES = {
+  DOWNLOAD_ERROR: {
+    title: 'Download Error',
+    message: 'Artifact path not available',
+  },
+  DOWNLOAD_FAILED: {
+    title: 'Download Failed',
+    message: 'Failed to download artifact',
+  },
+} as const;
+
+// ============================================================================
+// BUILD COPY MESSAGES
+// ============================================================================
+
+export const BUILD_COPY_MESSAGES = {
+  COPY_SUCCESS: {
+    title: 'Link Copied',
+    message: 'Play Store link copied to clipboard',
+  },
+  COPY_FAILED: {
+    title: 'Copy Failed',
+    message: 'Failed to copy link to clipboard',
+  },
+} as const;
+
+// ============================================================================
+// COLLABORATOR MESSAGES
+// ============================================================================
+
+export const COLLABORATOR_MESSAGES = {
+  ADD_SUCCESS: {
+    title: 'Team Member Added',
+    message: 'Team member added successfully',
+  },
+  ADD_ERROR: {
+    title: 'Failed to Add Team Member',
+    message: 'Error While Adding Collaborator',
+  },
+  UPDATE_SUCCESS: {
+    title: 'Permission Updated',
+    message: 'Permission updated successfully',
+  },
+  UPDATE_ERROR: {
+    title: 'Failed to Update Team Member',
+    message: 'Error While Update Collaborator',
+  },
+  REMOVE_SUCCESS: {
+    title: 'Team Member Removed',
+    message: 'Collaborator removed successfully',
+  },
+  REMOVE_ERROR: {
+    title: 'Failed to Remove Team Member',
+    message: 'Error While Removing Collaborator',
+  },
+  EMAIL_REQUIRED: {
+    title: 'Validation Error',
+    message: 'Email is required',
+  },
+} as const;
+
+// ============================================================================
+// APP MESSAGES
+// ============================================================================
+
+export const APP_MESSAGES = {
+  CREATE_SUCCESS: {
+    title: 'Application Created',
+    message: 'Application has been created successfully',
+  },
+  CREATE_ERROR: {
+    title: 'Failed to Create Application',
+    message: 'Unable to create the application. Please try again.',
+  },
+  UPDATE_SUCCESS: {
+    title: 'Application Updated',
+    message: 'Application has been updated successfully',
+  },
+  UPDATE_ERROR: {
+    title: 'Failed to Update Application',
+    message: 'Unable to update the application. Please try again.',
+  },
+  DELETE_SUCCESS: {
+    title: 'Application Deleted',
+    message: 'Application has been deleted successfully',
+  },
+  DELETE_ERROR: {
+    title: 'Failed to Delete Application',
+    message: 'Unable to delete the application. Please try again.',
+  },
+} as const;
+
+// ============================================================================
+// PROJECT MESSAGES
+// ============================================================================
+
+export const PROJECT_MESSAGES = {
+  CREATE_SUCCESS: {
+    title: 'Project Created',
+    message: 'Project has been created successfully',
+  },
+  CREATE_ERROR: {
+    title: 'Failed to Create Project',
+    message: 'Unable to create the project. Please try again.',
+  },
+  CREATE_CONFLICT: {
+    title: 'Project Already Exists',
+    message: 'A project with this name already exists. Please choose a different name.',
+  },
+  UPDATE_SUCCESS: {
+    title: 'Project Updated',
+    message: 'Project has been updated successfully',
+  },
+  UPDATE_ERROR: {
+    title: 'Failed to Update Project',
+    message: 'Unable to update the project. Please try again.',
+  },
+  DELETE_SUCCESS: {
+    title: 'Project Deleted',
+    message: 'Project has been deleted successfully',
+  },
+  DELETE_ERROR: {
+    title: 'Failed to Delete Project',
+    message: 'Unable to delete the project. Please try again.',
+  },
+} as const;
+
+// ============================================================================
+// DEPLOYMENT MESSAGES
+// ============================================================================
+
+export const DEPLOYMENT_MESSAGES = {
+  CREATE_SUCCESS: {
+    title: 'Deployment Created',
+    message: 'Deployment has been created successfully',
+  },
+  CREATE_ERROR: {
+    title: 'Failed to Create Deployment',
+    message: 'Unable to create the deployment. Please try again.',
+  },
+  UPDATE_SUCCESS: {
+    title: 'Deployment Updated',
+    message: 'Deployment has been updated successfully',
+  },
+  UPDATE_ERROR: {
+    title: 'Failed to Update Deployment',
+    message: 'Unable to update the deployment. Please try again.',
+  },
+  DELETE_SUCCESS: {
+    title: 'Deployment Deleted',
+    message: 'Deployment has been deleted successfully',
+  },
+  DELETE_ERROR: {
+    title: 'Failed to Delete Deployment',
+    message: 'Unable to delete the deployment. Please try again.',
+  },
+} as const;
+
+// ============================================================================
+// TOKEN MESSAGES
+// ============================================================================
+
+export const TOKEN_MESSAGES = {
+  CREATE_SUCCESS: {
+    title: 'Token Created',
+    message: 'Access token has been created successfully',
+  },
+  CREATE_ERROR: {
+    title: 'Failed to Create Token',
+    message: 'Unable to create the access token. Please try again.',
+  },
+  DELETE_SUCCESS: {
+    title: 'Token Deleted',
+    message: 'Access token has been deleted successfully',
+  },
+  DELETE_ERROR: {
+    title: 'Failed to Delete Token',
+    message: 'Unable to delete the access token. Please try again.',
+  },
+} as const;

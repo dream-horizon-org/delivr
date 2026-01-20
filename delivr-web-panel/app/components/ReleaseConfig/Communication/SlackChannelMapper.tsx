@@ -1,0 +1,143 @@
+/**
+ * Slack Channel Mapper Component
+ * Map Slack channels for different notification types
+ */
+
+import { Stack, Text, Select, Card, Group, Switch, MultiSelect } from '@mantine/core';
+import { IconBrandSlack } from '@tabler/icons-react';
+import type { SlackChannelMapperProps } from '~/types/release-config-props';
+import { ICON_SIZES } from '~/constants/release-config-ui';
+
+export function SlackChannelMapper({
+  enabled,
+  integrationId,
+  channels,
+  onToggle,
+  onChange,
+  onIntegrationChange,
+  availableIntegrations,
+  availableChannels = [],
+}: SlackChannelMapperProps) {
+  // Channel options for MultiSelect
+  const channelOptions = availableChannels.map(ch => ({
+    value: ch.id,
+    label: ch.name,
+  }));
+
+  // Reusable function to handle channel selection changes
+  const handleChannelChange = (
+    channelType: keyof typeof channels,
+    selectedIds: string[]
+  ) => {
+    const channelObjects = selectedIds.map(id => {
+      const channel = availableChannels.find(ch => ch.id === id);
+      return channel || { id, name: id };
+    });
+    onChange({ ...channels, [channelType]: channelObjects });
+  };
+  return (
+    <Card shadow="sm" padding="md" radius="md" withBorder>
+      <Group gap="sm" className="mb-3">
+        <IconBrandSlack size={ICON_SIZES.SMALL} className="text-blue-600" />
+        <Text fw={600} size="sm">
+          Slack Integration
+        </Text>
+      </Group>
+      
+      <Stack gap="md">
+        <Switch
+          label="Enable Slack Notifications"
+          description="Send release updates and notifications to Slack"
+          checked={enabled}
+          onChange={(e) => onToggle(e.currentTarget.checked)}
+          size="md"
+        />
+        
+        {enabled && (
+          <>
+            {availableIntegrations.length > 0 ? (
+              <>
+                <Select
+                  label="Slack Workspace"
+                  placeholder="Select Slack integration"
+                  data={availableIntegrations.map(i => ({ value: i.id, label: i.name }))}
+                  value={integrationId}
+                  onChange={(val) => onIntegrationChange(val || '')}
+                  required
+                  description="Choose the connected Slack workspace"
+                />
+                
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <Text size="sm" fw={500} className="mb-3">
+                    Channel Mappings
+                  </Text>
+                  <Text size="xs" c="dimmed" className="mb-3">
+                    Map Slack channels for different types of notifications
+                  </Text>
+                  
+                  <Stack gap="sm">
+                    <MultiSelect
+                      label="Releases Channels"
+                      placeholder="Select channels for release notifications"
+                      data={channelOptions}
+                      value={channels.releases?.map(ch => ch.id) || []}
+                      onChange={(val) => handleChannelChange('releases', val)}
+                      searchable
+                      clearable
+                      description="Release announcements and status updates (supports multiple channels)"
+                      required
+                    />
+                    
+                    <MultiSelect
+                      label="Builds Channels"
+                      placeholder="Select channels for build notifications"
+                      data={channelOptions}
+                      value={channels.builds?.map(ch => ch.id) || []}
+                      onChange={(val) => handleChannelChange('builds', val)}
+                      searchable
+                      clearable
+                      description="Build status and completion notifications (supports multiple channels)"
+                      required
+                    />
+                    
+                    <MultiSelect
+                      label="Regression Channels"
+                      placeholder="Select channels for regression updates"
+                      data={channelOptions}
+                      value={channels.regression?.map(ch => ch.id) || []}
+                      onChange={(val) => handleChannelChange('regression', val)}
+                      searchable
+                      clearable
+                      description="Regression test updates (supports multiple channels)"
+                      required
+                    />
+                    
+                    <MultiSelect
+                      label="Critical Alerts Channels"
+                      placeholder="Select channels for critical alerts"
+                      data={channelOptions}
+                      value={channels.critical?.map(ch => ch.id) || []}
+                      onChange={(val) => handleChannelChange('critical', val)}
+                      searchable
+                      clearable
+                      description="Critical issues and urgent notifications (supports multiple channels)"
+                      required
+                    />
+                  </Stack>
+                </div>
+              </>
+            ) : (
+              <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                <Text size="sm" c="orange">
+                  No Slack integration found. Please connect Slack in the Integrations 
+                  page before configuring notifications.
+                </Text>
+              </div>
+            )}
+          </>
+        )}
+      </Stack>
+    </Card>
+  );
+}
+

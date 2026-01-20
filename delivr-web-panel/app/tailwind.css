@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  @apply bg-white dark:bg-gray-950;
+
+  @media (prefers-color-scheme: dark) {
+    color-scheme: dark;
+  }
+
+  min-height: 100vh;
+  min-width: 100vw;
+}
+
+@layer components {
+  /* Hover effect for interactive list items */
+  .hover-highlight {
+    @apply transition-all duration-200 ease-in-out;
+  }
+
+  .hover-highlight:hover {
+    @apply shadow-md transform scale-[1.01];
+  }
+
+  /* Fix form field alignment - ensure descriptions have consistent height */
+  .mantine-TextInput-description,
+  .mantine-Select-description,
+  .mantine-Textarea-description,
+  .mantine-NumberInput-description {
+    min-height: 1.5rem;
+    display: block;
+  }
+}

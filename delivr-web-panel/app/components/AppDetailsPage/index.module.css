@@ -1,0 +1,83 @@
+.backButton {
+  color: #495057;
+  transition: all 0.2s ease;
+}
+
+.backButton:hover {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  color: #667eea;
+  transform: translateX(-2px);
+}
+
+.breadcrumbText {
+  color: #868e96;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.appTitle {
+  color: #1a1a1a;
+  font-size: 1.25rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.inlineStatIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #667eea;
+}
+
+.createReleaseButton {
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  transition: all 0.2s ease;
+}
+
+.createReleaseButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.tabsCard {
+  background: white;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.tabs {
+  width: 100%;
+}
+
+.tabsList {
+  border-bottom: 2px solid #e9ecef;
+  margin-bottom: 1rem;
+}
+
+.tab {
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+}
+
+.tab[data-active="true"] {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+@media (max-width: 768px) {
+  .appTitle {
+    font-size: 1.5rem;
+  }
+}
+
