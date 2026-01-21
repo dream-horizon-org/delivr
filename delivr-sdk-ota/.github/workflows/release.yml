@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      # Check if version exists
+      - name: Check version
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          echo "Current version: $PACKAGE_VERSION"
+          if npm view @d11/dota@$PACKAGE_VERSION version; then
+            echo "Error: Version $PACKAGE_VERSION already exists on npm"
+            exit 1
+          fi
+          echo "Version $PACKAGE_VERSION is ready for publishing"
+
+      # Publish to npm
+      - name: Publish to NPM
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

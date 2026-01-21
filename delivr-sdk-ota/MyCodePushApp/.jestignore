@@ -1,0 +1,4 @@
+# Ignore automate.js from Jest's module system
+# It's an ES module and should be loaded dynamically
+automate.js
+
