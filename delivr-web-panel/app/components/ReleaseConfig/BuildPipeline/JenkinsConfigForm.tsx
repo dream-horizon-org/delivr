@@ -3,10 +3,10 @@
  * Captures Jenkins-specific build configuration with dynamic parameter fetching
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { TextInput, Select, Stack, Button, Text, Group, Alert, LoadingOverlay, Card } from '@mantine/core';
 import { IconPlus, IconTrash, IconRefresh, IconCheck, IconAlertCircle } from '@tabler/icons-react';
-import { apiPost, getApiErrorMessage } from '~/utils/api-client';
+import { apiPost, getApiErrorMessage, ApiError } from '~/utils/api-client';
 import type { JenkinsConfig } from '~/types/release-config';
 import type { JenkinsConfigFormProps } from '~/types/release-config-props';
 import type { WorkflowParameter } from '~/.server/services/ReleaseManagement/integrations';
@@ -32,6 +32,8 @@ export function JenkinsConfigForm({
   const [fetchedParameters, setFetchedParameters] = useState<WorkflowParameter[]>([]);
   
   const parameters = config.parameters || {};
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previousUrlRef = useRef<string | undefined>(undefined);
   
   // Auto-select integration if only one exists
   useEffect(() => {
@@ -44,11 +46,10 @@ export function JenkinsConfigForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availableIntegrations.length, availableIntegrations[0]?.id]);
 
-  // Restore parameterDefinitions and auto-fetch if missing
+  // Restore parameterDefinitions immediately if they exist
   useEffect(() => {
-    // If parameterDefinitions exist in config, restore them
     if (config.parameterDefinitions && Array.isArray(config.parameterDefinitions)) {
-      const restoredParams = config.parameterDefinitions.map((param) => {
+      const restoredParams = config.parameterDefinitions.map((param: WorkflowParameter & { choices?: string[] }) => {
         const hasChoices = (param as any).choices && (param as any).choices.length > 0;
         const hasOptions = param.options && param.options.length > 0;
         const options = hasOptions ? param.options : (hasChoices ? (param as any).choices : undefined);
@@ -61,13 +62,58 @@ export function JenkinsConfigForm({
       
       setFetchedParameters(restoredParams);
       setParametersFetched(true);
-    } else if (config.jobUrl && config.integrationId && tenantId && !parametersFetched && !fetchingParams) {
-      // Auto-fetch if we have jobUrl and integrationId but no parameterDefinitions
-      // This handles edit mode where workflow was created with manual parameters
-      handleFetchParameters();
     }
+  }, [config.parameterDefinitions]);
+
+  // Clear parameters and inputs when URL changes
+  useEffect(() => {
+    const jobUrl = config.jobUrl;
+    
+    // If URL changed (or became empty) and we have fetched parameters, clear them
+    const urlChanged = previousUrlRef.current !== jobUrl && previousUrlRef.current !== undefined;
+    const urlCleared = !jobUrl && previousUrlRef.current;
+    
+    if ((urlChanged || urlCleared) && (parametersFetched || config.parameterDefinitions)) {
+      setFetchedParameters([]);
+      setParametersFetched(false);
+      setFetchError(null);
+      
+      // Clear parameters and parameterDefinitions
+      onChange({
+        ...config,
+        parameters: {},
+        parameterDefinitions: undefined,
+      } as any);
+    }
+    
+    previousUrlRef.current = jobUrl;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.parameterDefinitions, config.jobUrl, config.integrationId]);
+  }, [config.jobUrl]);
+
+  // Debounced auto-fetch when URL/integrationId changes
+  useEffect(() => {
+    // Clear any existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Only auto-fetch if we don't have parameterDefinitions and have required fields
+    // The clear effect handles resetting state when URL changes, so we just need to check if we should fetch
+    if (!config.parameterDefinitions && config.jobUrl && config.integrationId && tenantId && !parametersFetched && !fetchingParams) {
+      // Debounce the fetch by 1000ms
+      debounceTimeoutRef.current = setTimeout(() => {
+        handleFetchParameters();
+      }, 1000);
+    }
+
+    // Cleanup timeout on unmount or when dependencies change
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.jobUrl, config.integrationId, config.parameterDefinitions, parametersFetched]);
   
   // Manual parameter handlers - DISABLED
   // const handleAddParameter = () => {
@@ -179,9 +225,56 @@ export function JenkinsConfigForm({
         setParametersFetched(true);
       } else {
         setFetchError('Failed to fetch parameters');
+        // Clear parameters on failure
+        setFetchedParameters([]);
+        setParametersFetched(false);
+        onChange({
+          ...config,
+          parameters: {},
+          parameterDefinitions: undefined,
+        } as any);
       }
     } catch (error) {
-      setFetchError(getApiErrorMessage(error, 'Failed to fetch parameters'));
+      // Extract user-friendly error message
+      let errorMessage = getApiErrorMessage(error, 'Failed to fetch parameters');
+      
+      // Check if error is ApiError with response property
+      if (error instanceof ApiError && error.response) {
+        const response = error.response;
+        if (response && typeof response === 'object') {
+          // Try to extract message from response
+          if ('message' in response && typeof response.message === 'string') {
+            errorMessage = response.message;
+          } else if ('error' in response) {
+            const errorField = response.error;
+            if (typeof errorField === 'string') {
+              errorMessage = errorField;
+            } else if (errorField && typeof errorField === 'object' && 'message' in errorField && typeof errorField.message === 'string') {
+              errorMessage = errorField.message || errorMessage;
+            }
+          }
+        }
+      }
+      
+      // If error message is JSON string, try to parse and extract message
+      try {
+        const parsed = JSON.parse(errorMessage);
+        if (parsed && typeof parsed === 'object' && 'message' in parsed) {
+          errorMessage = parsed.message || errorMessage;
+        }
+      } catch {
+        // Not JSON, use as is
+      }
+      
+      setFetchError(errorMessage);
+      // Clear parameters on failure
+      setFetchedParameters([]);
+      setParametersFetched(false);
+      onChange({
+        ...config,
+        parameters: {},
+        parameterDefinitions: undefined,
+      } as any);
     } finally {
       setFetchingParams(false);
     }

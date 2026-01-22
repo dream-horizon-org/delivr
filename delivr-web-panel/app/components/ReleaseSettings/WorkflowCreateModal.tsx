@@ -33,7 +33,7 @@ import {
   PLACEHOLDERS,
 } from '~/constants/release-config-ui';
 import { workflowTypeToEnvironment, environmentToWorkflowType, getEnvironmentsForPlatform } from '~/types/workflow-mappings';
-import { validateWorkflowName } from '~/utils/workflow-validation';
+import { validateWorkflowName, areMandatoryFieldsFilled as checkMandatoryFieldsFilled, isUrlValid as checkUrlValid } from '~/utils/workflow-validation';
 
 const platformOptions = [
   { value: PLATFORMS.ANDROID, label: PLATFORM_LABELS.ANDROID },
@@ -256,6 +256,15 @@ function WorkflowCreateModalComponent({
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [name, provider, providerConfig, existingWorkflow, workflows]);
+
+  // Check if URL is valid for the current provider
+  const isUrlValid = useMemo(() => {
+    return checkUrlValid(provider, providerConfig);
+  }, [provider, providerConfig]);
+
+  const areMandatoryFieldsFilled = useMemo(() => {
+    return checkMandatoryFieldsFilled(name, provider, providerConfig);
+  }, [name, provider, providerConfig]);
 
   const handleSave = useCallback(async () => {
     if (!validate()) {
@@ -533,7 +542,7 @@ function WorkflowCreateModalComponent({
           <Button
             onClick={handleSave}
             color="brand"
-            disabled={availableProviders.length === 0 || isSaving}
+            disabled={availableProviders.length === 0 || isSaving || !areMandatoryFieldsFilled || !isUrlValid}
             loading={isSaving}
             leftSection={!isSaving && <IconRocket size={16} />}
           >
