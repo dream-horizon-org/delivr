@@ -261,6 +261,76 @@
       "fields": [],
       "description": "We have scheduled a new regression slot at *{0}*."
     },
+    "build-submitted": {
+      "metadata": {
+        "name": "Build Submitted",
+        "emoji": "",
+        "color": "#28A745",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "{0} build version *{1} ({2})* submitted to {3} by *{4}*."
+    },
+    "build-resubmitted": {
+      "metadata": {
+        "name": "Build Resubmitted",
+        "emoji": "",
+        "color": "#17A2B8",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "{0} build version *{1} ({2})* resubmitted to {3} by *{4}*."
+    },
+    "build-live": {
+      "metadata": {
+        "name": "Build Live",
+        "emoji": "",
+        "color": "#28A745",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "{0} version *{1}{2}* is now LIVE on {3}!"
+    },
+    "build-rejected": {
+      "metadata": {
+        "name": "Build Rejected",
+        "emoji": "",
+        "color": "#DC3545",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "{0} build *{1} ({2})* was rejected by {3} due to *{4}*."
+    },
+    "build-cancelled": {
+      "metadata": {
+        "name": "Build Cancelled",
+        "emoji": "",
+        "color": "#FFC107",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "{0} build *{1} ({2})* was cancelled by *{3}* due to *{4}*."
+    },
+    "build-user-action-pending": {
+      "metadata": {
+        "name": "User Action Pending",
+        "emoji": "",
+        "color": "#FFC107",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "It's been more than 5 days since {0} version *{1} ({2})* was submitted by *{3}* but it is still not yet LIVE, can you please check the status on {4} to take the next required steps."
+    },
+    "build-suspended": {
+      "metadata": {
+        "name": "Build Suspended",
+        "emoji": "",
+        "color": "#DC3545",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "It's been more than 15 days since {0} version *{1} ({2})* was submitted by *{3}* but it is still not yet LIVE, will be marking it as SUSPENDED release which means No other actions like Pause/Resume/Halt can be taken on that."
+    },
     "ios-test-flight-build": {
       "metadata": {
         "name": "iOS TestFlight Build",
@@ -300,6 +370,16 @@
       },
       "fields": [],
       "description": "Release is waiting for approval to proceed to distribution.\n\nPlease review and approve to continue.\n\n<{0}|Review in Delivr>"
+    },
+    "project-management-approval": {
+      "metadata": {
+        "name": "Project Management Approval Pending",
+        "emoji": "⏳",
+        "color": "#FFC107",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "⏳ *Project Management Approval Pending*\n\n✅ Pre-release tasks are complete\n⚠️ Project management tickets are not yet approved\n\n📋 *Tickets to approve:*\n{1}\n\n<{0}|Review and approve in Delivr>"
     },
     "target-date-changed": {
       "metadata": {
@@ -440,6 +520,16 @@
       },
       "fields": [],
       "description": "The release process is paused. Please upload the {0} build to resume the release process.\n\n<{1}|Check on Delivr>"
+    },
+    "build-submitted": {
+      "metadata": {
+        "name": "Build Submitted",
+        "emoji": "",
+        "color": "#28A745",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "{0} build version *{1} ({2})* submitted to {3} by *{4}*."
     }
   }
 }

@@ -32,24 +32,18 @@ export enum Task {
   // Approvals
   REGRESSION_STAGE_APPROVAL_REQUEST = 'regression-stage-approval-request',
   PRE_RELEASE_STAGE_APPROVAL_REQUEST = 'pre-release-stage-approval-request',
+  PROJECT_MANAGEMENT_APPROVAL = 'project-management-approval',
   
   // Release Updates
   TARGET_DATE_CHANGED = 'target-date-changed',
-  IOS_APPSTORE_BUILD_SUBMITTED = 'ios-appstore-build-submitted',
-  ANDROID_PLAYSTORE_BUILD_SUBMITTED = 'android-playstore-build-submitted',
-  IOS_APPSTORE_BUILD_RESUBMITTED = 'ios-appstore-build-resubmitted',
-  ANDROID_PLAYSTORE_BUILD_RESUBMITTED = 'android-playstore-build-resubmitted',
-  
-  // Release Live
-  IOS_APPSTORE_LIVE = 'ios-appstore-live',
-  ANDROID_PLAYSTORE_LIVE = 'android-playstore-live',
-  ANDROID_WEB_LIVE = 'android-web-live',
-  
-  // Release Status Alerts
-  IOS_APPSTORE_BUILD_REJECTED = 'ios-appstore-build-rejected',
-  IOS_APPSTORE_BUILD_CANCELLED = 'ios-appstore-build-cancelled',
-  ANDROID_PLAYSTORE_USER_ACTION_PENDING = 'android-playstore-user-action-pending',
-  ANDROID_PLAYSTORE_SUSPENDED = 'android-playstore-suspended',
+  // Generic Distribution Notifications
+  BUILD_SUBMITTED = 'build-submitted',
+  BUILD_RESUBMITTED = 'build-resubmitted',
+  BUILD_LIVE = 'build-live',
+  BUILD_REJECTED = 'build-rejected',
+  BUILD_CANCELLED = 'build-cancelled',
+  BUILD_USER_ACTION_PENDING = 'build-user-action-pending',
+  BUILD_SUSPENDED = 'build-suspended',
   
   // Failures & Reminders
   TASK_FAILED = 'task-failed',
@@ -134,23 +128,20 @@ export enum ChannelBucket {
 export const BUCKET_TASK_MAPPING: Record<ChannelBucket, Task[]> = {
   [ChannelBucket.RELEASE]: [
     Task.PRE_KICKOFF_REMINDER,
+    Task.PROJECT_MANAGEMENT_APPROVAL,
     Task.BRANCH_FORKOUT,
     Task.FINAL_RELEASE_NOTES,
     Task.WHATS_NEW,
     Task.REGRESSION_STAGE_APPROVAL_REQUEST,
     Task.PRE_RELEASE_STAGE_APPROVAL_REQUEST,
     Task.TARGET_DATE_CHANGED,
-    Task.IOS_APPSTORE_BUILD_SUBMITTED,
-    Task.ANDROID_PLAYSTORE_BUILD_SUBMITTED,
-    Task.IOS_APPSTORE_LIVE,
-    Task.ANDROID_PLAYSTORE_LIVE,
-    Task.ANDROID_WEB_LIVE,
-    Task.IOS_APPSTORE_BUILD_REJECTED,
-    Task.IOS_APPSTORE_BUILD_CANCELLED,
-    Task.ANDROID_PLAYSTORE_USER_ACTION_PENDING,
-    Task.ANDROID_PLAYSTORE_SUSPENDED,
-    Task.IOS_APPSTORE_BUILD_RESUBMITTED,
-    Task.ANDROID_PLAYSTORE_BUILD_RESUBMITTED
+    Task.BUILD_SUBMITTED,  // New generic
+    Task.BUILD_RESUBMITTED,  // New generic
+    Task.BUILD_LIVE,  // New generic
+    Task.BUILD_REJECTED,  // New generic
+    Task.BUILD_CANCELLED,  // New generic
+    Task.BUILD_USER_ACTION_PENDING,  // New generic
+    Task.BUILD_SUSPENDED  // New generic
   ],
   [ChannelBucket.BUILD]: [
     Task.PREREGRESSION_BUILDS,

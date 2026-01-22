@@ -33,6 +33,7 @@ import {
 import { NotificationType } from '~types/release-notification';
 import type { Task } from '~services/integrations/comm/messaging/messaging.interface';
 import { Platform } from '~services/integrations/comm/messaging/messaging.interface';
+import { getPlatformDisplayName, getTargetDisplayName, getStoreConsoleName } from '~utils/platform.utils';
 
 /**
  * Release Notification Service
@@ -356,6 +357,12 @@ export class ReleaseNotificationService {
           payload.delivrUrl     // {0}
         ];
 
+      case NotificationType.PROJECT_MANAGEMENT_APPROVAL:
+        return [
+          payload.delivrUrl,              // {0}
+          payload.links.join('\n')        // {1} - ticket links as newline-separated string
+        ];
+
       // ============================================================================
       // RELEASE LIFECYCLE
       // ============================================================================
@@ -366,87 +373,70 @@ export class ReleaseNotificationService {
           payload.newDate        // {1}
         ];
 
-      case NotificationType.IOS_APPSTORE_BUILD_SUBMITTED:
+      case NotificationType.BUILD_SUBMITTED:
         return [
-          payload.version,
-          payload.testflightBuild,
-          payload.submittedBy       
-                 // {0}, {1}, {2}
+          getPlatformDisplayName(payload.platform),  // {0}
+          payload.version,                           // {1}
+          payload.buildNumber,                       // {2}
+          getTargetDisplayName(payload.target),      // {3}
+          payload.submittedBy                        // {4}
         ];
 
-      case NotificationType.ANDROID_PLAYSTORE_BUILD_SUBMITTED:  
+      case NotificationType.BUILD_RESUBMITTED:
         return [
-          payload.version,
-          payload.versionCode,
-          payload.submittedBy       
-                 // {0}, {1}, {2}
+          getPlatformDisplayName(payload.platform),  // {0}
+          payload.version,                           // {1}
+          payload.buildNumber,                       // {2}
+          getTargetDisplayName(payload.target),      // {3}
+          payload.submittedBy                        // {4}
         ];
 
-      case NotificationType.IOS_APPSTORE_LIVE:
+      case NotificationType.BUILD_LIVE:
+        const buildNumberDisplay = payload.buildNumber 
+          ? ` (${payload.buildNumber})` 
+          : '';
         return [
-          payload.version,           // {0}
-          payload.testflightBuild    // {1}
+          getPlatformDisplayName(payload.platform),  // {0}
+          payload.version,                           // {1}
+          buildNumberDisplay,                        // {2}
+          getTargetDisplayName(payload.target)       // {3}
         ];
 
-      case NotificationType.ANDROID_PLAYSTORE_LIVE:
+      case NotificationType.BUILD_REJECTED:
         return [
-          payload.version,      // {0}
-          payload.versionCode   // {1}
+          getPlatformDisplayName(payload.platform),  // {0}
+          payload.version,                           // {1}
+          payload.buildNumber,                       // {2}
+          getTargetDisplayName(payload.target),      // {3}
+          payload.reason                             // {4}
         ];
 
-      case NotificationType.ANDROID_WEB_LIVE:
+      case NotificationType.BUILD_CANCELLED:
         return [
-          payload.version        // {0}
+          getPlatformDisplayName(payload.platform),  // {0}
+          payload.version,                           // {1}
+          payload.buildNumber,                       // {2}
+          payload.cancelledBy,                       // {3}
+          payload.reason                             // {4}
         ];
 
-      case NotificationType.IOS_APPSTORE_BUILD_RESUBMITTED:
+      case NotificationType.BUILD_USER_ACTION_PENDING:
         return [
-          payload.version,
-          payload.testflightBuild,
-          payload.submittedBy       
-                 // {0}, {1}, {2}
+          getPlatformDisplayName(payload.platform),  // {0}
+          payload.version,                           // {1}
+          payload.buildNumber,                       // {2}
+          payload.submittedBy,                       // {3}
+          getStoreConsoleName(payload.target)        // {4}
         ];
 
-      case NotificationType.ANDROID_PLAYSTORE_BUILD_RESUBMITTED:
+      case NotificationType.BUILD_SUSPENDED:
         return [
-          payload.version,
-          payload.versionCode,
-          payload.submittedBy       
-                 // {0}, {1}, {2}
+          getPlatformDisplayName(payload.platform),  // {0}
+          payload.version,                           // {1}
+          payload.buildNumber,                       // {2}
+          payload.submittedBy                        // {3}
         ];
 
-      case NotificationType.IOS_APPSTORE_BUILD_REJECTED:
-        return [
-          payload.version,
-          payload.testflightBuild,
-          payload.reason       
-                 // {0}, {1}, {2}
-        ];
-
-      case NotificationType.IOS_APPSTORE_BUILD_CANCELLED:
-        return [
-          payload.version,
-          payload.testflightBuild,
-          payload.cancelledBy,
-          payload.reason       
-                 // {0}, {1}, {2}, {3}
-        ];
-
-      case NotificationType.ANDROID_PLAYSTORE_USER_ACTION_PENDING:
-        return [
-          payload.version,
-          payload.versionCode,
-          payload.submittedBy       
-                 // {0}, {1}, {2}
-        ];
-
-      case NotificationType.ANDROID_PLAYSTORE_SUSPENDED:
-        return [
-          payload.version,
-          payload.versionCode,
-          payload.submittedBy       
-                 // {0}, {1}, {2}
-        ];
       // ============================================================================
       // ERRORS & REMINDERS
       // ============================================================================

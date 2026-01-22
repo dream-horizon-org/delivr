@@ -38,6 +38,7 @@ import type { CronicleService } from '~services/cronicle';
 import type { CronJobService } from '../release/cron-job/cron-job.service';
 import type { ReleaseNotificationService } from '~services/release-notification';
 import { NotificationType } from '~types/release-notification';
+import { PlatformName, TargetName } from '~models/release/release.interface';
 import { getAccountDetails } from '~utils/account.utils';
 
 /**
@@ -1450,11 +1451,13 @@ export class SubmissionService {
         
         if (submitterEmail) {
           await this.releaseNotificationService.notify({
-            type: NotificationType.IOS_APPSTORE_BUILD_SUBMITTED,
+            type: NotificationType.BUILD_SUBMITTED,  // Use generic type
             tenantId: distribution.tenantId,
             releaseId: distribution.releaseId,
+            platform: PlatformName.IOS,
+            target: finalSubmission.storeType as TargetName,  // APP_STORE
             version: finalSubmission.version,
-            testflightBuild: finalSubmission.testflightNumber,
+            buildNumber: finalSubmission.testflightNumber,  // Normalized name
             submittedBy: submitterEmail
           });
           
@@ -1760,11 +1763,13 @@ export class SubmissionService {
           
           if (submitterEmail) {
             await this.releaseNotificationService.notify({
-              type: NotificationType.ANDROID_PLAYSTORE_BUILD_SUBMITTED,
+              type: NotificationType.BUILD_SUBMITTED,  // Use generic type
               tenantId: distribution.tenantId,
               releaseId: distribution.releaseId,
+              platform: PlatformName.ANDROID,
+              target: finalSubmission.storeType as TargetName,  // PLAY_STORE
               version: finalSubmission.version,
-              versionCode: String(finalSubmission.versionCode),
+              buildNumber: String(finalSubmission.versionCode),  // Normalized name
               submittedBy: submitterEmail
             });
             
@@ -2205,11 +2210,13 @@ export class SubmissionService {
         
         if (submitterEmail) {
           await this.releaseNotificationService.notify({
-            type: NotificationType.IOS_APPSTORE_BUILD_RESUBMITTED,
+            type: NotificationType.BUILD_RESUBMITTED,  // Use generic type
             tenantId: distribution.tenantId,
             releaseId: distribution.releaseId,
+            platform: PlatformName.IOS,
+            target: finalSubmission.storeType as TargetName,  // APP_STORE
             version: finalSubmission.version,
-            testflightBuild: finalSubmission.testflightNumber,
+            buildNumber: finalSubmission.testflightNumber,  // Normalized name
             submittedBy: submitterEmail
           });
           
@@ -4151,11 +4158,12 @@ export class SubmissionService {
         
         if (cancellerEmail) {
           await this.releaseNotificationService.notify({
-            type: NotificationType.IOS_APPSTORE_BUILD_CANCELLED,
+            type: NotificationType.BUILD_CANCELLED,  // Use generic type
             tenantId: distribution.tenantId,
             releaseId: distribution.releaseId,
+            platform: PlatformName.IOS,
             version: updatedSubmission.version,
-            testflightBuild: updatedSubmission.testflightNumber,
+            buildNumber: updatedSubmission.testflightNumber,
             cancelledBy: cancellerEmail,
             reason: reason
           });
@@ -4380,11 +4388,13 @@ export class SubmissionService {
               console.log(`[IosSubmissionStatus] Sending iOS App Store LIVE notification for release ${distribution.releaseId}`);
               
               await this.releaseNotificationService.notify({
-                type: NotificationType.IOS_APPSTORE_LIVE,
+                type: NotificationType.BUILD_LIVE,  // Use generic type
                 tenantId: distribution.tenantId,
                 releaseId: distribution.releaseId,
+                platform: PlatformName.IOS,
+                target: submission.storeType as TargetName,  // APP_STORE
                 version: submission.version,
-                testflightBuild: submission.testflightNumber
+                buildNumber: submission.testflightNumber
               });
               
               console.log(`[IosSubmissionStatus] iOS App Store LIVE notification sent successfully`);
@@ -4518,11 +4528,13 @@ export class SubmissionService {
           console.log(`[handleRejection] Sending iOS App Store rejection notification for release ${distribution.releaseId}`);
           
           await this.releaseNotificationService.notify({
-            type: NotificationType.IOS_APPSTORE_BUILD_REJECTED,
+            type: NotificationType.BUILD_REJECTED,  // Use generic type
             tenantId: distribution.tenantId,
             releaseId: distribution.releaseId,
+            platform: PlatformName.IOS,
+            target: submission.storeType as TargetName,  // APP_STORE
             version: submission.version,
-            testflightBuild: submission.testflightNumber,
+            buildNumber: submission.testflightNumber,
             reason: reason
           });
           
@@ -4777,11 +4789,13 @@ export class SubmissionService {
             console.log(`[updateAndroidSubmissionStatus] Sending Android Play Store LIVE (IN_PROGRESS) notification for release ${distribution.releaseId}`);
             
             await this.releaseNotificationService.notify({
-              type: NotificationType.ANDROID_PLAYSTORE_LIVE,
+              type: NotificationType.BUILD_LIVE,  // Use generic type
               tenantId: distribution.tenantId,
               releaseId: distribution.releaseId,
+              platform: PlatformName.ANDROID,
+              target: submission.storeType as TargetName,  // PLAY_STORE
               version: submission.version,
-              versionCode: String(submission.versionCode)
+              buildNumber: String(submission.versionCode)
             });
             
             console.log(`[updateAndroidSubmissionStatus] Android Play Store LIVE (IN_PROGRESS) notification sent successfully`);
@@ -4792,11 +4806,13 @@ export class SubmissionService {
             console.log(`[updateAndroidSubmissionStatus] Sending Android Play Store LIVE notification for release ${distribution.releaseId}`);
             
             await this.releaseNotificationService.notify({
-              type: NotificationType.ANDROID_PLAYSTORE_LIVE,
+              type: NotificationType.BUILD_LIVE,  // Use generic type
               tenantId: distribution.tenantId,
               releaseId: distribution.releaseId,
+              platform: PlatformName.ANDROID,
+              target: submission.storeType as TargetName,  // PLAY_STORE
               version: submission.version,
-              versionCode: String(submission.versionCode)
+              buildNumber: String(submission.versionCode)
             });
             
             console.log(`[updateAndroidSubmissionStatus] Android Play Store LIVE notification sent successfully`);
@@ -4814,11 +4830,13 @@ export class SubmissionService {
               console.warn('[updateAndroidSubmissionStatus] Cannot send USER ACTION PENDING notification: submitter email not found for user ID:', submittedById);
             } else {
               await this.releaseNotificationService.notify({
-                type: NotificationType.ANDROID_PLAYSTORE_USER_ACTION_PENDING,
+                type: NotificationType.BUILD_USER_ACTION_PENDING,  // Use generic type
                 tenantId: distribution.tenantId,
                 releaseId: distribution.releaseId,
+                platform: PlatformName.ANDROID,
+                target: submission.storeType as TargetName,  // PLAY_STORE
                 version: submission.version,
-                versionCode: String(submission.versionCode),
+                buildNumber: String(submission.versionCode),
                 submittedBy: submitterEmail
               });
               
@@ -4838,11 +4856,12 @@ export class SubmissionService {
               console.warn('[updateAndroidSubmissionStatus] Cannot send SUSPENDED notification: submitter email not found for user ID:', submittedById);
             } else {
               await this.releaseNotificationService.notify({
-                type: NotificationType.ANDROID_PLAYSTORE_SUSPENDED,
+                type: NotificationType.BUILD_SUSPENDED,  // Use generic type
                 tenantId: distribution.tenantId,
                 releaseId: distribution.releaseId,
+                platform: PlatformName.ANDROID,
                 version: submission.version,
-                versionCode: String(submission.versionCode),
+                buildNumber: String(submission.versionCode),
                 submittedBy: submitterEmail
               });
               
