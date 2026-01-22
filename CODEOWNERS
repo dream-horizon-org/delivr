@@ -1,6 +1,3 @@
-# Directory-specific Owners
-# These users will be requested for review when changes are made to their respective directories.
-
 # SDK and CLI
 /delivr-cli/ @devanshsaini11
 /delivr-sdk-ota/ @devanshsaini11
