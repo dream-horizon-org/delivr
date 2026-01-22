@@ -6,7 +6,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { TextInput, Select, Stack, Button, Text, Alert, LoadingOverlay, Card, Group } from '@mantine/core';
 import { IconPlus, IconTrash, IconRefresh, IconCheck, IconAlertCircle } from '@tabler/icons-react';
-import { apiPost, getApiErrorMessage, ApiError } from '~/utils/api-client';
+import { apiPost } from '~/utils/api-client';
+import { extractApiErrorWithResponse } from '~/utils/api-error-utils';
 import type { GitHubActionsConfig } from '~/types/release-config';
 import type { GitHubActionsConfigFormProps } from '~/types/release-config-props';
 import type { WorkflowParameter } from '~/.server/services/ReleaseManagement/integrations';
@@ -90,32 +91,6 @@ export function GitHubActionsConfigForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.workflowUrl, config.workflowPath]);
 
-  // Debounced auto-fetch when URL/integrationId changes
-  useEffect(() => {
-    // Clear any existing timeout
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-
-    const workflowUrl = config.workflowUrl || config.workflowPath;
-    // Only auto-fetch if we don't have parameterDefinitions and have required fields
-    // The clear effect handles resetting state when URL changes, so we just need to check if we should fetch
-    if (!config.parameterDefinitions && workflowUrl && config.integrationId && tenantId && !parametersFetched && !fetchingParams) {
-      // Debounce the fetch by 1000ms
-      debounceTimeoutRef.current = setTimeout(() => {
-        handleFetchParameters();
-      }, 1000);
-    }
-
-    // Cleanup timeout on unmount or when dependencies change
-    return () => {
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.workflowUrl, config.workflowPath, config.integrationId, config.parameterDefinitions, parametersFetched]);
-  
   // Manual input handlers - DISABLED
   // const handleAddInput = () => {
   //   if (newInputKey && newInputValue) {
@@ -237,37 +212,8 @@ export function GitHubActionsConfigForm({
         } as any);
       }
     } catch (error) {
-      // Extract user-friendly error message
-      let errorMessage = getApiErrorMessage(error, 'Failed to fetch workflow inputs');
-      
-      // Check if error is ApiError with response property
-      if (error instanceof ApiError && error.response) {
-        const response = error.response;
-        if (response && typeof response === 'object') {
-          // Try to extract message from response
-          if ('message' in response && typeof response.message === 'string') {
-            errorMessage = response.message;
-          } else if ('error' in response) {
-            const errorField = response.error;
-            if (typeof errorField === 'string') {
-              errorMessage = errorField;
-            } else if (errorField && typeof errorField === 'object' && 'message' in errorField && typeof errorField.message === 'string') {
-              errorMessage = errorField.message || errorMessage;
-            }
-          }
-        }
-      }
-      
-      // If error message is JSON string, try to parse and extract message
-      try {
-        const parsed = JSON.parse(errorMessage);
-        if (parsed && typeof parsed === 'object' && 'message' in parsed) {
-          errorMessage = parsed.message || errorMessage;
-        }
-      } catch {
-        // Not JSON, use as is
-      }
-      
+      // Extract user-friendly error message using utility function
+      const errorMessage = extractApiErrorWithResponse(error, 'Failed to fetch workflow inputs');
       setFetchError(errorMessage);
       // Clear inputs and parameters on failure
       setFetchedParameters([]);
@@ -281,6 +227,32 @@ export function GitHubActionsConfigForm({
       setFetchingParams(false);
     }
   };
+
+  // Debounced auto-fetch when URL/integrationId changes
+  useEffect(() => {
+    // Clear any existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    const workflowUrl = config.workflowUrl || config.workflowPath;
+    // Only auto-fetch if we don't have parameterDefinitions and have required fields
+    // The clear effect handles resetting state when URL changes, so we just need to check if we should fetch
+    if (!config.parameterDefinitions && workflowUrl && config.integrationId && tenantId && !parametersFetched && !fetchingParams) {
+      // Debounce the fetch by 1000ms
+      debounceTimeoutRef.current = setTimeout(() => {
+        handleFetchParameters();
+      }, 1000);
+    }
+
+    // Cleanup timeout on unmount or when dependencies change
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.workflowUrl, config.workflowPath, config.integrationId, config.parameterDefinitions, parametersFetched]);
   
   const handleInputValueChange = (inputName: string, value: string) => {
     onChange({

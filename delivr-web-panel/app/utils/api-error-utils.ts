@@ -185,3 +185,42 @@ export function getApiErrorCode(error: ApiErrorField): string | undefined {
   return undefined;
 }
 
+
+export function extractApiErrorWithResponse(
+  error: unknown,
+  fallback = 'An unexpected error occurred'
+): string {
+  // Start with basic error extraction
+  let errorMessage = getApiErrorMessage(error, fallback);
+  
+  // Check if error is ApiError with response property
+  if (error instanceof ApiError && error.response) {
+    const response = error.response;
+    if (response && typeof response === 'object') {
+      // Try to extract message from response
+      if ('message' in response && typeof response.message === 'string') {
+        errorMessage = response.message;
+      } else if ('error' in response) {
+        const errorField = response.error;
+        if (typeof errorField === 'string') {
+          errorMessage = errorField;
+        } else if (errorField && typeof errorField === 'object' && 'message' in errorField && typeof errorField.message === 'string') {
+          errorMessage = errorField.message || errorMessage;
+        }
+      }
+    }
+  }
+  
+  // If error message is JSON string, try to parse and extract message
+  try {
+    const parsed = JSON.parse(errorMessage);
+    if (parsed && typeof parsed === 'object' && 'message' in parsed) {
+      errorMessage = parsed.message || errorMessage;
+    }
+  } catch {
+    // Not JSON, use as is
+  }
+  
+  return errorMessage;
+}
+
