@@ -73,6 +73,7 @@ const verifyJiraCredentials = async ({
       return json(result, { status: 200 });
     } else {
       // Verification failed - include backend error/message details
+      // Use 400 (Bad Request) instead of 401 to avoid being treated as session expiration
       const errorMessage = result.error || result.message || 'Verification failed';
       return json({
         success: false,
@@ -80,7 +81,7 @@ const verifyJiraCredentials = async ({
         error: errorMessage,
         message: result.message,
         details: result.details,
-      }, { status: 401 });
+      }, { status: 400 });
     }
   } catch (error) {
     logApiError('[BFF-Jira-Verify]', error);
