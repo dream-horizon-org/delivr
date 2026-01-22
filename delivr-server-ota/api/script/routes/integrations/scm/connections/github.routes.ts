@@ -43,6 +43,7 @@ export const createGitHubConnectionRoutes = (storage: Storage): Router => {
     "/tenants/:tenantId/integrations/scm/github",
     validateSCM.validateTenantId,
     tenantPermissions.requireOwner({ storage }),
+    validateSCM.validateUpdateGitHubBody,
     githubConn.updateGitHubConnection
   );
 

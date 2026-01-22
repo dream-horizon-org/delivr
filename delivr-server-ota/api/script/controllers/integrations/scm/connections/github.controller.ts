@@ -85,19 +85,30 @@ export async function verifyGitHubConnection(
     
     const verificationResult = await verifyGitHub(owner, repo, decryptedToken);
 
+    // Return 400 if verification fails
+    if (!verificationResult.isValid) {
+      return res.status(400).json({
+        success: false,
+        verified: false,
+        message: verificationResult.message,
+        details: verificationResult.details
+      });
+    }
+
+    // Return 200 if verification succeeds
     return res.status(200).json({
-      success: verificationResult.isValid,
-      verified: verificationResult.isValid,
+      success: true,
+      verified: true,
       message: verificationResult.message,
       details: verificationResult.details
     });
   } catch (error: any) {
     console.error(`[GitHub] Error verifying ${owner}/${repo}:`, error.message);
-    return res.status(200).json({
+    return res.status(400).json({
       success: false,
       verified: false,
       message: error.message || "Failed to verify connection",
-      error: error.message
+      details: { error: error.message }
     });
   }
 }
@@ -141,7 +152,8 @@ export async function createGitHubConnection(
   if (!verificationResult.isValid) {
   return res.status(400).json({
     success: false,
-    error: `Verification failed: ${verificationResult.message}`,
+    verified: false,
+    message: verificationResult.message,
     details: verificationResult.details
   });
   }
@@ -275,29 +287,38 @@ export async function updateGitHubConnection(
 
     // Double-layer encryption: Decrypt frontend-encrypted values, then encrypt with backend storage key
     const processedUpdateData = { ...updateData };
+    const isOwnerUpdated = processedUpdateData.owner !== existing.owner;
+    const isRepoUpdated = processedUpdateData.repo !== existing.repo;
+    const isTokenUpdated = processedUpdateData.accessToken !== undefined;
     
-    if (processedUpdateData.accessToken) {
-      // Decrypt frontend-encrypted value for verification
-      const decryptedToken = _encrypted 
+
+    if((isOwnerUpdated || isRepoUpdated)&& !(isTokenUpdated)) {
+      return res.status(400).json({
+        success: false,
+        error: "accessToken is required when updating owner or repo",
+      });
+    }
+    if (isOwnerUpdated || isRepoUpdated || isTokenUpdated) {
+      const ownerToVerify  =processedUpdateData.owner ?? existing.owner;
+      const repoToVerify  =processedUpdateData.repo ?? existing.repo;
+
+      const tokenToVerify = _encrypted
         ? decryptIfEncrypted(processedUpdateData.accessToken, 'accessToken')
         : processedUpdateData.accessToken;
-      
-      const verificationResult = await verifyGitHub(
-        existing.owner, 
-        existing.repo, 
-        decryptedToken
-      );
+
+      const verificationResult = await verifyGitHub(ownerToVerify, repoToVerify, tokenToVerify);
 
       if (!verificationResult.isValid) {
         return res.status(400).json({
-          success: false,
-          error: "Failed to verify updated credentials",
-          details: verificationResult.message
+          success: false, 
+          verified: false,
+          message: verificationResult.message,
+          details: verificationResult.details
         });
       }
 
       // Re-encrypt with backend storage encryption (double-layer security)
-      processedUpdateData.accessToken = encryptForStorage(decryptedToken);
+      processedUpdateData.accessToken = encryptForStorage(tokenToVerify);
       
       await scmController.updateVerificationStatus(existing.id, VerificationStatus.VALID);
     }

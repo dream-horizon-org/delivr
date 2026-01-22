@@ -5,6 +5,7 @@
 
 import { NextFunction, Request, Response } from 'express';
 import { HTTP_STATUS } from '../constants/http';
+import * as yup from 'yup';
 
 // ============================================================================
 // HELPERS
@@ -16,6 +17,246 @@ const isNonEmptyString = (value: unknown): value is string => {
   const isNonEmpty = trimmed.length > 0;
   return isString && isNonEmpty;
 };
+
+// ============================================================================
+// YUP SCHEMAS
+// ============================================================================
+
+const githubVerifySchema = yup.object({
+  owner: yup
+    .string()
+    .trim()
+    .required('GitHub owner is required')
+    .max(39, 'GitHub owner cannot exceed 39 characters')
+    .test(
+      'valid-github-owner',
+      'GitHub owner can only contain alphanumeric characters and hyphens, cannot start/end with hyphen',
+      (value) => {
+        if (!value) return true; // Skip validation if empty (required() handles it)
+        return /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(value);
+      }
+    ),
+  repo: yup
+    .string()
+    .trim()
+    .required('GitHub repository name is required')
+    .max(100, 'Repository name cannot exceed 100 characters'),
+  
+  accessToken: yup
+    .string()
+    .trim()
+    .required('GitHub access token is required'),
+  
+  _encrypted: yup
+    .boolean()
+    .optional()
+    .default(false)
+});
+
+const githubCreateSchema = yup.object({
+  owner: yup
+    .string()
+    .trim()
+    .required('GitHub owner is required')
+    .max(39, 'GitHub owner cannot exceed 39 characters')
+    .test(
+      'valid-github-owner',
+      'GitHub owner can only contain alphanumeric characters and hyphens, cannot start/end with hyphen',
+      (value) => {
+        if (!value) return true; // Skip validation if empty (required() handles it)
+        return /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(value);
+      }
+    ),
+  
+  repo: yup
+    .string()
+    .trim()
+    .required('GitHub repository name is required')
+    .max(100, 'Repository name cannot exceed 100 characters'),
+  
+  accessToken: yup
+    .string()
+    .trim()
+    .required('GitHub access token is required'),
+  
+  displayName: yup
+    .string()
+    .trim()
+    .optional(),
+  
+  defaultBranch: yup
+    .string()
+    .trim()
+    .max(100, 'Default branch cannot exceed 100 characters')
+    .optional()
+    .default('main'),
+  
+  webhookEnabled: yup
+    .boolean()
+    .optional()
+    .default(false),
+  
+  webhookSecret: yup
+    .string()
+    .trim()
+    .when('webhookEnabled', {
+      is: true,
+      then: (schema) => schema.required('Webhook secret is required when webhook is enabled'),
+      otherwise: (schema) => schema.optional()
+    }),
+  
+  webhookUrl: yup
+    .string()
+    .trim()
+    .url('Webhook URL must be a valid URL')
+    .when('webhookEnabled', {
+      is: true,
+      then: (schema) => schema.required('Webhook URL is required when webhook is enabled'),
+      otherwise: (schema) => schema.optional()
+    }),
+  
+  senderLogin: yup
+    .string()
+    .trim()
+    .max(100, 'Sender login cannot exceed 100 characters')
+    .optional(),
+  
+  _encrypted: yup
+    .boolean()
+    .optional()
+    .default(false)
+});
+
+const githubUpdateSchema = yup.object({
+  owner: yup
+    .string()
+    .trim()
+    .max(39, 'GitHub owner cannot exceed 39 characters')
+    .test(
+      'valid-github-owner',
+      'GitHub owner can only contain alphanumeric characters and hyphens, cannot start/end with hyphen',
+      (value) => {
+        if (!value) return true; // Skip validation if empty
+        return /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(value);
+      }
+    )
+    .optional(),
+  
+  repo: yup
+    .string()
+    .trim()
+    .max(100, 'Repository name cannot exceed 100 characters')
+    .optional(),
+  
+  accessToken: yup
+    .string()
+    .trim()
+    .optional(),
+  
+  displayName: yup
+    .string()
+    .trim()
+    .optional(),
+  
+  defaultBranch: yup
+    .string()
+    .trim()
+    .max(100, 'Default branch cannot exceed 100 characters')
+    .optional(),
+  
+  webhookEnabled: yup
+    .boolean()
+    .optional(),
+  
+  webhookSecret: yup
+    .string()
+    .trim()
+    .when('webhookEnabled', {
+      is: true,
+      then: (schema) => schema.required('Webhook secret is required when webhook is enabled'),
+      otherwise: (schema) => schema.optional()
+    }),
+  
+  webhookUrl: yup
+    .string()
+    .trim()
+    .url('Webhook URL must be a valid URL')
+    .when('webhookEnabled', {
+      is: true,
+      then: (schema) => schema.required('Webhook URL is required when webhook is enabled'),
+      otherwise: (schema) => schema.optional()
+    }),
+  
+  senderLogin: yup
+    .string()
+    .trim()
+    .max(100, 'Sender login cannot exceed 100 characters')
+    .optional(),
+  
+  _encrypted: yup
+    .boolean()
+    .optional()
+    .default(false)
+}).test(
+  'at-least-one-field',
+  'At least one field must be provided for update',
+  (value) => {
+    const fields = Object.keys(value || {}).filter(key => key !== '_encrypted');
+    return fields.length > 0;
+  }
+);
+
+// ============================================================================
+// YUP VALIDATOR HELPER
+// ============================================================================
+
+async function validateWithYup<T>(
+  schema: yup.Schema<T>,
+  data: unknown,
+  res: Response
+): Promise<T | null> {
+  try {
+    const validated = await schema.validate(data, {
+      abortEarly: false,
+      stripUnknown: true
+    });
+    return validated;
+  } catch (error) {
+    if (error instanceof yup.ValidationError) {
+      // Group errors by field
+      const errorsByField = new Map<string, string[]>();
+      
+      error.inner.forEach((err) => {
+        const field = err.path || 'unknown';
+        if (!errorsByField.has(field)) {
+          errorsByField.set(field, []);
+        }
+        errorsByField.get(field)!.push(err.message);
+      });
+
+      // Convert to array format
+      const details = Array.from(errorsByField.entries()).map(([field, messages]) => ({
+        field,
+        messages
+      }));
+
+      res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        verified: false,
+        message: "Request validation failed", // Generic message for top-level
+        details: details // Specific field errors for frontend to parse
+      });
+      return null;
+    }
+    
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: 'Validation error occurred',
+      details: []
+    });
+    return null;
+  }
+}
 
 // ============================================================================
 // COMMON VALIDATORS
@@ -40,43 +281,40 @@ export const validateTenantId = (req: Request, res: Response, next: NextFunction
 // GITHUB VALIDATORS
 // ============================================================================
 
-export const validateGitHubVerifyBody = (req: Request, res: Response, next: NextFunction): void => {
-  const { owner, repo, accessToken } = req.body || {};
-  
-  const isOwnerInvalid = !isNonEmptyString(owner);
-  const isRepoInvalid = !isNonEmptyString(repo);
-  const isTokenInvalid = !isNonEmptyString(accessToken);
-  const hasInvalid = isOwnerInvalid || isRepoInvalid || isTokenInvalid;
-  
-  if (hasInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-      success: false, 
-      verified: false,
-      error: 'owner, repo, and accessToken are required' 
-    });
-    return;
+export const validateGitHubVerifyBody = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const validated = await validateWithYup(githubVerifySchema, req.body, res);
+  if (validated) {
+    req.body = validated;  // ✅ Replace with trimmed values
+    next();
   }
-  
-  next();
 };
 
-export const validateCreateGitHubBody = (req: Request, res: Response, next: NextFunction): void => {
-  const { owner, repo, accessToken } = req.body || {};
-  
-  const isOwnerInvalid = !isNonEmptyString(owner);
-  const isRepoInvalid = !isNonEmptyString(repo);
-  const isTokenInvalid = !isNonEmptyString(accessToken);
-  const hasInvalid = isOwnerInvalid || isRepoInvalid || isTokenInvalid;
-  
-  if (hasInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-      success: false, 
-      error: 'owner, repo, and accessToken are required for GitHub integration' 
-    });
-    return;
+export const validateCreateGitHubBody = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const validated = await validateWithYup(githubCreateSchema, req.body, res);
+  if (validated) {
+    req.body = validated;  // ✅ Replace with trimmed values
+    next();
   }
-  
-  next();
+};
+
+export const validateUpdateGitHubBody = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const validated = await validateWithYup(githubUpdateSchema, req.body, res);
+  if (validated) {
+    req.body = validated;  // ✅ Replace with trimmed values
+    next();
+  }
 };
 
 // ============================================================================
