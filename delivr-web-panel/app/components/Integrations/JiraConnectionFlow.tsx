@@ -20,6 +20,7 @@ import { apiGet, apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-clien
 import { JIRA_TYPES } from '~/types/jira-integration';
 import type { JiraType } from '~/types/jira-integration';
 import { JIRA_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
+import { trimIntegrationFields } from '~/utils/integration-helpers';
 import { ActionButtons } from './shared/ActionButtons';
 import { ConnectionAlert } from './shared/ConnectionAlert';
 import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
@@ -158,13 +159,13 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
       // Encrypt the API token before sending
       const encryptedApiToken = await encrypt(formData.apiToken);
       
-      const verifyPayload = {
+      const verifyPayload = trimIntegrationFields({
         hostUrl: formData.hostUrl,
         email: formData.email,
         apiToken: encryptedApiToken,
         jiraType: formData.jiraType,
         _encrypted: true, // Flag to indicate encryption
-      };
+      });
       const result = await apiPost<{ verified: boolean }>(
         `/api/v1/tenants/${tenantId}/integrations/project-management/verify?providerType=JIRA`,
         verifyPayload
@@ -190,12 +191,12 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
     isInFlowRef.current = true;
 
     try {
-      const payload: any = {
+      const payload: any = trimIntegrationFields({
         name: formData.displayName || `Jira - ${formData.hostUrl}`,
         hostUrl: formData.hostUrl,
         email: formData.email,
         jiraType: formData.jiraType,
-      };
+      });
 
       if (formData.apiToken) {
         // Encrypt the API token before sending

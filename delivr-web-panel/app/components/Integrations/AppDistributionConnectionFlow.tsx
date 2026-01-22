@@ -22,6 +22,7 @@ import {
 import { IconAlertCircle, IconCheck, IconDeviceMobile } from '@tabler/icons-react';
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { extractApiErrorMessage } from '~/utils/api-error-utils';
+import { trimIntegrationFields } from '~/utils/integration-helpers';
 import type {
   StoreType,
   Platform,
@@ -236,7 +237,7 @@ export function AppDistributionConnectionFlow({
       // Encrypt sensitive credentials before sending
       if (storeType === TARGET_PLATFORMS.PLAY_STORE) {
         const encryptedPrivateKey = await encrypt(playStoreData.serviceAccountJson?.private_key || '');
-        payload = {
+        payload = trimIntegrationFields({
           ...playStoreData,
           serviceAccountJson: {
             ...playStoreData.serviceAccountJson,
@@ -244,14 +245,14 @@ export function AppDistributionConnectionFlow({
             private_key: encryptedPrivateKey,
             _encrypted: true, // Flag to indicate encryption
           },
-        };
+        });
       } else {
         // App Store - encrypt privateKeyPem
         const encryptedPem = await encrypt(appStoreData.privateKeyPem || '');
-        payload = {
+        payload = trimIntegrationFields({
           ...appStoreData,
           privateKeyPem: encryptedPem,
-        };
+        });
       }
 
       const endpoint = `/api/v1/tenants/${tenantId}/distributions?action=verify`;
@@ -300,7 +301,7 @@ export function AppDistributionConnectionFlow({
         if (playStoreData.serviceAccountJson?.private_key) {
           // Encrypt private key if provided
           const encryptedPrivateKey = await encrypt(playStoreData.serviceAccountJson.private_key);
-          payload = {
+          payload = trimIntegrationFields({
             ...playStoreData,
             serviceAccountJson: {
               ...playStoreData.serviceAccountJson,
@@ -308,14 +309,14 @@ export function AppDistributionConnectionFlow({
               private_key: encryptedPrivateKey,
               _encrypted: true, // Flag to indicate encryption
             },
-          };
+          });
         } else {
           // In edit mode without new private key
           // Only include serviceAccountJson fields if they have values
           const { serviceAccountJson, ...restPlayStoreData } = playStoreData;
-          payload = {
+          payload = trimIntegrationFields({
             ...restPlayStoreData,
-          };
+          });
           
           // Only include serviceAccountJson if it has non-empty fields (excluding private_key)
           if (serviceAccountJson) {
@@ -344,20 +345,20 @@ export function AppDistributionConnectionFlow({
         if (appStoreData.privateKeyPem) {
           // Encrypt privateKeyPem if provided
           const encryptedPem = await encrypt(appStoreData.privateKeyPem);
-          payload = {
+          payload = trimIntegrationFields({
             ...appStoreData,
             privateKeyPem: encryptedPem,
-          };
+          });
         } else {
           // In edit mode without new privateKeyPem, only send fields that have values
           // Filter out empty strings for credential fields to avoid backend validation errors
           const { privateKeyPem, issuerId, keyId, ...restAppStoreData } = appStoreData;
-          payload = {
+          payload = trimIntegrationFields({
             ...restAppStoreData,
             // Only include credential fields if they have non-empty values
             ...(issuerId && issuerId.trim() && { issuerId }),
             ...(keyId && keyId.trim() && { keyId }),
-          };
+          });
         }
       }
 

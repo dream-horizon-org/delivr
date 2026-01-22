@@ -12,6 +12,7 @@ import { useParams } from '@remix-run/react';
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { CONNECTION_STEPS } from '~/constants/integration-ui';
 import { encrypt, isEncryptionConfigured } from '~/utils/encryption';
+import { trimIntegrationFields } from '~/utils/integration-helpers';
 
 export interface SlackChannel {
   id: string;
@@ -81,10 +82,10 @@ export function useSlackConnection(existingData?: any, isEditMode: boolean = fal
       // Encrypt the bot token before sending
       const encryptedBotToken = await encrypt(token);
       
-      const verifyPayload = { 
+      const verifyPayload = trimIntegrationFields({ 
         botToken: encryptedBotToken,
         _encrypted: true, // Flag to indicate encryption
-      };
+      });
       
       const endpoint = `/api/v1/tenants/${tenantId}/integrations/slack/verify`;
       const result = await apiPost<{
@@ -137,12 +138,12 @@ export function useSlackConnection(existingData?: any, isEditMode: boolean = fal
     setError(null);
 
     try {
-      const payload: any = {
+      const payload: any = trimIntegrationFields({
         botUserId: workspace.botUserId,
         workspaceId: workspace.workspaceId,
         workspaceName: workspace.workspaceName
         // No channels array - channels selected in Release Config
-      };
+      });
 
       // Only include botToken if provided (required for create, optional for update)
       if (token) {

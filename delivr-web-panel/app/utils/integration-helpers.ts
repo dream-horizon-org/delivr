@@ -234,3 +234,34 @@ export function getIntegrationDisplayName(integration: { name: string; displayNa
   return integration.displayName || integration.name;
 }
 
+/**
+ * Trim whitespace from all string fields in an object recursively
+ * Handles nested objects and arrays
+ * Used before sending integration data to backend for verification and saving
+ */
+export function trimIntegrationFields<T extends Record<string, any>>(data: T): T {
+  if (!data || typeof data !== 'object') {
+    return data;
+  }
+
+  if (Array.isArray(data)) {
+    return data.map(item => 
+      typeof item === 'string' ? item.trim() : trimIntegrationFields(item)
+    ) as unknown as T;
+  }
+
+  const trimmed: Record<string, any> = {};
+  
+  for (const [key, value] of Object.entries(data)) {
+    if (typeof value === 'string') {
+      trimmed[key] = value.trim();
+    } else if (value && typeof value === 'object') {
+      trimmed[key] = trimIntegrationFields(value);
+    } else {
+      trimmed[key] = value;
+    }
+  }
+
+  return trimmed as T;
+}
+

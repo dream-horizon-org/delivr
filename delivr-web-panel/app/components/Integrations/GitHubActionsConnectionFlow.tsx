@@ -18,6 +18,7 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle, IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
+import { trimIntegrationFields } from '~/utils/integration-helpers';
 import { BUILD_PROVIDERS } from '~/types/release-config-constants';
 import { GITHUB_ACTIONS_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
 import { ActionButtons } from './shared/ActionButtons';
@@ -107,12 +108,12 @@ export function GitHubActionsConnectionFlow({
       
       const encryptedApiToken = formData.apiToken ? await encrypt(formData.apiToken) : undefined;
       
-      const verifyPayload = {
+      const verifyPayload = trimIntegrationFields({
         displayName: formData.displayName || undefined,
         hostUrl: formData.hostUrl || GITHUB_ACTIONS_LABELS.API_URL_PLACEHOLDER,
         apiToken: encryptedApiToken,
         _encrypted: !!encryptedApiToken, // Flag to indicate encryption
-      };
+      });
       
       const endpoint = `/api/v1/tenants/${tenantId}/integrations/ci-cd/${BUILD_PROVIDERS.GITHUB_ACTIONS.toLowerCase().replace('_', '-')}/verify`;
       
@@ -146,10 +147,10 @@ export function GitHubActionsConnectionFlow({
     isInFlowRef.current = true;
 
     try {
-      const payload: any = {
+      const payload: any = trimIntegrationFields({
         displayName: formData.displayName || GITHUB_ACTIONS_LABELS.DISPLAY_NAME_PLACEHOLDER,
         hostUrl: formData.hostUrl || GITHUB_ACTIONS_LABELS.API_URL_PLACEHOLDER,
-      };
+      });
 
       // Token is required for non-edit mode
       if (!isEditMode) {
