@@ -1,3 +1,16 @@
+# Directory-specific Owners
+# These users will be requested for review when changes are made to their respective directories.
+
+# SDK and CLI
+/delivr-cli/ @devanshsaini11
+/delivr-sdk-ota/ @devanshsaini11
+
+# Server
+/delivr-server-ota/ @prathameshy7 @navkashkrishna-d11
+
+# Web Panel
+/delivr-web-panel/ @JatinDream11
+
 # Global Owners
 # These users will be requested for review when anyone opens a pull request.
-* @dream-horizon-org/delivr
+* @mohithemnani11 @princektripathi
