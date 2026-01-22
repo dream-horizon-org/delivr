@@ -9,22 +9,16 @@ import {
   Slider,
   Text,
   Box,
-  Flex,
   Tooltip,
   Overlay,
   Stack,
-  Paper,
-  Title,
-  rem,
-  Alert,
-  Divider,
+  Badge,
   useMantineTheme,
 } from "@mantine/core";
 import { ReleaseListResponse } from "../ReleaseListForDeploymentTable/data/getReleaseListForDeployment";
-import { useNavigate, useParams, useSearchParams } from "@remix-run/react";
-import { IconHelpOctagon, IconEdit, IconInfoCircle, IconSparkles } from "@tabler/icons-react";
+import { useParams, useSearchParams } from "@remix-run/react";
+import { IconHelpCircle, IconCheck } from "@tabler/icons-react";
 import { useUpdateReleaseDataForDeployment } from "./hooks/useUpdateReleaseDataForDeployment";
-import { CTAButton } from "~/components/CTAButton";
 
 type ReleaseEditProps = { data: ReleaseListResponse; refetch: () => void };
 
@@ -33,7 +27,6 @@ export function ReleaseEditFormModal({ data, refetch }: ReleaseEditProps) {
   const params = useParams();
   const { mutate, isLoading } = useUpdateReleaseDataForDeployment();
   const [serachParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
 
   const close = () => {
     setSearchParams((p) => {
@@ -41,32 +34,33 @@ export function ReleaseEditFormModal({ data, refetch }: ReleaseEditProps) {
       return p;
     });
   };
+  
   const form = useForm<ReleaseEditProps["data"]>({
     mode: "uncontrolled",
     initialValues: data,
     validateInputOnChange: true,
     validate: {
       description: (value) => {
-        return value.length ? null : "Description Can't be Empty";
+        return value.length ? null : "Description can't be empty";
       },
       targetVersions: (value) => {
-        return value.length ? null : "Target Versions Can't be Empty";
+        return value.length ? null : "Target version can't be empty";
       },
     },
   });
 
   const onSubmit = () => {
-    const data = form.getValues();
+    const formData = form.getValues();
     mutate(
       {
         appId: params.app ?? "",
         deploymentName: serachParams.get("deployment") ?? "",
-        appVersion: data.targetVersions,
-        description: data.description,
-        isDisabled: !data.status,
-        isMandatory: data.mandatory,
-        label: data.label,
-        rollout: data.rollout,
+        appVersion: formData.targetVersions,
+        description: formData.description,
+        isDisabled: !formData.status,
+        isMandatory: formData.mandatory,
+        label: formData.label,
+        rollout: formData.rollout,
         tenant: params.org ?? "",
       },
       {
@@ -78,6 +72,9 @@ export function ReleaseEditFormModal({ data, refetch }: ReleaseEditProps) {
     );
   };
 
+  const currentRollout = form.getValues().rollout;
+  const canIncreaseRollout = data.rollout < 100;
+
   return (
     <Modal
       opened={
@@ -85,230 +82,138 @@ export function ReleaseEditFormModal({ data, refetch }: ReleaseEditProps) {
         serachParams.get("edit") === "true"
       }
       onClose={close}
-      size="lg"
+      size="md"
       centered
+      radius="md"
       title={
-        <Group gap="xs">
-          <Box
-            style={{
-              width: rem(theme.other.sizes.icon["4xl"]),
-              height: rem(theme.other.sizes.icon["4xl"]),
-              borderRadius: theme.other.borderRadius.md,
-              background: theme.other.brand.gradient,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <IconEdit size={theme.other.sizes.icon.xl} color={theme.other.text.white} />
-          </Box>
-          <Title order={3}>Edit Release</Title>
-        </Group>
+        <Text size="lg" fw={600} c={theme.colors.slate[9]}>
+          Edit Release
+        </Text>
       }
+      overlayProps={{ backgroundOpacity: 0.4, blur: 3 }}
     >
-      {isLoading && <Overlay color="gray" backgroundOpacity={0.3} />}
+      {isLoading && <Overlay color="white" backgroundOpacity={0.7} zIndex={1000} />}
       
-      <Stack gap="lg">
-        <Alert 
-          icon={<IconInfoCircle size={18} />} 
-          variant="light"
-          radius="md"
+      <Stack gap="md">
+        {/* Release Label - Read Only */}
+        <Group justify="space-between" align="center">
+          <Text size="sm" c="dimmed">Release</Text>
+          <Badge size="lg" variant="light" color="brand" radius="sm">
+            {data.label}
+          </Badge>
+        </Group>
+
+        {/* Description */}
+        <Textarea
+          label="Description"
+          placeholder="What's in this release?"
+          key={form.key("description")}
+          {...form.getInputProps("description")}
+          minRows={2}
+          maxRows={4}
+          autosize
           styles={{
-            root: {
-              backgroundColor: theme.other.brand.light,
-              borderColor: theme.other.brand.primary,
-            },
-            icon: {
-              color: theme.other.brand.primary,
-            },
-            message: {
-              color: theme.other.text.primary,
-            },
+            label: { fontWeight: 500, marginBottom: 6 },
           }}
-        >
-          Update release configuration and rollout settings for version <Text component="span" fw={600}>{data.label}</Text>
-        </Alert>
+        />
 
-        {/* Release Label (Read-only) */}
-        <Paper withBorder p="md" radius="md" bg="gray.0">
-          <Stack gap="xs">
-            <Text size="sm" fw={600} c="dimmed">
-              Release Label
-            </Text>
-            <Text size="md" fw={500}>
-              {data.label}
-            </Text>
-          </Stack>
-        </Paper>
+        {/* Target Version */}
+        <TextInput
+          label="Target Version"
+          placeholder="e.g., 1.0.0"
+          key={form.key("targetVersions")}
+          {...form.getInputProps("targetVersions")}
+          styles={{
+            label: { fontWeight: 500, marginBottom: 6 },
+          }}
+        />
 
-        <Divider />
-
-        {/* Editable Fields */}
-        <Stack gap="md">
-          <Textarea
-            label="Description"
-            placeholder="Enter release description..."
-            description="Provide details about this release"
-            key={form.key("description")}
-            {...form.getInputProps("description")}
-            minRows={3}
-            styles={{
-              input: {
-                "&:focus": {
-                  borderColor: theme.other.brand.primary,
-                },
-              },
-            }}
-          />
-
-          <TextInput
-            label="Target Version"
-            placeholder="e.g., 1.0.0"
-            description="App version this release targets"
-            key={form.key("targetVersions")}
-            {...form.getInputProps("targetVersions")}
-            styles={{
-              input: {
-                "&:focus": {
-                  borderColor: theme.other.brand.primary,
-                },
-              },
-            }}
-          />
-
-          <Divider />
-
-          {/* Rollout Section */}
+        {/* Rollout Section */}
+        {canIncreaseRollout ? (
           <Box>
             <Group justify="space-between" mb="xs">
-              <Group gap="xs">
-                <Text size="sm" fw={600}>
-                  Rollout Percentage
-                </Text>
+              <Group gap={6}>
+                <Text size="sm" fw={500}>Rollout</Text>
                 <Tooltip 
-                  label="Rollout can only be increased, not decreased" 
+                  label="Rollout percentage can only be increased" 
                   withArrow
-                  styles={{
-                    tooltip: {
-                      backgroundColor: theme.other.brand.primary,
-                    },
-                  }}
+                  position="top"
                 >
-                  <IconHelpOctagon size={theme.other.sizes.icon.md} style={{ color: theme.other.brand.primary }} />
+                  <IconHelpCircle size={14} color={theme.colors.slate[4]} style={{ cursor: "help" }} />
                 </Tooltip>
               </Group>
-              <Text
-                size="xl"
-                fw={theme.other.typography.fontWeight.bold}
-                style={{
-                  color: theme.other.brand.primary,
-                }}
-              >
-                {form.getValues().rollout}%
-              </Text>
+              <Badge size="lg" variant="filled" color="brand">
+                {currentRollout}%
+              </Badge>
             </Group>
             <Slider
-              value={form.getValues().rollout}
+              value={currentRollout}
               max={100}
               min={data.rollout}
               step={1}
-              onChange={(value) => {
-                form.setFieldValue("rollout", value);
-              }}
+              onChange={(value) => form.setFieldValue("rollout", value)}
+              color="brand"
+              size="md"
               marks={[
                 { value: data.rollout, label: `${data.rollout}%` },
                 { value: 100, label: "100%" },
               ]}
               styles={{
-                track: {
-                  background: `linear-gradient(90deg, ${theme.other.brand.primary} 0%, ${theme.other.brand.secondary} 100%)`,
-                },
-                thumb: {
-                  borderWidth: 2,
-                  borderColor: theme.other.brand.primary,
-                  backgroundColor: theme.other.backgrounds.primary,
-                },
-                markLabel: {
-                  fontSize: rem(12),
-                },
+                markLabel: { fontSize: 11, color: theme.colors.slate[5] },
               }}
             />
-            <Text size="xs" c="dimmed" mt="20px" >
-              Current rollout: {data.rollout}% → Can increase to 100%
+            <Text size="xs" c="dimmed" mt="md">
+              Minimum: {data.rollout}% (current) • Maximum: 100%
             </Text>
           </Box>
-
-          <Divider />
-
-          {/* Switches */}
-          <Group grow>
-            <Paper withBorder p="md" radius="md">
-              <Switch
-                label={
-                  <Stack gap={4}>
-                    <Text size="sm" fw={500}>
-                      Release Status
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      {form.getValues().status ? "Active" : "Inactive"}
-                    </Text>
-                  </Stack>
-                }
-                checked={form.getValues().status}
-                {...form.getInputProps("status")}
-                styles={{
-                  track: {
-                    backgroundColor: form.getValues().status ? theme.other.brand.primary : undefined,
-                  },
-                }}
-                size="md"
-              />
-            </Paper>
-
-            {/* Temporarily hidden - Mandatory Update option */}
-            {/* <Paper withBorder p="md" radius="md">
-              <Switch
-                label={
-                  <Stack gap={4}>
-                    <Text size="sm" fw={500}>
-                      Mandatory Update
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      {form.getValues().mandatory ? "Required" : "Optional"}
-                    </Text>
-                  </Stack>
-                }
-                checked={form.getValues().mandatory}
-                {...form.getInputProps("mandatory")}
-                styles={{
-                  track: {
-                    backgroundColor: form.getValues().mandatory ? theme.other.brand.primary : undefined,
-                  },
-                }}
-                size="md"
-              />
-            </Paper> */}
+        ) : (
+          <Group justify="space-between" align="center">
+            <Text size="sm" fw={500}>Rollout</Text>
+            <Badge size="lg" variant="filled" color="green" leftSection={<IconCheck size={12} />}>
+              100% (Full)
+            </Badge>
           </Group>
-        </Stack>
+        )}
 
-        {/* Action Buttons */}
-        <Group justify="space-between" mt="md">
+        {/* Status Toggle */}
+        <Box
+          p="sm"
+          style={{
+            background: theme.colors.slate[0],
+            borderRadius: theme.radius.md,
+          }}
+        >
+          <Switch
+            label="Active"
+            description={form.getValues().status ? "Release is being distributed" : "Release is paused"}
+            checked={form.getValues().status}
+            onChange={(e) => form.setFieldValue("status", e.currentTarget.checked)}
+            color="brand"
+            size="md"
+            styles={{
+              label: { fontWeight: 500 },
+              description: { marginTop: 2 },
+            }}
+          />
+        </Box>
+
+        {/* Actions */}
+        <Group justify="flex-end" gap="sm" mt="xs">
           <Button
-            variant="subtle"
-            color="gray"
+            variant="default"
             onClick={close}
             disabled={isLoading}
           >
             Cancel
           </Button>
-          <CTAButton
-            leftSection={<IconSparkles size={theme.other.sizes.icon.lg} />}
+          <Button
+            color="brand"
             onClick={onSubmit}
             disabled={!!Object.keys(form.errors).length}
             loading={isLoading}
           >
             Save Changes
-          </CTAButton>
+          </Button>
         </Group>
       </Stack>
     </Modal>

@@ -48,7 +48,7 @@ describe("Converter", () => {
         collaborators: {
           "me@email.com": {
             isCurrentAccount: true,
-            permission: storageTypes.Permissions.Collaborator,
+            permission: storageTypes.Permissions.Editor,
           },
           "them@email.com": {
             permission: storageTypes.Permissions.Owner,
@@ -96,7 +96,7 @@ describe("Converter", () => {
         collaborators: {
           "me@email.com": {
             isCurrentAccount: true,
-            permission: storageTypes.Permissions.Collaborator,
+            permission: storageTypes.Permissions.Editor,
           },
           "them@email.com": {
             permission: storageTypes.Permissions.Owner,

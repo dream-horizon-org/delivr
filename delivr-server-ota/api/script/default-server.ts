@@ -1,17 +1,16 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-import * as api from "./api";
-import { S3 } from "aws-sdk"; // Amazon S3
-import { SecretsManager } from "aws-sdk";
-import * as awsRDS from "aws-sdk/clients/rds";
-import { AzureStorage } from "./storage/azure-storage";
-import { fileUploadMiddleware } from "./file-upload-manager";
-import { JsonStorage } from "./storage/json-storage";
-import { RedisManager } from "./redis-manager";
-import { MemcachedManager } from "./memcached-manager";
-import { Storage } from "./storage/storage";
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { S3, SecretsManager } from "aws-sdk"; // Amazon S3
 import { Response } from "express";
+import * as api from "./api";
+import { fileUploadMiddleware, initializeFileUploadManager } from "./file-upload-manager";
+import { MemcachedManager } from "./memcached-manager";
+import { RedisManager } from "./redis-manager";
+import { JsonStorage } from "./storage/json-storage";
+import { Storage } from "./storage/storage";
+import { initializeStorage } from "./storage/storage-instance";
 const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME || "<your-s3-bucket-name>";
 const RDS_DB_INSTANCE_IDENTIFIER = process.env.RDS_DB_INSTANCE_IDENTIFIER || "<your-rds-instance>";
 const SECRETS_MANAGER_SECRET_ID = process.env.SECRETS_MANAGER_SECRET_ID || "<your-secret-id>";
@@ -20,10 +19,12 @@ const s3 = new S3(); // Create an S3 instance
 const secretsManager = new SecretsManager(); // Secrets Manager instance for fetching credentials
 
 import * as bodyParser from "body-parser";
-const domain = require("express-domain-middleware");
 import * as express from "express";
-const csrf = require('lusca').csrf;
 import { S3Storage } from "./storage/aws-storage";
+import { createWorkflowPollingRoutes } from "./routes/workflow-polling.routes";
+import { createCronWebhookRoutes } from "~routes/release/cron-webhook.routes";
+const domain = require("express-domain-middleware");
+const csrf = require('lusca').csrf;
 
 interface Secret {
   id: string;
@@ -52,10 +53,29 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
     .then(async () => {
       if (!useJsonStorage) {
         //storage = new JsonStorage();
-        storage = new S3Storage();
+        const s3Storage = new S3Storage();
+        storage = s3Storage;
+        
+        // Wait for S3Storage async initialization to complete before using services
+        // This ensures all repositories and services (SCM, CI/CD, Slack, Test Management)
+        // are fully initialized before routes are mounted
+        await s3Storage.setupPromise;
+        console.log('[Storage] S3Storage setup completed');
       } else {
         storage = new JsonStorage();
       }
+      
+      // Initialize storage singleton for global access
+      initializeStorage(storage);
+      console.log('[Storage] Storage singleton initialized');
+      
+      // Wait for storage setup to complete (especially for S3Storage services)
+      console.log('[Storage] Waiting for storage setup to complete...');
+      await storage.checkHealth();
+      console.log('[Storage] Storage setup completed successfully');
+
+      // Initialize file upload manager (multer) at server startup
+      initializeFileUploadManager();
     })
     .then(() => {
       const app = express();
@@ -140,7 +160,7 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
       app.set("views", __dirname + "/views");
       app.set("view engine", "ejs");
       app.use("/auth/images/", express.static(__dirname + "/views/images"));
-      app.use(api.headers({ origin: process.env.CORS_ORIGIN || "http://localhost:4000" }));
+      app.use(api.headers({ origin: process.env.CORS_ORIGIN || "http://localhost:3000" }));
       app.use(api.health({ storage: storage, redisManager: redisManager, memcachedManager: memcachedManager }));
 
       // Rate limiting removed: relying on CloudFront + WAF for request throttling
@@ -148,6 +168,23 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
       if (process.env.DISABLE_ACQUISITION !== "true") {
         app.use(api.acquisition({ storage: storage, redisManager: redisManager, memcachedManager: memcachedManager }));
       }
+
+      // ============================================================================
+      // INTERNAL CRON ROUTES (Cronicle webhooks - NO user auth required)
+      // Mount at root level BEFORE auth middleware so they only use cronicleAuthMiddleware
+      // ============================================================================
+      const workflowPollingRoutes = createWorkflowPollingRoutes(storage);
+      app.use(workflowPollingRoutes);
+      console.log('[Server] Workflow Polling routes mounted (internal, no user auth)');
+
+      // Cronicle Webhook Routes (internal, no /api/v1 prefix)
+      const cronicleRoutes = api.cronicle(storage);
+      app.use(cronicleRoutes);
+      console.log('[Server] Cronicle webhook routes mounted (internal, no user auth)');
+
+      const releaseOrchestrationRoutes = createCronWebhookRoutes(storage);
+      app.use(releaseOrchestrationRoutes);
+      console.log('[Server] Release Orchestration routes mounted (internal, no user auth)');
 
       if (process.env.DISABLE_MANAGEMENT !== "true") {
         if (process.env.DEBUG_DISABLE_AUTH === "true") {
@@ -165,10 +202,32 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
 
             next();
           });
+          
+          // Release Management Routes (releases, builds, integrations) - NO AUTH in debug mode
+          // IMPORTANT: Mount BEFORE management routes since management uses fileUploadMiddleware
+          // which would consume multipart bodies for ALL routes if mounted first
+          app.use(api.releaseManagement({ storage: storage }));
+          
+          // DOTA Management Routes (deployments, apps, packages) - NO AUTH in debug mode
+          app.use(fileUploadMiddleware, api.management({ storage: storage, redisManager: redisManager }));
+          
+          // Release Management Routes (releases, builds, integrations) - NO AUTH in debug mode
+
+          app.use('/api/v1', api.releaseManagement({ storage: storage }));
+          
+          // Distribution Routes (submissions, rollout) - NO AUTH in debug mode
+          app.use('/api/v1', api.distribution({ storage: storage }));
         } else {
           app.use(auth.router());
         }
+        // Release Management Routes (releases, builds, integrations)
+        app.use('/api/v1', auth.authenticate, api.releaseManagement({ storage: storage }));
+        // Distribution Routes (submissions, rollout)
+        app.use('/api/v1', auth.authenticate, api.distribution({ storage: storage }));
+        // DOTA Management Routes (deployments, apps, packages)
+        // to do :move the fileupload middleware to the routes that are using file upload
         app.use(auth.authenticate, fileUploadMiddleware, api.management({ storage: storage, redisManager: redisManager }));
+        
       } else {
         app.use(auth.router());
       }

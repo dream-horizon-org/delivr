@@ -3,8 +3,9 @@ import { useState } from "react";
 import { AddCollboratorForm } from "../../AddCollboratorForm";
 import { useRemoveCollabarator } from "../hooks/useRemoveCollabarator";
 import { useParams } from "@remix-run/react";
-import { notifications } from "@mantine/notifications";
 import { handleApiError } from "~/utils/handleApiError";
+import { showErrorToast, showSuccessToast } from "~/utils/toast";
+import { COLLABORATOR_MESSAGES } from "~/constants/toast-messages";
 
 type CollabaratorActionProps = {
   selected: string[];
@@ -37,13 +38,9 @@ export const CollabaratorAction = ({
             },
             {
               onError: (e) => {
-                notifications.show({
-                  color: "red",
-                  title: `Collaborator Deletion ${item}`,
-                  message: handleApiError(
-                    e,
-                    "Error While Removing Collaborator"
-                  ),
+                showErrorToast({
+                  title: `${COLLABORATOR_MESSAGES.REMOVE_ERROR.title} ${item}`,
+                  message: handleApiError(e, COLLABORATOR_MESSAGES.REMOVE_ERROR.message),
                 });
               },
             }
@@ -55,10 +52,9 @@ export const CollabaratorAction = ({
       const isFailed = data.filter((item) => item.status === "rejected");
 
       if (!isFailed) {
-        notifications.show({
-          color: "green",
-          title: `Collaborator Deletion`,
-          message: `${selected.join(",")}  collaborators removed successfully!`,
+        showSuccessToast({
+          title: COLLABORATOR_MESSAGES.REMOVE_SUCCESS.title,
+          message: `${selected.join(",")} collaborators removed successfully!`,
         });
         refetch();
       }

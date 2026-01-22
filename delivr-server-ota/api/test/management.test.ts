@@ -582,7 +582,7 @@ function managementTests(useJsonStorage?: boolean): void {
                 assert.equal(response.app.collaborators[account.email].permission, Permissions.Owner);
                 GET(`/apps/${otherAccount.email}:${duplicateApp.name}`, (response: any) => {
                   assert.equal(response.app.name, `${otherAccount.email}:${duplicateApp.name}`);
-                  assert.equal(response.app.collaborators[account.email].permission, Permissions.Collaborator);
+                  assert.equal(response.app.collaborators[account.email].permission, Permissions.Editor);
                   done();
                 });
               });
@@ -2075,7 +2075,7 @@ function managementTests(useJsonStorage?: boolean): void {
             var collaboratorMap = <restTypes.CollaboratorMap>response.collaborators;
             assert(collaboratorMap);
             assert(collaboratorMap[otherAccount.email]);
-            assert(collaboratorMap[otherAccount.email].permission === "Collaborator");
+            assert(collaboratorMap[otherAccount.email].permission === "Viewer");
             done();
           });
         });

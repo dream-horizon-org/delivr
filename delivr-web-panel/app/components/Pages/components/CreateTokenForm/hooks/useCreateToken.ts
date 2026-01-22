@@ -1,15 +1,15 @@
 import { useMutation } from "react-query";
 import { createToken } from "../data/createToken";
-import { notifications } from "@mantine/notifications";
 import { handleApiError } from "~/utils/handleApiError";
+import { showErrorToast } from "~/utils/toast";
+import { TOKEN_MESSAGES } from "~/constants/toast-messages";
 
 export const useCreateToken = () => {
   return useMutation(createToken, {
     onError: (e) => {
-      notifications.show({
-        color: "red",
-        title: "Token Creation",
-        message: handleApiError(e, "Error While Creating Token"),
+      showErrorToast({
+        title: TOKEN_MESSAGES.CREATE_ERROR.title,
+        message: handleApiError(e, TOKEN_MESSAGES.CREATE_ERROR.message),
       });
     },
   });

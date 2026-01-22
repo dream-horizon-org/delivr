@@ -1,14 +1,16 @@
-import { UnstyledButton, Avatar, Menu, rem, Modal, Text, Flex, Button, Tooltip } from "@mantine/core";
+import { UnstyledButton, Avatar, Menu, rem, Tooltip, useMantineTheme, Text, Box, Group, Modal, Button, Stack } from "@mantine/core";
 import {
   IconLogout,
-  IconSettings,
+  IconKey,
   IconTrash,
+  IconUser,
+  IconAlertCircle,
 } from "@tabler/icons-react";
 import { Form, useNavigate } from "@remix-run/react";
-import { User } from "~/.server/services/Auth/Auth.interface";
+import { User } from '~/.server/services/Auth/auth.interface';
 import { route } from "routes-gen";
-import { text } from "~/theme";
 import { useState } from "react";
+import { DeleteModal, type DeleteModalData } from "~/components/Common/DeleteModal";
 
 export type HeaderUserButtonProps = {
   user: User;
@@ -16,125 +18,153 @@ export type HeaderUserButtonProps = {
 
 export function HeaderUserButton({ user }: HeaderUserButtonProps) {
   const navigate = useNavigate();
-  const [deleteModalOpened, setDeleteModalOpened] = useState(false);
+  const [deleteModalData, setDeleteModalData] = useState<DeleteModalData | null>(null);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const theme = useMantineTheme();
+  
+  // Defensive check - return null if user data is missing
+  if (!user?.user) {
+    return null;
+  }
+  
+  const brandColor = theme.colors?.brand?.[5] || '#14b8a6';
   
   return (
     <>
-      <Menu shadow="md" width={240} position="bottom-end">
+      <Menu shadow="lg" width={260} position="bottom-end" radius="md">
         <Menu.Target>
           <UnstyledButton>
             <Avatar 
               name={user.user.name} 
               radius="xl" 
-              size="md"
+              size={36}
               style={{ 
                 cursor: "pointer",
-                backgroundColor: "white",
-                color: text.brand,
-                border: "2px solid rgba(255, 255, 255, 0.3)",
-                fontWeight: 700,
-                fontSize: "14px",
+                backgroundColor: brandColor,
+              }}
+              styles={{
+                placeholder: {
+                  color: "white",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                },
               }}
             />
           </UnstyledButton>
         </Menu.Target>
 
-      <Menu.Dropdown>
-        <Menu.Label 
-          style={{ 
-            overflow: 'hidden', 
-            textOverflow: 'ellipsis', 
-            whiteSpace: 'nowrap',
-            fontSize: '0.9rem',
-            fontWeight: 600
-          }}
-        >
-          {user.user.name}
-        </Menu.Label>
-        <Tooltip label={user.user.email} position="bottom" withArrow openDelay={500}>
-          <Menu.Label 
-            style={{ 
-              fontWeight: 400, 
-              fontSize: '0.85rem',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              cursor: 'default'
-            }}
-          >
-            {user.user.email}
-          </Menu.Label>
-        </Tooltip>
-        <Menu.Divider />
+        <Menu.Dropdown p={8}>
+          {/* User Info */}
+          <Box p="sm" mb={4}>
+            <Group gap="sm">
+              <Avatar 
+                name={user.user.name} 
+                radius="xl" 
+                size={40}
+                style={{ 
+                  backgroundColor: brandColor,
+                }}
+                styles={{
+                  placeholder: {
+                    color: "white",
+                    fontWeight: 600,
+                  },
+                }}
+              />
+              <Box style={{ flex: 1, minWidth: 0 }}>
+                <Text fw={600} size="sm" c="dark.9" truncate>
+                  {user.user.name}
+                </Text>
+                <Tooltip label={user.user.email} position="bottom" withArrow openDelay={300}>
+                  <Text size="xs" c="dimmed" truncate style={{ cursor: 'default' }}>
+                    {user.user.email}
+                  </Text>
+                </Tooltip>
+              </Box>
+            </Group>
+          </Box>
+          
+          <Menu.Divider />
+          
           <Menu.Item
-            leftSection={
-              <IconSettings style={{ width: rem(14), height: rem(14) }} />
-            }
-            onClick={() => {
-              navigate(route("/dashboard/tokens"));
-            }}
+            leftSection={<IconKey size={16} />}
+            onClick={() => navigate(route("/dashboard/tokens"))}
+            py={10}
           >
-            Token List
+            API Tokens
           </Menu.Item>
+          
           <Menu.Item
             color="red"
-            leftSection={
-              <IconTrash style={{ width: rem(14), height: rem(14) }} />
-            }
-            onClick={() => {
-              setDeleteModalOpened(true);
-            }}
+            leftSection={<IconTrash size={16} />}
+            onClick={() => setDeleteModalData({ type: 'profile' })}
+            py={10}
           >
             Delete Account
           </Menu.Item>
+          
           <Menu.Divider />
-          <Menu.Item color="red">
-            <Form
-              method="post"
-              action="/logout"
-              style={{ display: "flex", alignItems: "center", gap: "8px" }}
-            >
-              <IconLogout size={14} />
-              <button
-                type="submit"
-                style={{
-                  all: "unset",
-                  cursor: "pointer",
-                  flex: 1,
-                  textAlign: "left",
-                }}
-              >
-                Logout
-              </button>
-            </Form>
+          
+          <Menu.Item
+            color="red"
+            leftSection={<IconLogout size={16} />}
+            onClick={() => setLogoutModalOpen(true)}
+            py={10}
+          >
+            Sign Out
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>
 
       {/* Delete Account Modal */}
+      <DeleteModal
+        opened={!!deleteModalData}
+        onClose={() => setDeleteModalData(null)}
+        data={deleteModalData}
+        onSuccess={() => navigate('/login')}
+      />
+
+      {/* Logout Confirmation Modal */}
       <Modal
-        opened={deleteModalOpened}
-        onClose={() => setDeleteModalOpened(false)}
-        title="Delete Account"
+        opened={logoutModalOpen}
+        onClose={() => setLogoutModalOpen(false)}
+        title={
+          <Group gap="sm">
+            <IconAlertCircle size={24} color={theme.colors.red[6]} />
+            <Text fw={600} size="lg">
+              Sign Out
+            </Text>
+          </Group>
+        }
         centered
+        size="sm"
+        radius="md"
+        overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
       >
-        <Text>Are you sure you want to delete your account?</Text>
-        <Flex justify={"flex-end"} mt={"lg"} gap="sm">
-          <Button variant="default" onClick={() => setDeleteModalOpened(false)}>
-            Cancel
-          </Button>
-          <Button 
-            color="red" 
-            onClick={() => {
-              setDeleteModalOpened(false);
-              // Add actual delete logic here if needed
-            }}
-          >
-            Delete
-          </Button>
-        </Flex>
+        <Stack gap="lg">
+          <Text size="sm" c="dimmed">
+            Are you sure you want to sign out? You'll need to sign in again to access your account.
+          </Text>
+
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
+              onClick={() => setLogoutModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Form method="post" action="/logout">
+              <Button
+                type="submit"
+                color="red"
+                leftSection={<IconLogout size={16} />}
+              >
+                Sign Out
+              </Button>
+            </Form>
+          </Group>
+        </Stack>
       </Modal>
     </>
   );
 }
-

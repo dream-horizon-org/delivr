@@ -53,6 +53,40 @@ A comprehensive reference for all Delivr CLI commands, options, and features.
 
 - [`debug`](#debugging-codepush-integration) - View debug logs
 
+### CI/CD Build Commands
+
+- [`upload-aab-build`](#upload-aab-build) - Upload AAB build artifacts to Delivr (for Play Store releases)
+- [`upload-regression-artifact`](#upload-regression-artifact) - Upload APK/IPA regression builds to Delivr
+- [`upload-testflight-build-number`](#upload-testflight-build-number) - Upload TestFlight build number for iOS builds
+
+| Command | Description | Supported Files |
+|---------|-------------|-----------------|
+| `upload-aab-build` | Upload AAB for Play Store releases | `.aab` |
+| `upload-regression-artifact` | Upload regression builds | `.apk`, `.ipa` |
+| `upload-testflight-build-number` | Submit TestFlight build number | N/A |
+
+### upload-aab-build
+
+```bash
+code-push-standalone upload-aab-build <ciRunId> <artifactPath> --artifactVersion <version> --org <orgName> [--buildNumber <versionCode>]
+```
+
+### upload-regression-artifact
+
+```bash
+code-push-standalone upload-regression-artifact <ciRunId> <artifactPath> --artifactVersion <version> --org <orgName>
+```
+
+### upload-testflight-build-number
+
+```bash
+code-push-standalone upload-testflight-build-number <ciRunId> <testflightNumber> --artifactVersion <version> --org <orgName>
+```
+
+---
+
+For detailed documentation including CI Run ID reference, arguments, options, examples, and complete Jenkins/GitHub Actions integration guides, see [CI/CD Integration Guide](./docs/CI_CD_INTEGRATION.md).
+
 ---
 
 ## Binary Patch Operations

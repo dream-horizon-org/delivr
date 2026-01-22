@@ -3,14 +3,20 @@
     "parserOptions": {
         "ecmaVersion": "2022",
         "sourceType": "module",
-        "project": "./tsconfig.json"
+        "project": true
     },
+    "plugins": ["@typescript-eslint"],
     "extends": [
     ],
     "rules": {
         "no-var": "error",
         "prefer-const": "error",
-        "no-unused-vars": "error",
+        "no-unused-vars": "off",
+        "@typescript-eslint/no-unused-vars": ["error", {
+            "argsIgnorePattern": "^_",
+            "varsIgnorePattern": "^_",
+            "ignoreRestSiblings": true
+        }],
         "eqeqeq": "error",
         "no-eval": "error"
     }

@@ -1,178 +1,235 @@
-import { createTheme, MantineColorsTuple } from "@mantine/core";
-
-const brandColors: MantineColorsTuple = [
-  "#eef2ff",
-  "#e0e7ff",
-  "#c7d2fe",
-  "#a5b4fc",
-  "#818cf8",
-  "#6366f1",
-  "#4f46e5",
-  "#4338ca",
-  "#3730a6",
-  "#312e81",
-];
+import { createTheme, rem } from "@mantine/core";
+import { colors, theme as customTheme } from "./colors";
 
 export const mantineTheme = createTheme({
   cursorType: "pointer",
-  fontFamily: 'Poppins, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   
+  // Color Palette
   colors: {
-    brand: brandColors,
+    brand: colors.brand,
+    slate: colors.slate,
+  },
+  primaryColor: "brand",
+  primaryShade: 5,
+  
+  defaultRadius: "md",
+  
+  // Explicitly define spacing and radius to avoid potential undefined issues
+  spacing: {
+    xs: rem(4),
+    sm: rem(8),
+    md: rem(16),
+    lg: rem(24),
+    xl: rem(32),
   },
   
-  primaryColor: "brand",
-  
-  other: {
-    brand: {
-      primary: "#6366f1",
-      secondary: "#8b5cf6",
-      primaryDark: "#4f46e5",
-      tertiary: "#7c3aed",
-      quaternary: "#5b21b6",
-      light: "#eef2ff",
-      gradient: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-    },
-    backgrounds: {
-      primary: "#ffffff",
-      secondary: "#f8f9fa",
-      tertiary: "#fafafa",
-      hover: "#f3f4f6",
-      active: "#eef2ff",
-      subtle: "#f9fafb",
-      blue: "#f0f8ff",
-      green: "#f0fffa",
-      lightGreen: "#f0fff4",
-      pink: "#fff5f5",
-    },
-    text: {
-      primary: "#1f2937",
-      secondary: "#374151",
-      tertiary: "#6b7280",
-      disabled: "#9ca3af",
-      brand: "#6366f1",
-      brandDark: "#4f46e5",
-      white: "#ffffff",
-      dimmed: "#9ca3af",
-      red: "#ef4444",
-      yellow: "#eab308",
-      blue: "#4facfe",
-      green: "#06d6a0",
-      lightGreen: "#43e97b",
-      pink: "#fa709a",
-    },
-    borders: {
-      primary: "#e5e7eb",
-      secondary: "#e9ecef",
-      light: "#f3f4f6",
-      dark: "#d1d5db",
-      brand: "#6366f1",
-      brandLight: "#c7d2fe",
-    },
-    spacing: {
-      xxs: "2px",
-      xs: "4px",
-      sm: "8px",
-      md: "12px",
-      lg: "16px",
-      xl: "20px",
-      "2xl": "24px",
-      "3xl": "32px",
-      "4xl": "40px",
-      "5xl": "48px",
-      "6xl": "64px",
-    },
-    typography: {
-      fontSize: {
-        xs: "10px",
-        sm: "12px",
-        md: "14px",
-        base: "16px",
-        lg: "18px",
-        xl: "20px",
-        "2xl": "24px",
-        "3xl": "30px",
-        "4xl": "36px",
-      },
-      fontWeight: {
-        normal: 400,
-        medium: 500,
-        semibold: 600,
-        bold: 700,
-      },
-      letterSpacing: {
-        tight: "-0.5px",
-        normal: "0px",
-        wide: "0.5px",
-        wider: "1px",
-      },
-      lineHeight: {
-        tight: 1.25,
-        normal: 1.5,
-        relaxed: 1.75,
-      },
-    },
-    borderRadius: {
-      sm: "4px",
-      md: "8px",
-      lg: "12px",
-      xl: "16px",
-      "2xl": "20px",
-      full: "9999px",
-    },
-    shadows: {
-      none: "none",
-      sm: "0 2px 8px rgba(0, 0, 0, 0.08)",
-      md: "0 4px 16px rgba(99, 102, 241, 0.12)",
-      lg: "0 8px 24px rgba(99, 102, 241, 0.15)",
-      hover: "0 4px 16px rgba(99, 102, 241, 0.2)",
-      card: "0 1px 3px rgba(0, 0, 0, 0.12)",
-    },
-    transitions: {
-      fast: "all 150ms ease",
-      normal: "all 200ms ease",
-      slow: "all 250ms ease",
-      colors: "color 200ms ease, background-color 200ms ease",
-    },
+  radius: {
+    xs: rem(2),
+    sm: rem(4),
+    md: rem(8),
+    lg: rem(16),
+    xl: rem(24),
+  },
+
+  shadows: {
+    xs: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+    sm: "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)",
+    md: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)",
+    lg: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)",
+    xl: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+  },
+
+  headings: {
+    fontFamily: 'Inter, sans-serif',
+    fontWeight: "700",
     sizes: {
-      icon: {
-        xs: 12,
-        sm: 14,
-        md: 16,
-        lg: 18,
-        xl: 20,
-        "2xl": 24,
-        "3xl": 32,
-        "4xl": 40,
-      },
-      avatar: {
-        sm: 26,
-        md: 48,
-        lg: 72,
-        xl: 80,
-      },
-      button: {
-        xs: "24px",
-        sm: "32px",
-        md: "40px",
-        lg: "44px",
-        xl: "48px",
-      },
-      card: {
-        width: "300px",
-      },
-      sidebar: {
-        width: "280px",
+      h1: { fontSize: rem(36), lineHeight: "1.2" },
+      h2: { fontSize: rem(30), lineHeight: "1.3" },
+      h3: { fontSize: rem(24), lineHeight: "1.35" },
+      h4: { fontSize: rem(20), lineHeight: "1.4" },
+    },
+  },
+
+  components: {
+    Button: {
+      defaultProps: {
+        radius: "md",
+        fw: 500,
       },
     },
-    opacity: {
-      disabled: 0.5,
-      hover: 0.8,
-      overlay: 0.95,
-      subtle: 0.2,
-      medium: 0.4,
-      strong: 0.6,
+    Card: {
+      defaultProps: {
+        radius: "md",
+        shadow: "sm",
+        withBorder: true,
+      },
     },
+    Paper: {
+      defaultProps: {
+        radius: "md",
+        shadow: "sm",
+        withBorder: true,
+      },
+    },
+    Badge: {
+      defaultProps: {
+        radius: "sm",
+        fw: 600,
+      },
+    },
+    Tabs: {
+      defaultProps: {
+        color: "brand",
+      },
+    },
+    // Clip descriptions to 1 line for all input components
+    TextInput: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    DateInput: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    DateTimePicker: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    TimeInput: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    Select: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    Textarea: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    NumberInput: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    MultiSelect: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    PasswordInput: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    FileInput: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    ColorInput: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    JsonInput: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+    Autocomplete: {
+      styles: {
+        description: {
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        },
+      },
+    },
+  },
+
+  other: {
+    ...customTheme,
   },
 });
-

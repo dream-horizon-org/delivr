@@ -36,14 +36,19 @@ export class Authentication {
   // Validate the Google ID token received from the client or web dashboard
   public async verifyGoogleToken(idToken: string): Promise<TokenPayload> {
     try {
+      console.log("Verifying Google token with Client ID:", GOOGLE_CLIENT_ID);
+      console.log("Token length:", idToken?.length, "First 20 chars:", idToken?.substring(0, 20));
+      
       const ticket = await client.verifyIdToken({
         idToken: idToken,
         audience: GOOGLE_CLIENT_ID, // Make sure this matches the client ID used in your app
       });
 
       const payload = ticket.getPayload();
+      console.log("Token verification successful for email:", payload.email);
       return payload; // Return the user info from Google token
     } catch (error) {
+      console.error("Token verification failed:", error.message);
       sendErrorToDatadog(new Error("401: Unauthorised Invalid Google Token"));
       throw new Error("Invalid Google token");
     }
@@ -75,24 +80,6 @@ export class Authentication {
   private isEmailDomainAuthorized(email: string): boolean {
     const authorizedDomains = process.env.LOGIN_AUTHORIZED_DOMAINS;
     
-    // Initialize empty allowed domains array
-    let allowedDomains: string[] = [];
-    
-    if (authorizedDomains && authorizedDomains.trim() !== '') {
-      // Parse comma-separated domains and normalize
-      const configuredDomains = authorizedDomains
-        .split(',')
-        .map(domain => domain.trim().toLowerCase())
-        .filter(domain => domain.length > 0);
-      
-      // Add configured domains to the allowed list (avoiding duplicates)
-      configuredDomains.forEach(domain => {
-        if (!allowedDomains.includes(domain)) {
-          allowedDomains.push(domain);
-        }
-      });
-    }
-    
     // Extract and check email domain
     if (!email) {
       return false;
@@ -103,21 +90,50 @@ export class Authentication {
       return false;
     }
     
-    return allowedDomains.includes(emailDomain);
+    // If LOGIN_AUTHORIZED_DOMAINS is not configured, allow all domains
+    if (!authorizedDomains || authorizedDomains.trim() === '') {
+      console.log(`Domain authorization disabled - allowing ${emailDomain}`);
+      return true;
+    }
+    
+    // Parse comma-separated domains and normalize
+    const allowedDomains = authorizedDomains
+      .split(',')
+      .map(domain => domain.trim().toLowerCase())
+      .filter(domain => domain.length > 0);
+    
+    // Check if user's domain is in the allowed list
+    const isAuthorized = allowedDomains.includes(emailDomain);
+    
+    if (!isAuthorized) {
+      console.log(`Domain ${emailDomain} not in allowed list: ${allowedDomains.join(', ')}`);
+    }
+    
+    return isAuthorized;
   }
 
   // Middleware to authenticate requests using Google ID token
   public async authenticate(req: Request, res: Response, next: (err?: Error) => void) {
     // Bypass authentication in development mode
     if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") {
-      if (req.body.user === undefined) {
+      // Check for userid in headers first (for testing with different users)
+      const userId = Array.isArray(req.headers.userid) ? req.headers.userid[0] : req.headers.userid;
+      
+      if (userId) {
+        // Custom user provided via header
+        req.user = {
+          id: userId,
+        };
+      } else if (req.body.user !== undefined) {
+        // User provided via body
+        req.user = req.body.user;
+      } else {
+        // Default test user
         req.user = {
           id: "id_0",
           email: "user1@example.com",
           name: "User One",
         };
-      } else {
-        req.user = req.headers.userId;
       }
       return next();
     }
@@ -135,13 +151,13 @@ export class Authentication {
                 };
                 return next();
             } else {
-                return res.status(401).send("User not found");    
+              return res.status(401).send("User not found");
             }
         } else {
-            return res.status(401).send("Missing Google ID token");
+          return res.status(401).send("Missing Google ID token");
         }
         
-    }
+      }
 
     if (idToken.startsWith("cli-")) {
       // Handle CLI access with access key
@@ -173,9 +189,9 @@ export class Authentication {
             "Please contact your administrator if you believe this is an error."
           );
         }
-
+        console.log("Getting or creating user...");
         const user = await this.getOrCreateUser(payload);
-
+        console.log("User created or retrieved:", user);
         if (!user) {
           return res.status(401).send("User not found in the system");
         } else {
@@ -196,6 +212,8 @@ export class Authentication {
 
      
     } catch (error) {
+      console.error("Authentication error details:", error);
+      console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
       res.status(401).send("Authentication failed");
     }
   }

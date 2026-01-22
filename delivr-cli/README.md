@@ -40,7 +40,7 @@ Most commands require authentication. You'll need an access key to use the CLI.
 ### Login
 ```bash
 # Login with access key
-code-push-standalone login --accessKey <your-access-key> <server-url>
+code-push-standalone login <server-url> --accessKey <your-access-key>
 
 # Check login status
 code-push-standalone whoami
@@ -156,6 +156,18 @@ code-push-standalone promote MyApp-iOS Staging Production \
   --rollout 25 \                    # Release to 25% of users
     --description "Verified update"    # Update description
 ```
+
+## CI/CD Integration
+
+The Delivr CLI provides three commands for CI/CD build artifact management:
+
+| Command | Description | Supported Files |
+|---------|-------------|-----------------|
+| `upload-aab-build` | Upload AAB for Play Store releases | `.aab` |
+| `upload-regression-artifact` | Upload regression builds | `.apk`, `.ipa` |
+| `upload-testflight-build-number` | Submit TestFlight build number | N/A |
+
+For detailed CI/CD integration guides with Jenkins and GitHub Actions examples, see our [CI/CD Integration Guide](./docs/CI_CD_INTEGRATION.md).
 
 ## Contributing
 

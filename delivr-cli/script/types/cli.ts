@@ -3,6 +3,12 @@
 
 import AccountManager = require("../management-sdk");
 
+export enum AccessKeyScope {
+  All = "All",
+  Write = "Write",
+  Read = "Read",
+}
+
 export enum CommandType {
   accessKeyAdd,
   accessKeyPatch,
@@ -38,7 +44,10 @@ export enum CommandType {
   sessionRemove,
   whoami,
   createPatch,
-  applyPatch
+  applyPatch,
+  uploadRegressionArtifact,
+  uploadTestFlightBuildNumber,
+  uploadAABBuild
 }
 
 export interface ICommand {
@@ -60,12 +69,14 @@ export interface IAppCommand extends ICommand {
 
 export interface IAccessKeyAddCommand extends ICommand {
   name: string;
+  scope: AccessKeyScope;
   ttl?: number;
 }
 
 export interface IAccessKeyPatchCommand extends ICommand {
   newName?: string;
   oldName: string;
+  scope: AccessKeyScope;
   ttl?: number;
 }
 
@@ -257,4 +268,26 @@ export interface IApplyPatchCommand extends ICommand {
   oldBundle: string;
   patchFile: string;
   outputBundle: string;
+}
+
+export interface IUploadRegressionArtifactCommand extends ICommand {
+  ciRunId: string;
+  artifactPath: string;
+  artifactVersion: string;
+  org: string;
+}
+
+export interface IUploadTestFlightBuildNumberCommand extends ICommand {
+  ciRunId: string;
+  testflightNumber: string;
+  artifactVersion: string;
+  org: string;
+}
+
+export interface IUploadAABBuildCommand extends ICommand {
+  ciRunId: string;
+  artifactPath: string;
+  artifactVersion: string;
+  buildNumber?: string;
+  org: string;
 }

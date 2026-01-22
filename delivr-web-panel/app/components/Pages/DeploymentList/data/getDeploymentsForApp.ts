@@ -152,7 +152,7 @@ export const getDeploymentsForApp = async (
     return {
       id: item.id,
       name: item.name,
-      createdBy: "Dummy User",
+      createdBy: item.createdBy || 'Unknown', // Use API response or fallback
       deploymentKey: item.key,
     };
   });

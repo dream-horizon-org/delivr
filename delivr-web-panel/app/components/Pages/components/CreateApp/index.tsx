@@ -50,7 +50,7 @@ export function CreateAppForm({ onSuccess }: CreateAppFormProps = {}) {
 
   const onOrgChange = (value: string) => {
     if (!value?.length) {
-      setOrg({ value: "", error: "Organization is required" });
+      setOrg({ value: "", error: "Project is required" });
       return;
     }
 
@@ -67,13 +67,17 @@ export function CreateAppForm({ onSuccess }: CreateAppFormProps = {}) {
         value: currentOrg.orgName,
         error: "",
       });
-    } else {
+    } else if (!params.org && orgs.data?.length) {
+      // Only set default if no org in params
       setOrg({
-        value: orgs.data?.[0]?.orgName ?? "Select Org",
+        value: orgs.data[0].orgName,
         error: "",
       });
     }
   }, [orgs.data, params.org]);
+
+  // Check if we're in an organization context
+  const isInOrgContext = !!params.org;
 
   return (
     <>
@@ -87,19 +91,22 @@ export function CreateAppForm({ onSuccess }: CreateAppFormProps = {}) {
           {...form.getInputProps("appName")}
         />
       </Skeleton>
-      <Skeleton visible={shouldShowLoader} mt={"md"}>
-        <Autocomplete
-          mt="md"
-          label="Select Organization"
-          withAsterisk
-          placeholder="Choose an organization"
-          onChange={onOrgChange}
-          disabled={isLoading}
-          value={org.value}
-          error={org.error}
-          data={orgs.data?.map((item) => item.orgName) ?? []}
-        />
-      </Skeleton>
+      {/* Only show organization selector if NOT in an organization context */}
+      {!isInOrgContext && (
+        <Skeleton visible={shouldShowLoader} mt={"md"}>
+          <Autocomplete
+            mt="md"
+            label="Select Project"
+            withAsterisk
+            placeholder="Choose a project"
+            onChange={onOrgChange}
+            disabled={isLoading}
+            value={org.value}
+            error={org.error}
+            data={orgs.data?.map((item) => item.orgName) ?? []}
+          />
+        </Skeleton>
+      )}
 
       {/* <Skeleton visible={shouldShowLoader} mt={"md"}>
         <TagsInput
@@ -119,14 +126,16 @@ export function CreateAppForm({ onSuccess }: CreateAppFormProps = {}) {
               return;
             }
             
-            // Validate organization
-            if (!org.value || org.value.trim().length === 0) {
-              setOrg({ value: org.value, error: "Organization is required" });
-              return;
-            }
-            
-            if (org.error) {
-              return;
+            // Validate organization (only if not in org context)
+            if (!isInOrgContext) {
+              if (!org.value || org.value.trim().length === 0) {
+                setOrg({ value: org.value, error: "Project is required" });
+                return;
+              }
+              
+              if (org.error) {
+                return;
+              }
             }
             
             let owner = { orgId: "", orgName: org.value };
@@ -138,7 +147,7 @@ export function CreateAppForm({ onSuccess }: CreateAppFormProps = {}) {
             }
             return mutate(
               {
-                name: form.getValues().appName,
+                name: form.getValues().appName.trim(),
                 ...owner,
               },
               {
@@ -155,7 +164,9 @@ export function CreateAppForm({ onSuccess }: CreateAppFormProps = {}) {
             );
           }}
           disabled={
-            !!Object.keys(form.errors).length || isLoading || !!org.error.length || !org.value.trim()
+            !!Object.keys(form.errors).length || 
+            isLoading || 
+            (!isInOrgContext && (!!org.error.length || !org.value.trim()))
           }
           loading={isLoading}
         >

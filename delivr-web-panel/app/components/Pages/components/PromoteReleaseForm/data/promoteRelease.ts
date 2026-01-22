@@ -22,7 +22,12 @@ export const promoteRelease = async (body: PromoteReleaseArgs) => {
         targetDeployment: body.targetDeployment,
       }
     ),
-    body
+    body,
+    {
+      headers: {
+        tenant: body.tenant,
+      },
+    }
   );
 
   return data;

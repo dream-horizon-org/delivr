@@ -1,23 +1,20 @@
 import { useMutation } from "react-query";
 
-import { notifications } from "@mantine/notifications";
 import { handleApiError } from "~/utils/handleApiError";
 import { deleteDeployment } from "../data/deleteDeployment";
+import { showErrorToast, showSuccessToast } from "~/utils/toast";
+import { DEPLOYMENT_MESSAGES } from "~/constants/toast-messages";
 
 export const useDeleteDeployment = () => {
   return useMutation(deleteDeployment, {
     onError: (e) => {
-      notifications.show({
-        color: "red",
-        title: "Deployment Deletion",
-        message: handleApiError(e, "Error While Deleting Deployment"),
+      showErrorToast({
+        title: DEPLOYMENT_MESSAGES.DELETE_ERROR.title,
+        message: handleApiError(e, DEPLOYMENT_MESSAGES.DELETE_ERROR.message),
       });
     },
     onSuccess: () => {
-      notifications.show({
-        title: "Deployment Deletion",
-        message: "Deployment Deleted Successfully",
-      });
+      showSuccessToast(DEPLOYMENT_MESSAGES.DELETE_SUCCESS);
     },
   });
 };

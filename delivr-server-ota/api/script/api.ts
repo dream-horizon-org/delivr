@@ -6,11 +6,14 @@ import { Router, RequestHandler } from "express";
 import { getHeadersMiddleware, HeadersConfig } from "./routes/headers";
 import { getAcquisitionRouter, getHealthRouter, AcquisitionConfig } from "./routes/acquisition";
 import { getManagementRouter, ManagementConfig } from "./routes/management";
+import { getReleaseManagementRouter, ReleaseManagementConfig } from "./routes/release-management";
+import { getDistributionRouter, DistributionRouterConfig } from "./routes/distribution.routes";
 import { PassportAuthentication, AuthenticationConfig } from "./routes/passport-authentication";
 import { Authentication } from "./routes/authentication";
 import { AppInsights } from "./routes/app-insights";
 import { InputSanitizer } from "./routes/input-sanitizer";
 import { RequestTimeoutHandler } from "./routes/request-timeout";
+import { createCronicleRoutes } from "./routes/cronicle.routes";
 
 export function headers(config: HeadersConfig): RequestHandler {
   return getHeadersMiddleware(config);
@@ -26,6 +29,14 @@ export function health(config: AcquisitionConfig): Router {
 
 export function management(config: ManagementConfig): Router {
   return getManagementRouter(config);
+}
+
+export function releaseManagement(config: ReleaseManagementConfig): Router {
+  return getReleaseManagementRouter(config);
+}
+
+export function distribution(config: DistributionRouterConfig): Router {
+  return getDistributionRouter(config);
 }
 
 export function auth(config: AuthenticationConfig): any {
@@ -52,4 +63,8 @@ export function inputSanitizer(): any {
 
 export function requestTimeoutHandler(): RequestHandler {
   return RequestTimeoutHandler;
+}
+
+export function cronicle(storage: any): Router {
+  return createCronicleRoutes(storage);
 }

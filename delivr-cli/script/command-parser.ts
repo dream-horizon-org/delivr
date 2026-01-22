@@ -53,6 +53,11 @@ function accessKeyAdd(commandName: string, yargs: yargs.Argv): void {
       demand: false,
       description: "Duration string which specifies the amount of time that the access key should remain valid for (e.g 5m, 60d, 1y)",
       type: "string",
+    })
+    .option("scope", {
+      demand: true,
+      description: "Access scope for the key (e.g. Read, Write, All)",
+      type: "string",
     });
 
   addCommonConfiguration(yargs);
@@ -81,6 +86,11 @@ function accessKeyPatch(commandName: string, yargs: yargs.Argv): void {
       default: null,
       demand: false,
       description: "Duration string which specifies the amount of time that the access key should remain valid for (e.g 5m, 60d, 1y)",
+      type: "string",
+    })
+    .option("scope", {
+      demand: true,
+      description: "Access scope for the key (e.g. Read, Write, All)",
       type: "string",
     });
   addCommonConfiguration(yargs);
@@ -947,6 +957,90 @@ yargs
       .example("apply-patch .old/index.android.bundle ./patch-dir/bundle.patch .new/index.android.bundle", "Apply bundle.patch to .old/index.android.bundle and save the result as .new/index.android.bundle");
     addCommonConfiguration(yargs);
   })
+  .command("upload-aab-build", "Upload AAB build artifact to Delivr release management", (yargs: yargs.Argv) => {
+    isValidCommandCategory = true;
+    isValidCommand = true;
+    yargs
+      .usage(USAGE_PREFIX + " upload-aab-build <ciRunId> <artifactPath> --artifactVersion <version> --org <orgName> [options]")
+      .demand(/*count*/ 2, /*max*/ 2)
+      .example(
+        'upload-aab-build $BUILD_URL ./app-release.aab --artifactVersion "3.0.4" --org "MyOrg"',
+        "Uploads the AAB build (system auto-uploads to Play Store internal track)"
+      )
+      .example(
+        'upload-aab-build $BUILD_URL ./app-release.aab --artifactVersion "3.0.4" --org "MyOrg" --buildNumber "12345"',
+        "Uploads the AAB with versionCode (CI already uploaded to Play Store)"
+      )
+      .option("artifactVersion", {
+        demand: true,
+        description: "Artifact version (e.g., 3.0.4) - used to validate artifact belongs to the correct release",
+        type: "string",
+      })
+      .option("buildNumber", {
+        alias: "b",
+        default: null,
+        demand: false,
+        description: "Build number / versionCode from Play Store (if CI already uploaded the AAB)",
+        type: "string",
+      })
+      .option("org", {
+        alias: "o",
+        demand: true,
+        description: "Organization name for tenant context",
+        type: "string",
+      });
+    addCommonConfiguration(yargs);
+  })
+  .command("upload-regression-artifact", "Upload APK/IPA regression build artifacts to Delivr", (yargs: yargs.Argv) => {
+    isValidCommandCategory = true;
+    isValidCommand = true;
+    yargs
+      .usage(USAGE_PREFIX + " upload-regression-artifact <ciRunId> <artifactPath> --artifactVersion <version> --org <orgName>")
+      .demand(/*count*/ 2, /*max*/ 2)
+      .example(
+        'upload-regression-artifact $BUILD_URL ./app-release.apk --artifactVersion "3.0.4" --org "MyOrg"',
+        "Uploads APK regression build to the CI run"
+      )
+      .example(
+        'upload-regression-artifact $BUILD_URL ./MyApp.ipa --artifactVersion "3.0.4" --org "MyOrg"',
+        "Uploads IPA regression build to the CI run"
+      )
+      .option("artifactVersion", {
+        demand: true,
+        description: "Artifact version (e.g., 3.0.4) - used to validate artifact belongs to the correct release",
+        type: "string",
+      })
+      .option("org", {
+        alias: "o",
+        demand: true,
+        description: "Organization name for tenant context",
+        type: "string",
+      });
+    addCommonConfiguration(yargs);
+  })
+  .command("upload-testflight-build-number", "Upload TestFlight build number for iOS builds", (yargs: yargs.Argv) => {
+    isValidCommandCategory = true;
+    isValidCommand = true;
+    yargs
+      .usage(USAGE_PREFIX + " upload-testflight-build-number <ciRunId> <testflightNumber> --artifactVersion <version> --org <orgName>")
+      .demand(/*count*/ 2, /*max*/ 2)
+      .example(
+        'upload-testflight-build-number $BUILD_URL 17965 --artifactVersion "3.0.4" --org "MyOrg"',
+        "Uploads the TestFlight build number for the CI run"
+      )
+      .option("artifactVersion", {
+        demand: true,
+        description: "Artifact version (e.g., 3.0.4) - used to validate artifact belongs to the correct release",
+        type: "string",
+      })
+      .option("org", {
+        alias: "o",
+        demand: true,
+        description: "Organization name for tenant context",
+        type: "string",
+      });
+    addCommonConfiguration(yargs);
+  })
   .command("whoami", "Display the account info for the current login session", (yargs: yargs.Argv) => {
     isValidCommandCategory = true;
     isValidCommand = true;
@@ -982,6 +1076,7 @@ export function createCommand(): cli.ICommand {
               cmd = { type: cli.CommandType.accessKeyAdd };
               const accessKeyAddCmd = <cli.IAccessKeyAddCommand>cmd;
               accessKeyAddCmd.name = arg2;
+              accessKeyAddCmd.scope = argv["scope"] as cli.AccessKeyScope;
               const ttlOption: string = argv["ttl"] as any;
               if (isDefined(ttlOption)) {
                 accessKeyAddCmd.ttl = parseDurationMilliseconds(ttlOption);
@@ -994,6 +1089,7 @@ export function createCommand(): cli.ICommand {
               cmd = { type: cli.CommandType.accessKeyPatch };
               const accessKeyPatchCmd = <cli.IAccessKeyPatchCommand>cmd;
               accessKeyPatchCmd.oldName = arg2;
+              accessKeyPatchCmd.scope = argv["scope"] as cli.AccessKeyScope;
 
               const newNameOption: string = argv["name"] as any;
               const ttlOption: string = argv["ttl"] as any;
@@ -1390,6 +1486,59 @@ export function createCommand(): cli.ICommand {
           applyPatchCommand.oldBundle = arg1;
           applyPatchCommand.patchFile = arg2;
           applyPatchCommand.outputBundle = arg3;
+        }
+        break;
+
+      case "upload-aab-build":
+        if (arg1 && arg2) {
+          const artifactVersionOption = argv["artifactVersion"] as string;
+          const hasArtifactVersion = artifactVersionOption && artifactVersionOption.length > 0;
+          const orgOption = argv["org"] as string;
+          if (hasArtifactVersion) {
+            cmd = { type: cli.CommandType.uploadAABBuild };
+            const uploadAABBuildCommand = <cli.IUploadAABBuildCommand>cmd;
+            uploadAABBuildCommand.ciRunId = arg1;
+            uploadAABBuildCommand.artifactPath = arg2;
+            uploadAABBuildCommand.artifactVersion = artifactVersionOption;
+            uploadAABBuildCommand.org = orgOption;
+            const buildNumberOption = argv["buildNumber"] as string;
+            const hasBuildNumber = buildNumberOption && buildNumberOption.length > 0;
+            if (hasBuildNumber) {
+              uploadAABBuildCommand.buildNumber = buildNumberOption;
+            }
+          }
+        }
+        break;
+
+      case "upload-regression-artifact":
+        if (arg1 && arg2) {
+          const artifactVersionOption = argv["artifactVersion"] as string;
+          const hasArtifactVersion = artifactVersionOption && artifactVersionOption.length > 0;
+          const orgOption = argv["org"] as string;
+          if (hasArtifactVersion) {
+            cmd = { type: cli.CommandType.uploadRegressionArtifact };
+            const uploadRegressionCommand = <cli.IUploadRegressionArtifactCommand>cmd;
+            uploadRegressionCommand.ciRunId = arg1;
+            uploadRegressionCommand.artifactPath = arg2;
+            uploadRegressionCommand.artifactVersion = artifactVersionOption;
+            uploadRegressionCommand.org = orgOption;
+          }
+        }
+        break;
+
+      case "upload-testflight-build-number":
+        if (arg1 && arg2) {
+          const artifactVersionOption = argv["artifactVersion"] as string;
+          const hasArtifactVersion = artifactVersionOption && artifactVersionOption.length > 0;
+          const orgOption = argv["org"] as string;
+          if (hasArtifactVersion) {
+            cmd = { type: cli.CommandType.uploadTestFlightBuildNumber };
+            const uploadTestFlightCommand = <cli.IUploadTestFlightBuildNumberCommand>cmd;
+            uploadTestFlightCommand.ciRunId = arg1;
+            uploadTestFlightCommand.testflightNumber = arg2;
+            uploadTestFlightCommand.artifactVersion = artifactVersionOption;
+            uploadTestFlightCommand.org = orgOption;
+          }
         }
         break;
     }

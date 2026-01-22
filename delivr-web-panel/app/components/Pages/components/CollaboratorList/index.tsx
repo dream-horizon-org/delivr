@@ -4,7 +4,6 @@ import {
   Stack,
   Group,
   Text,
-  Select,
   Skeleton,
   Badge,
   ActionIcon,
@@ -12,36 +11,17 @@ import {
   Box,
   Table,
   useMantineTheme,
+  ThemeIcon,
+  Avatar,
 } from "@mantine/core";
-import { IconTrash, IconUserPlus, IconCrown, IconUser } from "@tabler/icons-react";
+import { IconTrash, IconUserPlus, IconCrown, IconUsers } from "@tabler/icons-react";
 
 import { useGetAppCollaboratorList } from "./hooks/useGetAppCollaboratorList";
-import { useUpdateCollabarator } from "./hooks/useUpdateCollabarator";
 import { useRemoveCollabarator } from "./hooks/useRemoveCollabarator";
 import { AddCollboratorForm } from "../AddCollboratorForm";
 import { useParams } from "@remix-run/react";
 import { Collaborator } from "./data/getAppCollaborator";
-import { CTAButton } from "~/components/CTAButton";
-
-const getInitials = (name: string) => {
-  const parts = name.split("@")[0].split(".");
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-  return name.substring(0, 2).toUpperCase();
-};
-
-const getAvatarColorFromTheme = (name: string, theme: any) => {
-  const colors = [
-    theme.other.brand.primary,
-    theme.other.brand.secondary,
-    theme.other.brand.primaryDark,
-    theme.other.brand.tertiary,
-    theme.other.brand.quaternary,
-  ];
-  const hash = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return colors[hash % colors.length];
-};
+import { CTAButton } from "~/components/Common/CTAButton";
 
 type CollabaratorListProps = {
   addCollaboratorOpen?: boolean;
@@ -66,7 +46,7 @@ export function CollabaratorList({
         {Array(3)
           .fill(0)
           .map((_, i) => (
-            <Skeleton key={i} height={100} radius="md" />
+            <Skeleton key={i} height={60} radius="md" />
           ))}
       </Stack>
     );
@@ -75,16 +55,20 @@ export function CollabaratorList({
   if (!data?.length) {
     return (
       <Card withBorder padding="xl" radius="md" style={{ textAlign: "center" }}>
-        <Stack gap="md" align="center">
-          <IconUser size={theme.other.sizes.avatar.md} color={theme.other.text.disabled} />
-          <Text size="lg" fw={theme.other.typography.fontWeight.medium} c="dimmed">
-            No Collaborators Yet
-          </Text>
-          <Text size="sm" c="dimmed">
-            Add team members to collaborate on this app
-          </Text>
+        <Stack gap="md" align="center" py="lg">
+          <ThemeIcon size={60} radius="xl" color="gray" variant="light">
+            <IconUsers size={30} />
+          </ThemeIcon>
+          <Box>
+            <Text size="lg" fw={600} c={theme.colors.slate[8]} mb={4}>
+              No Collaborators Yet
+            </Text>
+            <Text size="sm" c="dimmed">
+              Add team members to collaborate on this app
+            </Text>
+          </Box>
           <CTAButton
-            leftSection={<IconUserPlus size={theme.other.sizes.icon.lg} />}
+            leftSection={<IconUserPlus size={16} />}
             onClick={() => setOpen(true)}
           >
             Add Collaborator
@@ -103,26 +87,21 @@ export function CollabaratorList({
       />
 
       <Card withBorder radius="md" padding={0} style={{ overflow: "hidden" }}>
-        <Table horizontalSpacing="lg" verticalSpacing="md" highlightOnHover>
-          <Table.Thead style={{ backgroundColor: theme.other.backgrounds.secondary }}>
+        <Table horizontalSpacing="md" verticalSpacing="sm" highlightOnHover>
+          <Table.Thead style={{ backgroundColor: theme.colors.slate[0] }}>
             <Table.Tr>
               <Table.Th>
-                <Text size="sm" fw={theme.other.typography.fontWeight.semibold} c={theme.other.text.secondary}>
+                <Text size="xs" fw={600} c={theme.colors.slate[6]} tt="uppercase">
                   Collaborator
                 </Text>
               </Table.Th>
               <Table.Th>
-                <Text size="sm" fw={theme.other.typography.fontWeight.semibold} c={theme.other.text.secondary}>
+                <Text size="xs" fw={600} c={theme.colors.slate[6]} tt="uppercase">
                   Role
                 </Text>
               </Table.Th>
-              <Table.Th>
-                <Text size="sm" fw={theme.other.typography.fontWeight.semibold} c={theme.other.text.secondary}>
-                  Permission
-                </Text>
-              </Table.Th>
-              <Table.Th style={{ width: 100 }}>
-                <Text size="sm" fw={theme.other.typography.fontWeight.semibold} c={theme.other.text.secondary}>
+              <Table.Th style={{ width: 80 }}>
+                <Text size="xs" fw={600} c={theme.colors.slate[6]} tt="uppercase">
                   Actions
                 </Text>
               </Table.Th>
@@ -166,36 +145,9 @@ function CollaboratorRow({
   isLoading: boolean;
   onLoadingChange: (loading: boolean) => void;
 }) {
-  const theme = useMantineTheme();
   const params = useParams();
-  const { mutate: updatePermission } = useUpdateCollabarator();
   const { mutate: removeCollaborator } = useRemoveCollabarator();
   const [isDeleting, setIsDeleting] = useState(false);
-
-  const initials = getInitials(collaborator.name);
-  const avatarColor = getAvatarColorFromTheme(collaborator.name, theme);
-
-  const handlePermissionChange = (value: string | null) => {
-    if (!value) return;
-    onLoadingChange(true);
-    updatePermission(
-      {
-        appId: params.app ?? "",
-        tenant: params.org ?? "",
-        email: collaborator.name,
-        role: value as Collaborator["permission"],
-      },
-      {
-        onSuccess: () => {
-          refetch();
-          onLoadingChange(false);
-        },
-        onError: () => {
-          onLoadingChange(false);
-        },
-      }
-    );
-  };
 
   const handleDelete = () => {
     setIsDeleting(true);
@@ -223,25 +175,14 @@ function CollaboratorRow({
   return (
     <Table.Tr style={{ opacity: isLoading ? 0.5 : 1 }}>
       <Table.Td>
-        <Group gap="md" wrap="nowrap">
-          <Box
-            style={{
-              width: theme.other.sizes.avatar.sm,
-              height: theme.other.sizes.avatar.sm,
-              borderRadius: theme.other.borderRadius.full,
-              background: `linear-gradient(135deg, ${avatarColor} 0%, ${avatarColor}dd 100%)`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: theme.other.shadows.sm,
-              flexShrink: 0,
-            }}
-          >
-            <Text size="xs" fw={theme.other.typography.fontWeight.bold} c="white">
-              {initials}
-            </Text>
-          </Box>
-          <Text fw={theme.other.typography.fontWeight.medium} size="sm" style={{ wordBreak: "break-all" }}>
+        <Group gap="sm" wrap="nowrap">
+          <Avatar
+            name={collaborator.name}
+            color="initials"
+            size="sm"
+            radius="xl"
+          />
+          <Text fw={500} size="sm" style={{ wordBreak: "break-all" }}>
             {collaborator.name}
           </Text>
         </Group>
@@ -251,58 +192,40 @@ function CollaboratorRow({
           <Badge
             leftSection={<IconCrown size={12} />}
             variant="light"
-            style={{
-              backgroundColor: theme.other.brand.light,
-              color: theme.other.brand.primaryDark,
-            }}
+            color="brand"
             size="sm"
           >
             Owner
           </Badge>
+        ) : collaborator.permission === "Editor" ? (
+          <Badge 
+            variant="light" 
+            color="green"
+            size="sm"
+          >
+            Editor
+          </Badge>
         ) : (
           <Badge 
             variant="light" 
-            style={{
-              backgroundColor: theme.other.brand.light,
-              color: theme.other.brand.primaryDark,
-            }}
+            color="gray"
             size="sm"
           >
-            Collaborator
+            Viewer
           </Badge>
         )}
       </Table.Td>
       <Table.Td>
-        <Select
-          data={[
-            { value: "Owner", label: "Owner" },
-            { value: "Collaborator", label: "Collaborator" },
-          ]}
-          value={collaborator.permission}
-          onChange={handlePermissionChange}
-          disabled={isLoading}
-          size="sm"
-          styles={{
-            input: {
-              borderColor: theme.other.borders.primary,
-              "&:focus": {
-                borderColor: theme.other.brand.primary,
-              },
-            },
-          }}
-        />
-      </Table.Td>
-      <Table.Td>
-        <Tooltip label="Remove Collaborator">
+        <Tooltip label="Remove Collaborator" withArrow>
           <ActionIcon
             variant="light"
             color="red"
-            size="md"
+            size="sm"
             onClick={handleDelete}
             loading={isDeleting}
             disabled={isLoading}
           >
-            <IconTrash size={theme.other.sizes.icon.md} />
+            <IconTrash size={14} />
           </ActionIcon>
         </Tooltip>
       </Table.Td>

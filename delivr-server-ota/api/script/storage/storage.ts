@@ -5,7 +5,7 @@ import * as stream from "stream";
 import * as error from "../error";
 
 import { AppCreationRequest } from "../types/rest-definitions";
-import { bool } from "aws-sdk/clients/signer";
+import { bool as _bool } from "aws-sdk/clients/signer";
 
 export enum ErrorCode {
   ConnectionFailed = 0,
@@ -26,7 +26,8 @@ export module ReleaseMethod {
 
 export module Permissions {
   export const Owner = "Owner";
-  export const Collaborator = "Collaborator";
+  export const Editor = "Editor";
+  export const Viewer = "Viewer";
 }
 
 export interface StorageError extends error.CodePushError {
@@ -34,16 +35,26 @@ export interface StorageError extends error.CodePushError {
 }
 
 /**
- * Specifies an account with the power to manage apps, deployments and packages
+ * Unified Account/User interface
+ * Combines OG Delivr User + New Delivr Account
+ * No global role - roles are tenant-specific (user_tenant_roles table)
  */
 export interface Account {
-  azureAdId?: string;
-  /*generated*/ createdTime: number;
-  /*const*/ email: string;
-  gitHubId?: string;
+  // Core fields
   /*generated*/ id?: string;
-  microsoftId?: string;
-  /*const*/ name: string;
+  /*const*/ email: string;
+  /*const*/ name: string;  // Combined firstName + lastName from OG Delivr
+  /*generated*/ createdTime: number;
+  /*generated*/ updatedAt?: number;
+  
+  // OAuth Provider IDs (union of both systems)
+  ssoId?: string;         // From OG Delivr - Google SSO ID
+  azureAdId?: string;     // From New Delivr - Azure AD
+  gitHubId?: string;      // From New Delivr - GitHub
+  microsoftId?: string;   // From New Delivr - Microsoft
+  
+  // User Profile (from OG Delivr)
+  picture?: string;       // Profile picture URL
 }
 
 export interface CollaboratorProperties {
@@ -156,8 +167,10 @@ export interface Storage {
 
 
   getTenants(accountId: string): Promise<Organization[]>;
+  addTenant(accountId: string, tenant: Organization): Promise<Organization>;
   removeTenant(accountId: string, tenantId: string): Promise<void>;
-
+  
+  
   addApp(accountId: string, app: App): Promise<App>;
   getApps(accountId: string): Promise<App[]>;
   getApp(accountId: string, appId: string): Promise<App>;
@@ -169,6 +182,12 @@ export interface Storage {
   getCollaborators(accountId: string, appId: string): Promise<CollaboratorMap>;
   updateCollaborators(accountId: string, appId: string, email: string, role: string): Promise<void>;
   removeCollaborator(accountId: string, appId: string, email: string): Promise<void>;
+  
+  // Tenant collaborator methods
+  getTenantCollaborators(tenantId: string): Promise<CollaboratorMap>;
+  addTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void>;
+  updateTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void>;
+  removeTenantCollaborator(tenantId: string, email: string): Promise<void>;
 
   addDeployment(accountId: string, appId: string, deployment: Deployment): Promise<string>;
   getDeployment(accountId: string, appId: string, deploymentId: string): Promise<Deployment>;
@@ -274,17 +293,31 @@ export class NameResolver {
   public static isDuplicateApp<T extends { name: string }>(items: T[], appRequest: AppCreationRequest): boolean {
     if (!items.length) return false;
 
+    // Trim the requested app name for comparison
+    // This handles cases where existing apps in DB have spaces
+    const trimmedRequestName = appRequest.name?.trim() ?? appRequest.name;
+
     if ((<App>(<any>items[0])).collaborators) {
-      // Use 'app' overload
+      // Use 'app' overload - compare trimmed names
       for (let i = 0; i < items.length; i++) {
         const app = <App>(<any>items[i]);
-        if (app.name === appRequest.name && NameResolver.findByTentantId(app, appRequest) && isOwnedByCurrentUser(app)) return true;
+        // Trim existing app name for comparison
+        const trimmedAppName = app.name?.trim() ?? app.name;
+        if (trimmedAppName === trimmedRequestName && NameResolver.findByTentantId(app, appRequest) && isOwnedByCurrentUser(app)) return true;
       }
 
       return false;
     } else {
-      // Use general overload
-      return !!NameResolver.findByName(items, appRequest.name);
+      // Use general overload - find by trimmed name
+      // Note: findByName does exact match, so we need to check trimmed names manually
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const trimmedItemName = item.name?.trim() ?? item.name;
+        if (trimmedItemName === trimmedRequestName) {
+          return true;
+        }
+      }
+      return false;
     }
   }
 
@@ -396,7 +429,7 @@ export class NameResolver {
       .catch(NameResolver.errorMessageOverride(ErrorCode.NotFound, `Access key "${name}" does not exist.`));
   }
 
-  public resolveApp(accountId: string, name: string, tenantId?: string, permission?: string): Promise<App> {
+  public resolveApp(accountId: string, name: string, tenantId?: string, _permission?: string): Promise<App> {
     return this._storage
       .getApps(accountId)
       .then((apps: App[]): App => {

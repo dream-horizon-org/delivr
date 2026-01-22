@@ -418,7 +418,9 @@ export type ReleaseListResponse = {
 //   },
 // ];
 
-export type GetReleaseParamArgs = Omit<DeploymentsReleaseRequest, "userId">;
+export type GetReleaseParamArgs = Omit<DeploymentsReleaseRequest, "userId"> & {
+  tenant: string;
+};
 
 export const getReleaseListForDeployment = async (
   params: GetReleaseParamArgs
@@ -430,8 +432,18 @@ export const getReleaseListForDeployment = async (
     route("/api/v1/:app/deployments/:deploymentName", {
       app: params.appId,
       deploymentName: params.deploymentName,
-    })
+    }),
+    {
+      headers: {
+        tenant: params.tenant,
+      },
+    }
   );
+
+  // Add null check for deployment and packageHistory
+  if (!data?.deployment?.packageHistory) {
+    return [];
+  }
 
   return data.deployment.packageHistory.map((item) => {
     return {

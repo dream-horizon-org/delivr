@@ -302,6 +302,7 @@ describe("CLI", () => {
     var command: cli.IAccessKeyAddCommand = {
       type: cli.CommandType.accessKeyAdd,
       name: "Test name",
+      scope: cli.AccessKeyScope.Read,
     };
 
     cmdexec.execute(command).done((): void => {
@@ -325,6 +326,7 @@ describe("CLI", () => {
     var command: cli.IAccessKeyAddCommand = {
       type: cli.CommandType.accessKeyAdd,
       name: "Test name",
+      scope: cli.AccessKeyScope.Read,
       ttl,
     };
 
@@ -348,6 +350,7 @@ describe("CLI", () => {
     var command: cli.IAccessKeyPatchCommand = {
       type: cli.CommandType.accessKeyPatch,
       oldName: "Test name",
+      scope: cli.AccessKeyScope.Read,
       newName: "Updated name",
     };
 
@@ -368,6 +371,7 @@ describe("CLI", () => {
     var command: cli.IAccessKeyPatchCommand = {
       type: cli.CommandType.accessKeyPatch,
       oldName: "Test name",
+      scope: cli.AccessKeyScope.Read,
       ttl,
     };
 
@@ -388,6 +392,7 @@ describe("CLI", () => {
     var command: cli.IAccessKeyPatchCommand = {
       type: cli.CommandType.accessKeyPatch,
       oldName: "Test name",
+      scope: cli.AccessKeyScope.Read,
       newName: "Updated name",
       ttl,
     };

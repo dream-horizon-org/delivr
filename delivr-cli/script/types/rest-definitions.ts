@@ -12,12 +12,14 @@ interface AccessKeyBase {
 export interface AccessKey extends AccessKeyBase {
   /*generated*/ createdTime?: number;
   expires: number;
+  scope: string;
   /*generated*/ isSession?: boolean;
 }
 
 /*in*/
 export interface AccessKeyRequest extends AccessKeyBase {
   ttl?: number;
+  scope: string;
 }
 
 /*out*/

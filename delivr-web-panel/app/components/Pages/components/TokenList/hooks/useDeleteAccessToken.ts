@@ -1,15 +1,15 @@
-import { notifications } from "@mantine/notifications";
 import { useMutation } from "react-query";
 import { handleApiError } from "~/utils/handleApiError";
 import { deleteAccessToken } from "../data/deleteAccessToken";
+import { showErrorToast } from "~/utils/toast";
+import { TOKEN_MESSAGES } from "~/constants/toast-messages";
 
 export const useDeleteAccessToken = () => {
   return useMutation(deleteAccessToken, {
     onError: (e) => {
-      notifications.show({
-        color: "red",
-        title: "Token Deletion",
-        message: handleApiError(e, "Error While Token Deletion"),
+      showErrorToast({
+        title: TOKEN_MESSAGES.DELETE_ERROR.title,
+        message: handleApiError(e, TOKEN_MESSAGES.DELETE_ERROR.message),
       });
     },
   });

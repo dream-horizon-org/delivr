@@ -6,8 +6,119 @@ import * as storage from "./storage";
 //import * from nanoid;
 import * as mysql from "mysql2/promise";
 import * as shortid from "shortid";
+import {
+  createTenantTestManagementIntegrationModel,
+  createTestManagementConfigModel,
+  TenantTestManagementIntegrationRepository,
+  TestManagementConfigRepository
+} from "../models/integrations/test-management";
+import {
+  TestManagementConfigService,
+  TestManagementIntegrationService,
+  TestManagementRunService
+} from "../services/integrations/test-management";
+import { CheckmateMetadataService } from "../services/integrations/test-management/metadata/checkmate";
+import {
+  createProjectManagementIntegrationModel,
+  createProjectManagementConfigModel,
+  ProjectManagementIntegrationRepository,
+  ProjectManagementConfigRepository
+} from "../models/integrations/project-management";
+import {
+  ProjectManagementIntegrationService,
+  ProjectManagementConfigService,
+  ProjectManagementTicketService
+} from "../services/integrations/project-management";
+import { JiraMetadataService } from "../services/integrations/project-management/metadata/jira";
+import { CommIntegrationService } from "../services/integrations/comm/comm-integration";
+import { CommConfigService } from "../services/integrations/comm/comm-config";
+import {
+  createReleaseConfigModel,
+  createReleaseConfigActivityLogModel,
+  ReleaseConfigRepository,
+  ReleaseConfigActivityLogRepository
+} from "../models/release-configs";
+import {
+  createReleaseScheduleModel,
+  ReleaseScheduleRepository
+} from "../models/release-schedules";
+import {
+  createReleaseNotificationModel,
+  ReleaseNotificationRepository
+} from "../models/release-notification";
+import { ReleaseNotificationService } from "../services/release-notification";
+import { MessagingService } from "../services/integrations/comm/messaging/messaging.service";
+import { ReleaseConfigService, ReleaseConfigActivityLogService } from "../services/release-configs";
+import { ReleaseScheduleService } from "../services/release-schedules";
+import { createCronicleService } from "../services/cronicle";
+import type { CronicleService } from "../services/cronicle";
+import {
+  createReleaseModel,
+  createCronJobModel,
+  createReleaseTaskModel,
+  createStateHistoryModel,
+  createPlatformTargetMappingModel,
+  createPlatformModel,
+  createTargetModel,
+  createActivityLogModel,
+  createRegressionCycleModel,
+  createReleaseUploadModel,
+  ReleaseRepository,
+  ReleasePlatformTargetMappingRepository,
+  CronJobRepository,
+  ReleaseTaskRepository,
+  RegressionCycleRepository,
+  ReleaseUploadsRepository,
+  StateHistoryRepository,
+  ActivityLogRepository
+} from "../models/release";
+import { ReleaseCreationService } from "../services/release/release-creation.service";
+import { ReleaseRetrievalService } from "../services/release/release-retrieval.service";
+import { ReleaseStatusService } from "../services/release/release-status.service";
+import { ReleaseUpdateService } from "../services/release/release-update.service";
+import { ReleaseVersionService } from "../services/release/release-version.service";
+import { SCMService } from "../services/integrations/scm/scm.service";
+import { ReleaseActivityLogService } from "../services/release/release-activity-log.service";
+import { CronJobService } from "../services/release/cron-job/cron-job.service";
+import { BuildArtifactService } from "../services/release/build/build-artifact.service";
+import { BuildNotificationService } from "../services/release/build/build-notification.service";
+import { TaskExecutor } from "../services/release/task-executor/task-executor";
+import { GlobalSchedulerService, type StateMachineFactory } from "../services/release/cron-job/global-scheduler.service";
+import { CronJobStateMachine } from "../services/release/cron-job/cron-job-state-machine";
+import type { CronJob } from "../models/release/release.interface";
+import { UploadValidationService } from "../services/release/upload-validation.service";
+import { ManualUploadService } from "../services/release/manual-upload.service";
+import { BuildCallbackService } from "../services/release/build-callback.service";
+import { TestFlightBuildVerificationService } from "../services/release/testflight-build-verification.service";
 import * as utils from "../utils/common";
-import * as security from "../utils/security";
+import { SCMIntegrationController } from "./integrations/scm/scm-controller";
+import { 
+  createCommIntegrationModel, 
+  createCommConfigModel,
+  CommIntegrationRepository,
+  CommConfigRepository
+} from "../models/integrations/comm";
+import { createCICDIntegrationModel, createCICDWorkflowModel, createCICDConfigModel } from "../models/integrations/ci-cd";
+import { CICDIntegrationRepository, CICDWorkflowRepository, CICDConfigRepository } from "../models/integrations/ci-cd";
+import { CICDConfigService } from "../services/integrations/ci-cd/config/config.service";
+import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
+// OLD: import { createRelease } from "./release-models"; // Replaced with new models from ../models/release
+import { createStoreIntegrationModel, createStoreCredentialModel } from "./integrations/store/store-models";
+import { StoreIntegrationController, StoreCredentialController } from "./integrations/store/store-controller";
+import { createPlatformStoreMappingModel } from "./integrations/store/platform-store-mapping-models";
+import { createBuildModel, BuildRepository } from "../models/release";
+import {
+  createDistributionModel,
+  createIosSubmissionBuildModel,
+  createAndroidSubmissionBuildModel,
+  createSubmissionActionHistoryModel,
+  DistributionRepository,
+  AndroidSubmissionBuildRepository,
+  IosSubmissionBuildRepository,
+  SubmissionActionHistoryRepository
+} from "../models/distribution";
+import { SubmissionService } from "../services/distribution";
+import { DistributionService } from "../services/distribution/distribution.service";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
@@ -36,10 +147,86 @@ export function createAccessKey(sequelize: Sequelize) {
 //Creating Account Type
 export function createAccount(sequelize: Sequelize) {
   return sequelize.define("account", {
-    createdTime: { type: DataTypes.FLOAT, allowNull: false, defaultValue: () => new Date().getTime() },  // Set default value
-    name: { type: DataTypes.STRING, allowNull: false },
-    email: { type: DataTypes.STRING, allowNull: false },
-    id: { type: DataTypes.STRING, allowNull: false, primaryKey: true },
+    id: { 
+      type: DataTypes.STRING, 
+      allowNull: false, 
+      primaryKey: true 
+    },
+    email: { 
+      type: DataTypes.STRING, 
+      allowNull: false, 
+      unique: true 
+    },
+    name: { 
+      type: DataTypes.STRING, 
+      allowNull: false 
+    },
+    picture: { 
+      type: DataTypes.STRING, 
+      allowNull: true 
+    },
+
+    createdTime: { 
+      type: DataTypes.FLOAT, 
+      defaultValue: () => new Date().getTime() 
+    },
+  }, {
+    tableName: 'accounts',
+  });
+}
+
+export function createAccountChannel(sequelize: Sequelize) {
+  return sequelize.define("AccountChannel", {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+      allowNull: false,
+    },
+    accountId: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      references: {
+        model: 'accounts',
+        key: 'id',
+      },
+    },
+    externalChannelId: {
+      type: DataTypes.STRING(500),
+      allowNull: false,
+      field: 'external_channel_id',
+    },
+    channelType: {
+      type: DataTypes.ENUM('google_oauth', 'github_oauth', 'slack', 'teams', 'other'),
+      allowNull: false,
+      defaultValue: 'other',
+      field: 'channel_type',
+    },
+    channelMetadata: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      field: 'channel_metadata',
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+      field: 'is_active',
+    },
+  }, {
+    tableName: 'account_channels',
+    timestamps: true,
+    indexes: [
+      {
+        name: 'idx_account_channels_account_id',
+        fields: ['accountId'],
+      },
+      {
+        name: 'idx_account_channels_external',
+        unique: true,
+        fields: ['external_channel_id', 'channel_type'],
+      },
+    ],
   });
 }
 
@@ -50,15 +237,18 @@ export function createApp(sequelize: Sequelize) {
     return sequelize.define("apps", {
         createdTime: { type: DataTypes.FLOAT, allowNull: false },
         name: { type: DataTypes.STRING, allowNull: false },
-        id: { type: DataTypes.STRING, allowNull: false, primaryKey:true},
-        accountId: { type: DataTypes.STRING, allowNull: false, references: {
-            model: sequelize.models["account"],
+        id: { type: DataTypes.STRING, allowNull: false, primaryKey: true},
+        accountId: { 
+          type: DataTypes.STRING, 
+          allowNull: true,  // Optional for backward compatibility
+          references: {
+            model: 'accounts',
             key: 'id',
           },
         },
         tenantId: {
           type: DataTypes.UUID,
-          allowNull: true,
+          allowNull: true,  // Optional for backward compatibility (v1 apps might not have it)
           references: {
             model: 'tenants',
             key: 'id',
@@ -95,23 +285,58 @@ export function createTenant(sequelize: Sequelize) {
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
+    updatedAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+  }, {
+    timestamps: true,
+    tableName: 'tenants'
   });
 }
 
 
 //Create Collabarorators
 
+// Unified collaborators table - supports BOTH app-level AND tenant-level collaboration
 export function createCollaborators(sequelize: Sequelize) {
     return sequelize.define("collaborator", {
         email: {type: DataTypes.STRING, allowNull: false},
-        accountId: { type: DataTypes.STRING, allowNull: false },
-        appId: { type: DataTypes.STRING, allowNull: false },
+        accountId: { 
+          type: DataTypes.STRING, 
+          allowNull: false,
+          references: {
+            model: 'accounts',
+            key: 'id',
+          }
+        },
+        appId: { 
+          type: DataTypes.STRING, 
+          allowNull: true  // Null for tenant-level collaborators (NO FK constraint)
+        },
+        tenantId: {
+          type: DataTypes.UUID,
+          allowNull: true,  // Null for app-level-only collaborators
+          references: {
+            model: 'tenants',
+            key: 'id',
+          },
+        },
         permission: {
             type: DataTypes.ENUM({
-                values: ["Collaborator", "Owner"]
+                values: ["Owner", "Editor", "Viewer"]  // Tenant-level roles
             }),
             allowNull:true
         },
+        isCreator: {
+          type: DataTypes.BOOLEAN,
+          allowNull: false,
+          defaultValue: false  // True for tenant creators
+        },
+    }, {
+      tableName: 'collaborators',
+      timestamps: true
     })
 }
 
@@ -123,8 +348,8 @@ export function createDeployment(sequelize: Sequelize) {
       id: { type: DataTypes.STRING, allowNull: true, primaryKey: true },
       name: { type: DataTypes.STRING, allowNull: false },
       key: { type: DataTypes.STRING, allowNull: false },
-      packageId: {  // Ensure this has the same type as the 'id' in 'packages'
-          type: DataTypes.UUID,  // Use UUID type if 'packages.id' is a UUID
+      packageId: {
+          type: DataTypes.UUID,
           allowNull: true,
           references: {
               model: sequelize.models["package"],
@@ -135,11 +360,14 @@ export function createDeployment(sequelize: Sequelize) {
           type: DataTypes.STRING,
           allowNull: false,
           references: {
-              model: sequelize.models["apps"], // Foreign key to the App model
+              model: sequelize.models["apps"],
               key: 'id',
           },
       },
       createdTime: { type: DataTypes.FLOAT, allowNull: true },
+  }, {
+    tableName: 'deployments',
+    timestamps: true
   });
 }
 
@@ -169,7 +397,7 @@ export function createPackage(sequelize: Sequelize) {
       size: { type: DataTypes.FLOAT, allowNull: false },
       uploadTime: { type: DataTypes.BIGINT, allowNull: false },
       isBundlePatchingEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
-      deploymentId: { // Foreign key to associate this package with a deployment history
+      deploymentId: {
         type: DataTypes.STRING,
         allowNull: true,
         references: {
@@ -177,6 +405,9 @@ export function createPackage(sequelize: Sequelize) {
           key: 'id',
         },
       },
+  }, {
+    tableName: 'packages',
+    timestamps: true
   });
 }
 
@@ -220,60 +451,382 @@ export function createAppPointer(sequelize: Sequelize) {
 
 export function createModelss(sequelize: Sequelize) {
   // Create models and register them
+  const Account = createAccount(sequelize);
+  const AccountChannel = createAccountChannel(sequelize);
   const Tenant = createTenant(sequelize);
   const Package = createPackage(sequelize);
   const Deployment = createDeployment(sequelize);
-  const Account = createAccount(sequelize);
   const AccessKey = createAccessKey(sequelize);
   const AppPointer = createAppPointer(sequelize);
-  const Collaborator = createCollaborators(sequelize);
+  const Collaborator = createCollaborators(sequelize);  // UNIFIED: supports BOTH app-level AND tenant-level
   const App = createApp(sequelize);
+  const SCMIntegrations = createSCMIntegrationModel(sequelize);  // SCM integrations (GitHub, GitLab, etc.)
+  const CICDIntegrations = createCICDIntegrationModel(sequelize);  // CI/CD integrations (Jenkins, etc.)
+  const CICDWorkflows = createCICDWorkflowModel(sequelize);  // CI/CD workflows/jobs across providers
+  const CICDConfig = createCICDConfigModel(sequelize);  // CI/CD configurations
+  
+  // Project Management integrations (must be created before Release due to FK constraints)
+  const ProjectManagementIntegration = createProjectManagementIntegrationModel(sequelize);
+  const ProjectManagementConfig = createProjectManagementConfigModel(sequelize);
+  
+  // Release Configuration (must be created before Release due to FK constraints)
+  const ReleaseConfig = createReleaseConfigModel(sequelize);
+  
+  // Release Schedule (must be created after ReleaseConfig due to FK constraints)
+  const ReleaseSchedule = createReleaseScheduleModel(sequelize);
+  
+  // NEW: Release Management Models (standardized schema)
+  const Platform = createPlatformModel(sequelize);  // Reference table for platforms
+  const Target = createTargetModel(sequelize);  // Reference table for targets
+  const Release = createReleaseModel(sequelize);  // Main releases table (has FK to release_configurations)
+  const ReleasePlatformTargetMapping = createPlatformTargetMappingModel(sequelize);  // Platform-target mapping
+  const CronJob = createCronJobModel(sequelize);  // Cron jobs for automation
+  const ReleaseTask = createReleaseTaskModel(sequelize);  // Release tasks
+  const StateHistory = createStateHistoryModel(sequelize);  // State history/audit trail
+  const Build = createBuildModel(sequelize);  // Build records (CI/CD)
+  const RegressionCycle = createRegressionCycleModel(sequelize);  // Regression cycles
+  const ReleaseNotification = createReleaseNotificationModel(sequelize);  // Release notifications ledger
+  const ReleaseUpload = createReleaseUploadModel(sequelize);  // Manual build uploads staging
+  const ActivityLog = createActivityLogModel(sequelize);  // Activity logs for release updates
+  const ReleaseConfigActivityLog = createReleaseConfigActivityLogModel(sequelize);  // Activity logs for release config updates
 
+  // ============================================
+  const CommIntegrations = createCommIntegrationModel(sequelize);  // Communication integrations (Slack, Email, Teams)
+  const StoreIntegrations = createStoreIntegrationModel(sequelize);  // Store integrations (App Store, Play Store, etc.)
+  const StoreCredentials = createStoreCredentialModel(sequelize);  // Store credentials (encrypted)
+  const PlatformStoreMapping = createPlatformStoreMappingModel(sequelize);  // Platform to store type mapping (static data)
+  const CommConfig = createCommConfigModel(sequelize);  // Channel configurations for communication integrations
+  
+  // Test Management integrations
+  const TenantTestManagementIntegration = createTenantTestManagementIntegrationModel(sequelize);
+  const TestManagementConfig = createTestManagementConfigModel(sequelize);
+  
+  // Distribution models
+  const Distribution = createDistributionModel(sequelize);  // Distribution tracking
+  const IosSubmissionBuild = createIosSubmissionBuildModel(sequelize);  // iOS submission builds
+  const AndroidSubmissionBuild = createAndroidSubmissionBuildModel(sequelize);  // Android submission builds
+  const SubmissionActionHistory = createSubmissionActionHistoryModel(sequelize);  // Submission action history
+  
   // Define associations
+  // ============================================
 
-  // Account and App
-  Account.hasMany(App, { foreignKey: 'accountId' });
-  App.belongsTo(Account, { foreignKey: 'accountId' });
+  // Account ↔ AccountChannel (1:N)
+  Account.hasMany(AccountChannel, { foreignKey: 'accountId', as: 'channels' });
+  AccountChannel.belongsTo(Account, { foreignKey: 'accountId', onDelete: 'CASCADE' });
 
-  // Account and Tenant
+  // Account and Tenant (Creator relationship)
   Account.hasMany(Tenant, { foreignKey: 'createdBy' });
   Tenant.belongsTo(Account, { foreignKey: 'createdBy' });
+  
+  // NEW: Release Management Associations (standardized schema)
+  // Tenant and Release (One Tenant can have many Releases)
+  Tenant.hasMany(Release, { foreignKey: 'tenantId' });
+  Release.belongsTo(Tenant, { foreignKey: 'tenantId' });
+  
+  // Account and Release (Creator relationship)
+  Account.hasMany(Release, { foreignKey: 'createdByAccountId', as: 'createdReleases' });
+  Release.belongsTo(Account, { foreignKey: 'createdByAccountId', as: 'creator' });
+  
+  // Account and Release (Last updater relationship)
+  Account.hasMany(Release, { foreignKey: 'lastUpdatedByAccountId', as: 'lastUpdatedReleases' });
+  Release.belongsTo(Account, { foreignKey: 'lastUpdatedByAccountId', as: 'lastUpdater' });
+  
+  // Release self-referencing (Parent-child for hotfixes via baseReleaseId)
+  Release.hasMany(Release, { foreignKey: 'baseReleaseId', as: 'hotfixes' });
+  Release.belongsTo(Release, { foreignKey: 'baseReleaseId', as: 'parentRelease' });
+  
+  // Release and Platform-Target Mapping (One Release has many mappings)
+  Release.hasMany(ReleasePlatformTargetMapping, { foreignKey: 'releaseId', as: 'platformTargets' });
+  ReleasePlatformTargetMapping.belongsTo(Release, { foreignKey: 'releaseId' });
+  
+  // Release and CronJob (One Release has one CronJob)
+  Release.hasOne(CronJob, { foreignKey: 'releaseId', as: 'cronJob' });
+  CronJob.belongsTo(Release, { foreignKey: 'releaseId' });
+  
+  // Account and CronJob (Creator relationship)
+  Account.hasMany(CronJob, { foreignKey: 'cronCreatedByAccountId', as: 'createdCronJobs' });
+  CronJob.belongsTo(Account, { foreignKey: 'cronCreatedByAccountId', as: 'creator' });
+  
+  // Release and Tasks (One Release has many Tasks)
+  Release.hasMany(ReleaseTask, { foreignKey: 'releaseId', as: 'tasks' });
+  ReleaseTask.belongsTo(Release, { foreignKey: 'releaseId' });
+  
+  // Release and State History (One Release has many history entries)
+  Release.hasMany(StateHistory, { foreignKey: 'releaseId', as: 'history' });
+  StateHistory.belongsTo(Release, { foreignKey: 'releaseId' });
 
-  // Tenant and App (One Tenant can have many Apps)
+  // Release and Notifications (One Release has many Notifications)
+  Release.hasMany(ReleaseNotification, { foreignKey: 'releaseId', as: 'notifications' });
+  ReleaseNotification.belongsTo(Release, { foreignKey: 'releaseId' });
+
+  // Tenant and Notifications (One Tenant has many Notifications)
+  Tenant.hasMany(ReleaseNotification, { foreignKey: 'tenantId', as: 'notifications' });
+  ReleaseNotification.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
+  // Account and Notifications (Creator relationship for ad-hoc notifications)
+  Account.hasMany(ReleaseNotification, { foreignKey: 'createdByUserId', as: 'createdNotifications' });
+  ReleaseNotification.belongsTo(Account, { foreignKey: 'createdByUserId', as: 'creator' });
+
+  // Release and Regression Cycles (One Release has many Regression Cycles)
+  Release.hasMany(RegressionCycle, { foreignKey: 'releaseId', as: 'regressionCycles' });
+  RegressionCycle.belongsTo(Release, { foreignKey: 'releaseId' });
+
+  // Release and Builds (One Release has many Builds)
+  Release.hasMany(Build, { foreignKey: 'releaseId', as: 'builds' });
+  Build.belongsTo(Release, { foreignKey: 'releaseId' });
+
+  // Regression Cycle and Builds (One Regression Cycle has many Builds)
+  RegressionCycle.hasMany(Build, { foreignKey: 'regressionId', as: 'builds' });
+  Build.belongsTo(RegressionCycle, { foreignKey: 'regressionId', as: 'regressionCycle' });
+
+  // Tenant and App (One Tenant can have many Apps) - NEW FLOW
   Tenant.hasMany(App, { foreignKey: 'tenantId' });
   App.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
+  // Account and App (One Account can have many Apps) - OLD FLOW (backward compatibility)
+  Account.hasMany(App, { foreignKey: 'accountId' });
+  App.belongsTo(Account, { foreignKey: 'accountId' });
+  
+  // Tenant and Collaborator (One Tenant can have many Collaborators) - NEW FLOW
+  Tenant.hasMany(Collaborator, { foreignKey: 'tenantId' });
+  Collaborator.belongsTo(Tenant, { foreignKey: 'tenantId' });
 
   // App and Deployment (One App can have many Deployments)
   App.hasMany(Deployment, { foreignKey: 'appId' });
   Deployment.belongsTo(App, { foreignKey: 'appId' });
 
   // Deployment and Package (One Package can be linked to many Deployments)
-  //
   Deployment.hasMany(Package, { foreignKey: 'deploymentId', as: 'packageHistory' });
   Package.belongsTo(Deployment, { foreignKey: 'deploymentId' });
   Deployment.belongsTo(Package, { foreignKey: 'packageId', as: 'packageDetails' });
-  //Package.hasMany(Deployment, { foreignKey: 'packageId', as: 'deployments' });
 
-  // Collaborator associations (Collaborators belong to both Account and App)
+  // Collaborator associations
+  // Note: accountId FK is defined in model, Account association is for querying only
   Collaborator.belongsTo(Account, { foreignKey: 'accountId' });
-  Collaborator.belongsTo(App, { foreignKey: 'appId' });
+  
+  // appId association WITHOUT FK constraint (collaborators can be tenant-level without app)
+  Collaborator.belongsTo(App, { 
+    foreignKey: 'appId',
+    constraints: false  // Don't create FK constraint - appId can be NULL for tenant-level collaborators
+  });
 
-  // Return all models for convenience (optional)
+  // SCM Integration associations
+  // Tenant has ONE SCM integration (set up during onboarding)
+  Tenant.hasOne(SCMIntegrations, { foreignKey: 'tenantId', as: 'scmIntegration' });
+  SCMIntegrations.belongsTo(Tenant, { foreignKey: 'tenantId' });
+  
+  // Account (creator) reference for SCM
+  SCMIntegrations.belongsTo(Account, { foreignKey: 'createdByAccountId', as: 'creator' });
+
+  // Slack Integration associations
+  // Tenant has ONE communication integration (set up during onboarding)
+  Tenant.hasOne(CommIntegrations, { foreignKey: 'tenantId', as: 'slackIntegration' });
+  CommIntegrations.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
+  // Channel Configuration associations
+  // Communication integration has ONE channel configuration
+  CommIntegrations.hasOne(CommConfig, { foreignKey: 'integrationId', as: 'channelConfig' });
+  CommConfig.belongsTo(CommIntegrations, { foreignKey: 'integrationId' });
+
+  // Test Management associations
+  // Tenant has many Test Management Integrations
+  Tenant.hasMany(TenantTestManagementIntegration, { 
+    foreignKey: 'tenantId',
+    as: 'testManagementIntegrations' 
+  });
+  TenantTestManagementIntegration.belongsTo(Tenant, { 
+    foreignKey: 'tenantId',
+    as: 'tenant'
+  });
+  
+  // Tenant has many Test Management Configs
+  Tenant.hasMany(TestManagementConfig, { 
+    foreignKey: 'tenantId',
+    as: 'testManagementConfigs' 
+  });
+  TestManagementConfig.belongsTo(Tenant, { 
+    foreignKey: 'tenantId',
+    as: 'tenant'
+  });
+  
+  // Project Management associations
+  // Tenant has many Project Management Integrations
+  Tenant.hasMany(ProjectManagementIntegration, { 
+    foreignKey: 'tenantId',
+    as: 'projectManagementIntegrations' 
+  });
+  ProjectManagementIntegration.belongsTo(Tenant, { 
+    foreignKey: 'tenantId',
+    as: 'tenant'
+  });
+  
+  // Tenant has many Project Management Configs
+  Tenant.hasMany(ProjectManagementConfig, { 
+    foreignKey: 'tenantId',
+    as: 'projectManagementConfigs' 
+  });
+  ProjectManagementConfig.belongsTo(Tenant, { 
+    foreignKey: 'tenantId',
+    as: 'tenant'
+  });
+  
+  // Project Management Config belongs to Integration
+  ProjectManagementConfig.belongsTo(ProjectManagementIntegration, { 
+    foreignKey: 'integrationId',
+    as: 'integration'
+  });
+  ProjectManagementIntegration.hasMany(ProjectManagementConfig, { 
+    foreignKey: 'integrationId',
+    as: 'configs'
+  });
+  
+  // Release Config associations
+  // Tenant has many Release Configs
+  Tenant.hasMany(ReleaseConfig, { 
+    foreignKey: 'tenantId',
+    as: 'releaseConfigs' 
+  });
+  ReleaseConfig.belongsTo(Tenant, { 
+    foreignKey: 'tenantId',
+    as: 'tenant'
+  });
+  
+  // Release Config belongs to Account (creator)
+  ReleaseConfig.belongsTo(Account, { 
+    foreignKey: 'createdByAccountId',
+    as: 'creator'
+  });
+  
+  // Release Schedule associations
+  // Tenant has many Release Schedules
+  Tenant.hasMany(ReleaseSchedule, { 
+    foreignKey: 'tenantId',
+    as: 'releaseSchedules' 
+  });
+  ReleaseSchedule.belongsTo(Tenant, { 
+    foreignKey: 'tenantId',
+    as: 'tenant'
+  });
+  
+  // Release Schedule belongs to Release Config (one-to-one)
+  ReleaseConfig.hasOne(ReleaseSchedule, { 
+    foreignKey: 'releaseConfigId',
+    as: 'releaseSchedule' 
+  });
+  ReleaseSchedule.belongsTo(ReleaseConfig, { 
+    foreignKey: 'releaseConfigId',
+    as: 'releaseConfig'
+  });
+  
+  // Release Schedule belongs to Account (creator)
+  ReleaseSchedule.belongsTo(Account, { 
+    foreignKey: 'createdByAccountId',
+    as: 'creator'
+  });
+  
+  // Distribution associations
+  // Tenant has many Distributions
+  Tenant.hasMany(Distribution, { 
+    foreignKey: 'tenantId',
+    as: 'distributions' 
+  });
+  Distribution.belongsTo(Tenant, { 
+    foreignKey: 'tenantId',
+    as: 'tenant',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+  });
+  
+  // Release has many Distributions
+  Release.hasMany(Distribution, { 
+    foreignKey: 'releaseId',
+    as: 'distributions' 
+  });
+  Distribution.belongsTo(Release, { 
+    foreignKey: 'releaseId',
+    as: 'release',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+  });
+  
+  // Distribution has many iOS Submission Builds
+  Distribution.hasMany(IosSubmissionBuild, { 
+    foreignKey: 'distributionId',
+    as: 'iosSubmissions' 
+  });
+  IosSubmissionBuild.belongsTo(Distribution, { 
+    foreignKey: 'distributionId',
+    as: 'distribution',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+  });
+  
+  // Distribution has many Android Submission Builds
+  Distribution.hasMany(AndroidSubmissionBuild, { 
+    foreignKey: 'distributionId',
+    as: 'androidSubmissions' 
+  });
+  AndroidSubmissionBuild.belongsTo(Distribution, { 
+    foreignKey: 'distributionId',
+    as: 'distribution',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+  });
+
   return {
+    Account,
+    AccountChannel,
     Tenant,
     Package,
     Deployment,
-    Account,
     AccessKey,
     AppPointer,
-    Collaborator,
+    Collaborator,  // UNIFIED: supports both app-level AND tenant-level
     App,
+    SCMIntegrations,       // SCM integrations (GitHub, GitLab, Bitbucket)
+    CICDIntegrations,      // CI/CD connections (Jenkins, etc.)
+    CICDWorkflows,         // CI/CD workflows/jobs across providers
+    CICDConfig,            // CI/CD configurations
+    // Release Management (NEW standardized schema)
+    platform: Platform,    // Renamed for lowercase consistency
+    target: Target,        // Renamed for lowercase consistency
+    release: Release,      // Renamed for lowercase consistency
+    releasePlatformTargetMapping: ReleasePlatformTargetMapping,
+    cronJob: CronJob,
+    releaseTasks: ReleaseTask,
+    stateHistory: StateHistory,
+    build: Build,  // Build records for CI/CD
+    regressionCycle: RegressionCycle,  // Regression cycles within release workflow
+    releaseNotification: ReleaseNotification,  // Release notifications ledger
+    releaseUpload: ReleaseUpload,  // Manual build uploads staging table
+    ActivityLog,  // Activity logs for release updates
+    ReleaseConfigActivityLog,  // Activity logs for release config updates
+    CommIntegrations,  // Communication integrations
+    SlackIntegrations: CommIntegrations,  // Legacy alias
+    StoreIntegrations,  // Store integrations (App Store, Play Store, etc.)
+    StoreCredentials,   // Store credentials (encrypted)
+    PlatformStoreMapping,   // Platform to store type mapping (static data)
+    CommConfig,  // Channel configurations for communication integrations
+    ChannelConfig: CommConfig,  // Legacy alias
+    TenantTestManagementIntegration,  // Test management integrations
+    TestManagementConfig,  // Test management configurations
+    ProjectManagementIntegration,  // Project management integrations (JIRA, Linear, etc.)
+    ProjectManagementConfig,  // Project management configurations
+    ReleaseConfig,  // Release configuration profiles
+    ReleaseSchedule,  // Release schedules for recurring releases
+    Distribution,  // Distribution tracking
+    IosSubmissionBuild,  // iOS submission builds
+    AndroidSubmissionBuild,  // Android submission builds
+    SubmissionActionHistory,  // Submission action history
   };
 }
 
+
 //function to mimic defer function in q package
 export function defer<T>() {
+  // eslint-disable-next-line no-unused-vars
   let resolve!: (value: T | PromiseLike<T>) => void;
+  // eslint-disable-next-line no-unused-vars
   let reject!: (reason?: any) => void;
   const promise = new Promise<T>((res, rej) => {
     resolve = res;
@@ -284,7 +837,7 @@ export function defer<T>() {
 
 
 export const MODELS = {
-  COLLABORATOR : "collaborator",
+  COLLABORATOR : "collaborator",  // UNIFIED: supports both app-level AND tenant-level collaboration
   DEPLOYMENT : "deployment",
   APPS : "apps",
   PACKAGE : "package",
@@ -303,7 +856,79 @@ export class S3Storage implements storage.Storage {
     private s3: S3;
     private bucketName : string = process.env.S3_BUCKETNAME || "codepush-local-bucket";
     private sequelize:Sequelize;
-    private setupPromise: Promise<void>;
+    public readonly setupPromise: Promise<void>;  // Public so it can be awaited before using services
+    public scmController!: SCMIntegrationController;  // SCM integration controller
+    
+    // Test Management Integration - Repositories and Services
+    public tenantIntegrationRepository!: TenantTestManagementIntegrationRepository;
+    public testManagementConfigRepository!: TestManagementConfigRepository;
+    public testManagementIntegrationService!: TestManagementIntegrationService;
+    public testManagementConfigService!: TestManagementConfigService;
+    public testManagementRunService!: TestManagementRunService;
+    public checkmateMetadataService!: CheckmateMetadataService;
+    
+    // Project Management Integration - Repositories and Services
+    public projectManagementIntegrationRepository!: ProjectManagementIntegrationRepository;
+    public projectManagementConfigRepository!: ProjectManagementConfigRepository;
+    public projectManagementIntegrationService!: ProjectManagementIntegrationService;
+    public projectManagementConfigService!: ProjectManagementConfigService;
+    public projectManagementTicketService!: ProjectManagementTicketService;
+    public jiraMetadataService!: JiraMetadataService;
+    public cicdIntegrationRepository!: CICDIntegrationRepository;  // CI/CD integration repository
+    public cicdWorkflowRepository!: CICDWorkflowRepository;  // CI/CD workflows repository
+    public cicdConfigRepository!: CICDConfigRepository;  // CI/CD config repository
+    public cicdConfigService!: CICDConfigService;  // CI/CD config service
+    public releaseConfigRepository!: ReleaseConfigRepository;
+    public releaseConfigActivityLogRepository!: ReleaseConfigActivityLogRepository;
+    public releaseConfigService!: ReleaseConfigService;
+    public releaseScheduleService!: ReleaseScheduleService;
+    public releaseNotificationRepository!: ReleaseNotificationRepository;
+    public messagingService!: MessagingService;
+    public releaseNotificationService!: ReleaseNotificationService;
+    public cronicleService: CronicleService | null = null;
+    public releaseRepository!: ReleaseRepository;  // Release repository
+    public releasePlatformTargetMappingRepository!: ReleasePlatformTargetMappingRepository;  // Platform-target mapping repository
+    public releaseUploadsRepository!: ReleaseUploadsRepository;  // Manual build uploads repository
+    public platformMappingRepository!: ReleasePlatformTargetMappingRepository;  // Alias for releasePlatformTargetMappingRepository
+    public cronJobRepository!: CronJobRepository;  // Cron job repository
+    public releaseTaskRepository!: ReleaseTaskRepository;  // Release task repository
+    public regressionCycleRepository!: RegressionCycleRepository;  // Regression cycle repository
+    public releaseConfigActivityLogService!: ReleaseConfigActivityLogService;
+    public releaseCreationService!: ReleaseCreationService;
+    public releaseRetrievalService!: ReleaseRetrievalService;
+    public releaseVersionService!: ReleaseVersionService;
+    public releaseUpdateService!: ReleaseUpdateService;
+    public releaseStatusService!: ReleaseStatusService;
+    public releaseActivityLogService!: ReleaseActivityLogService;  // Release activity log service
+    public cronJobService!: CronJobService;  // Cron job service
+    public buildArtifactService!: BuildArtifactService;  // Build artifact service
+    public buildNotificationService!: BuildNotificationService;  // Build notification service (for CI/CD and manual uploads)
+    public taskExecutor!: TaskExecutor;  // Task executor service (centralized initialization)
+    public globalSchedulerService!: GlobalSchedulerService;  // ✅ Required - actively initialized in aws-storage.ts (works in both setInterval and Cronicle webhook modes)
+    public activityLogRepository!: ActivityLogRepository;  // Activity log repository
+    public commIntegrationRepository!: CommIntegrationRepository;  // Comm integration repository
+    public commConfigRepository!: CommConfigRepository;  // Comm config repository
+    public storeIntegrationController!: StoreIntegrationController;  // Store integration controller
+    public storeCredentialController!: StoreCredentialController;  // Store credential controller
+    public commIntegrationService!: CommIntegrationService;
+    public commConfigService!: CommConfigService;// Communication config service
+    public buildRepository!: BuildRepository;
+    public scmService!: SCMService; // SCM service for Git operations
+    
+    // Distribution - Repositories and Services
+    public distributionRepository!: DistributionRepository;  // Distribution repository
+    public androidSubmissionRepository!: AndroidSubmissionBuildRepository;  // Android submission repository
+    public iosSubmissionRepository!: IosSubmissionBuildRepository;  // iOS submission repository
+    public submissionActionHistoryRepository!: SubmissionActionHistoryRepository;  // Submission action history repository
+    public submissionService!: SubmissionService;  // Submission service
+    public distributionService!: DistributionService;  // Distribution service
+    
+    // Release Upload & Validation Services (centralized initialization - replaces factory)
+    public uploadValidationService!: UploadValidationService;  // Upload validation service
+    public manualUploadService!: ManualUploadService;  // Manual upload service
+    public buildCallbackService!: BuildCallbackService;  // Build callback service
+    public testFlightBuildVerificationService!: TestFlightBuildVerificationService;  // TestFlight build verification service
+    
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -377,11 +1002,11 @@ export class S3Storage implements storage.Storage {
   }
 
     private setup(): Promise<void> {
-      let headBucketParams: HeadBucketRequest = {
+      const headBucketParams: HeadBucketRequest = {
           Bucket: this.bucketName,
       };
 
-      let createBucketParams: CreateBucketRequest = {
+      const createBucketParams: CreateBucketRequest = {
           Bucket: this.bucketName,
       };
 
@@ -403,6 +1028,471 @@ export class S3Storage implements storage.Storage {
         .then(() => {
           const models = createModelss(this.sequelize);
           console.log("Models registered");
+          
+          // Initialize SCM Integration Controller
+          this.scmController = new SCMIntegrationController(models.SCMIntegrations);
+          console.log("SCM Integration Controller initialized");
+          
+          // Initialize CI/CD Repositories
+          this.cicdIntegrationRepository = new CICDIntegrationRepository(models.CICDIntegrations);
+          console.log("CI/CD Integration Repository initialized");
+
+          this.cicdWorkflowRepository = new CICDWorkflowRepository(models.CICDWorkflows);
+          console.log("CI/CD Workflow Repository initialized");
+          
+          this.cicdConfigRepository = new CICDConfigRepository(models.CICDConfig);
+          console.log("CI/CD Config Repository initialized");
+          
+          // Initialize CI/CD Config Service (with integration repo for triggering workflows)
+          this.cicdConfigService = new CICDConfigService(
+            this.cicdConfigRepository,
+            this.cicdWorkflowRepository,
+            this.cicdIntegrationRepository
+          );
+          console.log("CI/CD Config Service initialized");
+          
+          
+          // Initialize Test Management Integration
+          const tenantIntegrationModel = createTenantTestManagementIntegrationModel(this.sequelize);
+          this.tenantIntegrationRepository = new TenantTestManagementIntegrationRepository(tenantIntegrationModel);
+          
+          const testManagementConfigModel = createTestManagementConfigModel(this.sequelize);
+          this.testManagementConfigRepository = new TestManagementConfigRepository(testManagementConfigModel);
+          
+          // Service 1: Tenant Integration Service (manages credentials)
+          this.testManagementIntegrationService = new TestManagementIntegrationService(
+            this.tenantIntegrationRepository
+          );
+          
+          // Service 2: Config Service (manages test management configs)
+          this.testManagementConfigService = new TestManagementConfigService(
+            this.testManagementConfigRepository,
+            this.tenantIntegrationRepository
+          );
+          
+          // Service 3: Run Service (stateless test operations)
+          this.testManagementRunService = new TestManagementRunService(
+            this.testManagementConfigRepository,
+            this.tenantIntegrationRepository
+          );
+          
+          // Service 4: Metadata Service (fetches metadata from providers)
+          this.checkmateMetadataService = new CheckmateMetadataService(
+            this.tenantIntegrationRepository
+          );
+          
+          console.log("Test Management Integration initialized");
+          
+          // Initialize Project Management Integration
+          const projectManagementIntegrationModel = createProjectManagementIntegrationModel(this.sequelize);
+          this.projectManagementIntegrationRepository = new ProjectManagementIntegrationRepository(projectManagementIntegrationModel);
+          
+          const projectManagementConfigModel = createProjectManagementConfigModel(this.sequelize);
+          this.projectManagementConfigRepository = new ProjectManagementConfigRepository(projectManagementConfigModel);
+          
+          this.projectManagementIntegrationService = new ProjectManagementIntegrationService(
+            this.projectManagementIntegrationRepository
+          );
+          
+          this.projectManagementConfigService = new ProjectManagementConfigService(
+            this.projectManagementConfigRepository,
+            this.projectManagementIntegrationRepository
+          );
+          
+          this.projectManagementTicketService = new ProjectManagementTicketService(
+            this.projectManagementConfigRepository,
+            this.projectManagementIntegrationRepository
+          );
+          
+          // Service 4: Jira Metadata Service (fetches Jira projects)
+          this.jiraMetadataService = new JiraMetadataService(
+            this.projectManagementIntegrationRepository
+          );
+          
+          console.log("Project Management Integration initialized");
+          
+          // Initialize Comm Integration Repository (new pattern, matches test-management)
+          this.commIntegrationRepository = new CommIntegrationRepository(models.CommIntegrations);
+          console.log("Comm Integration Repository initialized");
+
+          // Initialize Comm Config Repository (new pattern, matches test-management)
+          this.commConfigRepository = new CommConfigRepository(models.CommConfig);
+          console.log("Comm Config Repository initialized");
+
+          // Initialize Store Integration Controllers
+          this.storeIntegrationController = new StoreIntegrationController(
+            models.StoreIntegrations,
+            models.StoreCredentials
+          );
+          this.storeCredentialController = new StoreCredentialController(models.StoreCredentials);
+          console.log("Store Integration Controllers initialized");
+          
+          // Initialize Comm Services (using repositories, same pattern as test-management)
+          this.commIntegrationService = new CommIntegrationService(this.commIntegrationRepository);
+          console.log("Comm Integration Service initialized");
+          
+          this.commConfigService = new CommConfigService(
+            this.commConfigRepository,
+            this.commIntegrationRepository
+          );
+          console.log("Comm Config Service initialized");
+          
+          // Initialize Release Config (AFTER all integration services are ready)
+          this.releaseConfigRepository = new ReleaseConfigRepository(models.ReleaseConfig);
+          
+          this.releaseConfigActivityLogRepository = new ReleaseConfigActivityLogRepository(models.ReleaseConfigActivityLog);
+          this.releaseConfigActivityLogService = new ReleaseConfigActivityLogService(
+            this.releaseConfigActivityLogRepository
+          );
+          console.log("Release Config Activity Log Service initialized");
+          
+          
+          // Initialize Release Schedule Repository
+          const releaseScheduleRepository = new ReleaseScheduleRepository(models.ReleaseSchedule);
+          console.log("Release Schedule Repository initialized");
+          
+          // Initialize Release Notification Repository
+          this.releaseNotificationRepository = new ReleaseNotificationRepository(
+            this.sequelize.models.ReleaseNotification
+          );
+          console.log("Release Notification Repository initialized");
+          
+          // Initialize Messaging Service
+          this.messagingService = new MessagingService(
+            this.commIntegrationService,
+            this.commConfigService
+          );
+          console.log("Messaging Service initialized");
+          
+          // Initialize Cronicle Service (optional - only if configured)
+          this.cronicleService = this.initializeCronicleService();
+          
+          // Initialize Release Schedule Service
+          this.releaseScheduleService = new ReleaseScheduleService(
+            releaseScheduleRepository,
+            this.cronicleService
+          );
+          console.log("Release Schedule Service initialized");
+          
+          this.releaseConfigService = new ReleaseConfigService(
+            this.releaseConfigRepository,
+            this.releaseScheduleService,
+            this.cicdConfigService,
+            this.testManagementConfigService,
+            this.commConfigService,
+            this.projectManagementConfigService,
+            this.releaseConfigActivityLogService,
+            this.releaseConfigActivityLogRepository,
+            this.storeIntegrationController
+          );
+          console.log("Release Config Service initialized");
+          
+          // Initialize Release Management Services
+          this.releaseRepository = new ReleaseRepository(this.sequelize.models.Release);
+          this.releasePlatformTargetMappingRepository = new ReleasePlatformTargetMappingRepository(
+            this.sequelize.models.PlatformTargetMapping
+          );
+          // Alias for type guard compatibility
+          this.platformMappingRepository = this.releasePlatformTargetMappingRepository;
+          
+          // Initialize Release Uploads Repository (for manual build uploads)
+          this.releaseUploadsRepository = new ReleaseUploadsRepository(
+            this.sequelize,
+            this.sequelize.models.ReleaseUpload as typeof import("../models/release/release-uploads.sequelize.model").ReleaseUploadModel
+          );
+          console.log("Release Uploads Repository initialized");
+          
+          this.cronJobRepository = new CronJobRepository(this.sequelize.models.CronJob);
+          this.releaseTaskRepository = new ReleaseTaskRepository(this.sequelize.models.ReleaseTask);
+          this.regressionCycleRepository = new RegressionCycleRepository(this.sequelize.models.RegressionCycle);
+          console.log("Regression Cycle Repository initialized");
+          
+          // Local repositories only used during service initialization
+          const stateHistoryRepo = new StateHistoryRepository(
+            this.sequelize.models.StateHistory
+          );
+          this.activityLogRepository = new ActivityLogRepository(models.ActivityLog);
+          console.log("Activity Log Repository initialized");
+          
+          // Initialize Release Version Service (before ReleaseCreationService, as it's a dependency)
+          this.releaseVersionService = new ReleaseVersionService(
+            this.releasePlatformTargetMappingRepository
+          );
+          console.log("Release Version Service initialized");
+          
+          // Initialize Release Activity Log Service (before ReleaseCreationService, as it's a dependency)
+          this.releaseActivityLogService = new ReleaseActivityLogService(this.activityLogRepository, this);
+          console.log("Release Activity Log Service initialized");
+          
+          this.releaseCreationService = new ReleaseCreationService(
+            this.releaseRepository,
+            this.releasePlatformTargetMappingRepository,
+            this.cronJobRepository, // Use class property for consistency
+            this.releaseTaskRepository, // Use class property for consistency
+            stateHistoryRepo,
+            this,
+            this.releaseConfigService,
+            this.releaseVersionService,
+            this.releaseActivityLogService
+          );
+          console.log("Release Creation Service initialized");
+          
+          // Initialize SCM Service (needed by ReleaseRetrievalService and ReleaseStatusService)
+          this.scmService = new SCMService();
+          console.log("SCM Service initialized");
+          
+          // Initialize Build repository (for artifact listings/uploads) - must be before ReleaseRetrievalService
+          const buildModel = createBuildModel(this.sequelize);
+          this.buildRepository = new BuildRepository(buildModel);
+          console.log("Build Repository initialized");
+          
+          this.releaseRetrievalService = new ReleaseRetrievalService(
+            this.releaseRepository,
+            this.releasePlatformTargetMappingRepository,
+            this.cronJobRepository, // Use class property for consistency
+            this.releaseTaskRepository, // Use class property for consistency
+            this.regressionCycleRepository,
+            this.buildRepository,
+            this.releaseUploadsRepository,
+            this.releaseConfigRepository,
+            this.scmService, // Use class property for consistency
+            this.projectManagementTicketService,
+            this.testManagementRunService,
+            this
+          );
+          console.log("Release Retrieval Service initialized");
+          
+          // Inject release retrieval service into config service for deletion checks
+          this.releaseConfigService.setReleaseRetrievalService(this.releaseRetrievalService);
+          
+          // Initialize Release Notification Service (after releaseConfigService and releaseRetrievalService)
+          this.releaseNotificationService = new ReleaseNotificationService(
+            this.messagingService,
+            this.releaseNotificationRepository,
+            this.releaseConfigService,
+            this.releaseRetrievalService
+          );
+          console.log("Release Notification Service initialized");
+          
+          // Set dependencies for scheduled release creation (after all services are initialized)
+          this.releaseScheduleService.setReleaseCreationDependencies({
+            releaseConfigService: this.releaseConfigService,
+            releaseRetrievalService: this.releaseRetrievalService,
+            releaseCreationService: this.releaseCreationService,
+            releaseVersionService: this.releaseVersionService
+          });
+          console.log("Release Schedule Service dependencies set");
+          
+          // SCM Service already initialized above (used by ReleaseRetrievalService and ReleaseStatusService)
+          
+          this.releaseStatusService = new ReleaseStatusService(
+            this.releaseRetrievalService,
+            this.releaseConfigService,
+            this.projectManagementTicketService,
+            this.testManagementRunService,
+            this.scmService, // Use class property for consistency
+            this.releaseRepository,
+            this.regressionCycleRepository
+          );
+          console.log("Release Status Service initialized");
+          
+          // Set ReleaseStatusService in ReleaseRetrievalService (circular dependency resolution)
+          this.releaseRetrievalService.setReleaseStatusService(this.releaseStatusService);
+          console.log("Release Status Service injected into Release Retrieval Service");
+          
+          // Note: CronJobService and ReleaseUpdateService initialization moved to after distributionService
+          // (see line ~1407) because CronJobService requires distributionService which is initialized in promise chain
+          
+          // Initialize Build Artifact Service (needs S3Storage)
+          this.buildArtifactService = new BuildArtifactService(this);
+          console.log("Build Artifact Service initialized");
+          
+          // Initialize Build Notification Service (needs ReleaseRetrievalService, ReleaseNotificationService, BuildArtifactService)
+          this.buildNotificationService = new BuildNotificationService(
+            this.releaseRetrievalService,
+            this.releaseNotificationService,
+            this.buildArtifactService
+          );
+          console.log("Build Notification Service initialized");
+          
+          // Initialize Upload Validation Service (centralized initialization - replaces factory)
+          this.uploadValidationService = new UploadValidationService(
+            this.releaseRepository,
+            this.cronJobRepository,
+            this.releaseTaskRepository,
+            this.regressionCycleRepository,
+            this.releasePlatformTargetMappingRepository
+          );
+          console.log("Upload Validation Service initialized");
+          
+          // Initialize Manual Upload Service (centralized initialization - replaces factory)
+          this.manualUploadService = new ManualUploadService(
+            this.releaseUploadsRepository,
+            this.releaseRepository,
+            this.releasePlatformTargetMappingRepository,
+            this.uploadValidationService,
+            this.buildArtifactService
+          );
+          console.log("Manual Upload Service initialized");
+          
+          // Initialize Build Callback Service (centralized initialization - replaces factory)
+          this.buildCallbackService = new BuildCallbackService(
+            this.buildRepository,
+            this.releaseTaskRepository,
+            this.releaseRepository,
+            this.cronJobRepository,
+            this.releaseNotificationService,
+            this.buildNotificationService
+          );
+          console.log("Build Callback Service initialized");
+          
+          // Initialize TestFlight Build Verification Service (centralized initialization - replaces factory)
+          this.testFlightBuildVerificationService = new TestFlightBuildVerificationService(
+            this.storeIntegrationController,
+            this.storeCredentialController,
+            this.releasePlatformTargetMappingRepository,
+            this.releaseRepository
+          );
+          console.log("TestFlight Build Verification Service initialized");
+          
+          // Initialize TaskExecutor (centralized initialization - replaces factory)
+          // All dependencies are already initialized above
+          // ✅ Pass Sequelize directly to avoid circular dependency (TaskExecutor no longer calls getStorage())
+          // ✅ Pass regressionCycleRepository from storage to avoid creating new instance
+          this.taskExecutor = new TaskExecutor(
+            this.scmService,
+            this.cicdIntegrationRepository,
+            this.cicdWorkflowRepository,
+            this.cicdConfigService,
+            this.projectManagementTicketService,
+            this.testManagementRunService,
+            this.messagingService,
+            this.releaseConfigRepository,
+            this.releaseTaskRepository,
+            this.releaseRepository,
+            this.releaseUploadsRepository,
+            this.cronJobRepository,
+            this.releaseNotificationService,
+            this.sequelize,  // ✅ Pass Sequelize directly instead of TaskExecutor calling getStorage()
+            this.regressionCycleRepository,  // ✅ Pass RegressionCycleRepository from storage instead of creating new instance
+            this.buildNotificationService  // ✅ For build artifact notifications (CI/CD and manual uploads)
+          );
+          console.log("Task Executor initialized");
+          
+          // Initialize GlobalSchedulerService (centralized initialization - replaces factory)
+          // Create state machine factory function
+          const stateMachineFactory: StateMachineFactory = async (
+            cronJob: CronJob
+          ): Promise<CronJobStateMachine> => {
+            const stateMachine = new CronJobStateMachine(
+              cronJob.releaseId,
+              this.cronJobRepository,
+              this.releaseRepository,
+              this.releaseTaskRepository,
+              this.regressionCycleRepository,
+              this.taskExecutor,  // Use centralized taskExecutor
+              this,  // storage
+              this.releasePlatformTargetMappingRepository,
+              this.releaseUploadsRepository,
+              this.buildRepository  // ✅ Required - actively initialized in aws-storage.ts
+            );
+
+            // ✅ REMOVED: initialize() call - this is business logic, not factory responsibility
+            // The caller (GlobalSchedulerService) will call initialize() after creating the state machine
+            // Hybrid architecture: initialize() is called on each webhook tick in business logic layer
+            return stateMachine;
+          };
+          
+          // Initialize GlobalSchedulerService (centralized initialization - replaces factory)
+          // ✅ Required - actively initialized (works in both setInterval and Cronicle webhook modes)
+          this.globalSchedulerService = new GlobalSchedulerService(
+            this.cronJobRepository,
+            stateMachineFactory
+          );
+          console.log("Global Scheduler Service initialized");
+          
+          // Initialize Distribution Repositories
+          this.distributionRepository = new DistributionRepository(models.Distribution);
+          console.log("Distribution Repository initialized");
+          
+          this.androidSubmissionRepository = new AndroidSubmissionBuildRepository(models.AndroidSubmissionBuild);
+          console.log("Android Submission Repository initialized");
+          
+          this.iosSubmissionRepository = new IosSubmissionBuildRepository(models.IosSubmissionBuild);
+          console.log("iOS Submission Repository initialized");
+          
+          this.submissionActionHistoryRepository = new SubmissionActionHistoryRepository(models.SubmissionActionHistory);
+          console.log("Submission Action History Repository initialized");
+          
+          // Initialize Distribution Services
+          this.submissionService = new SubmissionService(
+            this.androidSubmissionRepository,
+            this.iosSubmissionRepository,
+            this.submissionActionHistoryRepository,
+            this.distributionRepository,
+            this.buildArtifactService,  // Already initialized above
+            this.cronicleService,  // For submission status sync
+            undefined,  // testflightBuildVerificationService (not used yet)
+            undefined,  // appleAppStoreConnectService (not used yet)
+            undefined,  // cronJobService (will be injected later via setter)
+            this.releaseNotificationService  // For submission notifications
+          );
+          console.log("Submission Service initialized");
+          
+          this.distributionService = new DistributionService(
+            this.distributionRepository,
+            this.iosSubmissionRepository,
+            this.androidSubmissionRepository,
+            this.submissionActionHistoryRepository,
+            this.releaseRepository,
+            this.buildRepository,
+            this.releasePlatformTargetMappingRepository
+          );
+          console.log("Distribution Service initialized");
+          
+          // Initialize CronJobService (needed by ReleaseUpdateService)
+          // Now that distributionService is initialized, we can create CronJobService
+          this.cronJobService = new CronJobService(
+            this.cronJobRepository,
+            this.releaseRepository,
+            this.releaseTaskRepository,
+            this.regressionCycleRepository,
+            this.releasePlatformTargetMappingRepository,
+            this,  // storage
+            this.releaseUploadsRepository,
+            this.cronicleService,
+            this.releaseActivityLogService,
+            this.distributionService  // ✅ Required - now available after initialization
+          );
+          console.log("Cron Job Service initialized");
+          
+          // Set ReleaseStatusService in CronJobService (circular dependency resolution)
+          this.cronJobService.setReleaseStatusService(this.releaseStatusService);
+          console.log("Release Status Service injected into Cron Job Service");
+          
+          // Set CronJobService in ReleaseCreationService (for auto-start cron on release creation)
+          this.releaseCreationService.setCronJobService(this.cronJobService);
+          console.log("Cron Job Service injected into Release Creation Service");
+          
+          // Set CronJobService in SubmissionService (for completing release when distribution submitted)
+          this.submissionService.setCronJobService(this.cronJobService);
+          console.log("Cron Job Service injected into Submission Service");
+          
+          // Initialize ReleaseUpdateService (depends on CronJobService)
+          this.releaseUpdateService = new ReleaseUpdateService(
+            this.releaseRepository,
+            this.cronJobRepository,
+            this.releasePlatformTargetMappingRepository,
+            this.releaseActivityLogService,
+            this.cronJobService,  // ✅ Proper instance!
+            this.releaseTaskRepository,
+            this.buildRepository,
+            this.regressionCycleRepository,
+            this.releaseConfigService,  // ✅ For pre-regression workflow validation
+            this.releaseNotificationService
+          );
+          console.log("Release Update Service initialized");
+          
           // return this.sequelize.sync();
         })
         .then(() => {
@@ -433,6 +1523,39 @@ export class S3Storage implements storage.Storage {
           .catch(reject);
       });
     }
+
+    /**
+     * Initialize Cronicle service if environment variables are configured
+     * Returns null if Cronicle is not configured (optional dependency)
+     */
+    private initializeCronicleService(): CronicleService | null {
+      const cronicleUrl = process.env.CRONICLE_URL;
+      const cronicleApiKey = process.env.CRONICLE_API_KEY;
+      const webhookSecret = process.env.CRONICLE_WEBHOOK_SECRET;
+      const serverBaseUrl = process.env.SERVER_BASE_URL;
+
+      const isCronicleConfigured = cronicleUrl && cronicleApiKey && webhookSecret && serverBaseUrl;
+
+      if (!isCronicleConfigured) {
+        console.log("Cronicle not configured - release schedule jobs will not be created");
+        return null;
+      }
+
+      try {
+        const service = createCronicleService({
+          baseUrl: cronicleUrl,
+          apiKey: cronicleApiKey,
+          webhookSecret: webhookSecret,
+          serverBaseUrl: serverBaseUrl,
+          defaultTimezone: process.env.CRONICLE_DEFAULT_TIMEZONE ?? 'Asia/Kolkata'
+        });
+        console.log("Cronicle Service initialized");
+        return service;
+      } catch (error) {
+        console.error("Failed to initialize Cronicle Service:", error);
+        return null;
+      }
+    }
   
     public addAccount(account: storage.Account): Promise<string> {
         account = storage.clone(account); // pass by value
@@ -450,7 +1573,7 @@ export class S3Storage implements storage.Storage {
       }
   
     public getAccount(accountId: string): Promise<storage.Account> {
-      console.log("Fetching account for accountId:", accountId); // Debug log
+      // console.log("Fetching account for accountId:", accountId); // Debug log
       return this.setupPromise
         .then(() => {
           return this.sequelize.models[MODELS.ACCOUNT].findByPk(accountId)
@@ -530,84 +1653,107 @@ export class S3Storage implements storage.Storage {
       return this.setupPromise
         .then(() => this.getAccount(accountId)) // Fetch account details to check permissions
         .then(async (account: storage.Account) => {
-          // Set initial tenantId and tenantName from app data
-          let tenantId = app.tenantId;
-          let tenantName = app.tenantName;
-    
-          // Check if a tenantId is provided, and if so, verify or create tenant
+          const tenantId = app.tenantId;
+          
+          // V2 Flow: Tenant-based (NEW)
           if (tenantId) {
-            // Attempt to find the tenant by tenantId and tenantName
+            // Verify tenant exists
             const tenant = await this.sequelize.models[MODELS.TENANT].findOne({
               where: { id: tenantId },
             });
-    
-            // If tenant is not found or tenantName doesn't match, create a new tenant
+            
             if (!tenant) {
-              console.log(`Specified tenant (ID: ${tenantId}, Name: ${tenantName}) does not exist. Creating a new tenant.`);
-    
-              const idTogenerate = shortid.generate();
-              // Create a new tenant with the specified tenantName, owned by the accountId
-              const newTenant = await this.sequelize.models[MODELS.TENANT].create({
-                id: idTogenerate,
-                displayName: tenantName,
-                createdBy: accountId,
-              });
-    
-              tenantId = idTogenerate;
-            } else {
-              // Verify if the user has admin permissions for the existing tenant
-              // const isAdmin = await this.sequelize.models[MODELS.COLLABORATOR].findOne({
-              //   where: { accountId, tenantId, permission: storage.Permissions.Owner },
-              // });
-              const isAdmin = tenant.dataValues.createdBy === accountId;
-              if (!isAdmin) {
-                throw storage.storageError(storage.ErrorCode.Invalid, "User does not have admin permissions for the specified tenant.");
-              }
+              throw storage.storageError(
+                storage.ErrorCode.NotFound, 
+                "Specified organization does not exist."
+              );
             }
-          } else if(tenantName) {
-            //MARK Fix: Check if tenantName does not exist
-            const tenant = await this.sequelize.models[MODELS.TENANT].findOne({
-              where: { displayName: tenantName },
+            
+            // Check Account has permission (editor or admin) in the tenant
+            // Query tenant-level collaborators (where appId is null)
+            const tenantCollab = await this.sequelize.models[MODELS.COLLABORATOR].findOne({
+              where: { 
+                accountId: accountId, 
+                tenantId,
+                appId: null  // Tenant-level collaborator
+              },
             });
-
-            if(tenant) {
-              throw storage.storageError(storage.ErrorCode.AlreadyExists, "An organization or user of this name already exists. Please select a different name.");
-              //throw new Error("An organization or user of this name already exists. Please select a different name.")
-            } else {
-            // If no tenantId is provided, set tenantId to NULL (app is standalone/personal)
-              const idTogenerate = shortid.generate();
-              // Create a new tenant with the specified tenantName, owned by the accountId
-              const newTenant = await this.sequelize.models[MODELS.TENANT].create({
-                id: idTogenerate,
-                displayName: tenantName,
-                createdBy: accountId,
-              });
-              tenantId = idTogenerate;
+            
+            if (!tenantCollab) {
+              throw storage.storageError(
+                storage.ErrorCode.Invalid, 
+                "You are not a member of this organization."
+              );
             }
+            
+            const accountPermission = tenantCollab.dataValues.permission;
+            if (accountPermission === 'Viewer') {
+              throw storage.storageError(
+                storage.ErrorCode.Invalid, 
+                "You need Owner or Editor permissions to create apps."
+              );
+            }
+      
+            // Set the tenantId and tenantName on the app object
+            app.tenantId = tenantId;
+            app.tenantName = tenant.dataValues.displayName;
+      
+            // Add the App (tenant is the owner, accountId also set for backward compat)
+            const addedApp = await this.sequelize.models[MODELS.APPS].create({
+              ...app,
+              accountId, // Set both for dual compatibility
+            });
+      
+            // Add tenant-level collaborator entry (unified collaborators table)
+            const tenantCollabMap = {
+              email: account.email,
+              accountId: accountId,
+              tenantId,  // Tenant-level collaborator
+              appId: null,  // No specific app
+              permission: storage.Permissions.Owner,
+            };
+            await this.sequelize.models[MODELS.COLLABORATOR].findOrCreate({
+              where: { tenantId, accountId: accountId },
+              defaults: tenantCollabMap,
+            });
+            
+            // Also add app-level collaborator entry for backward compatibility
+            const appCollabMap = {
+              email: account.email,
+              accountId: accountId,
+              appId: app.id,  // App-level collaborator
+              tenantId: null,  // No tenant association for app-level
+              permission: storage.Permissions.Owner,
+            };
+            await this.sequelize.models[MODELS.COLLABORATOR].findOrCreate({
+              where: { appId: app.id, email: account.email },
+              defaults: appCollabMap,
+            });
+      
+            return addedApp;
+          } 
+          // V1 Flow: Account-based (OLD - backward compatibility)
+          else {
+            // Add the App with accountId as owner (old flow)
+            const addedApp = await this.sequelize.models[MODELS.APPS].create({
+              ...app,
+              accountId, // Direct account ownership
+            });
+      
+            // Add app-level collaborator entry (old flow)
+            const collabMap = {
+              email: account.email,
+              accountId: accountId,
+              permission: storage.Permissions.Owner,
+              appId: app.id,
+            };
+            await this.sequelize.models[MODELS.COLLABORATOR].findOrCreate({
+              where: { appId: app.id, email: account.email },
+              defaults: collabMap,
+            });
+      
+            return addedApp;
           }
-    
-          // Set the tenantId on the app object
-          app.tenantId = tenantId;
-    
-          // Add the App with accountId and tenantId
-          const addedApp = await this.sequelize.models[MODELS.APPS].create({
-            ...app,
-            accountId,
-          });
-    
-          // Add a Collaborator entry for the app owner
-          const collabMap = {
-            email: account.email,
-            accountId,
-            permission: storage.Permissions.Owner,
-            appId: app.id,
-          };
-          await this.sequelize.models[MODELS.COLLABORATOR].findOrCreate({
-            where: { appId: app.id, email: account.email },
-            defaults: collabMap,
-          });
-    
-          return addedApp;
         })
         .then(() => app) // Return the app object
         .catch((error) => {
@@ -618,25 +1764,51 @@ export class S3Storage implements storage.Storage {
     
 
     public getApps(accountId: string): Promise<storage.App[]> {
+      // Get apps from BOTH flows:
+      // V2: Account → Tenant (via collaborators) → Apps (NEW)
+      // V1: Account → Apps (directly via accountId) (OLD - backward compatibility)
       return this.setupPromise
-        .then(() => {
-        // Fetch all tenants where the account is a collaborator
-        return this.sequelize.models[exports.MODELS.COLLABORATOR].findAll({
-            where: { accountId: accountId },
-        });
-      }).then((collaborators) => {
-          const appIds = collaborators.map((collaborator) => {
-              const collaboratorModel = collaborator.dataValues;
-              return collaboratorModel.appId;
+        .then(async () => {
+          // V2 Flow: Get all tenants Account is a member of
+          // Query tenant-level collaborators (where appId is null)
+          const tenantCollabRecords = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
+            where: { 
+              accountId: accountId,
+              appId: null  // Tenant-level collaborators only
+            },
           });
-          return this.sequelize.models[exports.MODELS.APPS].findAll({
-              where: {
-                  id: appIds, // Match app IDs
-              }
+          
+          // Extract tenant IDs
+          const tenantIds = tenantCollabRecords.map((record: any) => 
+            record.dataValues.tenantId
+          ).filter(id => id !== null);  // Filter out any nulls
+          
+          // V2: Get all apps from these tenants
+          const tenantApps = tenantIds.length > 0 
+            ? await this.sequelize.models[MODELS.APPS].findAll({
+                where: {
+                  tenantId: tenantIds
+                }
+              })
+            : [];
+          
+          // V1 Flow: Get all apps directly owned by accountId (old flow)
+          const accountApps = await this.sequelize.models[MODELS.APPS].findAll({
+            where: {
+              accountId: accountId,
+              tenantId: null  // Only get old-style apps (no tenant)
+            }
           });
-      })
-        .then(async (flatAppsModel) => {
-          const flatApps = flatAppsModel.map((val) => val.dataValues);
+          
+          // Merge both lists, avoiding duplicates
+          const allAppsModel = [...tenantApps, ...accountApps];
+          const uniqueAppsMap = new Map();
+          allAppsModel.forEach((app: any) => {
+            const appData = app.dataValues;
+            uniqueAppsMap.set(appData.id, appData);
+          });
+          
+          const flatApps = Array.from(uniqueAppsMap.values());
           const apps = [];
           for (let i = 0; i < flatApps.length; i++) {
             const updatedApp = await this.getCollabrators(flatApps[i], accountId);
@@ -648,48 +1820,84 @@ export class S3Storage implements storage.Storage {
     }
     
     public getTenants(accountId: string): Promise<storage.Organization[]> {
-      //first get all tenants
-      //get apps for each tenant
-      //check if user is owner or collaborator of one of that app
-      //if yes then serve that tenant
+      // Fetch all tenants where the account is a member (via collaborators)
+      // Account → Tenant (parent entity) → Apps
       return this.setupPromise
-        .then(() => {
-          // Fetch all tenants where the account is a collaborator
-          return this.sequelize.models[MODELS.COLLABORATOR].findAll({
-            where: { accountId: accountId },
-          });
-        }).then((collaborators) => {
-          const appIds = collaborators.map((collaborator) => {
-            const collaboratorModel = collaborator.dataValues;
-            return collaboratorModel.appId
-          });
-          return this.sequelize.models[MODELS.APPS].findAll({
-            where: {
-              id: appIds, // Match app IDs
+        .then(async () => {
+          // Get account's tenant-level collaborations (where appId is null)
+          const tenantCollabs = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
+            where: { 
+              accountId: accountId,
+              appId: null  // Tenant-level collaborators only
             }
           });
-        }).then((apps) => {
-          const tenantIds = apps.map((app) => app.dataValues.tenantId);
-          return this.sequelize.models[MODELS.TENANT].findAll({
-            where: {
-              id: tenantIds, // Match tenant IDs
-            }
-          });
+          
+          // Fetch full tenant details for each
+          const tenants = await Promise.all(
+            tenantCollabs.map(async (collab: any) => {
+              const tenantId = collab.dataValues.tenantId;
+              const permission = collab.dataValues.permission;
+              
+              const tenant = await this.sequelize.models[MODELS.TENANT].findOne({
+                where: { id: tenantId }
+              });
+              
+              if (!tenant) return null;
+              
+              return {
+                id: tenant.dataValues.id,
+                displayName: tenant.dataValues.displayName,
+                role: permission,  // Already in correct format: Owner/Editor/Viewer
+                createdBy: tenant.dataValues.createdBy,
+                createdTime: tenant.dataValues.createdTime
+              };
+            })
+          );
+          
+          // Filter out any nulls
+          return tenants.filter(t => t !== null);
         })
-        .then((tenantsModel) => {
-          // Format tenants into the desired response structure
-          const tenants = tenantsModel.map((tenantModel) => {
-            const tenant = tenantModel.dataValues;
-            const permission = tenant.createdBy === accountId ? "Owner" : "Collaborator";
-            //permission could be modified if user account does not belong to Collabrator to any other app of that tenant.
-            return {
-              id: tenant.id,
-              displayName: tenant.displayName, // Assuming `displayName` in Tenant model holds org name
-              role: permission,
-            };
-          });
+        .catch(S3Storage.storageErrorHandler);
+    }
     
-          return tenants;
+    public addTenant(accountId: string, tenant: storage.Organization): Promise<storage.Organization> {
+      return this.setupPromise
+        .then(async () => {
+          const tenantId = tenant.id || shortid.generate();
+          const now = new Date().getTime();
+          
+          // Create the tenant
+          await this.sequelize.models[MODELS.TENANT].create({
+            id: tenantId,
+            displayName: tenant.displayName,
+            createdBy: accountId,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+          
+          // Add creator as tenant-level collaborator with Owner permission
+          const account = await this.sequelize.models[MODELS.ACCOUNT].findOne({
+            where: { id: accountId }
+          });
+          
+          await this.sequelize.models[MODELS.COLLABORATOR].create({
+            email: account.dataValues.email,
+            accountId: accountId,
+            appId: null,  // Tenant-level (no specific app)
+            tenantId: tenantId,
+            permission: 'Owner',  // Creator gets Owner permission
+            isCreator: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+          
+          return {
+            id: tenantId,
+            displayName: tenant.displayName,
+            role: 'Owner',
+            createdBy: accountId,
+            createdTime: now
+          };
         })
         .catch(S3Storage.storageErrorHandler);
     }
@@ -699,7 +1907,7 @@ export class S3Storage implements storage.Storage {
         .then( async () => {
           // Remove all apps under the tenant
           //Remove all collaborators from that apps
-          //check permission whether user is owner or not
+          //check permission whether Account is owner or not
           const tenant = await this.sequelize.models[MODELS.TENANT].findOne({
             where: { id: tenantId },
           });
@@ -709,7 +1917,7 @@ export class S3Storage implements storage.Storage {
           }
 
           if(tenant.dataValues.createdBy !== accountId) {
-            throw storage.storageError(storage.ErrorCode.Invalid, "User does not have admin permissions for the specified tenant.");
+            throw storage.storageError(storage.ErrorCode.Invalid, "Account does not have admin permissions for the specified tenant.");
           }
 
           const apps = await this.sequelize.models[MODELS.APPS].findAll({
@@ -721,10 +1929,10 @@ export class S3Storage implements storage.Storage {
             const appOwnerId = app.dataValues.accountId;
     
             if (appOwnerId === accountId) {
-              // If the app is owned by the user, remove it
+              // If the app is owned by the Account, remove it
               await this.removeApp(accountId, app.dataValues.id);
             } else {
-              // If the app is not owned by the user, set tenantId to null
+              // If the app is not owned by the Account, set tenantId to null
               await this.sequelize.models[MODELS.APPS].update(
                 { tenantId: null },
                 { where: { id: app.dataValues.id } }
@@ -741,8 +1949,117 @@ export class S3Storage implements storage.Storage {
         })
         .catch(S3Storage.storageErrorHandler);
     }
+
+    // Tenant Collaborator Methods
     
-    public getApp(accountId: string, appId: string, keepCollaboratorIds: boolean = false): Promise<storage.App> {
+    public getTenantCollaborators(tenantId: string): Promise<storage.CollaboratorMap> {
+      return this.setupPromise
+        .then(async () => {
+          // Get all tenant-level collaborators (where appId is NULL)
+          const collaborators = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
+            where: {
+              tenantId: tenantId,
+              appId: null
+            }
+          });
+
+          const collaboratorMap: storage.CollaboratorMap = {};
+          
+          for (const collab of collaborators) {
+            const email = collab.dataValues.email;
+            collaboratorMap[email] = {
+              accountId: collab.dataValues.accountId,
+              permission: collab.dataValues.permission
+            };
+          }
+
+          return collaboratorMap;
+        })
+        .catch(S3Storage.storageErrorHandler);
+    }
+
+    public addTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void> {
+      return this.setupPromise
+        .then(async () => {
+          // Find the account by email
+          const account = await this.sequelize.models[MODELS.ACCOUNT].findOne({
+            where: { email: email }
+          });
+
+          if (!account) {
+            throw storage.storageError(storage.ErrorCode.NotFound, "Account with this email does not exist");
+          }
+
+          const accountId = account.dataValues.id;
+
+          // Check if collaborator already exists
+          const existing = await this.sequelize.models[MODELS.COLLABORATOR].findOne({
+            where: {
+              tenantId: tenantId,
+              accountId: accountId,
+              appId: null
+            }
+          });
+
+          if (existing) {
+            throw storage.storageError(storage.ErrorCode.AlreadyExists, "Account is already a collaborator");
+          }
+
+          // Add collaborator
+          await this.sequelize.models[MODELS.COLLABORATOR].create({
+            email: email,
+            accountId: accountId,
+            tenantId: tenantId,
+            appId: null,
+            permission: permission,
+            isCreator: false,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+        })
+        .catch(S3Storage.storageErrorHandler);
+    }
+
+    public updateTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void> {
+      return this.setupPromise
+        .then(async () => {
+          const result = await this.sequelize.models[MODELS.COLLABORATOR].update(
+            { permission: permission, updatedAt: new Date() },
+            {
+              where: {
+                tenantId: tenantId,
+                email: email,
+                appId: null
+              }
+            }
+          );
+
+          if (result[0] === 0) {
+            throw storage.storageError(storage.ErrorCode.NotFound, "Collaborator not found");
+          }
+        })
+        .catch(S3Storage.storageErrorHandler);
+    }
+
+    public removeTenantCollaborator(tenantId: string, email: string): Promise<void> {
+      return this.setupPromise
+        .then(async () => {
+          const result = await this.sequelize.models[MODELS.COLLABORATOR].destroy({
+            where: {
+              tenantId: tenantId,
+              email: email,
+              appId: null
+            }
+          });
+
+          if (result === 0) {
+            throw storage.storageError(storage.ErrorCode.NotFound, "Collaborator not found");
+          }
+        })
+        .catch(S3Storage.storageErrorHandler);
+    }
+    
+    public getApp(accountId: string, appId: string): Promise<storage.App> {
       return this.setupPromise
         .then(() => {
           return this.sequelize.models[MODELS.APPS].findByPk(appId, {
@@ -764,13 +2081,13 @@ export class S3Storage implements storage.Storage {
         .then(() => {
           // Remove all collaborator entries for this app
           return this.sequelize.models[MODELS.COLLABORATOR].destroy({
-            where: { appId, accountId },
+            where: { appId, accountId: accountId },
           });
         })
         .then(() => {
           // Remove the app entry
           return this.sequelize.models[MODELS.APPS].destroy({
-            where: { id: appId, accountId },
+            where: { id: appId, accountId: accountId },
           });
         })
         .then(() => {
@@ -805,7 +2122,7 @@ export class S3Storage implements storage.Storage {
   
       return this.setupPromise
         .then(() => {
-          const getAppPromise: Promise<storage.App> = this.getApp(accountId, appId, /*keepCollaboratorIds*/ true);
+          const getAppPromise: Promise<storage.App> = this.getApp(accountId, appId);
           const accountPromise: Promise<storage.Account> = this.getAccountByEmail(email);
           return Promise.all<any>([getAppPromise, accountPromise]);
         })
@@ -831,15 +2148,15 @@ export class S3Storage implements storage.Storage {
   
           isTargetAlreadyCollaborator = S3Storage.isCollaborator(app.collaborators, email);
   
-          // Update the current owner to be a collaborator
-          S3Storage.setCollaboratorPermission(app.collaborators, requestingCollaboratorEmail, storage.Permissions.Collaborator);
+          // Update the current owner to be an editor
+          S3Storage.setCollaboratorPermission(app.collaborators, requestingCollaboratorEmail, storage.Permissions.Editor);
   
           // set target collaborator as an owner.
           if (isTargetAlreadyCollaborator) {
             S3Storage.setCollaboratorPermission(app.collaborators, email, storage.Permissions.Owner);
           } else {
             const targetOwnerProperties: storage.CollaboratorProperties = {
-              accountId: targetCollaboratorAccountId,
+              accountId: targetCollaboratorAccountId,  // This is for CollaboratorProperties interface (returned to client)
               permission: storage.Permissions.Owner,
             };
             S3Storage.addToCollaborators(app.collaborators, email, targetOwnerProperties);
@@ -879,7 +2196,7 @@ export class S3Storage implements storage.Storage {
     public addCollaborator(accountId: string, appId: string, email: string): Promise<void> {
       return this.setupPromise
         .then(() => {
-          const getAppPromise: Promise<storage.App> = this.getApp(accountId, appId, /*keepCollaboratorIds*/ true);
+          const getAppPromise: Promise<storage.App> = this.getApp(accountId, appId);
           const accountPromise: Promise<storage.Account> = this.getAccountByEmail(email);
           return Promise.all<any>([getAppPromise, accountPromise]);
         })
@@ -887,8 +2204,8 @@ export class S3Storage implements storage.Storage {
           // Use the original email stored on the account to ensure casing is consistent
           email = account.email;
           return this.addCollaboratorWithPermissions(accountId, app, email, {
-            accountId: account.id,
-            permission: storage.Permissions.Collaborator,
+            accountId: account.id,  // This is for CollaboratorProperties interface (returned to client)
+            permission: storage.Permissions.Viewer,
           });
         })
         .catch(S3Storage.storageErrorHandler);
@@ -897,16 +2214,16 @@ export class S3Storage implements storage.Storage {
     public updateCollaborators(accountId: string, appId: string, email: string, role: string): Promise<void> {
       return this.setupPromise
       .then(() => {
-        const getAppPromise: Promise<storage.App> = this.getApp(accountId, appId, /*keepCollaboratorIds*/ true);
+        const getAppPromise: Promise<storage.App> = this.getApp(accountId, appId);
         const requestCollaboratorAccountPromise: Promise<storage.Account> = this.getAccountByEmail(email);
         return Promise.all<any>([getAppPromise, requestCollaboratorAccountPromise]);
       })
       .then(([app, accountToModify]: [storage.App, storage.Account]) => {
         // Use the original email stored on the account to ensure casing is consistent
         email = accountToModify.email;
-        let permission = role === "Owner" ? storage.Permissions.Owner : storage.Permissions.Collaborator;
+        const permission = role === "Owner" ? storage.Permissions.Owner : storage.Permissions.Editor;
         return this.updateCollaboratorWithPermissions(accountId, app, email, {
-          accountId: accountToModify.id,
+          accountId: accountToModify.id,  // This is for CollaboratorProperties interface (returned to client)
           permission: permission,
         });
       })
@@ -916,7 +2233,7 @@ export class S3Storage implements storage.Storage {
     public getCollaborators(accountId: string, appId: string): Promise<storage.CollaboratorMap> {
       return this.setupPromise
         .then(() => {
-          return this.getApp(accountId, appId, /*keepCollaboratorIds*/ false);
+          return this.getApp(accountId, appId);
         })
         .then((app: storage.App) => {
           return Promise.resolve(app.collaborators);
@@ -928,7 +2245,7 @@ export class S3Storage implements storage.Storage {
         return this.setupPromise
         .then(() => {
           // Get the App and Collaborators from the DB
-          return this.getApp(accountId, appId, true);
+          return this.getApp(accountId, appId);
         })
         .then((app: storage.App) => {
           const removedCollabProperties: storage.CollaboratorProperties = app.collaborators[email];
@@ -991,7 +2308,7 @@ export class S3Storage implements storage.Storage {
           collaboratorsMap &&
           email &&
           collaboratorsMap[email] &&
-          (<storage.CollaboratorProperties>collaboratorsMap[email]).permission === storage.Permissions.Collaborator
+          (<storage.CollaboratorProperties>collaboratorsMap[email]).permission !== storage.Permissions.Owner
         );
       }
 
@@ -1161,9 +2478,8 @@ export class S3Storage implements storage.Storage {
           .then(async (account: storage.Account) => {
             appPackage.releasedBy = account.email;
     
-            // Remove the rollout value for the last package.
-            const lastPackage: storage.Package = packageHistory.length ? packageHistory[packageHistory.length - 1] : null;
-            //MARK: TODO TEST THIS
+            // Note: Rollout handling commented out for future implementation
+            // const lastPackage: storage.Package = packageHistory.length ? packageHistory[packageHistory.length - 1] : null;
             // if (lastPackage) {
             //   lastPackage.rollout = null;
             // }
@@ -1282,7 +2598,7 @@ export class S3Storage implements storage.Storage {
     
 
     //blobs
-    public addBlob(blobId: string, stream: stream.Readable, streamLength: number): Promise<string> {
+    public addBlob(blobId: string, stream: stream.Readable): Promise<string> {
       return this.setupPromise
       .then(() => {
         // Generate a unique key if blobId is not provided
@@ -1373,7 +2689,7 @@ export class S3Storage implements storage.Storage {
     public getPackageHistoryFromDeploymentKey(deploymentKey: string): Promise<storage.Package[]> {
         return this.setupPromise
           .then(async () => {
-            let deployment = await this.sequelize.models[MODELS.DEPLOYMENT].findOne({ where: { key: deploymentKey } });
+            const deployment = await this.sequelize.models[MODELS.DEPLOYMENT].findOne({ where: { key: deploymentKey } });
             if (!deployment?.dataValues) {
               console.log(`Deployment not found for key: ${deploymentKey}`);
               return [];
@@ -1472,7 +2788,7 @@ export class S3Storage implements storage.Storage {
         return this.setupPromise
           .then(() => {
             // Insert the access key into the database
-            return this.sequelize.models[MODELS.ACCESSKEY].create({ ...accessKey, accountId });
+            return this.sequelize.models[MODELS.ACCESSKEY].create({ ...accessKey, accountId: accountId });
           })
           .then(() => {
             return accessKey.id;
@@ -1487,7 +2803,7 @@ export class S3Storage implements storage.Storage {
           if (!accessKey) {
             throw new Error("Access key not found");
           }
-          return this.getAccount(accessKey.accountId);
+          return this.getAccount(accessKey.dataValues.accountId);
         }).catch((error: any) => {
           console.error("Error retrieving account:", error);
           throw error;
@@ -1502,7 +2818,7 @@ export class S3Storage implements storage.Storage {
           if (!accessKey) {
             throw new Error("Access key not found");
           }
-          return this.getAccount(accessKey.accountId);
+          return this.getAccount(accessKey.dataValues.accountId);
         }).catch((error: any) => {
           console.error("Error retrieving account:", error);
           throw error;
@@ -1596,7 +2912,7 @@ export class S3Storage implements storage.Storage {
         return this.setupPromise
           .then(() => {
             // Retrieve all access keys for the account
-            return this.sequelize.models[MODELS.ACCESSKEY].findAll({ where: { accountId } });
+            return this.sequelize.models[MODELS.ACCESSKEY].findAll({ where: { accountId: accountId } });
           })
           .then((accessKeys: any[]) => {
             return accessKeys.map((accessKey: any) => accessKey.dataValues);
@@ -1705,18 +3021,100 @@ export class S3Storage implements storage.Storage {
   
 
     private async getCollabrators(app:storage.App, accountId) {
-      const collabModel = await this.sequelize.models[MODELS.COLLABORATOR].findAll({where : {appId: app.id}})
-      const collabMap = {}
-      collabModel.map((collab) => {
-        collabMap[collab.dataValues["email"]] = {
-          ...collab.dataValues,
-          "isCurrentAccount" : false
+      // BACKWARDS COMPATIBLE: Support both old app-level AND new tenant-level collaborators
+      // Query: (tenantId = X AND appId IS NULL) OR (appId = Y)
+      const { Op } = require('sequelize');
+      
+      const collabModel = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
+        where: { 
+          [Op.or]: [
+            { tenantId: app.tenantId, appId: null },  // NEW: Tenant-level
+            { appId: app.id }                         // OLD: App-level (backwards compat)
+          ]
         }
-      })
-      const currentUserEmail: string = S3Storage.getEmailForAccountId(collabMap, accountId);
-      if (currentUserEmail && collabMap[currentUserEmail]) {
-        collabMap[currentUserEmail].isCurrentAccount = true;
+      });
+      
+      const collabMap = {}
+      let foundOldFormat = false;
+      
+      collabModel.forEach((collab) => {
+        const email = collab.dataValues["email"];
+        const isAppLevel = collab.dataValues.appId !== null;
+        const isTenantLevel = collab.dataValues.appId === null;
+        
+        // Log warning if old app-level collaborator found
+        if (isAppLevel) {
+          foundOldFormat = true;
+          console.warn('⚠️ OLD APP-LEVEL COLLABORATOR FOUND:', {
+            email: email,
+            appId: collab.dataValues.appId,
+            appName: app.name,
+            message: 'Run migration: migrations/009_migrate_app_level_to_tenant_level.sql'
+          });
+        }
+        
+        // If Account exists in BOTH app-level and tenant-level, tenant-level wins
+        if (collabMap[email]) {
+          if (isTenantLevel) {
+            // Override with tenant-level
+            collabMap[email] = {
+              accountId: collab.dataValues.accountId,  // Map DB column accountId to interface property accountId
+              email: collab.dataValues.email,
+              permission: collab.dataValues.permission,
+              isCurrentAccount: false,
+              source: 'tenant_level'
+            };
+          }
+          // If app-level and already exists, skip (tenant-level already set)
+        } else {
+          // First time seeing this Account
+          collabMap[email] = {
+            accountId: collab.dataValues.accountId,  // Map DB column accountId to interface property accountId
+            email: collab.dataValues.email,
+            permission: collab.dataValues.permission,
+            isCurrentAccount: false,
+            source: isAppLevel ? 'app_level_legacy' : 'tenant_level'
+          };
+        }
+      });
+      
+      // Log summary if old format found
+      if (foundOldFormat) {
+        console.warn(`⚠️ App "${app.name}" (${app.id}) has old app-level collaborators. Migration recommended.`);
       }
+      
+      // Mark current Account
+      const currentAccountEmail: string = S3Storage.getEmailForAccountId(collabMap, accountId);
+      if (currentAccountEmail && collabMap[currentAccountEmail]) {
+        collabMap[currentAccountEmail].isCurrentAccount = true;
+      }
+      
+      // NEW: Check if current Account is app creator (automatic Owner)
+      const appCreatorId = (app as any).accountId || (app as any).createdBy;
+      if (appCreatorId === accountId) {
+        // Get Account's email
+        const account = await this.sequelize.models["account"].findByPk(accountId);
+        if (account) {
+          const accountEmail = account.dataValues.email;
+          
+          // If Account is already in collabMap, ensure they have Owner permission
+          if (collabMap[accountEmail]) {
+            collabMap[accountEmail].permission = 'Owner';
+            collabMap[accountEmail].isCurrentAccount = true;
+            collabMap[accountEmail].source = 'app_creator';
+          } else {
+            // Add creator to collabMap as Owner
+            collabMap[accountEmail] = {
+              accountId: accountId,  // This is for CollaboratorMap interface (returned to client)
+              email: accountEmail,
+              permission: 'Owner',
+              isCurrentAccount: true,
+              source: 'app_creator'
+            };
+          }
+        }
+      }
+      
       app["collaborators"] = collabMap
       return app;
     }
@@ -1752,7 +3150,7 @@ export class S3Storage implements storage.Storage {
                                     const collaborator = app.collaborators[email];
                                     return {
                                         email,
-                                        accountId: collaborator.accountId,
+                                        accountId: collaborator.accountId,  // DB column is accountId, but interface uses accountId
                                         appId: appId,
                                         permission: collaborator.permission,
                                     };
@@ -1830,7 +3228,7 @@ export class S3Storage implements storage.Storage {
         errorMessage = azureError.message;
       }
   
-      if (overrideMessage && overrideCondition == errorCodeRaw) {
+      if (overrideMessage && overrideCondition === errorCodeRaw) {
         errorMessage = overrideValue;
       }
   
@@ -1879,5 +3277,59 @@ export class S3Storage implements storage.Storage {
       }
   
       return null;
+    }
+
+    // ============================================================================
+    // Public helpers for S3 reuse
+    // ============================================================================
+    public async uploadBufferToS3(key: string, buffer: Buffer, contentType?: string): Promise<void> {
+      const finalContentType = contentType && contentType.trim().length > 0 ? contentType : 'application/octet-stream';
+      await this.s3
+        .putObject({
+          Bucket: this.bucketName,
+          Key: key,
+          Body: buffer,
+          ContentType: finalContentType
+        })
+        .promise();
+    }
+
+    public getS3BucketName(): string {
+      return this.bucketName;
+    }
+
+    public async getSignedObjectUrl(key: string, expiresSeconds: number = 3600): Promise<string> {
+      return this.s3.getSignedUrlPromise('getObject', {
+        Bucket: this.bucketName,
+        Key: key,
+        Expires: expiresSeconds
+      });
+    }
+
+    /**
+     * Check if an object exists in S3
+     * @param key - The S3 key to check
+     * @returns true if object exists, false otherwise
+     */
+    public async objectExists(key: string): Promise<boolean> {
+      try {
+        await this.s3
+          .headObject({
+            Bucket: this.bucketName,
+            Key: key
+          })
+          .promise();
+        return true;
+      } catch (error: unknown) {
+        const isNotFoundError = error instanceof Error && 
+          (error.name === 'NotFound' || error.name === 'NoSuchKey' || 
+           (error as { code?: string }).code === 'NotFound' || 
+           (error as { code?: string }).code === 'NoSuchKey');
+        if (isNotFoundError) {
+          return false;
+        }
+        // Re-throw other errors (permissions, network, etc.)
+        throw error;
+      }
     }
   }

@@ -1,45 +1,49 @@
-import axios, { AxiosResponse } from "axios";
+import { apiGet } from "~/utils/api-client";
+import { extractApiErrorMessage } from "~/utils/api-error-utils";
 import { route } from "routes-gen";
 import { TenantsResponse } from "~/.server/services/Codepush/types";
+import { TenantRole } from "~/constants/permissions";
 
-type Organization = {
+export type Organization = {
   id: string;
   orgName: string;
   isAdmin: boolean;
+  role: TenantRole;
 };
 
-// const data: Organization[] = [
-//   {
-//     id: "1",
-//     orgName: "TechCorp",
-//     isAdmin: true,
-//   },
-//   {
-//     id: "2",
-//     orgName: "InnovateX",
-//     isAdmin: false,
-//   },
-//   {
-//     id: "3",
-//     orgName: "CodeMaster",
-//     isAdmin: true,
-//   },
-//   {
-//     id: "4",
-//     orgName: "DevSolutions",
-//     isAdmin: false,
-//   },
-// ];
-
 export const getOrgList = async (): Promise<Organization[]> => {
-  const { data } = await axios.get<null, AxiosResponse<TenantsResponse>>(
+  // Use apiGet for relative requests to Remix routes (not direct backend calls)
+  const result = await apiGet<TenantsResponse>(
     route("/api/v1/tenants")
   );
-  return data.organisations.map((item) => {
+  
+  if (!result.success || !result.data) {
+    const errorMessage = extractApiErrorMessage(result.error, 'Failed to fetch organizations');
+    throw new Error(errorMessage);
+  }
+  
+  return result.data.organisations.map((item) => {
+    // Backend returns "Owner" | "Editor" | "Viewer" (despite type saying "Collaborator")
+    // Map "Collaborator" to Viewer for backward compatibility if needed
+    let role: TenantRole;
+    if (item.role === 'Collaborator') {
+      role = TenantRole.VIEWER;
+    } else if (item.role === TenantRole.OWNER || item.role === 'Owner') {
+      role = TenantRole.OWNER;
+    } else if (item.role === TenantRole.EDITOR || item.role === 'Editor') {
+      role = TenantRole.EDITOR;
+    } else if (item.role === TenantRole.VIEWER || item.role === 'Viewer') {
+      role = TenantRole.VIEWER;
+    } else {
+      // Fallback to Viewer if unknown role
+      role = TenantRole.VIEWER;
+    }
+    
     return {
       id: item.id,
       orgName: item.displayName,
-      isAdmin: item.role === "Owner",
+      isAdmin: role === TenantRole.OWNER,
+      role, // Backend sends Owner/Editor/Viewer from collaborators.permission
     };
   });
 };

@@ -1,0 +1,282 @@
+/**
+ * API Configuration
+ * 
+ * Centralized configuration for API endpoints and settings
+ * Supports switching between mock and real backend via environment variables
+ */
+
+/**
+ * API Base Configuration
+ * 
+ * Environment variables (in .env):
+ *   PORT=3000                                        # Frontend port (default: 3000, can be overridden)
+ *   VITE_DELIVR_BACKEND_URL=http://localhost:3010   # Real backend URL (must be prefixed with VITE_)
+ *   VITE_DELIVR_MOCK_URL=http://localhost:4000      # Mock server URL (must be prefixed with VITE_)
+ *   VITE_DELIVR_HYBRID_MODE=true                    # Hybrid mode (must be prefixed with VITE_)
+ * 
+ * Note: In Vite, environment variables must be prefixed with VITE_ to be accessible in client-side code
+ */
+export const API_CONFIG = {
+  // Base URL for real backend
+  BASE_URL: import.meta.env.VITE_DELIVR_BACKEND_URL ?? 'http://localhost:3010',
+  
+  // Mock server URL for Distribution module (while backend not ready)
+  MOCK_BASE_URL: import.meta.env.VITE_DELIVR_MOCK_URL ?? 'http://localhost:4000',
+  
+  // Mock mode flag - when true, ALL requests go to mock server
+  MOCK_MODE: import.meta.env.VITE_DELIVR_MOCK_MODE === 'true',
+  
+  // Hybrid mode - Distribution APIs go to mock, everything else to real backend
+  HYBRID_MODE: import.meta.env.VITE_DELIVR_HYBRID_MODE === 'true',
+  
+  // Request timeout (30 seconds)
+  TIMEOUT: 30000,
+  
+  // Polling interval for status updates (10 seconds)
+  POLLING_INTERVAL: 10000,
+  
+  // Retry configuration
+  RETRY: {
+    MAX_ATTEMPTS: 3,
+    INITIAL_DELAY: 1000,      // 1 second
+    MAX_DELAY: 10000,          // 10 seconds
+    BACKOFF_MULTIPLIER: 2,     // Exponential backoff
+  },
+} as const;
+
+/**
+ * Distribution API patterns that should go to mock server in hybrid mode
+ * Aligned with DISTRIBUTION_API_SPEC.md
+ * Updated to include tenant-scoped paths
+ */
+export const DISTRIBUTION_API_PATTERNS = [
+  // Distribution Management (tenant-scoped)
+  '/api/v1/tenants/*/distributions',
+  '/api/v1/tenants/*/distributions/*',
+  '/api/v1/tenants/*/distributions/*/submissions',
+  '/api/v1/tenants/*/distributions/*/history',
+  '/api/v1/tenants/*/releases/*/distribution',
+  
+  // Pre-Release Stage (tenant-scoped)
+  '/api/v1/tenants/*/releases/*/builds',
+  '/api/v1/tenants/*/releases/*/builds/*',
+  '/api/v1/tenants/*/releases/*/builds/upload-aab',
+  '/api/v1/tenants/*/releases/*/builds/verify-testflight',
+  '/api/v1/tenants/*/releases/*/extra-commits',
+  '/api/v1/tenants/*/releases/*/pm-status',
+  '/api/v1/tenants/*/releases/*/approve',
+  
+  // Submission Management (tenant-scoped per API spec)
+  '/api/v1/tenants/*/submissions/*',
+  '/api/v1/tenants/*/submissions/*/submit',
+  '/api/v1/tenants/*/submissions/*/cancel',
+  '/api/v1/tenants/*/submissions/*/rollout',
+  '/api/v1/tenants/*/submissions/*/rollout/pause',
+  '/api/v1/tenants/*/submissions/*/rollout/resume',
+  '/api/v1/tenants/*/submissions/*/rollout/halt',
+  '/api/v1/tenants/*/submissions/*/artifact',
+] as const;
+
+/**
+ * Release Process API patterns that should go to mock server in hybrid mode
+ * Updated to match backend contract endpoints
+ */
+export const RELEASE_PROCESS_API_PATTERNS = [
+  '/api/v1/tenants/*/releases/*',                    // Get Release Details (API #1)
+  '/api/v1/tenants/*/releases/*/tasks',               // Get Stage Tasks (API #2) - with ?stage= query param
+  '/api/v1/tenants/*/releases/*/tasks/*/retry',      // Retry Task (API #8)
+  '/api/v1/tenants/*/releases/*/builds',            // Get All Builds (API #14)
+  '/api/v1/tenants/*/releases/*/stages/*/builds/*',  // Upload Build (API #15) - Backend route: /stages/:stage/builds/:platform
+  '/api/v1/tenants/*/releases/*/builds/*',           // Delete Build (API #16)
+  '/api/v1/tenants/*/releases/*/test-management-run-status',  // Test Management Status (API #17)
+  '/api/v1/tenants/*/releases/*/project-management-run-status',  // Project Management Status (API #18)
+  '/api/v1/tenants/*/releases/*/check-cherry-pick-status',  // Cherry Pick Status (API #19)
+  '/api/v1/tenants/*/releases/*/trigger-pre-release',  // Approve Regression (API #11)
+  '/api/v1/tenants/*/releases/*/trigger-distribution',  // Complete Pre-Release (API #12)
+  '/api/v1/tenants/*/releases/*/notifications',       // Get Notifications (API #20)
+  '/api/v1/tenants/*/releases/*/notify',              // Send Notification (API #21)
+  '/api/v1/tenants/*/releases/*/activity-logs',       // Activity Logs (API #23)
+  '/api/v1/tenants/*/releases/*/pause-resume',        // Pause/Resume Release (API #29, #30)
+] as const;
+
+/**
+ * Check if a URL matches Distribution API patterns
+ */
+export function isDistributionAPI(url: string): boolean {
+  // Normalize URL (remove base URL if present)
+  const path = url.replace(/^https?:\/\/[^/]+/, '');
+  
+  return DISTRIBUTION_API_PATTERNS.some(pattern => {
+    // Convert pattern to regex: /api/v1/releases/*/builds -> /api/v1/releases/[^/]+/builds
+    const regexPattern = pattern
+      .replace(/\*/g, '[^/]+')
+      .replace(/\//g, '\\/');
+    const regex = new RegExp(`^${regexPattern}$`);
+    return regex.test(path);
+  });
+}
+
+/**
+ * Check if a URL matches Release Process API patterns
+ */
+export function isReleaseProcessAPI(url: string): boolean {
+  // Normalize URL (remove base URL if present)
+  const path = url.replace(/^https?:\/\/[^/]+/, '');
+  
+  return RELEASE_PROCESS_API_PATTERNS.some(pattern => {
+    // Convert pattern to regex: /api/v1/tenants/*/releases/*/stages/* -> /api/v1/tenants/[^/]+/releases/[^/]+/stages/[^/]+
+    const regexPattern = pattern
+      .replace(/\*/g, '[^/]+')
+      .replace(/\//g, '\\/');
+    const regex = new RegExp(`^${regexPattern}$`);
+    return regex.test(path);
+  });
+}
+
+/**
+ * Get the appropriate base URL for a request
+ */
+export function getBaseURLForRequest(url: string): string {
+  // Full mock mode - everything goes to mock
+  if (API_CONFIG.MOCK_MODE) {
+    return API_CONFIG.MOCK_BASE_URL;
+  }
+  
+  // Hybrid mode - Distribution and Release Process APIs go to mock, everything else to real backend
+  if (API_CONFIG.HYBRID_MODE) {
+    if (isDistributionAPI(url) || isReleaseProcessAPI(url)) {
+      return API_CONFIG.MOCK_BASE_URL;
+    }
+  }
+  
+  // Default - use real backend
+  return API_CONFIG.BASE_URL;
+}
+
+/**
+ * API Endpoints
+ * Aligned with DISTRIBUTION_API_SPEC.md
+ * Updated to include tenant-scoped paths
+ */
+export const API_ENDPOINTS = {
+  // ============================================================================
+  // PRE-RELEASE STAGE APIs (DISTRIBUTION_API_SPEC.md lines 47-99)
+  // ============================================================================
+  
+  // Builds
+  GET_BUILDS: (releaseId: string) => `/api/v1/releases/${releaseId}/builds`,
+  GET_BUILD: (buildId: string) => `/api/v1/releases/builds/${buildId}`,
+  UPLOAD_AAB: (releaseId: string) => `/api/v1/releases/${releaseId}/builds/upload-aab`,
+  VERIFY_TESTFLIGHT: (releaseId: string) => `/api/v1/releases/${releaseId}/builds/verify-testflight`,
+  
+  // Approval
+  GET_EXTRA_COMMITS: (releaseId: string) => `/api/v1/releases/${releaseId}/extra-commits`,
+  GET_PM_STATUS: (releaseId: string) => `/api/v1/releases/${releaseId}/pm-status`,
+  MANUAL_APPROVE: (releaseId: string) => `/api/v1/releases/${releaseId}/approve`,
+  
+  // ============================================================================
+  // DISTRIBUTION APIs (DISTRIBUTION_API_SPEC.md) - Tenant-Scoped
+  // ============================================================================
+  
+  // Get Distribution (API Spec Line 303)
+  GET_RELEASE_DISTRIBUTION: (tenantId: string, releaseId: string) => 
+    `/api/v1/tenants/${tenantId}/releases/${releaseId}/distribution`,
+  
+  // List Distributions (API Spec Line 536)
+  LIST_DISTRIBUTIONS: (tenantId: string) => 
+    `/api/v1/tenants/${tenantId}/distributions`,
+  
+  // Get Distribution Details (API Spec Line 844)
+  GET_DISTRIBUTION: (tenantId: string, distributionId: string) => 
+    `/api/v1/tenants/${tenantId}/distributions/${distributionId}`,
+  
+  // Get Submission Details (API Spec Line 971)
+  GET_SUBMISSION: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/tenants/${tenantId}/submissions/${submissionId}?platform=${platform}`,
+  
+  // ============================================================================
+  // SUBMISSION MANAGEMENT (DISTRIBUTION_API_SPEC.md) - Tenant-Scoped
+  // ============================================================================
+  
+  // Submit Existing Submission (API Spec Line 711)
+  SUBMIT_SUBMISSION: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/submit?platform=${platform}`,
+  
+  // Create Resubmission (API Spec Line 1206)
+  CREATE_RESUBMISSION: (tenantId: string, distributionId: string) => 
+    `/api/v1/tenants/${tenantId}/distributions/${distributionId}/submissions`,
+  
+  // Cancel Submission (API Spec Line 1345)
+  CANCEL_SUBMISSION: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/cancel?platform=${platform}`,
+  
+  // ============================================================================
+  // ROLLOUT CONTROL (DISTRIBUTION_API_SPEC.md) - Tenant-Scoped
+  // ============================================================================
+  
+  // Update Rollout (API Spec Line 1106)
+  UPDATE_ROLLOUT: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout?platform=${platform}`,
+  
+  // Pause Rollout - Both Platforms (API Spec Line 1454)
+  // Android: IN_PROGRESS → HALTED, iOS: LIVE → PAUSED
+  PAUSE_ROLLOUT: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout/pause?platform=${platform}`,
+  
+  // Resume Rollout - Both Platforms (API Spec Line 1509)
+  // Android: HALTED → IN_PROGRESS, iOS: PAUSED → LIVE
+  RESUME_ROLLOUT: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout/resume?platform=${platform}`,
+  
+  // Halt Rollout - Emergency Stop (API Spec)
+  HALT_ROLLOUT: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout/halt?platform=${platform}`,
+  
+  // Get Distribution History (API Spec)
+  GET_DISTRIBUTION_HISTORY: (tenantId: string, distributionId: string) => 
+    `/api/v1/tenants/${tenantId}/distributions/${distributionId}/history`,
+  
+  // Get Artifact Download URL (API Spec)
+  GET_ARTIFACT: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/artifact?platform=${platform}`,
+} as const;
+
+/**
+ * HTTP Methods
+ */
+export const HTTP_METHODS = {
+  GET: 'GET',
+  POST: 'POST',
+  PUT: 'PUT',
+  PATCH: 'PATCH',
+  DELETE: 'DELETE',
+} as const;
+
+/**
+ * HTTP Status Codes
+ */
+export const HTTP_STATUS = {
+  OK: 200,
+  CREATED: 201,
+  ACCEPTED: 202,
+  NO_CONTENT: 204,
+  MULTI_STATUS: 207,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  CONFLICT: 409,
+  INTERNAL_SERVER_ERROR: 500,
+  BAD_GATEWAY: 502,
+  SERVICE_UNAVAILABLE: 503,
+} as const;
+
+/**
+ * Content Types
+ */
+export const CONTENT_TYPES = {
+  JSON: 'application/json',
+  FORM_DATA: 'multipart/form-data',
+  URL_ENCODED: 'application/x-www-form-urlencoded',
+} as const;
+

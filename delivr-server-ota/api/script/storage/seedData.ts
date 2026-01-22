@@ -1,3 +1,4 @@
+import 'module-alias/register';
 import { Sequelize } from "sequelize";
 import { createModelss } from "./aws-storage";
 
@@ -13,6 +14,48 @@ const seedData = {
     { id: "id_0", email: "user1@example.com", name: "User One", createdTime: new Date().getTime() },
     { id: "id_1", email: "user2@example.com", name: "User Two", createdTime: new Date().getTime() },
   ],
+  accountChannels: [
+    {
+      id: "channel_1",
+      accountId: "id_0",
+      externalChannelId: "google-oauth-sub-123456789",
+      channelType: "google_oauth",
+      channelMetadata: JSON.stringify({
+        email: "user1@example.com",
+        email_verified: true,
+        given_name: "User",
+        family_name: "One",
+        locale: "en"
+      }),
+      isActive: true,
+    },
+    {
+      id: "channel_2",
+      accountId: "id_1",
+      externalChannelId: "google-oauth-sub-987654321",
+      channelType: "google_oauth",
+      channelMetadata: JSON.stringify({
+        email: "user2@example.com",
+        email_verified: true,
+        given_name: "User",
+        family_name: "Two",
+        locale: "en"
+      }),
+      isActive: true,
+    },
+    {
+      id: "channel_3",
+      accountId: "id_0",
+      externalChannelId: "slack-user-U123ABC456",
+      channelType: "slack",
+      channelMetadata: JSON.stringify({
+        team_id: "T123DEF789",
+        username: "user.one",
+        real_name: "User One"
+      }),
+      isActive: true,
+    },
+  ],
   tenants: [
     { id: "tenant_1", displayName: "Organization One", createdBy: "id_0" },
     { id: "tenant_2", displayName: "Organization Two", createdBy: "id_1" },
@@ -23,8 +66,8 @@ const seedData = {
     { id: "id_4", name: "Independent App", accountId: "id_0", createdTime: new Date().getTime() }, // App without a tenant association
   ],
   collaborators: [
-    { email: "user1@example.com", accountId: "id_0", appId: "id_2", permission: "Owner", role: "Admin" },
-    { email: "user2@example.com", accountId: "id_1", appId: "id_3", permission: "Owner", role: "Admin" },
+    { email: "user1@example.com", accountId: "id_0", appId: "id_2", permission: "Owner", isCreator: false },
+    { email: "user2@example.com", accountId: "id_1", appId: "id_3", permission: "Owner", isCreator: false },
   ],
   deployments: [
     {
@@ -123,7 +166,19 @@ const seedData = {
       createdTime: new Date().getTime(),
       friendlyName: "Default Access Key",
       expires: 1735689600000,
-      scope: "all",
+      scope: "All",  // Fixed: Must match ENUM value 'All' (capital A)
+    },
+  ],
+  platformStoreMappings: [
+    {
+      id: "platform_android_001",
+      platform: "ANDROID" as const,
+      allowedStoreTypes: ["PLAY_STORE", "MICROSOFT_STORE", "FIREBASE"],
+    },
+    {
+      id: "platform_ios_001",
+      platform: "IOS" as const,
+      allowedStoreTypes: ["APP_STORE", "TESTFLIGHT", "FIREBASE"],
     },
   ],
 };
@@ -133,22 +188,54 @@ async function seed() {
   try {
     // Initialize models
     const models = createModelss(sequelize);
-    // // Sync database
-    // await sequelize.sync({ force: true });
-    await sequelize.sync({ alter: true }); // Alters tables without dropping them
+    
+    // NOTE: We use SQL migrations to manage schema, not Sequelize sync
+    // Migrations are in /migrations folder and should be run manually
+    // await sequelize.sync({ alter: false }); // REMOVED - causes FK constraint conflicts
 
+    // Check if database already has data
+    const accountCount = await models.Account.count();
+    
+    if (accountCount > 0) {
+      console.log("⏭️  Database already contains data. Skipping seeding to preserve existing data.");
+      console.log(`   Found ${accountCount} accounts. To force re-seed, clear the database manually.`);
+      return;
+    }
 
-    // // Insert seed data in order
+    console.log("🌱 Database is empty. Starting seeding process...");
+
+    // Disable foreign key checks for seeding
+    await sequelize.query('SET FOREIGN_KEY_CHECKS = 0;');
+
+    // Clear existing seed data in reverse order (to avoid FK constraints)
+    // Note: This should never run now since we check for data above, but keeping for safety
+    await models.AccessKey.destroy({ where: {} });
+    await models.Package.destroy({ where: {} });
+    await models.Deployment.destroy({ where: {} });
+    await models.Collaborator.destroy({ where: {} });
+    await models.App.destroy({ where: {} });
+    await models.Tenant.destroy({ where: {} });
+    await models.AccountChannel.destroy({ where: {} });
+    await models.Account.destroy({ where: {} });
+
+    // Re-enable foreign key checks
+    await sequelize.query('SET FOREIGN_KEY_CHECKS = 1;');
+
+    // Insert seed data in order
     await models.Account.bulkCreate(seedData.accounts);
+    await models.AccountChannel.bulkCreate(seedData.accountChannels);
     await models.Tenant.bulkCreate(seedData.tenants);
     await models.App.bulkCreate(seedData.apps);
     await models.Collaborator.bulkCreate(seedData.collaborators);
-        // Insert deployments with `currentPackageId` temporarily set to `null`
+    
+    // Insert deployments with `currentPackageId` temporarily set to `null`
     await models.Deployment.bulkCreate(seedData.deployments.map((deployment) => ({
-          ...deployment,
-          packageId: null, // Temporarily set to null to break circular dependency
+      ...deployment,
+      packageId: null, // Temporarily set to null to break circular dependency
     })));
     await models.Package.bulkCreate(seedData.packages);
+    
+    // Update deployments with their package IDs
     await Promise.all(seedData.deployments.map(async (deployment) => {
       if (deployment.packageId) {
         await models.Deployment.update(
@@ -158,10 +245,27 @@ async function seed() {
       }
     }));
     await models.AccessKey.bulkCreate(seedData.accessKeys);
+    
+    // Insert platform store mappings (static reference data)
+    // Use INSERT IGNORE or ON DUPLICATE KEY UPDATE to handle existing data
+    await Promise.all(seedData.platformStoreMappings.map(async (mapping) => {
+      const existing = await models.PlatformStoreMapping.findOne({
+        where: { platform: mapping.platform }
+      });
+      
+      if (!existing) {
+        await models.PlatformStoreMapping.create(mapping);
+      } else {
+        await models.PlatformStoreMapping.update(
+          { allowedStoreTypes: mapping.allowedStoreTypes },
+          { where: { platform: mapping.platform } }
+        );
+      }
+    }));
 
-    console.log("Seed data has been inserted successfully.");
+    console.log("✅ Seed data has been inserted successfully.");
   } catch (error) {
-    console.error("Error seeding data:", error);
+    console.error("❌ Error seeding data:", error);
   } finally {
     await sequelize.close();
   }

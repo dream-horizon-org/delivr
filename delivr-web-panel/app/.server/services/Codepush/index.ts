@@ -1,6 +1,6 @@
 import axios, { AxiosResponse } from "axios";
-import { User } from "../Auth/Auth.interface";
-import { env } from "../config";
+import { getBackendBaseURL } from '~/.server/utils/base-url.utils';
+import { User } from '~/.server/services/Auth/auth.interface';
 import {
   AcceptTermsRequest,
   AcceptTermsResponse,
@@ -44,11 +44,13 @@ import {
   UpdateCollabaratorsResponse,
   UpdateDeploymentsReleaseRequest,
   UpdatePackageRequest,
+  TenantInfoRequest,
+  TenantInfoResponse,
 } from "./types";
 
 class Codepush {
   private __client = axios.create({
-    baseURL: env.DELIVR_BACKEND_URL,
+    baseURL: getBackendBaseURL(),
     timeout: 10000,
   });
 
@@ -83,6 +85,14 @@ class Codepush {
 
     return this.__client.get<null, AxiosResponse<TenantsResponse>>("/tenants", {
       headers,
+    });
+  }
+
+  async getSystemMetadata(userId: string) {
+    return this.__client.get("/system/metadata", {
+      headers: {
+        userId,
+      },
     });
   }
 
@@ -224,7 +234,7 @@ class Codepush {
   }
 
   async createDeployentsForApp(data: CreateDeploymentsRequest) {
-    const headers: BaseHeader = data;
+    const headers: CreateDeploymentsRequest = data;
 
     return this.__client.post<null, AxiosResponse<CreateDeploymentsResponse>>(
       `/apps/${encodeURIComponent(data.appId)}/deployments`,
@@ -399,6 +409,101 @@ class Codepush {
       {
         headers,
       }
+    );
+  }
+
+  async createOrganization(displayName: string, userId: string) {
+    return this.__client.post<
+      { displayName: string },
+      AxiosResponse<{ organisation: { id: string; displayName: string; role: string; createdBy: string; createdTime: number } }>
+    >(
+      "/tenants",
+      {
+        displayName,
+      },
+      {
+        headers: {
+          userId: userId,
+        },
+      }
+    );
+  }
+
+  // Tenant Collaborator Methods
+  async getTenantCollaborators(tenantId: string, userId: string) {
+    return this.__client.get<
+      null,
+      AxiosResponse<{ collaborators: Record<string, { accountId: string; permission: string }> }>
+    >(
+      `/tenants/${tenantId}/collaborators`,
+      {
+        headers: {
+          userId: userId,
+        },
+      }
+    );
+  }
+
+  async addTenantCollaborator(tenantId: string, email: string, permission: string, userId: string) {
+    return this.__client.post<
+      { email: string; permission: string },
+      AxiosResponse<{ message: string }>
+    >(
+      `/tenants/${tenantId}/collaborators`,
+      {
+        email,
+        permission,
+      },
+      {
+        headers: {
+          userId: userId,
+        },
+      }
+    );
+  }
+
+  async updateTenantCollaborator(tenantId: string, email: string, permission: string, userId: string) {
+    return this.__client.patch<
+      { permission: string },
+      AxiosResponse<{ message: string }>
+    >(
+      `/tenants/${tenantId}/collaborators/${encodeURIComponent(email)}`,
+      {
+        permission,
+      },
+      {
+        headers: {
+          userId: userId,
+        },
+      }
+    );
+  }
+
+  async removeTenantCollaborator(tenantId: string, email: string, userId: string) {
+    return this.__client.delete<
+      null,
+      AxiosResponse<{ message: string }>
+    >(
+      `/tenants/${tenantId}/collaborators/${encodeURIComponent(email)}`,
+      {
+        headers: {
+          userId: userId,
+        },
+      }
+    );
+  }
+
+  /**
+   * Get tenant info with release management setup status
+   */
+  async getTenantInfo(data: TenantInfoRequest) {
+    const headers: Pick<TenantInfoRequest, "userId"> = {
+      userId: data.userId,
+    };
+    
+    return this.__client.get<TenantInfoResponse>(
+      `/tenants/${data.tenantId}`,
+      { headers }
     );
   }
 }

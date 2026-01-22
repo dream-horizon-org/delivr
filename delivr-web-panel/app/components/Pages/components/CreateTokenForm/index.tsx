@@ -49,8 +49,8 @@ export function CreateTokenForm({ open, onClose }: CreateTokenFormProps) {
           <ThemeIcon
             size={44}
             radius="md"
-            variant="gradient"
-            gradient={{ from: theme.other.brand.primary, to: theme.other.brand.secondary, deg: 135 }}
+            variant="filled"
+            color="brand"
           >
             <IconKey size={22} />
           </ThemeIcon>
@@ -102,8 +102,8 @@ export function CreateTokenForm({ open, onClose }: CreateTokenFormProps) {
                   fullWidth
                   size="md"
                   h={48}
-                  variant="gradient"
-                  gradient={{ from: theme.other.brand.primary, to: theme.other.brand.secondary, deg: 135 }}
+                  color="brand"
+                  variant="filled"
                   leftSection={<IconCopy size={18} />}
                   rightSection={
                     copied && <IconCheck size={18} />
@@ -131,8 +131,8 @@ export function CreateTokenForm({ open, onClose }: CreateTokenFormProps) {
 
           {!data && (
             <Button
-              variant="gradient"
-              gradient={{ from: theme.other.brand.primary, to: theme.other.brand.secondary, deg: 135 }}
+              color="brand"
+              variant="filled"
               fullWidth
               size="md"
               h={48}

@@ -44,3 +44,24 @@ export function normalizePath(filePath: string): string {
   //replace all backslashes coming from cli running on windows machines by slashes
   return filePath.replace(/\\/g, "/");
 }
+
+const ALLOWED_AAB_ARTIFACT_EXTENSIONS = [".aab"] as const;
+const ALLOWED_REGRESSION_ARTIFACT_EXTENSIONS = [".apk", ".ipa"] as const;
+
+export const isValidAABArtifactExtension = (filePath: string): boolean => {
+  const extension = path.extname(filePath).toLowerCase();
+  return ALLOWED_AAB_ARTIFACT_EXTENSIONS.includes(extension as typeof ALLOWED_AAB_ARTIFACT_EXTENSIONS[number]);
+};
+
+export const getAllowedAABArtifactExtensions = (): string => {
+  return ALLOWED_AAB_ARTIFACT_EXTENSIONS.join(", ");
+};
+
+export const isValidRegressionArtifactExtension = (filePath: string): boolean => {
+  const extension = path.extname(filePath).toLowerCase();
+  return ALLOWED_REGRESSION_ARTIFACT_EXTENSIONS.includes(extension as typeof ALLOWED_REGRESSION_ARTIFACT_EXTENSIONS[number]);
+};
+
+export const getAllowedRegressionArtifactExtensions = (): string => {
+  return ALLOWED_REGRESSION_ARTIFACT_EXTENSIONS.join(", ");
+};

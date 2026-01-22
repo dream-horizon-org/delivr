@@ -70,9 +70,9 @@ export class JsonStorage implements storage.Storage {
   private loadStateAsync(): void {
     if (this.disablePersistence) return;
     console.log(__dirname)
-    let pathName = __dirname + "/JsonStorage.json";
+    const pathName = __dirname + "/JsonStorage.json";
         
-    fs.access(pathName, fs.constants.F_OK, (err) => {
+    fs.access(pathName, fs.constants.F_OK, (_err) => {
             //console.log(err ? "File does not exist" : "File exists");
     });
     fs.exists(
@@ -131,8 +131,8 @@ export class JsonStorage implements storage.Storage {
     };
 
     const str = JSON.stringify(obj);
-    fs.writeFile("JsonStorage.json", str, function (err) {
-      if (err) console.log(err);
+    fs.writeFile("JsonStorage.json", str, function (_err) {
+      if (_err) console.log(_err);
     });
   }
 
@@ -172,7 +172,7 @@ export class JsonStorage implements storage.Storage {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
 
-    const tenant = this.tenants[tenantId];
+    const _tenant = this.tenants[tenantId];
     const tenantAccounts = this.accountToTenantsMap[accountId];
     if (tenantAccounts.indexOf(tenantId) !== -1) {
       tenantAccounts.splice(tenantAccounts.indexOf(tenantId), 1);
@@ -194,6 +194,41 @@ export class JsonStorage implements storage.Storage {
     }
 
     return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
+  }
+
+  public addTenant(accountId: string, tenant: storage.Organization): Promise<storage.Organization> {
+    tenant = clone(tenant);
+    tenant.id = this.newId();
+    tenant.createdBy = accountId;
+    tenant.createdTime = new Date().getTime();
+
+    this.tenants[tenant.id] = tenant;
+    
+    // Add tenant to account mapping
+    if (!this.accountToTenantsMap[accountId]) {
+      this.accountToTenantsMap[accountId] = [];
+    }
+    this.accountToTenantsMap[accountId].push(tenant.id);
+    
+    this.saveStateAsync();
+    return Promise.resolve(clone(tenant));
+  }
+  
+  // Tenant Collaborator Methods (stubs for json-storage)
+  public getTenantCollaborators(_tenantId: string): Promise<storage.CollaboratorMap> {
+    return Promise.resolve({});
+  }
+
+  public addTenantCollaborator(_tenantId: string, _email: string, _permission: string): Promise<void> {
+    return Promise.resolve(<void>null);
+  }
+
+  public updateTenantCollaborator(_tenantId: string, _email: string, _permission: string): Promise<void> {
+    return Promise.resolve(<void>null);
+  }
+
+  public removeTenantCollaborator(_tenantId: string, _email: string): Promise<void> {
+    return Promise.resolve(<void>null);
   }
 
   public getAccountByEmail(email: string): Promise<storage.Account> {
@@ -349,7 +384,7 @@ export class JsonStorage implements storage.Storage {
     });
   }
 
-  public updateApp(accountId: string, app: storage.App, ensureIsOwner: boolean = true): Promise<void> {
+  public updateApp(accountId: string, app: storage.App, _ensureIsOwner: boolean = true): Promise<void> {
     app = clone(app); // pass by value
 
     if (!this.accounts[accountId] || !this.apps[app.id]) {
@@ -382,7 +417,7 @@ export class JsonStorage implements storage.Storage {
         return JsonStorage.getRejectedPromise(storage.ErrorCode.AlreadyExists);
       }
 
-      app.collaborators[requesterEmail].permission = storage.Permissions.Collaborator;
+      app.collaborators[requesterEmail].permission = storage.Permissions.Editor;
       if (this.isCollaborator(app.collaborators, email)) {
         app.collaborators[email].permission = storage.Permissions.Owner;
       } else {
@@ -411,7 +446,7 @@ export class JsonStorage implements storage.Storage {
       // Use the original email stored on the account to ensure casing is consistent
       email = this.accounts[targetCollaboratorAccountId].email;
 
-      app.collaborators[email] = { accountId: targetCollaboratorAccountId, permission: storage.Permissions.Collaborator };
+      app.collaborators[email] = { accountId: targetCollaboratorAccountId, permission: storage.Permissions.Viewer };
       this.addAppPointer(targetCollaboratorAccountId, app.id);
       return this.updateApp(accountId, app);
     });
@@ -637,7 +672,7 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(<void>null);
   }
 
-  public addBlob(blobId: string, stream: stream.Readable, streamLength: number): Promise<string> {
+  public addBlob(blobId: string, stream: stream.Readable, _streamLength: number): Promise<string> {
     this.blobs[blobId] = "";
     return new Promise<string>((resolve: (blobId: string) => void) => {
       stream
@@ -773,9 +808,9 @@ export class JsonStorage implements storage.Storage {
     if (this._blobServerPromise) {
       return this._blobServerPromise.then((server: http.Server) => {
         const deferred: Deferred<void> = defer<void>();
-        server.close((err?: Error) => {
-          if (err) {
-            deferred.reject(err);
+        server.close((_err?: Error) => {
+          if (_err) {
+            deferred.reject(_err);
           } else {
             deferred.resolve();
           }
@@ -812,7 +847,7 @@ export class JsonStorage implements storage.Storage {
   }
 
   private isCollaborator(list: storage.CollaboratorMap, email: string): boolean {
-    return list && list[email] && list[email].permission === storage.Permissions.Collaborator;
+    return list && list[email] && list[email].permission !== storage.Permissions.Owner;
   }
 
   private isAccountIdCollaborator(list: storage.CollaboratorMap, accountId: string): boolean {
@@ -845,7 +880,7 @@ export class JsonStorage implements storage.Storage {
     if (!this._blobServerPromise) {
       const app: express.Express = express();
 
-      app.get("/:blobId", (req: express.Request, res: express.Response, next: (err?: Error) => void): any => {
+      app.get("/:blobId", (req: express.Request, res: express.Response, _next: (err?: Error) => void): any => {
         const blobId: string = req.params.blobId;
         if (this.blobs[blobId]) {
           res.send(this.blobs[blobId]);

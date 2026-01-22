@@ -1,15 +1,15 @@
 import { useMutation } from "react-query";
 import { updateReleaseDataForDeployment } from "../data/updateReleaseDataForDeployment";
-import { notifications } from "@mantine/notifications";
 import { handleApiError } from "~/utils/handleApiError";
+import { showErrorToast } from "~/utils/toast";
+import { RELEASE_MESSAGES } from "~/constants/toast-messages";
 
 export const useUpdateReleaseDataForDeployment = () => {
   return useMutation(updateReleaseDataForDeployment, {
     onError: (e) => {
-      notifications.show({
-        color: "red",
-        title: "Deployment Release Updation",
-        message: handleApiError(e, "Error While Updating Release"),
+      showErrorToast({
+        title: RELEASE_MESSAGES.UPDATE_ERROR.title,
+        message: handleApiError(e, RELEASE_MESSAGES.UPDATE_ERROR.message),
       });
     },
   });

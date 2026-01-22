@@ -78,7 +78,7 @@ export function OrgSwitcher({
         >
           {!isCollapsed && (
             <Text size="sm" c="dimmed" fw={theme.other.typography.fontWeight.semibold} tt="uppercase">
-              Organizations
+              Projects
             </Text>
           )}
           <ActionIcon
@@ -112,7 +112,7 @@ export function OrgSwitcher({
                   >
                     <UnstyledButton
                       onClick={() => {
-                        navigate(route("/dashboard/:org/apps", { org: org.id }));
+                        navigate(route("/dashboard/:org/ota/apps", { org: org.id }));
                       }}
                       style={{
                         width: "56px",
@@ -163,7 +163,7 @@ export function OrgSwitcher({
                 <UnstyledButton
                   key={org.id}
                   onClick={() => {
-                    navigate(route("/dashboard/:org/apps", { org: org.id }));
+                    navigate(route("/dashboard/:org/releases", { org: org.id }));
                   }}
                   style={{
                     width: "100%",
@@ -227,7 +227,7 @@ export function OrgSwitcher({
                       </Text>
                       {isActive && (
                         <Text size="xs" c="dimmed" mt={2}>
-                          Current organization
+                          Current project
                         </Text>
                       )}
                     </Box>

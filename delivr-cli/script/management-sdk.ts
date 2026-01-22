@@ -11,8 +11,6 @@ import * as yazl from "yazl";
 import slash = require("slash");
 import * as zlib from "zlib";
 
-const ORG_FILE_PATH = path.resolve(__dirname, 'organisations.json');
-
 import Promise = Q.Promise;
 
 import {
@@ -58,38 +56,6 @@ function urlEncode(strings: string[], ...values: string[]): string {
   return result;
 }
 
-function saveOrganizationsSync(orgs: Organisation[], forceSave = false): void {
-  try {
-    // Check if file exists and is non-empty
-    const fileExists = fs.existsSync(ORG_FILE_PATH);
-    const isFileEmpty = fileExists && fs.readFileSync(ORG_FILE_PATH, 'utf-8').trim() === '';
-
-    if (forceSave || !fileExists || isFileEmpty) {
-      fs.writeFileSync(ORG_FILE_PATH, JSON.stringify(orgs, null, 2), 'utf-8');
-      //console.log(`Organizations saved to ${ORG_FILE_PATH}`);
-    } else {
-      //console.log("Organizations already exist, skipping save.");
-    }
-  } catch (error) {
-    console.error(`Error saving organizations: ${error.message}`);
-  }
-}
-
-// Load organizations from the file (synchronous)
-function loadOrganizationsSync(): Organisation[] {
-  try {
-    if (fs.existsSync(ORG_FILE_PATH)) {
-      const data = fs.readFileSync(ORG_FILE_PATH, 'utf-8');
-      // console.log("data ::", data);
-      return JSON.parse(data) as Organisation[];
-    }
-    return [];
-  } catch (error) {
-    console.error(`Error loading organizations: ${error.message}`);
-    return [];
-  }
-}
-
 class AccountManager {
   public static AppPermission = {
     OWNER: "Owner",
@@ -119,7 +85,6 @@ class AccountManager {
     this._accessKey = accessKey;
     this._customHeaders = customHeaders;
     this._serverUrl = serverUrl || AccountManager.SERVER_URL;
-    this.organisations = loadOrganizationsSync();
   }
 
   public get accessKey(): string {
@@ -128,7 +93,7 @@ class AccountManager {
 
   public isAuthenticated(throwIfUnauthorized?: boolean): Promise<boolean> {
     return Promise<any>((resolve, reject, _notify) => {
-      const request: superagent.Request<any> = superagent.get(`${this._serverUrl}${urlEncode(["/authenticated"])}`);
+      const request: superagent.Request<any> = superagent.get(this.joinUrl(urlEncode(["/authenticated"])));
       this.attachCredentials(request);
       request.end((err: any, res: superagent.Response) => {
         const status: number = this.getErrorStatus(err, res);
@@ -149,11 +114,9 @@ class AccountManager {
     });
   }
 
-    //Tenants
   public getTenants(): Promise<Organisation[]> {
       return this.get(urlEncode(["/tenants"])).then((res: JsonResponse) => {
-        this.organisations = res.body.organisations
-        saveOrganizationsSync(res.body.organisations, true);
+        this.organisations = res.body.organisations;
         return res.body.organisations;
       });
   }
@@ -175,7 +138,7 @@ class AccountManager {
       return tenantId;
   }
 
-  public addAccessKey(friendlyName: string, ttl?: number): Promise<AccessKey> {
+  public addAccessKey(friendlyName: string, scope: string, ttl?: number): Promise<AccessKey> {
     if (!friendlyName) {
       throw new Error("A name must be specified when adding an access key.");
     }
@@ -184,8 +147,8 @@ class AccountManager {
       createdBy: os.hostname(),
       friendlyName,
       ttl,
-    };
-
+      scope,
+    };   
     return this.post(urlEncode(["/accessKeys/"]), JSON.stringify(accessKeyRequest), /*expectResponseBody=*/ true).then(
       (response: JsonResponse) => {
         return {
@@ -246,10 +209,11 @@ class AccountManager {
     });
   }
 
-  public patchAccessKey(oldName: string, newName?: string, ttl?: number): Promise<AccessKey> {
+  public patchAccessKey(oldName: string, scope: string, newName?: string, ttl?: number): Promise<AccessKey> {
     const accessKeyRequest: AccessKeyRequest = {
       friendlyName: newName,
       ttl,
+      scope,
     };
 
     return this.patch(urlEncode([`/accessKeys/${oldName}`]), JSON.stringify(accessKeyRequest)).then((res: JsonResponse) => {
@@ -389,7 +353,7 @@ class AccountManager {
     return Promise<void>((resolve, reject) => {
       updateMetadata.appVersion = targetBinaryVersion;
       const request: superagent.Request<any> = superagent.post(
-        this._serverUrl + urlEncode([`/apps/${appName}/deployments/${deploymentName}/release`])
+        this.joinUrl(urlEncode([`/apps/${appName}/deployments/${deploymentName}/release`]))
       );
 
       this.attachCredentials(request);
@@ -479,6 +443,100 @@ class AccountManager {
     return this.post(
       urlEncode([`/apps/${appName}/deployments/${deploymentName}/rollback/${targetRelease || ``}`]),
       /*requestBody=*/ null,
+      /*expectResponseBody=*/ false
+    ).then(() => null);
+  }
+
+  public uploadRegressionArtifact(ciRunId: string, artifactPath: string, artifactVersion: string): Promise<void> {
+    return Promise<void>((resolve, reject) => {
+      const request: superagent.Request<any> = superagent.post(
+        this.joinUrl(urlEncode([`/api/v1/builds/ci/artifact`]))
+      );
+
+      this.attachCredentials(request);
+
+      const file: any = fs.createReadStream(artifactPath);
+
+      request.field("ciRunId", ciRunId);
+      request.field("artifactVersion", artifactVersion);
+      request.attach("artifact", file);
+
+      request.end((err: any, res: superagent.Response) => {
+          if (err) {
+            reject(this.getCodePushError(err, res));
+            return;
+          }
+
+          if (res.ok) {
+            resolve(<void>null);
+          } else {
+            let body;
+            try {
+              body = JSON.parse(res.text);
+            } catch (parseError) {
+              // Ignore parse error
+            }
+
+            const errorMessage = body ? body.message : res.text;
+            reject(<CodePushError>{
+              message: errorMessage,
+              statusCode: res && res.status,
+            });
+          }
+        });
+    });
+  }
+
+  public uploadAABBuild(ciRunId: string, artifactPath: string, artifactVersion: string, buildNumber?: string): Promise<void> {
+    return Promise<void>((resolve, reject) => {
+      const request: superagent.Request<any> = superagent.post(
+        this.joinUrl(urlEncode([`/api/v1/builds/ci/artifact`]))
+      );
+
+      this.attachCredentials(request);
+
+      const file: any = fs.createReadStream(artifactPath);
+
+      request.field("ciRunId", ciRunId);
+      request.field("artifactVersion", artifactVersion);
+      request.attach("artifact", file);
+
+      const hasBuildNumber = buildNumber && buildNumber.length > 0;
+      if (hasBuildNumber) {
+        request.field("buildNumber", buildNumber);
+      }
+
+      request.end((err: any, res: superagent.Response) => {
+        if (err) {
+          reject(this.getCodePushError(err, res));
+          return;
+        }
+
+        if (res.ok) {
+          resolve(<void>null);
+        } else {
+          let body;
+          try {
+            body = JSON.parse(res.text);
+          } catch (parseError) {
+            // Ignore parse error
+          }
+
+          const errorMessage = body ? body.message : res.text;
+          reject(<CodePushError>{
+            message: errorMessage,
+            statusCode: res && res.status,
+          });
+        }
+      });
+    });
+  }
+
+  public uploadTestFlightBuildNumber(ciRunId: string, testflightNumber: string, artifactVersion: string): Promise<void> {
+    const requestBody = JSON.stringify({ ciRunId, testflightNumber, artifactVersion });
+    return this.post(
+      urlEncode([`/api/v1/builds/ci/testflight/verify`]),
+      requestBody,
       /*expectResponseBody=*/ false
     ).then(() => null);
   }
@@ -602,7 +660,7 @@ class AccountManager {
     contentType: string
   ): Promise<JsonResponse> {
     return Promise<JsonResponse>((resolve, reject, _notify) => {
-      let request: superagent.Request<any> = (<any>superagent)[method](this._serverUrl + endpoint);
+      let request: superagent.Request<any> = (<any>superagent)[method](this.joinUrl(endpoint));
       this.attachCredentials(request);
 
       if (requestBody) {
@@ -669,6 +727,14 @@ class AccountManager {
 
   private getErrorMessage(error: Error, response: superagent.Response): string {
     return response && response.text ? response.text : error.message;
+  }
+
+  private joinUrl(path: string): string {
+    // Remove trailing slash from server URL
+    const serverUrl = this._serverUrl.replace(/\/+$/, '');
+    // Ensure path starts with /
+    const normalizedPath = path.startsWith('/') ? path : '/' + path;
+    return serverUrl + normalizedPath;
   }
 
   private attachCredentials(request: superagent.Request<any>): void {

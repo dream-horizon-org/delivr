@@ -1,22 +1,18 @@
 import { useMutation } from "react-query";
 import { createDeployment } from "../data/createDeployment";
-import { notifications } from "@mantine/notifications";
 import { handleApiError } from "~/utils/handleApiError";
+import { showSuccessToast, showErrorToast } from "~/utils/toast";
+import { DEPLOYMENT_MESSAGES } from "~/constants/toast-messages";
 
 export const useCreateDeployment = () => {
   return useMutation(createDeployment, {
     onSuccess: () => {
-      notifications.show({
-        color: "green",
-        title: "Success",
-        message: "Deployment key created successfully!",
-      });
+      showSuccessToast(DEPLOYMENT_MESSAGES.CREATE_SUCCESS);
     },
     onError: (e) => {
-      notifications.show({
-        color: "red",
-        title: "Deployment Creation",
-        message: handleApiError(e, "Error While Creating Deployment"),
+      showErrorToast({
+        title: DEPLOYMENT_MESSAGES.CREATE_ERROR.title,
+        message: handleApiError(e, DEPLOYMENT_MESSAGES.CREATE_ERROR.message),
       });
     },
   });

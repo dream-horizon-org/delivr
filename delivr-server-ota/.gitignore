@@ -14,6 +14,61 @@ lib-cov
 # Coverage directory used by tools like istanbul
 coverage
 
+# Test reports and testing files (local dev only - not shipped)
+test-reports/
+.newman/
+
+# Postman collections and environments (local testing)
+*-APIs.postman_collection.json
+*-Environment.postman_environment.json
+*.postman_collection.json
+*.postman_environment.json
+
+# Testing scripts (local dev only)
+test-*.sh
+setup-testing.sh
+
+# Testing documentation (local dev only)
+*_TESTING.md
+TEST_*.md
+TESTING_*.md
+
+# Analysis, planning, and temporary documentation files
+*_ANALYSIS.md
+*_PLAN.md
+*_SUMMARY.md
+*_EVALUATION.md
+*_COMPLETE.md
+*_STRATEGY.md
+*_STATUS.md
+*_PROGRESS.md
+*_CLARIFICATION.md
+MERGE_*.md
+MIGRATION_*.md
+PHASE_*.md
+REFACTORING_*.md
+README_MERGE.md
+
+# Test helpers and consolidated test files
+api/test-all-consolidated.ts
+# api/test-helpers/  # Removed - test helpers are now tracked for release orchestration
+
+# Archive directory
+archive/
+
+# Backups directory
+backups/
+*.sql.bak
+
+# Backup files
+*.backup
+*-backup
+*.bak
+*~
+
+# Tests directory (integration/system tests)
+tests/
+
 # Grunt intermediate storage (http://gruntjs.com/creating-plugins#storing-task-files)
 .grunt
 
@@ -53,3 +108,6 @@ __queuestorage__
 
 # VS Code settings
 .vscode/
+
+**/docs/**/*.md
+**/docs/**/*.json

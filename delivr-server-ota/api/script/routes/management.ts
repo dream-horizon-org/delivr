@@ -1,31 +1,34 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-import { createTempFileFromBuffer, getFileWithField } from "../file-upload-manager";
-import { getIpAddress } from "../utils/rest-headers";
-import { isUnfinishedRollout } from "../utils/rollout-selector";
-import * as packageDiffing from "../utils/package-diffing";
-import * as converterUtils from "../utils/converter";
-import * as diffErrorUtils from "../utils/diff-error-handling";
-import * as error from "../error";
-import * as errorUtils from "../utils/rest-error-handling";
 import { Request, Response, Router } from "express";
+import rateLimit from "express-rate-limit";
 import * as fs from "fs";
-import * as hashUtils from "../utils/hash-utils";
-import * as redis from "../redis-manager";
-import * as restTypes from "../types/rest-definitions";
-import * as security from "../utils/security";
 import * as semver from "semver";
 import * as stream from "stream";
 import * as streamifier from "streamifier";
+import * as error from "../error";
+import { createTempFileFromBuffer, getFileWithField } from "../file-upload-manager";
+import * as appPermissions from "../middleware/app-permissions";
+import * as tenantPermissions from "../middleware/tenant-permissions";
+import * as redis from "../redis-manager";
 import * as storageTypes from "../storage/storage";
+import { isPrototypePollutionKey } from "../storage/storage";
+import * as restTypes from "../types/rest-definitions";
+import * as converterUtils from "../utils/converter";
+import * as diffErrorUtils from "../utils/diff-error-handling";
+import * as hashUtils from "../utils/hash-utils";
+import * as packageDiffing from "../utils/package-diffing";
+import * as errorUtils from "../utils/rest-error-handling";
+import { isUnfinishedRollout } from "../utils/rollout-selector";
+import * as security from "../utils/security";
+import { buildSystemMetadata } from "../utils/system-metadata.utils";
+import { buildTenantConfig } from "../utils/tenant-metadata.utils";
 import * as validationUtils from "../utils/validation";
 import PackageDiffer = packageDiffing.PackageDiffer;
 import NameResolver = storageTypes.NameResolver;
 import PackageManifest = hashUtils.PackageManifest;
 import tryJSON = require("try-json");
-import rateLimit from "express-rate-limit";
-import { isPrototypePollutionKey } from "../storage/storage";
 
 const DEFAULT_ACCESS_KEY_EXPIRY = 1000 * 60 * 60 * 24 * 60; // 60 days
 const ACCESS_KEY_MASKING_STRING = "(hidden)";
@@ -54,6 +57,24 @@ export function getManagementRouter(config: ManagementConfig): Router {
   const packageDiffing = new PackageDiffer(storage, parseInt(process.env.DIFF_PACKAGE_COUNT) || 5);
   const router: Router = Router();
   const nameResolver: NameResolver = new NameResolver(config.storage);
+
+  // ============================================================================
+  // SYSTEM METADATA ENDPOINT
+  // Returns available integrations, platforms, release types, etc.
+  // This is static configuration - not stored in database
+  // ============================================================================
+  router.get("/system/metadata", async (req: Request, res: Response): Promise<any> => {
+    try {
+      const metadata = buildSystemMetadata();
+      return res.status(200).json(metadata);
+    } catch (error: any) {
+      console.error("Error fetching system metadata:", error);
+      return res.status(500).json({ 
+        error: "Failed to fetch system metadata",
+        details: error.message 
+      });
+    }
+  });
 
   router.get("/account", (req: Request, res: Response, next: (err?: any) => void): any => {
     const accountId: string = req.user.id;
@@ -110,7 +131,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     }
 
     if (!accessKeyRequest.createdBy) {
-      accessKeyRequest.createdBy = getIpAddress(req);
+      accessKeyRequest.createdBy = accountId;
     }
 
     const validationErrors: validationUtils.ValidationError[] = validationUtils.validateAccessKeyRequest(
@@ -141,7 +162,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
         }
 
         const storageAccessKey: storageTypes.AccessKey = converterUtils.toStorageAccessKey(accessKey);
-        return storage.addAccessKey(accountId, storageAccessKey).then((id: string): void => {
+        return storage.addAccessKey(accountId, storageAccessKey).then((): void => {
           res.setHeader("Location", urlEncode([`/accessKeys/${accessKey.friendlyName}`]));
           res.status(201).send({ accessKey: accessKey });
         });
@@ -239,7 +260,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       })
       .then((): void => {
         //send message that it is deleted successfully.
-        res.sendStatus(201).send("Access key deleted successfully");
+        res.status(200).send("Access key deleted successfully");
       })
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
@@ -274,13 +295,220 @@ export function getManagementRouter(config: ManagementConfig): Router {
     const accountId: string = req.user.id;
 
     storage
-      .getTenants(accountId) // Calls the storage method we’ll define next
+      .getTenants(accountId)
       .then((tenants: storageTypes.Organization[]) => {
         res.send({ organisations: tenants });
       })
       .catch((error: any) => {
-        next(error); // Forward error to error handler
+        next(error);
       });
+  });
+
+  router.post("/tenants", (req: Request, res: Response, next: (err?: any) => void): any => {
+    const accountId: string = req.user.id;
+    const tenant = req.body;
+
+    if (!tenant.displayName) {
+      return res.status(400).send({ error: "displayName is required" });
+    }
+
+      // Check for duplicate tenant name before creating
+    storage
+    .getTenants(accountId)
+    .then((existingTenants: storageTypes.Organization[]) => {
+      // Check if a tenant with the same displayName already exists
+      const duplicateTenant = existingTenants.find(
+        (t: storageTypes.Organization) => 
+          t.displayName.toLowerCase().trim() === tenant.displayName.toLowerCase().trim()
+      );
+
+      if (duplicateTenant) {
+        errorUtils.sendConflictError(
+          res, 
+          `An organization named '${tenant.displayName}' already exists.`
+        );
+        return;
+      }
+
+      // No duplicate found, proceed with creation
+      return storage
+        .addTenant(accountId, tenant)
+        .then((createdTenant: storageTypes.Organization) => {
+          res.status(201).send({ organisation: createdTenant });
+        });
+    })
+    .catch((error: any) => {
+      console.error("Error creating tenant:", error);
+      next(error);
+    });
+  });
+
+  // Get tenant info with release setup status and integrations
+  // IMPORTANT: No caching - always returns fresh data for release management
+  router.get("/tenants/:tenantId", tenantPermissions.requireTenantMembership({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
+    const tenantId: string = req.params.tenantId;
+    
+    // Set no-cache headers to prevent stale data issues
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    try {
+      // Get tenant details
+      const accountId: string = req.user.id;
+      const tenants = await storage.getTenants(accountId);
+      const tenant = tenants.find((t: storageTypes.Organization) => t.id === tenantId);
+      
+      if (!tenant) {
+        return res.status(404).send({ error: "Tenant not found" });
+      }
+
+      // Get all integrations for this tenant
+      const scmController = (storage as any).scmController;
+      const commIntegrationRepository = (storage as any).commIntegrationRepository;
+      const cicdIntegrationRepository = (storage as any).cicdIntegrationRepository;
+      const projectManagementIntegrationRepository = (storage as any).projectManagementIntegrationRepository;
+      
+      // SCM integrations (GitHub, GitLab, Bitbucket)
+      const scmIntegrations = await scmController.findAll({ tenantId, isActive: true });
+      
+      // Comm/Slack integrations
+      const slackIntegration = await commIntegrationRepository.findByTenant(tenantId, 'SLACK');
+
+      // CI CD integrations (Jenkins, Github Actions, Circle CI, GitLab CI, etc.)
+      const cicdIntegrations = await cicdIntegrationRepository.findAll({ tenantId });
+      
+      // Test Management integrations (Checkmate, TestRail, etc.) - tenant-level
+      // Note: Using tenantId as tenantId (tenant = project in our system)
+      let testManagementIntegrations: any[] = [];
+      if ((storage as any).testManagementIntegrationService) {
+        try {
+          testManagementIntegrations = await (storage as any).testManagementIntegrationService.listTenantIntegrations(tenantId);
+          console.log(`[TenantInfo] ===================================  Found ${testManagementIntegrations.length} test management integrations for tenant ${tenantId}`);
+        } catch (error) {
+          console.error('[TenantInfo] Error fetching test management integrations:', error);
+        }
+      }
+
+      // Project Management integrations (JIRA, Linear, Asana, etc.)
+      let projectManagementIntegrations: any[] = [];
+      if (projectManagementIntegrationRepository) {
+        try {
+          projectManagementIntegrations = await projectManagementIntegrationRepository.findAll({ 
+            tenantId: tenantId
+          });
+          console.log(`[TenantInfo] Found ${projectManagementIntegrations.length} project management integrations for tenant ${tenantId}`);
+        } catch (error) {
+          console.error('[TenantInfo] Error fetching project management integrations:', error);
+        }
+      }
+
+      // App Distribution integrations (Play Store, App Store, etc.)
+      let storeIntegrations: any[] = [];
+      if ((storage as any).storeIntegrationController) {
+        try {
+          storeIntegrations = await (storage as any).storeIntegrationController.findAll({ 
+            tenantId, 
+            status: 'VERIFIED' // Only show verified integrations
+          });
+          console.log(`[TenantInfo] Found ${storeIntegrations.length} store integrations for tenant ${tenantId}`);
+        } catch (error) {
+          console.error('[TenantInfo] Error fetching store integrations:', error);
+        }
+      }
+      
+
+      const tenantConfig = await buildTenantConfig(
+        scmIntegrations,
+        slackIntegration,
+        cicdIntegrations,
+        testManagementIntegrations,
+        projectManagementIntegrations,
+        storeIntegrations,
+        storage
+      );
+      
+      return res.status(200).send({
+        organisation: {
+          ...tenant,
+          releaseManagement: {
+            config: tenantConfig,  // Structured config with connected integrations
+          }
+        }
+      });
+    } catch (error: any) {
+      console.error("Error fetching tenant info:", error);
+      return next(error);
+    }
+  });
+
+  // Get tenant collaborators (Owner only)
+  router.get("/tenants/:tenantId/collaborators", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
+    console.log("Getting collaborators for tenant:", req.params.tenantId);
+    const tenantId: string = req.params.tenantId;
+    
+    try {
+      const collaborators = await storage.getTenantCollaborators(tenantId);
+      return res.status(200).send({ collaborators });
+    } catch (error: any) {
+      console.error("Error fetching tenant collaborators:", error);
+      return next(error);
+    }
+  });
+
+  // Add tenant collaborator (Owner only)
+  router.post("/tenants/:tenantId/collaborators", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
+    const tenantId: string = req.params.tenantId;
+    const { email, permission } = req.body;
+
+    if (!email) {
+      return res.status(400).send({ error: "email is required" });
+    }
+
+    if (!permission || !['Owner', 'Editor', 'Viewer'].includes(permission)) {
+      return res.status(400).send({ error: "permission must be 'Owner', 'Editor', or 'Viewer'" });
+    }
+
+    try {
+      await storage.addTenantCollaborator(tenantId, email, permission);
+      return res.status(201).send({ message: "Collaborator added successfully" });
+    } catch (error: any) {
+      console.error("Error adding tenant collaborator:", error);
+      return errorUtils.restErrorHandler(res, error, next);
+    }
+  });
+
+  // Update tenant collaborator permission (Owner only)
+  router.patch("/tenants/:tenantId/collaborators/:email", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
+    const tenantId: string = req.params.tenantId;
+    const email: string = req.params.email;
+    const { permission } = req.body;
+
+    if (!permission || !['Owner', 'Editor', 'Viewer'].includes(permission)) {
+      return res.status(400).send({ error: "permission must be 'Owner', 'Editor', or 'Viewer'" });
+    }
+
+    try {
+      await storage.updateTenantCollaborator(tenantId, email, permission);
+      return res.status(200).send({ message: "Collaborator updated successfully" });
+    } catch (error: any) {
+      console.error("Error updating tenant collaborator:", error);
+      return errorUtils.restErrorHandler(res, error, next);
+    }
+  });
+
+  // Remove tenant collaborator (Owner only)
+  router.delete("/tenants/:tenantId/collaborators/:email", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
+    const tenantId: string = req.params.tenantId;
+    const email: string = req.params.email;
+
+    try {
+      await storage.removeTenantCollaborator(tenantId, email);
+      return res.status(200).send({ message: "Collaborator removed successfully" });
+    } catch (error: any) {
+      console.error("Error removing tenant collaborator:", error);
+      return errorUtils.restErrorHandler(res, error, next);
+    }
   });
 
   router.delete("/tenants/:tenantId", (req: Request, res: Response, next: (err?: any) => void): any => {
@@ -288,9 +516,9 @@ export function getManagementRouter(config: ManagementConfig): Router {
     const tenantId: string = req.params.tenantId;
 
     storage
-      .removeTenant(accountId, tenantId) // Calls the storage method we’ll define next
+      .removeTenant(accountId, tenantId) // Calls the storage method we'll define next
       .then(() => {
-        res.sendStatus(201).send("Org deleted successfully");
+        res.status(200).send("Org deleted successfully");
       })
       .catch((error: any) => {
         next(error); // Forward error to error handler
@@ -386,20 +614,15 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.delete("/apps/:appName", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    let appId: string;
-    let invalidationError: Error;
-    
-    nameResolver
-      .resolveApp(accountId, appName, tenantId)
-      .then((app: storageTypes.App) => {
-        appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Owner);
-        return storage.getDeployments(accountId, appId);
-      })
+  router.delete("/apps/:appName", 
+    appPermissions.requireAppDeletePermission({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;  // Already resolved by middleware
+      const appId: string = app.id;
+      let invalidationError: Error;
+      
+      storage.getDeployments(accountId, appId)
       .then((deployments: storageTypes.Deployment[]) => {
         const invalidationPromises: Promise<void>[] = deployments.map((deployment: storageTypes.Deployment) => {
           return invalidateCachedPackage(deployment.key);
@@ -413,35 +636,31 @@ export function getManagementRouter(config: ManagementConfig): Router {
         return storage.removeApp(accountId, appId);
       })
       .then(() => {
-        res.sendStatus(201).send("App deleted successfully");
+        res.status(200).send("App deleted successfully");
         if (invalidationError) throw invalidationError;
       })
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.patch("/apps/:appName", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    const app: restTypes.App = converterUtils.appFromBody(req.body);
+  router.patch("/apps/:appName", 
+    appPermissions.requireAppEditor({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const existingApp: storageTypes.App = (req as any).app;  // Already resolved by middleware
+      const app: restTypes.App = converterUtils.appFromBody(req.body);
 
-    storage
-      .getApps(accountId)
-      .then((apps: storageTypes.App[]): void | Promise<void> => {
-        const existingApp: storageTypes.App = NameResolver.findByName(apps, appName);
-        if (!existingApp) {
-          errorUtils.sendNotFoundError(res, `App "${appName}" does not exist.`);
-          return;
-        }
-        throwIfInvalidPermissions(existingApp, storageTypes.Permissions.Owner);
+      storage
+        .getApps(accountId)
+        .then(async (apps: storageTypes.App[]): Promise<void> => {
+          // Name change validation
+          if ((app.name || app.name === "") && app.name !== existingApp.name) {
+            if (NameResolver.isDuplicate(apps, app.name)) {
+              errorUtils.sendConflictError(res, "An app named '" + app.name + "' already exists.");
+              return;
+            }
 
-        if ((app.name || app.name === "") && app.name !== existingApp.name) {
-          if (NameResolver.isDuplicate(apps, app.name)) {
-            errorUtils.sendConflictError(res, "An app named '" + app.name + "' already exists.");
-            return;
+            existingApp.name = app.name;
           }
-
-          existingApp.name = app.name;
-        }
 
         const validationErrors = validationUtils.validateApp(existingApp, /*isUpdate=*/ true);
         if (validationErrors.length) {
@@ -465,26 +684,23 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.post("/apps/:appName/transfer/:email", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    const email: string = req.params.email;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    if (isPrototypePollutionKey(email)) {
-      return res.status(400).send("Invalid email parameter");
-    }
+  router.post("/apps/:appName/transfer/:email", 
+    appPermissions.requireAppOwner({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;  // Already resolved by middleware
+      const email: string = req.params.email;
+      
+      if (isPrototypePollutionKey(email)) {
+        return res.status(400).send("Invalid email parameter");
+      }
 
-    nameResolver
-      .resolveApp(accountId, appName, tenantId)
-      .then((app: storageTypes.App) => {
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Owner);
-        return storage.transferApp(accountId, app.id, email);
-      })
-      .then(() => {
-        res.sendStatus(201);
-      })
-      .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
-  });
+      storage.transferApp(accountId, app.id, email)
+        .then(() => {
+          res.sendStatus(201);
+        })
+        .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
+    });
 
   router.post("/apps/:appName/collaborators/:email", (req: Request, res: Response, next: (err?: any) => void): any => {
     const accountId: string = req.user.id;
@@ -511,10 +727,11 @@ export function getManagementRouter(config: ManagementConfig): Router {
     const accountId: string = req.user.id;
     const appName: string = req.params.appName;
     const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
+    console.log("Getting collaborators for app:", appName, "tenantId:", tenantId);
     nameResolver
       .resolveApp(accountId, appName, tenantId)
       .then((app: storageTypes.App) => {
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Collaborator);
+        throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
         return storage.getCollaborators(accountId, app.id);
       })
       .then((retrievedMap: storageTypes.CollaboratorMap) => {
@@ -539,12 +756,12 @@ export function getManagementRouter(config: ManagementConfig): Router {
           app.collaborators && email && app.collaborators[email] && app.collaborators[email].isCurrentAccount;
         throwIfInvalidPermissions(
           app,
-          isAttemptingToRemoveSelf ? storageTypes.Permissions.Collaborator : storageTypes.Permissions.Owner
+          isAttemptingToRemoveSelf ? storageTypes.Permissions.Editor : storageTypes.Permissions.Owner
         );
         return storage.removeCollaborator(accountId, app.id, email);
       })
       .then(() => {
-        res.sendStatus(201).send("Collaborator removed successfully");
+        res.status(200).send("Collaborator removed successfully");
       })
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
@@ -554,7 +771,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     const appName: string = req.params.appName;
     const email: string = req.params.email;
     const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    let role: string = "Collaborator";
+    let role: string = "Viewer";
     if(req.body.role !== undefined) {
       role = req.body.role;
     }
@@ -568,13 +785,13 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .then((app: storageTypes.App) => {
           throwIfInvalidPermissions(app, storageTypes.Permissions.Owner);
         
-        // Prevent ONLY the app creator from changing their permission from Owner to Collaborator
+        // Prevent the app creator from demoting themselves from Owner
         const collaboratorBeingModified = app.collaborators[email];
         if (collaboratorBeingModified) {
-          const collaboratorAccountId = collaboratorBeingModified.accountId;
-          const appCreatorAccountId = (app as any).accountId;
-          if (collaboratorAccountId === appCreatorAccountId && role === "Collaborator") {
-            throw errorUtils.restError(errorUtils.ErrorCode.Conflict,"The app creator permission can not be changed from Owner to Collaborator.");
+          const collaboratorUserId = collaboratorBeingModified.accountId;
+          const appCreatorUserId = (app as any).accountId;
+          if (collaboratorUserId === appCreatorUserId && role !== "Owner") {
+            throw errorUtils.restError(errorUtils.ErrorCode.Conflict,"The app creator permission cannot be changed from Owner to a non-Owner role.");
           }
         }
         
@@ -586,19 +803,14 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.get("/apps/:appName/deployments", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    let appId: string;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
+  router.get("/apps/:appName/deployments",
+    appPermissions.requireDeploymentPermission({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
 
-    nameResolver
-      .resolveApp(accountId, appName, tenantId)
-      .then((app: storageTypes.App) => {
-        appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Collaborator);
-        return storage.getDeployments(accountId, appId);
-      })
+      storage.getDeployments(accountId, appId)
       .then(async (deployments: storageTypes.Deployment[]) => {
         deployments.sort((first: restTypes.Deployment, second: restTypes.Deployment) => {
             return first.name.localeCompare(second.name);
@@ -635,27 +847,24 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.post("/apps/:appName/deployments", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    let appId: string;
-    let restDeployment: restTypes.Deployment = converterUtils.deploymentFromBody(req.body);
+  router.post("/apps/:appName/deployments", 
+    appPermissions.requireDeploymentStructurePermission({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
+      const appName: string = req.params.appName;
+      let restDeployment: restTypes.Deployment = converterUtils.deploymentFromBody(req.body);
 
-    const validationErrors = validationUtils.validateDeployment(restDeployment, /*isUpdate=*/ false);
-    if (validationErrors.length) {
-      errorUtils.sendMalformedRequestError(res, JSON.stringify(validationErrors));
-      return;
-    }
+      const validationErrors = validationUtils.validateDeployment(restDeployment, /*isUpdate=*/ false);
+      if (validationErrors.length) {
+        errorUtils.sendMalformedRequestError(res, JSON.stringify(validationErrors));
+        return;
+      }
 
-    const storageDeployment: storageTypes.Deployment = converterUtils.toStorageDeployment(restDeployment, new Date().getTime());
-    nameResolver
-      .resolveApp(accountId, appName, tenantId)
-      .then((app: storageTypes.App) => {
-        appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Owner);
-        return storage.getDeployments(accountId, app.id);
-      })
+      const storageDeployment: storageTypes.Deployment = converterUtils.toStorageDeployment(restDeployment, new Date().getTime());
+      
+      storage.getDeployments(accountId, appId)
       .then((deployments: storageTypes.Deployment[]): void | Promise<void> => {
         if (NameResolver.isDuplicate(deployments, restDeployment.name)) {
           errorUtils.sendConflictError(res, "A deployment named '" + restDeployment.name + "' already exists.");
@@ -665,7 +874,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
         // Allow the deployment key to be specified on creation, if desired
         storageDeployment.key = restDeployment.key || security.generateSecureKey(accountId);
 
-        return storage.addDeployment(accountId, appId, storageDeployment).then((deploymentId: string): void => {
+        return storage.addDeployment(accountId, appId, storageDeployment).then((): void => {
           restDeployment = converterUtils.toRestDeployment(storageDeployment);
           res.setHeader("Location", urlEncode([`/apps/${appName}/deployments/${restDeployment.name}`]));
           res.status(201).send({ deployment: restDeployment });
@@ -674,20 +883,15 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.get("/apps/:appName/deployments/:deploymentName", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    const deploymentName: string = req.params.deploymentName;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    let appId: string;
+  router.get("/apps/:appName/deployments/:deploymentName",
+    appPermissions.requireDeploymentPermission({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
+      const deploymentName: string = req.params.deploymentName;
 
-    nameResolver
-      .resolveApp(accountId, appName, tenantId)
-      .then((app: storageTypes.App) => {
-        appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Collaborator);
-        return nameResolver.resolveDeployment(accountId, appId, deploymentName);
-      })
+      nameResolver.resolveDeployment(accountId, appId, deploymentName)
       .then(async (deployment: storageTypes.Deployment) => {
           const metrics = await redisManager.getMetricsWithDeploymentKey(deployment.key);
           const deploymentMetrics = converterUtils.toRestDeploymentMetrics(metrics);
@@ -719,21 +923,16 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.delete("/apps/:appName/deployments/:deploymentName", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    const deploymentName: string = req.params.deploymentName;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    let appId: string;
-    let deploymentId: string;
+  router.delete("/apps/:appName/deployments/:deploymentName",
+    appPermissions.requireDeploymentStructurePermission({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
+      const deploymentName: string = req.params.deploymentName;
+      let deploymentId: string;
 
-    nameResolver
-      .resolveApp(accountId, appName, tenantId)
-      .then((app: storageTypes.App) => {
-        appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Owner);
-        return nameResolver.resolveDeployment(accountId, appId, deploymentName);
-      })
+      nameResolver.resolveDeployment(accountId, appId, deploymentName)
       .then((deployment: storageTypes.Deployment) => {
         deploymentId = deployment.id;
         return invalidateCachedPackage(deployment.key);
@@ -742,32 +941,27 @@ export function getManagementRouter(config: ManagementConfig): Router {
         return storage.removeDeployment(accountId, appId, deploymentId);
       })
       .then(() => {
-        res.sendStatus(201).send("Deployment deleted successfully");
+        res.status(200).send("Deployment deleted successfully");
       })
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.patch("/apps/:appName/deployments/:deploymentName", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    const deploymentName: string = req.params.deploymentName;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    let appId: string;
-    let restDeployment: restTypes.Deployment = converterUtils.deploymentFromBody(req.body);
+  router.patch("/apps/:appName/deployments/:deploymentName",
+    appPermissions.requireDeploymentStructurePermission({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
+      const deploymentName: string = req.params.deploymentName;
+      let restDeployment: restTypes.Deployment = converterUtils.deploymentFromBody(req.body);
 
-    const validationErrors = validationUtils.validateDeployment(restDeployment, /*isUpdate=*/ true);
-    if (validationErrors.length) {
-      errorUtils.sendMalformedRequestError(res, JSON.stringify(validationErrors));
-      return;
-    }
+      const validationErrors = validationUtils.validateDeployment(restDeployment, /*isUpdate=*/ true);
+      if (validationErrors.length) {
+        errorUtils.sendMalformedRequestError(res, JSON.stringify(validationErrors));
+        return;
+      }
 
-    nameResolver
-      .resolveApp(accountId, appName, tenantId)
-      .then((app: storageTypes.App) => {
-        appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Owner);
-        return storage.getDeployments(accountId, app.id);
-      })
+      storage.getDeployments(accountId, appId)
       .then((storageDeployments: storageTypes.Deployment[]): void | Promise<void> => {
         const storageDeployment: storageTypes.Deployment = NameResolver.findByName(storageDeployments, deploymentName);
 
@@ -792,29 +986,24 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.patch("/apps/:appName/deployments/:deploymentName/release", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    const deploymentName: string = req.params.deploymentName;
-    const info: restTypes.PackageInfo = req.body.packageInfo || {};
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    const validationErrors: validationUtils.ValidationError[] = validationUtils.validatePackageInfo(info, /*allOptional*/ true);
-    if (validationErrors.length) {
-      errorUtils.sendMalformedRequestError(res, JSON.stringify(validationErrors));
-      return;
-    }
+  router.patch("/apps/:appName/deployments/:deploymentName/release",
+    appPermissions.requireDeploymentPermission({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
+      const deploymentName: string = req.params.deploymentName;
+      const info: restTypes.PackageInfo = req.body.packageInfo || {};
+      const validationErrors: validationUtils.ValidationError[] = validationUtils.validatePackageInfo(info, /*allOptional*/ true);
+      if (validationErrors.length) {
+        errorUtils.sendMalformedRequestError(res, JSON.stringify(validationErrors));
+        return;
+      }
 
-    let updateRelease: boolean = false;
-    let storageDeployment: storageTypes.Deployment;
-    let appId: string;
+      let updateRelease: boolean = false;
+      let storageDeployment: storageTypes.Deployment;
 
-    nameResolver
-      .resolveApp(accountId, appName, tenantId)
-      .then((app: storageTypes.App) => {
-        appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Collaborator);
-        return storage.getDeployments(accountId, app.id);
-      })
+      storage.getDeployments(accountId, appId)
       .then((storageDeployments: storageTypes.Deployment[]) => {
         storageDeployment = NameResolver.findByName(storageDeployments, deploymentName);
 
@@ -890,19 +1079,21 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  const releaseRateLimiter = rateLimit({
+  const _releaseRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // limit each IP to 100 requests per windowMs
   });
 
   router.post(
     "/apps/:appName/deployments/:deploymentName/release",
+    appPermissions.requireDeploymentPermission({ storage }),
     (req: Request, res: Response, next: (err?: any) => void): any => {
       const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
       const appName: string = req.params.appName;
       const deploymentName: string = req.params.deploymentName;
       const file: any = getFileWithField(req, "package");
-      const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
 
       if (!file || !file.buffer) {
         errorUtils.sendMalformedRequestError(res, "A deployment package must include a file.");
@@ -927,19 +1118,12 @@ export function getManagementRouter(config: ManagementConfig): Router {
         }
 
         // These variables are for hoisting promise results and flattening the following promise chain.
-        let appId: string;
         let deploymentToReleaseTo: storageTypes.Deployment;
         let storagePackage: storageTypes.Package;
         let lastPackageHashWithSameAppVersion: string;
         let newManifest: PackageManifest;
 
-        nameResolver
-          .resolveApp(accountId, appName, tenantId)
-          .then((app: storageTypes.App) => {
-            appId = app.id;
-            throwIfInvalidPermissions(app, storageTypes.Permissions.Collaborator);
-            return nameResolver.resolveDeployment(accountId, appId, deploymentName);
-          })
+        nameResolver.resolveDeployment(accountId, appId, deploymentName)
           .then((deployment: storageTypes.Deployment) => {
             deploymentToReleaseTo = deployment;
             const existingPackage: storageTypes.Package = deployment.package;
@@ -1036,21 +1220,15 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
   router.delete(
     "/apps/:appName/deployments/:deploymentName/history",
+    appPermissions.requireDeploymentStructurePermission({ storage }),
     (req: Request, res: Response, next: (err?: any) => void): any => {
       const accountId: string = req.user.id;
-      const appName: string = req.params.appName;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
       const deploymentName: string = req.params.deploymentName;
-      const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-      let appId: string;
       let deploymentToGetHistoryOf: storageTypes.Deployment;
 
-      nameResolver
-        .resolveApp(accountId, appName, tenantId)
-        .then((app: storageTypes.App): Promise<storageTypes.Deployment> => {
-          appId = app.id;
-          throwIfInvalidPermissions(app, storageTypes.Permissions.Owner);
-          return nameResolver.resolveDeployment(accountId, appId, deploymentName);
-        })
+      nameResolver.resolveDeployment(accountId, appId, deploymentName)
         .then((deployment: storageTypes.Deployment): Promise<void> => {
           deploymentToGetHistoryOf = deployment;
           return storage.clearPackageHistory(accountId, appId, deploymentToGetHistoryOf.id);
@@ -1063,27 +1241,22 @@ export function getManagementRouter(config: ManagementConfig): Router {
           }
         })
         .then(() => {
-          res.sendStatus(201).send("Deployment History deleted successfully");
+          res.status(200).send("Deployment History deleted successfully");
           return invalidateCachedPackage(deploymentToGetHistoryOf.key);
         })
         .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
     }
   );
 
-  router.get("/apps/:appName/deployments/:deploymentName/history", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    const deploymentName: string = req.params.deploymentName;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    let appId: string;
+  router.get("/apps/:appName/deployments/:deploymentName/history",
+    appPermissions.requireDeploymentPermission({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
+      const deploymentName: string = req.params.deploymentName;
 
-    nameResolver
-      .resolveApp(accountId, appName, tenantId)
-      .then((app: storageTypes.App) => {
-        appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Collaborator);
-        return nameResolver.resolveDeployment(accountId, appId, deploymentName);
-      })
+      nameResolver.resolveDeployment(accountId, appId, deploymentName)
       .then((deployment: storageTypes.Deployment): Promise<storageTypes.Package[]> => {
         return storage.getPackageHistory(accountId, appId, deployment.id);
       })
@@ -1093,23 +1266,18 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.get("/apps/:appName/deployments/:deploymentName/metrics", (req: Request, res: Response, next: (err?: any) => void): any => {
-    if (!redisManager.isEnabled) {
-      res.send({ metrics: {} });
-    } else {
-      const accountId: string = req.user.id;
-      const appName: string = req.params.appName;
-      const deploymentName: string = req.params.deploymentName;
-      const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-      let appId: string;
+  router.get("/apps/:appName/deployments/:deploymentName/metrics",
+    appPermissions.requireDeploymentPermission({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      if (!redisManager.isEnabled) {
+        res.send({ metrics: {} });
+      } else {
+        const accountId: string = req.user.id;
+        const app: storageTypes.App = (req as any).app;
+        const appId: string = app.id;
+        const deploymentName: string = req.params.deploymentName;
 
-      nameResolver
-        .resolveApp(accountId, appName, tenantId)
-        .then((app: storageTypes.App) => {
-          appId = app.id;
-          throwIfInvalidPermissions(app, storageTypes.Permissions.Collaborator);
-          return nameResolver.resolveDeployment(accountId, appId, deploymentName);
-        })
+        nameResolver.resolveDeployment(accountId, appId, deploymentName)
         .then((deployment: storageTypes.Deployment): Promise<redis.DeploymentMetrics> => {
           return redisManager.getMetricsWithDeploymentKey(deployment.key);
         })
@@ -1123,34 +1291,29 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
   router.post(
     "/apps/:appName/deployments/:sourceDeploymentName/promote/:destDeploymentName",
+    appPermissions.requireDeploymentPermission({ storage }),
     (req: Request, res: Response, next: (err?: any) => void): any => {
       const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
       const appName: string = req.params.appName;
       const sourceDeploymentName: string = req.params.sourceDeploymentName;
       const destDeploymentName: string = req.params.destDeploymentName;
       const info: restTypes.PackageInfo = req.body.packageInfo || {};
-      const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
       const validationErrors: validationUtils.ValidationError[] = validationUtils.validatePackageInfo(info, /*allOptional*/ true);
       if (validationErrors.length) {
         errorUtils.sendMalformedRequestError(res, JSON.stringify(validationErrors));
         return;
       }
 
-      let appId: string;
       let destDeployment: storageTypes.Deployment;
       let sourcePackage: storageTypes.Package;
 
-      nameResolver
-        .resolveApp(accountId, appName, tenantId)
-        .then((app: storageTypes.App) => {
-          appId = app.id;
-          throwIfInvalidPermissions(app, storageTypes.Permissions.Collaborator);
-          // Get source and dest manifests in parallel.
-          return Promise.all([
-            nameResolver.resolveDeployment(accountId, appId, sourceDeploymentName),
-            nameResolver.resolveDeployment(accountId, appId, destDeploymentName),
-          ]);
-        })
+      // Get source and dest manifests in parallel.
+      Promise.all([
+        nameResolver.resolveDeployment(accountId, appId, sourceDeploymentName),
+        nameResolver.resolveDeployment(accountId, appId, destDeploymentName),
+      ])
         .then(([sourceDeployment,destinationDeployment]:[storageTypes.Deployment,storageTypes.Deployment]) => {
           destDeployment = destinationDeployment;
 
@@ -1224,23 +1387,18 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
   router.post(
     "/apps/:appName/deployments/:deploymentName/rollback/:targetRelease?",
+    appPermissions.requireDeploymentPermission({ storage }),
     (req: Request, res: Response, next: (err?: any) => void): any => {
       const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
       const appName: string = req.params.appName;
       const deploymentName: string = req.params.deploymentName;
-      const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-      let appId: string;
       let deploymentToRollback: storageTypes.Deployment;
       const targetRelease: string = req.params.targetRelease;
       let destinationPackage: storageTypes.Package;
 
-      nameResolver
-        .resolveApp(accountId, appName, tenantId)
-        .then((app: storageTypes.App) => {
-          appId = app.id;
-          throwIfInvalidPermissions(app, storageTypes.Permissions.Collaborator);
-          return nameResolver.resolveDeployment(accountId, appId, deploymentName);
-        })
+      nameResolver.resolveDeployment(accountId, appId, deploymentName)
         .then((deployment: storageTypes.Deployment): Promise<storageTypes.Package[]> => {
           deploymentToRollback = deployment;
           return storage.getPackageHistory(accountId, appId, deployment.id);
@@ -1327,14 +1485,35 @@ export function getManagementRouter(config: ManagementConfig): Router {
     const collaboratorsMap: storageTypes.CollaboratorMap = app.collaborators;
 
     let isPermitted: boolean = false;
+    let userPermission: string = null;
 
+    // Find current user's permission
     if (collaboratorsMap) {
       for (const email of Object.keys(collaboratorsMap)) {
         if ((<storageTypes.CollaboratorProperties>collaboratorsMap[email]).isCurrentAccount) {
-          const permission: string = collaboratorsMap[email].permission;
-          isPermitted = permission === storageTypes.Permissions.Owner || permission === requiredPermission;
+          userPermission = collaboratorsMap[email].permission;
           break;
         }
+      }
+    }
+
+    // Check permission hierarchy
+    // Owner > Editor > Viewer
+    if (userPermission) {
+      if (requiredPermission === storageTypes.Permissions.Owner) {
+        // Only Owner can do this
+        isPermitted = userPermission === storageTypes.Permissions.Owner;
+      } else if (requiredPermission === storageTypes.Permissions.Editor) {
+        // Owner or Editor can do this
+        isPermitted = 
+          userPermission === storageTypes.Permissions.Owner || 
+          userPermission === storageTypes.Permissions.Editor;
+      } else if (requiredPermission === storageTypes.Permissions.Viewer) {
+        // Anyone (Owner, Editor, Viewer) can do this
+        isPermitted = 
+          userPermission === storageTypes.Permissions.Owner || 
+          userPermission === storageTypes.Permissions.Editor ||
+          userPermission === storageTypes.Permissions.Viewer;
       }
     }
 
@@ -1397,7 +1576,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     return storage
       .getApp(accountId, appId)
       .then((storageApp: storageTypes.App) => {
-        throwIfInvalidPermissions(storageApp, storageTypes.Permissions.Collaborator);
+        throwIfInvalidPermissions(storageApp, storageTypes.Permissions.Editor);
         return storage.getPackageHistory(accountId, appId, deploymentId);
       })
       .then((history: storageTypes.Package[]) => {

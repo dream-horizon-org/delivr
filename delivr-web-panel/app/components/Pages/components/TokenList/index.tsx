@@ -18,7 +18,8 @@ import classes from "./index.module.css";
 import { useGetAccessTokenList } from "./hooks/useGetAccessTokenList";
 import { CreateTokenForm } from "~/components/Pages/components/CreateTokenForm";
 import { useDeleteAccessToken } from "./hooks/useDeleteAccessToken";
-import { notifications } from "@mantine/notifications";
+import { showErrorToast, showSuccessToast } from "~/utils/toast";
+import { TOKEN_MESSAGES } from "~/constants/toast-messages";
 import { handleApiError } from "~/utils/handleApiError";
 
 type TokenActionProps = {
@@ -44,13 +45,9 @@ const TokenAction = ({ selected, refetch }: TokenActionProps) => {
             },
             {
               onError: (e) => {
-                notifications.show({
-                  color: "red",
-                  title: `Token Deletion ${item}`,
-                  message: handleApiError(
-                    e,
-                    "Error While Removing Token"
-                  ),
+                showErrorToast({
+                  title: `${TOKEN_MESSAGES.DELETE_ERROR.title} ${item}`,
+                  message: handleApiError(e, TOKEN_MESSAGES.DELETE_ERROR.message),
                 });
               },
             }
@@ -62,9 +59,8 @@ const TokenAction = ({ selected, refetch }: TokenActionProps) => {
       const isFailed = data.filter((item) => item.status === "rejected");
 
       if (isFailed.length === 0) {
-        notifications.show({
-          color: "green",
-          title: `Token Deletion`,
+        showSuccessToast({
+          title: TOKEN_MESSAGES.DELETE_SUCCESS.title,
           message: `${selected.length} token(s) removed successfully!`,
         });
       }
@@ -111,8 +107,8 @@ const TokenAction = ({ selected, refetch }: TokenActionProps) => {
           <Button
             leftSection={<IconPlus size={18} />}
             onClick={() => setOpen(true)}
-            variant="gradient"
-            gradient={{ from: theme.other.brand.primary, to: theme.other.brand.secondary, deg: 135 }}
+            color="brand"
+            variant="filled"
             styles={{
               root: {
                 transition: "all 200ms ease",

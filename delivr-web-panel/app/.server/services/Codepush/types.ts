@@ -1,7 +1,109 @@
+// ============================================================================
+// Integration Type Constants (Re-exported from shared constants)
+// ============================================================================
+
+import {
+  INTEGRATION_TYPES,
+  SCM_TYPES,
+  TARGET_PLATFORM_TYPES,
+  PIPELINE_TYPES,
+  COMMUNICATION_TYPES,
+  VERIFICATION_STATUS,
+} from '~/constants/integrations';
+
+// Re-export for backward compatibility
+export {
+  INTEGRATION_TYPES,
+  SCM_TYPES,
+  TARGET_PLATFORM_TYPES,
+  PIPELINE_TYPES,
+  COMMUNICATION_TYPES,
+  VERIFICATION_STATUS,
+};
+
+export type {
+  IntegrationType,
+  SCMType,
+  TargetPlatformType,
+  PipelineType,
+  CommunicationType,
+  VerificationStatusType,
+} from '~/constants/integrations';
+
+// ============================================================================
+// Integration Type Definitions
+// ============================================================================
+
+export type SCMIntegration = {
+  type: typeof INTEGRATION_TYPES.SCM;
+  id: string;
+  scmType: (typeof SCM_TYPES)[keyof typeof SCM_TYPES];
+  displayName: string;
+  owner: string;
+  repo: string;
+  repositoryUrl: string;
+  defaultBranch: string;
+  isActive: boolean;
+  verificationStatus: (typeof VERIFICATION_STATUS)[keyof typeof VERIFICATION_STATUS];
+  lastVerifiedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TargetPlatformIntegration = {
+  type: typeof INTEGRATION_TYPES.TARGET_PLATFORM;
+  id: string;
+  platform: (typeof TARGET_PLATFORM_TYPES)[keyof typeof TARGET_PLATFORM_TYPES];
+  displayName: string;
+  isActive: boolean;
+  verificationStatus: (typeof VERIFICATION_STATUS)[keyof typeof VERIFICATION_STATUS];
+  // TODO: Add more fields when implemented
+};
+
+export type PipelineIntegration = {
+  type: typeof INTEGRATION_TYPES.PIPELINE;
+  id: string;
+  pipelineType: (typeof PIPELINE_TYPES)[keyof typeof PIPELINE_TYPES];
+  displayName: string;
+  isActive: boolean;
+  // TODO: Add more fields when implemented
+};
+
+export type CommunicationIntegration = {
+  type: typeof INTEGRATION_TYPES.COMMUNICATION;
+  id: string;
+  communicationType: (typeof COMMUNICATION_TYPES)[keyof typeof COMMUNICATION_TYPES];
+  displayName: string;
+  isActive: boolean;
+  // TODO: Add more fields when implemented
+};
+
+export type Integration = 
+  | SCMIntegration 
+  | TargetPlatformIntegration 
+  | PipelineIntegration 
+  | CommunicationIntegration;
+
 export type Organization = {
   id: string;
   displayName: string;
   role: "Owner" | "Collaborator";
+  releaseManagement?: {
+    config?: {
+      connectedIntegrations: {
+        SOURCE_CONTROL: any[];
+        COMMUNICATION: any[];
+        CI_CD: any[];
+        TEST_MANAGEMENT: any[];
+        PROJECT_MANAGEMENT: any[];
+        APP_DISTRIBUTION: any[];
+      };
+      enabledPlatforms: string[];
+      enabledTargets: string[];
+      allowedReleaseTypes: string[];
+      customSettings: Record<string, any>;
+    };
+  };
 };
 
 // Base types for terms-related entities
@@ -328,4 +430,13 @@ export type CreateReleaseRequest = BaseHeader & {
 
 export type CreateReleaseResponse = {
   package: Package;
+};
+
+// Tenant Info Types
+export type TenantInfoRequest = BaseHeader & {
+  tenantId: string;
+};
+
+export type TenantInfoResponse = {
+  organisation: Organization;
 };

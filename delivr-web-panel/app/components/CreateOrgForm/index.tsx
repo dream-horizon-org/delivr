@@ -1,7 +1,7 @@
 import { Card, Center, TextInput, Box, useMantineTheme } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { IconSitemap } from "@tabler/icons-react";
-import { CTAButton } from "~/components/CTAButton";
+import { CTAButton } from "~/components/Common/CTAButton";
 
 export function CreateOrgForm() {
   const theme = useMantineTheme();
@@ -25,7 +25,7 @@ export function CreateOrgForm() {
             </Center>
           </Card.Section>
 
-          <TextInput
+          {/* <TextInput
             label="Enter Organization Name"
             placeholder="Organization Name"
             key={form.key("name")}
@@ -37,7 +37,7 @@ export function CreateOrgForm() {
                 },
               },
             }}
-          />
+          /> */}
 
           <CTAButton
             fullWidth

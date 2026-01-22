@@ -6,7 +6,8 @@ import { IconTrash } from "@tabler/icons-react";
 
 export type AppCardProps = Omit<AppCardResponse, "role"> & {
   link: string;
-  deleteLink: string;
+  deleteLink?: string; // Deprecated - use onDelete instead
+  onDelete?: () => void; // New - state-based delete handler
 };
 
 export function AppCard({
@@ -14,9 +15,19 @@ export function AppCard({
   description,
   link,
   deleteLink,
+  onDelete,
   isAdmin,
 }: AppCardProps) {
   const navigate = useNavigate();
+
+  const handleDelete = () => {
+    if (onDelete) {
+      onDelete();
+    } else if (deleteLink) {
+      // Fallback to route-based delete for backward compatibility
+      navigate(deleteLink);
+    }
+  };
 
   return (
     <Card withBorder padding="xl" radius="md" className={classes.card}>
@@ -52,15 +63,13 @@ export function AppCard({
         >
           Go To App
         </Button>
-        {isAdmin && (
+        {isAdmin && (onDelete || deleteLink) && (
           <Button
             radius="md"
             mt="xl"
             mx={"sm"}
             size="md"
-            onClick={() => {
-              navigate(deleteLink);
-            }}
+            onClick={handleDelete}
             color="red"
             variant="light"
           >

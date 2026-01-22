@@ -106,19 +106,7 @@ In order to integrate DOTA into your Android project, please perform the followi
 
     *Note: If you need to dynamically use a different deployment, you can also override your deployment key in JS code using [Code-Push options](./api-js.md#CodePushOptions)*
 
-6. If you're using DexGuard/Proguard, you need to add specific rules to ensure DOTA works correctly with obfuscated code.
-    Add the following rules to your configuration file:
-    ```
-    # Keep DOTA configuration strings (exact names from strings.xml)
-    -keepresources string/CodePushDeploymentKey
-    -keepresources string/CodePushServerUrl
-    # Keep DOTA classes from encryption
-    -keep class com.microsoft.codepush.** { *; }
-    -keepclassmembers class com.microsoft.codepush.** { *; }
-    -keepnames class com.microsoft.codepush.** { *; }
-    -dontwarn com.microsoft.codepush.**
-    ```
-7. Disable autolinking for `@d11/dota` by adding a `react-native.config.js` at your app root:
+6. Disable autolinking for `@d11/dota` by adding a `react-native.config.js` at your app root:
 
 ```javascript
 module.exports = {
@@ -131,4 +119,4 @@ module.exports = {
   },
 };
 ```
-8. For react-native changes refer to [Usage](../README.md#usage)
+7. For react-native changes refer to [Usage](../README.md#usage)

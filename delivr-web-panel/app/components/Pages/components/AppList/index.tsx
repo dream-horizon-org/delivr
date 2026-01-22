@@ -5,7 +5,9 @@ import { AppCard, AppCardProps } from "~/components/AppCard";
 import { route } from "routes-gen";
 import { Spotlight, SpotlightActionData } from "@mantine/spotlight";
 import { IconApps, IconSearch } from "@tabler/icons-react";
-import { User } from "~/.server/services/Auth/Auth.interface";
+import { User } from '~/.server/services/Auth/auth.interface';
+import { useState } from "react";
+import { DeleteModal, type DeleteModalData } from "~/components/Common/DeleteModal";
 
 type AppListForOrgProps = {
   user: User;
@@ -14,21 +16,27 @@ type AppListForOrgProps = {
 export function AppListForOrg({ user }: AppListForOrgProps) {
   const params = useParams();
   const navigate = useNavigate();
-  const { data, isLoading, isError } = useGetAppListForOrg({
+  const { data, isLoading, isError, refetch } = useGetAppListForOrg({
     orgId: params.org ?? "",
     userEmail: user.user.email,
   });
+  const [deleteModalData, setDeleteModalData] = useState<DeleteModalData | null>(null);
 
   const _modData: AppCardProps[] =
     data?.map((item) => ({
       ...item,
-      link: route("/dashboard/:org/:app", {
+      link: route("/dashboard/:org/ota/:app", {
         org: params.org ?? "",
         app: item.id,
       }),
-      deleteLink:
-        route("/dashboard/delete") +
-        `?type=app&app=${item.id}&tenant=${params.org}`,
+      onDelete: () => {
+        setDeleteModalData({
+          type: 'app',
+          appId: item.id,
+          appName: item.name,
+          tenant: params.org ?? '',
+        });
+      },
     })) ?? [];
 
   if (isLoading) {
@@ -70,6 +78,7 @@ export function AppListForOrg({ user }: AppListForOrgProps) {
   });
 
   return (
+    <>
     <Grid ml={30} mt={30}>
       <Spotlight
         actions={actions}
@@ -95,5 +104,16 @@ export function AppListForOrg({ user }: AppListForOrgProps) {
         })}
       </Grid>
     </Grid>
+
+      {/* Delete App Modal */}
+      <DeleteModal
+        opened={!!deleteModalData}
+        onClose={() => setDeleteModalData(null)}
+        data={deleteModalData}
+        onSuccess={() => {
+          refetch();
+        }}
+      />
+    </>
   );
 }

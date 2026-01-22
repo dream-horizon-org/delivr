@@ -3,8 +3,30 @@ import "@mantine/spotlight/styles.css";
 import "@mantine/notifications/styles.css";
 
 import { QueryClient, QueryClientProvider } from "react-query";
+import { shouldRetryOnError } from "~/utils/react-query-retry";
 
-const queryClient = new QueryClient();
+/**
+ * Configure QueryClient with sensible defaults
+ * These defaults apply to all queries unless overridden
+ */
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Default staleTime: 2 minutes - data stays fresh
+      staleTime: 2 * 60 * 1000,
+      // Default cacheTime: 10 minutes - keep in cache
+      cacheTime: 10 * 60 * 1000,
+      // Refetch on window focus for fresh data
+      refetchOnWindowFocus: true,
+      // Don't refetch on mount if data is fresh (saves API calls)
+      refetchOnMount: false,
+      // Retry failed requests once, but not for auth errors
+      retry: shouldRetryOnError,
+      // Retry delay: exponential backoff starting at 1s
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    },
+  },
+});
 
 import {
   Links,
@@ -19,8 +41,11 @@ import "./tailwind.css";
 import { ColorSchemeScript, MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { mantineTheme } from "~/theme";
+import { ErrorBoundary } from "~/components/Common/ErrorBoundary";
+import delivrFavicon from "~/assets/images/delivr-favicon.svg";
 
 export const links: LinksFunction = () => [
+  { rel: "icon", type: "image/svg+xml", href: delivrFavicon },
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
     rel: "preconnect",
@@ -29,7 +54,7 @@ export const links: LinksFunction = () => [
   },
   {
     rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Poppins:wght@300;400;500;600;700&display=swap",
+    href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
   },
 ];
 
@@ -44,12 +69,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <ColorSchemeScript />
       </head>
       <body>
-        <QueryClientProvider client={queryClient}>
-          <MantineProvider theme={mantineTheme} defaultColorScheme="auto">
-            <Notifications />
-            {children}
-          </MantineProvider>
-        </QueryClientProvider>
+        <ErrorBoundary>
+          <QueryClientProvider client={queryClient}>
+            <MantineProvider theme={mantineTheme} defaultColorScheme="auto">
+              <Notifications position="bottom-right" />
+              {children}
+            </MantineProvider>
+          </QueryClientProvider>
+        </ErrorBoundary>
         <ScrollRestoration />
         <Scripts />
       </body>

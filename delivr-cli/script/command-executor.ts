@@ -47,7 +47,11 @@ import {
 import {
   fileDoesNotExistOrIsDirectory,
   isBinaryOrZip,
-  fileExists
+  fileExists,
+  isValidAABArtifactExtension,
+  getAllowedAABArtifactExtensions,
+  isValidRegressionArtifactExtension,
+  getAllowedRegressionArtifactExtensions
 } from "./utils/file-utils";
 import { DelivrConfigConstants } from "./utils/config.constants";
 
@@ -61,6 +65,7 @@ const properties = require("properties");
 
 const CLI_HEADERS: Headers = {
   "X-CodePush-CLI-Version": packageJson.version,
+  "User-Agent": "delivr-cli"
 };
 
 /** Deprecated */
@@ -123,7 +128,7 @@ export const confirm = (message: string = "Are you sure?"): Promise<boolean> => 
 };
 
 function accessKeyAdd(command: cli.IAccessKeyAddCommand): Promise<void> {
-  return sdk.addAccessKey(command.name, command.ttl).then((accessKey: AccessKey) => {
+  return sdk.addAccessKey(command.name, command.scope, command.ttl).then((accessKey: AccessKey) => {
     log(`Successfully created the "${command.name}" access key: ${accessKey.key}`);
     log("Make sure to save this key value somewhere safe, since you won't be able to view it from the CLI again!");
   });
@@ -137,7 +142,7 @@ function accessKeyPatch(command: cli.IAccessKeyPatchCommand): Promise<void> {
     throw new Error("A new name and/or TTL must be provided.");
   }
 
-  return sdk.patchAccessKey(command.oldName, command.newName, command.ttl).then((accessKey: AccessKey) => {
+  return sdk.patchAccessKey(command.oldName, command.scope, command.newName, command.ttl).then((accessKey: AccessKey) => {
     let logMessage: string = "Successfully ";
     if (willUpdateName) {
       logMessage += `renamed the access key "${command.oldName}" to "${command.newName}"`;
@@ -463,6 +468,8 @@ export function execute(command: cli.ICommand) {
         }
 
         sdk = getSdk(connectionInfo.accessKey, CLI_HEADERS, connectionInfo.customServerUrl);
+        let needsOrgContext = false;
+
         if((<cli.IAppCommand>command).appName) {
           const arg : string = (<cli.IAppCommand>command).appName
           const parsedName = cli.parseAppName(arg);
@@ -470,14 +477,36 @@ export function execute(command: cli.ICommand) {
           if(parsedName.ownerName) {
             (<cli.IAppCommand>command).appName = parsedName.appName;
             sdk.passedOrgName = parsedName.ownerName;
+            needsOrgContext = true;
           }
         } else if ((<cli.IAppListCommand>command).org && (<cli.IAppListCommand>command).org.length > 0) {
           const arg : string = (<cli.IAppListCommand>command).org
           sdk.passedOrgName = arg;
+          needsOrgContext = true;
+        }
+        
+        // Check for upload commands with org parameter
+        const uploadCommand = command as cli.IUploadRegressionArtifactCommand | cli.IUploadTestFlightBuildNumberCommand | cli.IUploadAABBuildCommand;
+        const hasUploadOrg = uploadCommand.org && uploadCommand.org.length > 0;
+        if (hasUploadOrg) {
+          sdk.passedOrgName = uploadCommand.org;
+          needsOrgContext = true;
+        }
+        
+        // Fetch organisations from backend if org context is needed
+        if (needsOrgContext) {
+          return sdk.getTenants().then(() => {
+            return executeCommand(command);
+          });
         }
         break;
     }
 
+    return executeCommand(command);
+  });
+}
+
+function executeCommand(command: cli.ICommand): Promise<void> {
     switch (command.type) {
       case cli.CommandType.accessKeyAdd:
         return accessKeyAdd(<cli.IAccessKeyAddCommand>command);
@@ -580,12 +609,20 @@ export function execute(command: cli.ICommand) {
 
       case cli.CommandType.applyPatch:
         return applyPatch(<cli.IApplyPatchCommand>command);
+      
+      case cli.CommandType.uploadRegressionArtifact:
+        return uploadRegressionArtifact(<cli.IUploadRegressionArtifactCommand>command);
+
+      case cli.CommandType.uploadTestFlightBuildNumber:
+        return uploadTestFlightBuildNumber(<cli.IUploadTestFlightBuildNumberCommand>command);
+
+      case cli.CommandType.uploadAABBuild:
+        return uploadAABBuild(<cli.IUploadAABBuildCommand>command);
 
       default:
         // We should never see this message as invalid commands should be caught by the argument parser.
         throw new Error("Invalid command:  " + JSON.stringify(command));
     }
-  });
 }
 
 function getTotalActiveFromDeploymentMetrics(metrics: DeploymentMetrics): number {
@@ -1627,6 +1664,7 @@ function getSdk(accessKey: string, headers: Headers, customServerUrl: string): A
    * to delete the cached connection so the user can simply
    * login again instead of having to log out first.
    */
+  
   Object.getOwnPropertyNames(AccountManager.prototype).forEach((functionName: any) => {
     if (typeof sdk[functionName] === "function") {
       const originalFunction = sdk[functionName];
@@ -1722,4 +1760,132 @@ function applyPatch(command: cli.IApplyPatchCommand): Promise<void> {
       reject(new Error(`Failed to start patch application: ${error.message}`));
     });
   });
+}
+
+function uploadRegressionArtifact(command: cli.IUploadRegressionArtifactCommand): Promise<void> {
+  const artifactPath = command.artifactPath;
+  const ciRunId = command.ciRunId;
+  const artifactVersion = command.artifactVersion;
+
+  const artifactPathNotProvided = !artifactPath;
+  if (artifactPathNotProvided) {
+    throw new Error("Artifact path is required.");
+  }
+
+  const ciRunIdNotProvided = !ciRunId;
+  if (ciRunIdNotProvided) {
+    throw new Error("CI Run ID is required.");
+  }
+
+  const artifactVersionNotProvided = !artifactVersion;
+  if (artifactVersionNotProvided) {
+    throw new Error("Artifact version is required. Use --artifactVersion to specify the release version (e.g., 3.0.4).");
+  }
+
+  const artifactFileNotExists = fileDoesNotExistOrIsDirectory(artifactPath);
+  if (artifactFileNotExists) {
+    throw new Error(`Artifact file does not exist or is a directory: ${artifactPath}`);
+  }
+
+  const isInvalidArtifactType = !isValidRegressionArtifactExtension(artifactPath);
+  if (isInvalidArtifactType) {
+    const allowedExtensions = getAllowedRegressionArtifactExtensions();
+    throw new Error(`Invalid artifact type. Allowed types are: ${allowedExtensions}. For AAB builds, use the "upload-aab-build" command instead.`);
+  }
+
+  log(`Uploading artifact "${artifactPath}" (version ${artifactVersion}) to CI run "${ciRunId}"...`);
+
+  return sdk
+    .uploadRegressionArtifact(ciRunId, artifactPath, artifactVersion)
+    .then((): void => {
+      log(`Successfully uploaded artifact "${artifactPath}" (version ${artifactVersion}) to CI run "${ciRunId}".`);
+    })
+    .catch((error: CodePushError): void => {
+      const errorMessage = `Failed to upload artifact: ${error.message}`;
+      throw new Error(errorMessage);
+    });
+}
+
+function uploadTestFlightBuildNumber(command: cli.IUploadTestFlightBuildNumberCommand): Promise<void> {
+  const ciRunId = command.ciRunId;
+  const testflightNumber = command.testflightNumber;
+  const artifactVersion = command.artifactVersion;
+
+  const ciRunIdNotProvided = !ciRunId;
+  if (ciRunIdNotProvided) {
+    throw new Error("CI Run ID is required.");
+  }
+
+  const testflightNumberNotProvided = !testflightNumber;
+  if (testflightNumberNotProvided) {
+    throw new Error("TestFlight number is required.");
+  }
+
+  const artifactVersionNotProvided = !artifactVersion;
+  if (artifactVersionNotProvided) {
+    throw new Error("Artifact version is required. Use --artifactVersion to specify the release version (e.g., 3.0.4).");
+  }
+
+  log(`Uploading TestFlight build number "${testflightNumber}" (version ${artifactVersion}) for CI run "${ciRunId}"...`);
+
+  return sdk
+    .uploadTestFlightBuildNumber(ciRunId, testflightNumber, artifactVersion)
+    .then((): void => {
+      log(`Successfully uploaded TestFlight build number "${testflightNumber}" (version ${artifactVersion}) for CI run "${ciRunId}".`);
+    })
+    .catch((error: CodePushError): void => {
+      const errorMessage = `Failed to upload TestFlight build number: ${error.message}`;
+      throw new Error(errorMessage);
+    });
+}
+
+function uploadAABBuild(command: cli.IUploadAABBuildCommand): Promise<void> {
+  const ciRunId = command.ciRunId;
+  const artifactPath = command.artifactPath;
+  const artifactVersion = command.artifactVersion;
+  const buildNumber = command.buildNumber;
+
+  const ciRunIdNotProvided = !ciRunId;
+  if (ciRunIdNotProvided) {
+    throw new Error("CI Run ID is required.");
+  }
+
+  const artifactPathNotProvided = !artifactPath;
+  if (artifactPathNotProvided) {
+    throw new Error("Artifact path is required.");
+  }
+
+  const artifactVersionNotProvided = !artifactVersion;
+  if (artifactVersionNotProvided) {
+    throw new Error("Artifact version is required. Use --artifactVersion to specify the release version (e.g., 3.0.4).");
+  }
+
+  const artifactFileNotExists = fileDoesNotExistOrIsDirectory(artifactPath);
+  if (artifactFileNotExists) {
+    throw new Error(`Artifact file does not exist or is a directory: ${artifactPath}`);
+  }
+
+  const isInvalidArtifactType = !isValidAABArtifactExtension(artifactPath);
+  if (isInvalidArtifactType) {
+    const allowedExtensions = getAllowedAABArtifactExtensions();
+    throw new Error(`Invalid artifact type. Allowed types are: ${allowedExtensions}. For APK/IPA files, use "upload-regression-artifact" command instead.`);
+  }
+
+  const hasBuildNumber = buildNumber && buildNumber.length > 0;
+  if (hasBuildNumber) {
+    log(`Uploading AAB build "${artifactPath}" (version ${artifactVersion}) to CI run "${ciRunId}" with build number "${buildNumber}"...`);
+  } else {
+    log(`Uploading AAB build "${artifactPath}" (version ${artifactVersion}) to CI run "${ciRunId}"...`);
+    log("System will auto-upload to Play Store internal track.");
+  }
+
+  return sdk
+    .uploadAABBuild(ciRunId, artifactPath, artifactVersion, buildNumber)
+    .then((): void => {
+      log(`Successfully uploaded AAB build "${artifactPath}" (version ${artifactVersion}) to CI run "${ciRunId}".`);
+    })
+    .catch((error: CodePushError): void => {
+      const errorMessage = `Failed to upload AAB build: ${error.message}`;
+      throw new Error(errorMessage);
+    });
 }
