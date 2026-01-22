@@ -67,7 +67,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 
   try {
-    console.log('[BFF] Listing release configs for tenant:', tenantId);
+    // console.log('[BFF] Listing release configs for tenant:', tenantId);
 
     const result = await ReleaseConfigService.list(tenantId, userId);
 

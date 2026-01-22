@@ -41,7 +41,7 @@ const getTenantInfo: AuthenticatedLoaderFunction = async ({ params, user }) => {
       ? [...(distributionsResponse.data.IOS || []), ...(distributionsResponse.data.ANDROID || [])]
       : [];
 
-    console.log(`[BFF-TenantInfo] Successfully fetched tenant info with ${distributions.length} distributions`);
+    // console.log(`[BFF-TenantInfo] Successfully fetched tenant info with ${distributions.length} distributions`);
     
     // Enrich the response with app distribution data
     const enrichedData = {
