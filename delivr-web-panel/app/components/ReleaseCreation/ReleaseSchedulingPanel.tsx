@@ -7,7 +7,7 @@
  * Follows cursor rules: No 'any' or 'unknown' types, uses constants
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type RefObject } from 'react';
 import {
   Stack,
   Text,
@@ -29,7 +29,7 @@ import {
 } from '@tabler/icons-react';
 import type { ReleaseCreationState } from '~/types/release-creation-backend';
 import type { ReleaseConfiguration } from '~/types/release-config';
-import { RegressionSlotsManager } from './RegressionSlotsManager';
+import { RegressionSlotsManager, type RegressionSlotsManagerRef } from './RegressionSlotsManager';
 import { DateTimeInput } from './DateTimeInput';
 import {
   DEFAULT_KICKOFF_OFFSET_DAYS,
@@ -58,6 +58,7 @@ interface ReleaseSchedulingPanelProps {
   existingRelease?: any; // Existing release data for comparison
   onFieldBlur?: (fieldName: string) => void; // Callback for field blur validation
   onEditingSlotChange?: (slot: any | null, index: number) => void; // Callback when editing slot changes
+  slotsManagerRef?: RefObject<RegressionSlotsManagerRef>; // Ref to RegressionSlotsManager
 }
 
 export function ReleaseSchedulingPanel({
@@ -70,6 +71,7 @@ export function ReleaseSchedulingPanel({
   existingRelease,
   onFieldBlur,
   onEditingSlotChange,
+  slotsManagerRef,
 }: ReleaseSchedulingPanelProps) {
   const theme = useMantineTheme();
   const { getConnectedIntegrations } = useConfig();
@@ -710,6 +712,7 @@ export function ReleaseSchedulingPanel({
       {/* Regression Build Slots - Only shown if dates are available and slots can be added */}
       {targetReleaseDate && !isPreReleaseInProgress && (
         <RegressionSlotsManager
+          ref={slotsManagerRef}
           regressionBuildSlots={regressionBuildSlots || []}
           kickOffDate={kickOffDate || ''} // kickOffDate should always be available from existing release in edit mode
           kickOffTime={kickOffTime}
