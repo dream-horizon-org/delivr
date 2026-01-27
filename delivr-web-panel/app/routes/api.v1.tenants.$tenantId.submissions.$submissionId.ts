@@ -1,12 +1,12 @@
 /**
  * Remix API Route: Single Submission Management
- * GET  /api/v1/tenants/:tenantId/submissions/:submissionId?platform=<ANDROID|IOS>  - Get submission details
+ * GET  /api/v1/apps/:appId/submissions/:submissionId?platform=<ANDROID|IOS>  - Get submission details
  * 
  * IMPORTANT: Backend requires `platform` query parameter to identify which table to query
  * (android_submission_builds or ios_submission_builds)
  * 
  * Path Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - submissionId: Submission ID (required)
  * 
  * Query Parameters:
@@ -34,7 +34,7 @@ import { authenticateLoaderRequest } from '~/utils/authenticate';
  * GET - Get submission details
  * 
  * Path Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - submissionId: Submission ID (required)
  * 
  * Query Parameters:
@@ -42,13 +42,13 @@ import { authenticateLoaderRequest } from '~/utils/authenticate';
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, request, user }: LoaderFunctionArgs & { user: User }) => {
-    const { tenantId, submissionId } = params;
+    const { appId, submissionId } = params;
     const url = new URL(request.url);
     const platform = url.searchParams.get('platform');
 
-    // Validate tenantId
-    if (!tenantId) {
-      return createValidationError(ERROR_MESSAGES.TENANT_ID_REQUIRED);
+    // Validate appId
+    if (!appId) {
+      return createValidationError(ERROR_MESSAGES.APP_ID_REQUIRED);
     }
 
     // Validate submissionId
@@ -71,7 +71,7 @@ export const loader = authenticateLoaderRequest(
     }
 
     try {
-      const response = await DistributionService.getSubmission(tenantId, submissionId, platform as Platform);
+      const response = await DistributionService.getSubmission(appId, submissionId, platform as Platform);
       return json(response.data);
     } catch (error) {
       logApiError(LOG_CONTEXT.SUBMISSION_DETAILS_API, error);
@@ -80,6 +80,6 @@ export const loader = authenticateLoaderRequest(
   }
 );
 
-// Note: Retry submission is now handled via POST /api/v1/tenants/:tenantId/distributions/:distributionId/submissions
+// Note: Retry submission is now handled via POST /api/v1/apps/:appId/distributions/:distributionId/submissions
 // This route only handles GET requests for submission details
 

@@ -93,7 +93,7 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
         if (cloneConfigId && existingConfig) {
           existingConfig = {
             ...existingConfig,
-            tenantId: existingConfig.tenantId || org,
+            appId: existingConfig.appId || org,
             id: '',
             name: `${existingConfig.name} (Copy)`,
             isDefault: false,
@@ -367,7 +367,7 @@ export default function ReleasesConfigurePage() {
   return (
     <Box>
       <ConfigurationWizard
-        tenantId={organizationId}
+        appId={organizationId}
         onSubmit={handleSubmit}
         onCancel={handleCancel}
         availableIntegrations={availableIntegrations}

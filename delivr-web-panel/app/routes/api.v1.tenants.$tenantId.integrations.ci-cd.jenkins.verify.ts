@@ -1,6 +1,6 @@
 /**
  * API Route: Verify Jenkins CI/CD Integration
- * POST /api/v1/tenants/:tenantId/integrations/ci-cd/jenkins/verify
+ * POST /api/v1/apps/:appId/integrations/ci-cd/jenkins/verify
  */
 
 import { json, type ActionFunctionArgs } from '@remix-run/node';
@@ -10,10 +10,10 @@ import { logApiError } from '~/utils/api-route-helpers';
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId } = params;
+  const { appId } = params;
 
-  if (!tenantId) {
-    return json({ verified: false, message: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ verified: false, message: 'app id is required' }, { status: 400 });
   }
 
   try {
@@ -31,7 +31,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     console.log('[Jenkins Verify] _encrypted:', _encrypted);
 
     const result = await JenkinsIntegrationService.verifyJenkins({
-      tenantId,
+      appId,
       displayName,
       hostUrl,
       username,

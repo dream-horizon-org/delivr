@@ -23,7 +23,7 @@ export interface NoIntegrationAlertProps {
   buttonText?: string;
   
   /** Tenant/Org ID (optional, will use params.org if not provided) */
-  tenantId?: string;
+  appId?: string;
   
   /** Alert color variant */
   color?: 'orange' | 'red' | 'yellow' | 'blue';
@@ -65,12 +65,12 @@ export function NoIntegrationAlert({
   title,
   message,
   buttonText = 'Go to Integrations',
-  tenantId,
+  appId,
   color = 'yellow',
   showExternalIcon = true,
 }: NoIntegrationAlertProps) {
   const params = useParams<{ org: string }>();
-  const orgId = tenantId || params.org || '';
+  const orgId = appId || params.org || '';
   
   const defaultMessages = DEFAULT_MESSAGES[category];
   const displayTitle = title || defaultMessages.title;

@@ -1,6 +1,6 @@
 /**
  * BFF Route: Verify Jira Credentials
- * POST /api/v1/tenants/:tenantId/integrations/jira/verify
+ * POST /api/v1/apps/:appId/integrations/jira/verify
  */
 
 import { json } from '@remix-run/node';
@@ -16,10 +16,10 @@ const verifyJiraCredentials = async ({
   params,
   user,
 }: ActionFunctionArgs & { user: User }) => {
-  const { tenantId } = params;
+  const { appId } = params;
 
-  if (!tenantId) {
-    return json({ success: false, verified: false, error: 'Tenant ID required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, verified: false, error: 'app id required' }, { status: 400 });
   }
 
   try {
@@ -43,7 +43,7 @@ const verifyJiraCredentials = async ({
       return json({ success: false, verified: false, error: 'API Token is required' }, { status: 400 });
     }
 
-    console.log('[BFF-Jira-Verify] Verifying Jira credentials for tenant:', tenantId);
+    console.log('[BFF-Jira-Verify] Verifying Jira credentials for tenant:', appId);
     console.log('[BFF-Jira-Verify] Config:', { 
       baseUrl: config.baseUrl,
       email: config.email,
@@ -53,7 +53,7 @@ const verifyJiraCredentials = async ({
 
     const result = await ProjectManagementIntegrationService.verifyCredentials(
       {
-        tenantId: tenantId,
+        appId: appId,
         providerType: INTEGRATION_TYPES.JIRA,
         config,
       },

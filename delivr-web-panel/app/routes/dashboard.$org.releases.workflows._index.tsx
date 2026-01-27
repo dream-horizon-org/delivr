@@ -444,7 +444,7 @@ export default function WorkflowsPage() {
                 <WorkflowsTabContent
                   workflows={providerFilteredWorkflows}
                   availableIntegrations={availableIntegrations}
-                  tenantId={org}
+                  appId={org}
                   cicdIntegrationsCount={cicdIntegrations.length}
                   hasIntegrations={hasIntegrations}
                   providerType={tabConfig.providerType}

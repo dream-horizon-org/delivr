@@ -1,6 +1,6 @@
 /**
  * API Route: Fetch Branches from SCM Repository
- * GET /api/v1/tenants/:tenantId/integrations/scm/branches
+ * GET /api/v1/apps/:appId/integrations/scm/branches
  */
 
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
@@ -12,14 +12,14 @@ import { requireUserId } from '~/.server/services/Auth';
  */
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId } = params;
+  const { appId } = params;
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id is required' }, { status: 400 });
   }
 
   try {
-    const result = await SCMIntegrationService.fetchBranches(tenantId, userId);
+    const result = await SCMIntegrationService.fetchBranches(appId, userId);
 
     if (result.success) {
       // Return with proper API client structure

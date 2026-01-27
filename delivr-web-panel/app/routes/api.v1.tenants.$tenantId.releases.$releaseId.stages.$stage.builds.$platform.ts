@@ -1,6 +1,6 @@
 /**
  * Remix API Route: Manual Build Upload
- * POST /api/v1/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform
+ * POST /api/v1/apps/:appId/releases/:releaseId/stages/:stage/builds/:platform
  * 
  * BFF route that transforms frontend request to backend format:
  * - Maps BuildUploadStage (from path) to TaskStage (for backend)
@@ -35,11 +35,11 @@ import { BuildUploadStage, Platform } from '~/types/release-process-enums';
 import { mapBuildUploadStageToTaskStage } from '~/utils/build-upload-mapper';
 
 const uploadBuild: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { tenantId, releaseId, stage, platform } = params;
+  const { appId, releaseId, stage, platform } = params;
 
   // Validate required path parameters
-  if (!validateRequired(tenantId, 'Tenant ID is required')) {
-    return createValidationError('Tenant ID is required');
+  if (!validateRequired(appId, 'app id is required')) {
+    return createValidationError('app id is required');
   }
 
   if (!validateRequired(releaseId, 'Release ID is required')) {
@@ -93,9 +93,9 @@ const uploadBuild: AuthenticatedActionFunction = async ({ params, request, user 
 
     // Call service - it will handle the stage mapping and route to backend
     // Pass filename so it can be included in FormData if needed
-    console.log('[BFF] Uploading build to backend:', { tenantId, releaseId, platformEnum, buildUploadStage, fileName: file.name, blobSize: blob.size, blobType: blob.type });
+    console.log('[BFF] Uploading build to backend:', { appId, releaseId, platformEnum, buildUploadStage, fileName: file.name, blobSize: blob.size, blobType: blob.type });
     const response = await ReleaseProcessService.uploadBuild(
-      tenantId,
+      appId,
       releaseId,
       blob,
       platformEnum,

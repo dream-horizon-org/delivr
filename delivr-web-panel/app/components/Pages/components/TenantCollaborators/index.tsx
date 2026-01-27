@@ -25,11 +25,11 @@ interface Collaborator {
 }
 
 interface TenantCollaboratorsPageProps {
-  tenantId: string;
+  appId: string;
   userId: string;
 }
 
-export function TenantCollaboratorsPage({ tenantId, userId }: TenantCollaboratorsPageProps) {
+export function TenantCollaboratorsPage({ appId, userId }: TenantCollaboratorsPageProps) {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -43,9 +43,9 @@ export function TenantCollaboratorsPage({ tenantId, userId }: TenantCollaborator
 
   // Fetch collaborators
   const { data: collaborators, isLoading, error } = useQuery<Record<string, Collaborator>>(
-    ["tenant-collaborators", tenantId],
+    ["tenant-collaborators", appId],
     async () => {
-      const response = await fetch(`/api/v1/tenants/${tenantId}/collaborators`, {
+      const response = await fetch(`/api/v1/apps/${appId}/collaborators`, {
         credentials: "include",
       });
       
@@ -63,7 +63,7 @@ export function TenantCollaboratorsPage({ tenantId, userId }: TenantCollaborator
   // Add collaborator mutation
   const addCollaboratorMutation = useMutation(
     async ({ email, permission }: { email: string; permission: string }) => {
-      const response = await fetch(`/api/v1/tenants/${tenantId}/collaborators`, {
+      const response = await fetch(`/api/v1/apps/${appId}/collaborators`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -82,7 +82,7 @@ export function TenantCollaboratorsPage({ tenantId, userId }: TenantCollaborator
     {
       onSuccess: () => {
         showSuccessToast(COLLABORATOR_MESSAGES.ADD_SUCCESS);
-        queryClient.invalidateQueries(["tenant-collaborators", tenantId]);
+        queryClient.invalidateQueries(["tenant-collaborators", appId]);
         setAddModalOpen(false);
         setNewEmail("");
         setNewPermission("Viewer");
@@ -99,7 +99,7 @@ export function TenantCollaboratorsPage({ tenantId, userId }: TenantCollaborator
   // Update collaborator mutation
   const updateCollaboratorMutation = useMutation(
     async ({ email, permission }: { email: string; permission: string }) => {
-      const response = await fetch(`/api/v1/tenants/${tenantId}/collaborators`, {
+      const response = await fetch(`/api/v1/apps/${appId}/collaborators`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -118,7 +118,7 @@ export function TenantCollaboratorsPage({ tenantId, userId }: TenantCollaborator
     {
       onSuccess: () => {
         showSuccessToast(COLLABORATOR_MESSAGES.UPDATE_SUCCESS);
-        queryClient.invalidateQueries(["tenant-collaborators", tenantId]);
+        queryClient.invalidateQueries(["tenant-collaborators", appId]);
         setEditModalOpen(false);
         setSelectedCollaborator(null);
       },
@@ -134,7 +134,7 @@ export function TenantCollaboratorsPage({ tenantId, userId }: TenantCollaborator
   // Remove collaborator mutation
   const removeCollaboratorMutation = useMutation(
     async (email: string) => {
-      const response = await fetch(`/api/v1/tenants/${tenantId}/collaborators`, {
+      const response = await fetch(`/api/v1/apps/${appId}/collaborators`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -153,7 +153,7 @@ export function TenantCollaboratorsPage({ tenantId, userId }: TenantCollaborator
     {
       onSuccess: () => {
         showSuccessToast(COLLABORATOR_MESSAGES.REMOVE_SUCCESS);
-        queryClient.invalidateQueries(["tenant-collaborators", tenantId]);
+        queryClient.invalidateQueries(["tenant-collaborators", appId]);
         setDeleteModalOpen(false);
         setSelectedCollaborator(null);
       },

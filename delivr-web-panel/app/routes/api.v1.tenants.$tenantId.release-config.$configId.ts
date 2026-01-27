@@ -1,8 +1,8 @@
 /**
  * BFF Route: Get, Update & Delete Release Configuration
- * GET    /api/v1/tenants/:tenantId/release-config/:configId  - Get specific config
- * PUT    /api/v1/tenants/:tenantId/release-config/:configId  - Update config
- * DELETE /api/v1/tenants/:tenantId/release-config/:configId  - Delete config
+ * GET    /api/v1/apps/:appId/release-config/:configId  - Get specific config
+ * PUT    /api/v1/apps/:appId/release-config/:configId  - Update config
+ * DELETE /api/v1/apps/:appId/release-config/:configId  - Delete config
  */
 
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
@@ -17,10 +17,10 @@ import { RELEASE_CONFIG_OPERATION_TYPES } from '~/constants/release-config';
  */
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId, configId } = params;
+  const { appId, configId } = params;
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id is required' }, { status: 400 });
   }
 
   if (!configId) {
@@ -30,7 +30,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   try {
     console.log('[BFF] Fetching release config:', configId);
 
-    const result = await ReleaseConfigService.getById(configId, tenantId, userId);
+    const result = await ReleaseConfigService.getById(configId, appId, userId);
 
     if (!result.success) {
       console.error('[BFF] Get failed:', result.error);
@@ -53,10 +53,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
  */
 export async function action({ request, params }: ActionFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId, configId } = params;
+  const { appId, configId } = params;
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id is required' }, { status: 400 });
   }
 
   if (!configId) {
@@ -81,17 +81,17 @@ export async function action({ request, params }: ActionFunctionArgs) {
         // Remove type field before sending to backend
         const { type, ...archivePayload } = updates as any;
         console.log('[BFF] Detected archive operation, calling archive method');
-        result = await ReleaseConfigService.archive(configId, archivePayload, tenantId, userId);
+        result = await ReleaseConfigService.archive(configId, archivePayload, appId, userId);
       } else if (isUnarchive) {
         // Unarchive operation - send payload as-is without transformation
         // Remove type field before sending to backend
         const { type, ...unarchivePayload } = updates as any;
         console.log('[BFF] Detected unarchive operation, calling unarchive method');
-        result = await ReleaseConfigService.unarchive(configId, unarchivePayload, tenantId, userId);
+        result = await ReleaseConfigService.unarchive(configId, unarchivePayload, appId, userId);
       } else {
         // Regular update - use existing update method with transformation
         console.log('[BFF] Regular update operation, calling update method');
-        result = await ReleaseConfigService.update(configId, updates, tenantId, userId);
+        result = await ReleaseConfigService.update(configId, updates, appId, userId);
       }
 
       if (!result.success) {
@@ -115,7 +115,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     try {
       console.log('[BFF] Deleting release config:', configId);
 
-      const result = await ReleaseConfigService.delete(configId, tenantId, userId);
+      const result = await ReleaseConfigService.delete(configId, appId, userId);
 
       if (!result.success) {
         console.error('[BFF] Delete failed:', result.error);

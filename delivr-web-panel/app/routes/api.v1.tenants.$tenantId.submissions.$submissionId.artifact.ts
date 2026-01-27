@@ -1,13 +1,13 @@
 /**
  * API Route: Download Submission Artifact
  * 
- * GET /api/v1/tenants/:tenantId/submissions/:submissionId/artifact?platform=<ANDROID|IOS>
+ * GET /api/v1/apps/:appId/submissions/:submissionId/artifact?platform=<ANDROID|IOS>
  * 
  * Returns a presigned S3 URL to download the submission artifact (AAB or IPA).
  * The URL is time-limited for security.
  * 
  * Path Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - submissionId: Submission ID (required)
  * 
  * Reference: DISTRIBUTION_API_SPEC.md lines 1601-1666
@@ -22,18 +22,18 @@ import { Platform } from '~/types/distribution/distribution.types';
  * Loader - Get presigned artifact download URL
  */
 export async function loader({ params, request }: LoaderFunctionArgs) {
-  const { tenantId, submissionId } = params;
+  const { appId, submissionId } = params;
   const url = new URL(request.url);
   const platform = url.searchParams.get('platform');
 
   // Validate required parameters
-  if (!tenantId) {
+  if (!appId) {
     return json(
       {
         success: false,
         error: {
           code: 'MISSING_TENANT_ID',
-          message: 'Tenant ID is required for authorization',
+          message: 'app id is required for authorization',
         },
       },
       { status: 400 }
@@ -69,7 +69,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   try {
     // Call backend API to get presigned URL
     const response = await DistributionService.getArtifactDownloadUrl(
-      tenantId,
+      appId,
       submissionId,
       platform as Platform
     );

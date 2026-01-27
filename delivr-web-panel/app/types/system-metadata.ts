@@ -202,7 +202,7 @@ export interface SystemMetadata {
 // ============================================================================
 
 export interface TenantConfig {
-  tenantId: string;
+  appId: string;
   organization: {
     id: string;
     name: string;

@@ -23,10 +23,10 @@ interface ReleasesResponse {
   error?: string;
 }
 
-const QUERY_KEY = (tenantId: string) => ['releases', tenantId];
+const QUERY_KEY = (appId: string) => ['releases', appId];
 
 export function useReleases(
-  tenantId?: string,
+  appId?: string,
   options?: {
     includeTasks?: boolean;
     initialData?: ReleasesResponse;
@@ -41,17 +41,17 @@ export function useReleases(
   
   // If refresh param is present, invalidate immediately to force refetch
   useEffect(() => {
-    if (shouldForceRefetch && tenantId) {
-      queryClient.invalidateQueries(QUERY_KEY(tenantId));
+    if (shouldForceRefetch && appId) {
+      queryClient.invalidateQueries(QUERY_KEY(appId));
     }
-  }, [shouldForceRefetch, tenantId, queryClient]);
+  }, [shouldForceRefetch, appId, queryClient]);
 
   // Sync loader data with React Query cache only if cache is empty
   // If cache exists, refetchOnMount will handle updates
   // This prevents overwriting optimistic updates or fresh API data with stale loader data
   useEffect(() => {
-    if (options?.initialData && tenantId && !shouldForceRefetch) {
-      const queryKey = QUERY_KEY(tenantId);
+    if (options?.initialData && appId && !shouldForceRefetch) {
+      const queryKey = QUERY_KEY(appId);
       const existingData = queryClient.getQueryData<ReleasesResponse>(queryKey);
       
       // Only sync if cache is completely empty (first load)
@@ -61,7 +61,7 @@ export function useReleases(
         queryClient.setQueryData<ReleasesResponse>(queryKey, options.initialData);
       }
     }
-  }, [tenantId, queryClient, shouldForceRefetch]); // Removed options?.initialData from deps to prevent loops
+  }, [appId, queryClient, shouldForceRefetch]); // Removed options?.initialData from deps to prevent loops
 
   // Fetch all releases for tenant
   const {
@@ -70,15 +70,15 @@ export function useReleases(
     error,
     refetch,
   } = useQuery<ReleasesResponse, Error>(
-    QUERY_KEY(tenantId || ''),
+    QUERY_KEY(appId || ''),
     async () => {
-      if (!tenantId) {
+      if (!appId) {
         return { success: false, releases: [] };
       }
       
       const includeTasks = options?.includeTasks ? '?includeTasks=true' : '';
       const result = await apiGet<{ success: boolean; releases?: BackendReleaseResponse[]; error?: string }>(
-        `/api/v1/tenants/${tenantId}/releases${includeTasks}`
+        `/api/v1/apps/${appId}/releases${includeTasks}`
       );
       
       return {
@@ -88,7 +88,7 @@ export function useReleases(
       };
     },
     {
-      enabled: !!tenantId, // Only fetch if tenantId exists
+      enabled: !!appId, // Only fetch if appId exists
       initialData: shouldForceRefetch ? undefined : options?.initialData, // Skip initialData if forcing refetch
       staleTime: 2 * 60 * 1000, // 2 minutes - data stays fresh (releases change more frequently than configs)
       cacheTime: 10 * 60 * 1000, // 10 minutes - cache time
@@ -104,17 +104,17 @@ export function useReleases(
 
   // Invalidate cache (call after create/update/delete)
   const invalidateCache = () => {
-    if (tenantId) {
-      queryClient.invalidateQueries(QUERY_KEY(tenantId));
+    if (appId) {
+      queryClient.invalidateQueries(QUERY_KEY(appId));
     }
   };
 
   // Optimistically update a single release
   const updateReleaseInCache = (releaseId: string, updater: (release: BackendReleaseResponse) => BackendReleaseResponse) => {
-    if (!tenantId) return;
+    if (!appId) return;
     
     queryClient.setQueryData<ReleasesResponse>(
-      QUERY_KEY(tenantId),
+      QUERY_KEY(appId),
       (old: ReleasesResponse | undefined): ReleasesResponse => {
         if (!old || !old.releases) return { success: false, releases: [] };
         
@@ -130,10 +130,10 @@ export function useReleases(
 
   // Add a release to cache optimistically (after creation)
   const addReleaseToCache = (release: BackendReleaseResponse) => {
-    if (!tenantId) return;
+    if (!appId) return;
     
     queryClient.setQueryData<ReleasesResponse>(
-      QUERY_KEY(tenantId),
+      QUERY_KEY(appId),
       (old: ReleasesResponse | undefined): ReleasesResponse => {
         if (!old || !old.releases) {
           return { success: true, releases: [release] };
@@ -149,10 +149,10 @@ export function useReleases(
 
   // Remove a release from cache optimistically
   const removeReleaseFromCache = (releaseId: string) => {
-    if (!tenantId) return;
+    if (!appId) return;
     
     queryClient.setQueryData<ReleasesResponse>(
-      QUERY_KEY(tenantId),
+      QUERY_KEY(appId),
       (old: ReleasesResponse | undefined): ReleasesResponse => {
         if (!old || !old.releases) return { success: false, releases: [] };
         

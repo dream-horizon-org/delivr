@@ -1,9 +1,9 @@
 /**
  * Remix API Route: Test Management Run Status
- * GET /api/v1/tenants/:tenantId/releases/:releaseId/test-management-run-status
+ * GET /api/v1/apps/:appId/releases/:releaseId/test-management-run-status
  * 
  * BFF route that proxies to ReleaseProcessService
- * Backend contract: GET /api/v1/tenants/:tenantId/releases/:releaseId/test-management-run-status?platform={platform}
+ * Backend contract: GET /api/v1/apps/:appId/releases/:releaseId/test-management-run-status?platform={platform}
  */
 
 import { json } from '@remix-run/node';
@@ -26,10 +26,10 @@ import { Platform } from '~/types/release-process-enums';
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, request, user }: LoaderFunctionArgs & { user: User }) => {
-    const { tenantId, releaseId } = params;
+    const { appId, releaseId } = params;
 
-    if (!validateRequired(tenantId, 'Tenant ID is required')) {
-      return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+    if (!validateRequired(appId, 'app id is required')) {
+      return json({ success: false, error: 'app id is required' }, { status: 400 });
     }
 
     if (!validateRequired(releaseId, 'Release ID is required')) {
@@ -45,7 +45,7 @@ export const loader = authenticateLoaderRequest(
 
     try {
       console.log('[BFF] Fetching test management status for release:', releaseId, platform ? `platform: ${platform}` : 'all platforms');
-      const response = await ReleaseProcessService.getTestManagementStatus(tenantId, releaseId, user.user.id, platform);
+      const response = await ReleaseProcessService.getTestManagementStatus(appId, releaseId, user.user.id, platform);
       console.log('[BFF] Test management status response:', response.data);
       
       // Backend returns { success: true, ... } (single platform or all platforms)

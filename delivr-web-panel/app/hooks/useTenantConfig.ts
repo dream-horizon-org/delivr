@@ -47,7 +47,7 @@ async function fetchAppConfig(appId: string): Promise<TenantConfig | null> {
   if (!config) return null;
   
   return {
-    tenantId: appId, // Keep tenantId for backward compatibility with TenantConfig type
+    appId: appId, // Keep appId for backward compatibility with TenantConfig type
     organization: {
       id: app.id,
       name: app.displayName,
@@ -85,8 +85,8 @@ export function useAppConfig(
  * @deprecated Use useAppConfig instead
  */
 export function useTenantConfig(
-  tenantId: string | undefined,
+  appId: string | undefined,
   initialData?: TenantConfig | null
 ) {
-  return useAppConfig(tenantId, initialData);
+  return useAppConfig(appId, initialData);
 }

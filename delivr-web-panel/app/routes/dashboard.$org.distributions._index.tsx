@@ -81,9 +81,9 @@ export const loader = authenticateLoaderRequest(
     try {
       // Fetch from API with pagination and filter params
       // Backend returns paginated response with distributions + submissions + stats
-      // org is the tenantId in this context
+      // org is the appId in this context
       const response = await DistributionService.listDistributions(
-        org,  // tenantId
+        org,  // appId
         page,
         pageSize,
         status,
@@ -456,7 +456,7 @@ export default function DistributionsListPage() {
         {selectedDistribution && submitModalProps && (
           <SubmitToStoresForm
             releaseId={selectedDistribution.releaseId}
-            tenantId={org}
+            appId={org}
             distributionId={selectedDistribution.id}
             submissions={selectedDistribution.submissions}
             hasAndroidActiveRollout={false}

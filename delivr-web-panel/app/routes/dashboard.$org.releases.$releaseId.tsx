@@ -236,19 +236,19 @@ export default function ReleaseDetailsPage() {
     }
 
     if (stageToRender === TaskStage.KICKOFF) {
-      return <KickoffStage tenantId={appId} releaseId={releaseId} />; // tenantId prop name kept for component compatibility
+      return <KickoffStage appId={appId} releaseId={releaseId} />; // appId prop name kept for component compatibility
     }
 
     if (stageToRender === TaskStage.REGRESSION) {
-      return <RegressionStage tenantId={appId} releaseId={releaseId} />; // tenantId prop name kept for component compatibility
+      return <RegressionStage appId={appId} releaseId={releaseId} />; // appId prop name kept for component compatibility
     }
 
     if (stageToRender === TaskStage.PRE_RELEASE) {
-      return <PreReleaseStage tenantId={appId} releaseId={releaseId} />; // tenantId prop name kept for component compatibility
+      return <PreReleaseStage appId={appId} releaseId={releaseId} />; // appId prop name kept for component compatibility
     }
 
     if (stageToRender === TaskStage.DISTRIBUTION) {
-      return <DistributionStage tenantId={appId} releaseId={releaseId} />; // tenantId prop name kept for component compatibility
+      return <DistributionStage appId={appId} releaseId={releaseId} />; // appId prop name kept for component compatibility
     }
 
     return null;
@@ -299,7 +299,7 @@ export default function ReleaseDetailsPage() {
 
             {/* Integration Status Sidebar - Real-time status from individual APIs */}
             <IntegrationsStatusSidebar
-              tenantId={appId} // tenantId prop name kept for component compatibility
+              appId={appId} // appId prop name kept for component compatibility
               releaseId={releaseId}
               currentStage={selectedStage}
             />

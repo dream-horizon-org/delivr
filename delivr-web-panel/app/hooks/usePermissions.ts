@@ -42,6 +42,6 @@ export function usePermissions(appId: string | undefined, userId: string) {
  * Legacy hook for backward compatibility
  * @deprecated Use usePermissions with appId instead
  */
-export function usePermissionsLegacy(tenantId: string | undefined, userId: string) {
-  return usePermissions(tenantId, userId);
+export function usePermissionsLegacy(appId: string | undefined, userId: string) {
+  return usePermissions(appId, userId);
 }

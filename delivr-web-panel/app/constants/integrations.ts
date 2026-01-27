@@ -69,8 +69,8 @@ export const APP_DISTRIBUTION_PROVIDER_IDS = {
 
 // SCM API Endpoints
 export const SCM_API_ENDPOINTS = {
-  BRANCHES: (tenantId: string) => `/api/v1/tenants/${tenantId}/integrations/scm/branches`,
-  BASE: (tenantId: string) => `/api/v1/tenants/${tenantId}/integrations/scm`,
+  BRANCHES: (appId: string) => `/api/v1/apps/${appId}/integrations/scm/branches`,
+  BASE: (appId: string) => `/api/v1/apps/${appId}/integrations/scm`,
 } as const;
 
 export const TARGET_PLATFORM_TYPES = {
@@ -158,54 +158,54 @@ export type VerificationStatusType = typeof VERIFICATION_STATUS[keyof typeof VER
 export const DISCONNECT_CONFIG: Record<
   string,
   {
-    endpoint: (tenantId: string, config?: any) => string;
+    endpoint: (appId: string, config?: any) => string;
   }
 > = {
   slack: {
-    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/slack`,
+    endpoint: (appId) => `/api/v1/apps/${appId}/integrations/slack`,
   },
   jenkins: {
-    endpoint: (tenantId, config) => {
+    endpoint: (appId, config) => {
       if (!config?.id) throw new Error('Integration ID required for Jenkins');
-      return `/api/v1/tenants/${tenantId}/integrations/ci-cd/jenkins`;
+      return `/api/v1/apps/${appId}/integrations/ci-cd/jenkins`;
     },
   },
   github_actions: {
-    endpoint: (tenantId, config) => {
+    endpoint: (appId, config) => {
       if (!config?.id) throw new Error('Integration ID required for GitHub Actions');
-      return `/api/v1/tenants/${tenantId}/integrations/ci-cd/github-actions`;
+      return `/api/v1/apps/${appId}/integrations/ci-cd/github-actions`;
     },
   },
   github: {
-    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/scm`,
+    endpoint: (appId) => `/api/v1/apps/${appId}/integrations/scm`,
   },
   scm: {
-    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/scm`,
+    endpoint: (appId) => `/api/v1/apps/${appId}/integrations/scm`,
   },
   jira: {
-    endpoint: (tenantId, config) => {
+    endpoint: (appId, config) => {
       if (!config?.id) throw new Error('Integration ID required for Jira');
-      return `/api/v1/tenants/${tenantId}/integrations/project-management?integrationId=${config.id}`;
+      return `/api/v1/apps/${appId}/integrations/project-management?integrationId=${config.id}`;
     },
   },
   checkmate: {
-    endpoint: (tenantId, config) => {
+    endpoint: (appId, config) => {
       if (!config?.id) throw new Error('Integration ID required for Checkmate');
-      return `/api/v1/tenants/${tenantId}/integrations/test-management?integrationId=${config.id}`;
+      return `/api/v1/apps/${appId}/integrations/test-management?integrationId=${config.id}`;
     },
   },
   play_store: {
-    endpoint: (tenantId, config) => {
+    endpoint: (appId, config) => {
       const storeType = config?.storeType || 'play_store';
       const platform = config?.platform || 'ANDROID';
-      return `/api/v1/tenants/${tenantId}/integrations/app-distribution/revoke?storeType=${storeType}&platform=${platform}`;
+      return `/api/v1/apps/${appId}/integrations/app-distribution/revoke?storeType=${storeType}&platform=${platform}`;
     },
   },
   app_store: {
-    endpoint: (tenantId, config) => {
+    endpoint: (appId, config) => {
       const storeType = config?.storeType || 'app_store';
       const platform = config?.platform || 'IOS';
-      return `/api/v1/tenants/${tenantId}/integrations/app-distribution/revoke?storeType=${storeType}&platform=${platform}`;
+      return `/api/v1/apps/${appId}/integrations/app-distribution/revoke?storeType=${storeType}&platform=${platform}`;
     },
   },
 } as const;

@@ -428,7 +428,7 @@ export default function SubmissionDetailPage() {
       <ResubmissionDialog
         opened={retryDialogOpened}
         onClose={closeRetryDialog}
-        tenantId={org}
+        appId={org}
         releaseId={releaseId}
         distributionId={submission.distributionId}
         previousSubmission={submission}
@@ -438,7 +438,7 @@ export default function SubmissionDetailPage() {
       <CancelSubmissionDialog
         opened={cancelDialogOpened}
         onClose={closeCancelDialog}
-        tenantId={org}
+        appId={org}
         submissionId={submission.id}
         platform={submission.platform === Platform.ANDROID ? 'Android' : 'iOS'}
         version={submission.version}

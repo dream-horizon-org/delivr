@@ -1,11 +1,11 @@
 /**
  * BFF API Route: Get Distribution by Release ID
- * GET /api/v1/tenants/:tenantId/releases/:releaseId/distribution
+ * GET /api/v1/apps/:appId/releases/:releaseId/distribution
  * 
  * Returns complete distribution object with all submissions and artifacts
  * 
  * Path Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - releaseId: Release ID (required)
  * 
  * Reference: DISTRIBUTION_API_SPEC.md lines 378-609
@@ -31,7 +31,7 @@ import { authenticateLoaderRequest } from '~/utils/authenticate';
  * Returns full distribution object with all submissions and artifacts
  * 
  * Path Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - releaseId: Release ID (required)
  * 
  * Used by:
@@ -39,17 +39,17 @@ import { authenticateLoaderRequest } from '~/utils/authenticate';
  * - Initial fetch to check if distribution exists
  * 
  * Error Cases:
- * - 400: Missing tenantId or releaseId
+ * - 400: Missing appId or releaseId
  * - 403: Unauthorized (tenant validation failed)
  * - 404: Distribution not found (pre-release not completed yet)
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, request, user }: LoaderFunctionArgs & { user: User }) => {
-    const { tenantId, releaseId } = params;
+    const { appId, releaseId } = params;
 
     // Validate required parameters
-    if (!tenantId) {
-      return createValidationError(ERROR_MESSAGES.TENANT_ID_REQUIRED);
+    if (!appId) {
+      return createValidationError(ERROR_MESSAGES.APP_ID_REQUIRED);
     }
 
     if (!releaseId) {
@@ -57,7 +57,7 @@ export const loader = authenticateLoaderRequest(
     }
 
     try {
-      const response = await DistributionService.getReleaseDistribution(tenantId, releaseId);
+      const response = await DistributionService.getReleaseDistribution(appId, releaseId);
       return json(response.data);
     } catch (error) {
       logApiError(LOG_CONTEXT.DISTRIBUTION_STATUS_API, error);

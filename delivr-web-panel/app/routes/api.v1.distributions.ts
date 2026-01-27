@@ -1,12 +1,12 @@
 /**
  * Remix API Route: List Distributions
- * GET /api/v1/distributions?tenantId=xxx
+ * GET /api/v1/distributions?appId=xxx
  * 
  * Returns paginated list of distributions with only latest submission per platform.
  * Includes aggregate stats calculated from ALL distributions (not just current page).
  * 
  * Query Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - page: Page number (default: 1)
  * - pageSize: Items per page (default: 10, max: 100)
  * - status: Filter by distribution status (optional)
@@ -37,12 +37,12 @@ export const loader = authenticateLoaderRequest(
     try {
       // Extract query parameters
       const url = new URL(request.url);
-      const tenantId = url.searchParams.get('tenantId');
+      const appId = url.searchParams.get('appId');
       
-      // tenantId is required
-      if (!tenantId) {
+      // appId is required
+      if (!appId) {
         return json(
-          { success: false, error: { message: 'tenantId query parameter is required' } },
+          { success: false, error: { message: 'appId query parameter is required' } },
           { status: 400 }
         );
       }
@@ -57,7 +57,7 @@ export const loader = authenticateLoaderRequest(
 
       // Call backend service
       const response = await DistributionService.listDistributions(
-        tenantId,
+        appId,
         page,
         pageSize,
         status,

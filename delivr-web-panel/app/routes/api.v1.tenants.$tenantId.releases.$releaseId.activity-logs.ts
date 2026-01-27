@@ -2,7 +2,7 @@
  * Activity Logs API Route
  * 
  * BFF route that returns activity logs for a release
- * Calls backend API: GET /api/v1/tenants/:tenantId/releases/:releaseId/activity-logs
+ * Calls backend API: GET /api/v1/apps/:appId/releases/:releaseId/activity-logs
  */
 
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
@@ -14,17 +14,17 @@ import type { ActivityLogsResponse } from '~/types/release-process.types';
 import { logApiError } from '~/utils/api-route-helpers';
 
 /**
- * GET /api/v1/tenants/:tenantId/releases/:releaseId/activity-logs
+ * GET /api/v1/apps/:appId/releases/:releaseId/activity-logs
  * Fetch activity logs for a release
  * 
- * Backend endpoint: GET /api/v1/tenants/:tenantId/releases/:releaseId/activity-logs
+ * Backend endpoint: GET /api/v1/apps/:appId/releases/:releaseId/activity-logs
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, request, user }: LoaderFunctionArgs & { user: User }) => {
-    const { tenantId, releaseId } = params;
+    const { appId, releaseId } = params;
 
-    if (!tenantId) {
-      return json({ success: false, error: 'Tenant ID required' }, { status: 400 });
+    if (!appId) {
+      return json({ success: false, error: 'app id required' }, { status: 400 });
     }
 
     if (!releaseId) {
@@ -32,10 +32,10 @@ export const loader = authenticateLoaderRequest(
     }
 
     try {
-      console.log('[BFF] Fetching activity logs:', { tenantId, releaseId });
+      console.log('[BFF] Fetching activity logs:', { appId, releaseId });
 
       const response = await ReleaseProcessService.getActivityLogs(
-        tenantId,
+        appId,
         releaseId,
         user.user.id
       );

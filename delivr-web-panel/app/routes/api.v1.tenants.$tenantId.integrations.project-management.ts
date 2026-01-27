@@ -18,10 +18,10 @@ import { INTEGRATION_TYPES } from '~/types/release-config-constants';
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, request, user }: LoaderFunctionArgs & { user: User }) => {
-    const { tenantId } = params;
+    const { appId } = params;
 
-    if (!tenantId) {
-      return json({ success: false, error: 'Tenant ID required' }, { status: 400 });
+    if (!appId) {
+      return json({ success: false, error: 'app id required' }, { status: 400 });
     }
 
     try {
@@ -29,7 +29,7 @@ export const loader = authenticateLoaderRequest(
       const providerType = url.searchParams.get('providerType') as ProjectManagementProviderType | null;
 
       const result = await ProjectManagementIntegrationService.getIntegration(
-        tenantId,
+        appId,
         user.user.id,
         providerType || undefined
       );
@@ -66,10 +66,10 @@ const createPMAction = async ({
   params,
   user,
 }: ActionFunctionArgs & { user: User }) => {
-  const { tenantId } = params;
+  const { appId } = params;
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id required' }, { status: 400 });
   }
 
   try {
@@ -88,7 +88,7 @@ const createPMAction = async ({
     console.log('[BFF-PM-Create] Creating integration with _encrypted:', body._encrypted);
 
     const result = await ProjectManagementIntegrationService.createIntegration(
-      tenantId,
+      appId,
       user.user.id,
       {
         name: body.name || body.displayName || `${providerType} Integration`,
@@ -115,20 +115,20 @@ const deletePMAction = async ({
   request,
   user,
 }: ActionFunctionArgs & { user: User }) => {
-  const { tenantId } = params;
+  const { appId } = params;
   const url = new URL(request.url);
   const integrationId = url.searchParams.get('integrationId');
 
-  if (!tenantId || !integrationId) {
+  if (!appId || !integrationId) {
     return json(
-      { success: false, error: 'Tenant ID and Integration ID required' },
+      { success: false, error: 'app id and Integration ID required' },
       { status: 400 }
     );
   }
 
   try {
     const result = await ProjectManagementIntegrationService.deleteIntegration(
-      tenantId,
+      appId,
       integrationId,
       user.user.id
     );
@@ -151,13 +151,13 @@ const updatePMAction = async ({
   params,
   user,
 }: ActionFunctionArgs & { user: User }) => {
-  const { tenantId } = params;
+  const { appId } = params;
   const url = new URL(request.url);
   const integrationId = url.searchParams.get('integrationId');
 
-  if (!tenantId || !integrationId) {
+  if (!appId || !integrationId) {
     return json(
-      { success: false, error: 'Tenant ID and Integration ID required' },
+      { success: false, error: 'app id and Integration ID required' },
       { status: 400 }
     );
   }
@@ -207,7 +207,7 @@ const updatePMAction = async ({
     });
 
     const result = await ProjectManagementIntegrationService.updateIntegration(
-      tenantId,
+      appId,
       integrationId,
       user.user.id,
       updateData

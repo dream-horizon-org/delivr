@@ -1,9 +1,9 @@
 /**
  * Remix API Route: Pre-Release Stage
- * GET /api/v1/tenants/:tenantId/releases/:releaseId/stages/pre-release
+ * GET /api/v1/apps/:appId/releases/:releaseId/stages/pre-release
  * 
  * BFF route that proxies to ReleaseProcessService
- * Backend contract: GET /api/v1/tenants/:tenantId/releases/:releaseId/tasks?stage=PRE_RELEASE
+ * Backend contract: GET /api/v1/apps/:appId/releases/:releaseId/tasks?stage=PRE_RELEASE
  */
 
 import { json } from '@remix-run/node';
@@ -25,10 +25,10 @@ import {
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, user }: LoaderFunctionArgs & { user: User }) => {
-    const { tenantId, releaseId } = params;
+    const { appId, releaseId } = params;
 
-    if (!validateRequired(tenantId, 'Tenant ID is required')) {
-      return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+    if (!validateRequired(appId, 'app id is required')) {
+      return json({ success: false, error: 'app id is required' }, { status: 400 });
     }
 
     if (!validateRequired(releaseId, 'Release ID is required')) {
@@ -37,7 +37,7 @@ export const loader = authenticateLoaderRequest(
 
     try {
       console.log('[BFF] Fetching pre-release stage for release:', releaseId);
-      const response = await ReleaseProcessService.getPreReleaseStage(tenantId, releaseId, user.user.id);
+      const response = await ReleaseProcessService.getPreReleaseStage(appId, releaseId, user.user.id);
       console.log('[BFF] Pre-release stage response:', response.data);
       
       // Backend returns { success: true, stage: 'PRE_RELEASE', releaseId, tasks, stageStatus }

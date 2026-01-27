@@ -13,10 +13,10 @@ import { requireUserId } from '~/.server/services/Auth';
  */
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId } = params;
+  const { appId } = params;
   
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id is required' }, { status: 400 });
   }
   
   // Extract query parameters
@@ -37,7 +37,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
   
   const result = await CICDIntegrationService.listAllWorkflows(
-    tenantId,
+    appId,
     userId,
     filters
   );
@@ -50,17 +50,17 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
  */
 export async function action({ request, params }: ActionFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId } = params;
+  const { appId } = params;
   
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id is required' }, { status: 400 });
   }
   
   if (request.method === 'POST') {
     const data = await request.json();
     
     const result = await CICDIntegrationService.createWorkflow(
-      tenantId,
+      appId,
       userId,
       data
     );

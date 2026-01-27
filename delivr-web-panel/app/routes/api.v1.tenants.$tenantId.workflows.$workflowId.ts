@@ -12,13 +12,13 @@ import { requireUserId } from '~/.server/services/Auth';
  */
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId, workflowId } = params;
+  const { appId, workflowId } = params;
   
-  if (!tenantId || !workflowId) {
-    return json({ success: false, error: 'Tenant ID and Workflow ID are required' }, { status: 400 });
+  if (!appId || !workflowId) {
+    return json({ success: false, error: 'app id and Workflow ID are required' }, { status: 400 });
   }
   
-  const result = await CICDIntegrationService.getWorkflow(tenantId, workflowId, userId);
+  const result = await CICDIntegrationService.getWorkflow(appId, workflowId, userId);
   return json(result);
 }
 
@@ -28,20 +28,20 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
  */
 export async function action({ request, params }: ActionFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId, workflowId } = params;
+  const { appId, workflowId } = params;
   
-  if (!tenantId || !workflowId) {
-    return json({ success: false, error: 'Tenant ID and Workflow ID are required' }, { status: 400 });
+  if (!appId || !workflowId) {
+    return json({ success: false, error: 'app id and Workflow ID are required' }, { status: 400 });
   }
   
   if (request.method === 'PATCH') {
     const data = await request.json();
-    const result = await CICDIntegrationService.updateWorkflow(tenantId, workflowId, userId, data);
+    const result = await CICDIntegrationService.updateWorkflow(appId, workflowId, userId, data);
     return json(result);
   }
   
   if (request.method === 'DELETE') {
-    const result = await CICDIntegrationService.deleteWorkflow(tenantId, workflowId, userId);
+    const result = await CICDIntegrationService.deleteWorkflow(appId, workflowId, userId);
     return json(result);
   }
   

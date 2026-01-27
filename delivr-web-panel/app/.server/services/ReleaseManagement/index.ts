@@ -7,7 +7,7 @@
  * Uses real backend API calls for release CRUD operations
  * 
  * Supports mock mode via DELIVR_MOCK_MODE=true or DELIVR_HYBRID_MODE=true
- * In HYBRID_MODE, Release Process APIs (including /tenants/{tenantId}/releases) go to mock server
+ * In HYBRID_MODE, Release Process APIs (including /tenants/{appId}/releases) go to mock server
  */
 
 import type { CreateReleaseBackendRequest } from '~/types/release-creation-backend';
@@ -47,7 +47,7 @@ export interface BackendReleaseResponse {
   id: string;
   releaseId: string;
   releaseConfigId: string | null;
-  tenantId: string;
+  appId: string;
   type: ReleaseType; // 'MAJOR' | 'MINOR' | 'HOTFIX'
   status: ReleaseStatus;  // Updated: Use enum - matches API #1: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED'
   releasePhase?: Phase;   // NEW: From API #1 - detailed phase
@@ -105,7 +105,7 @@ class ReleaseManagementService {
    * Uses real backend API
    */
   async listReleases(
-    tenantId: string,
+    appId: string,
     userId: string,
     options?: {
       includeTasks?: boolean;
@@ -113,7 +113,7 @@ class ReleaseManagementService {
   ): Promise<ListReleasesResponse> {
     try {
       const includeTasks = options?.includeTasks || false;
-      const url = `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/releases${includeTasks ? '?includeTasks=true' : ''}`;
+      const url = `${BACKEND_API_URL}/api/v1/apps/${appId}/releases${includeTasks ? '?includeTasks=true' : ''}`;
 
       console.log('[ReleaseManagementService] GET:', url);
 
@@ -189,11 +189,11 @@ class ReleaseManagementService {
    */
   async getReleaseById(
     releaseId: string,
-    tenantId: string,
+    appId: string,
     userId: string
   ): Promise<{ success: boolean; release?: BackendReleaseResponse; error?: string }> {
     try {
-      const url = `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/releases/${releaseId}`;
+      const url = `${BACKEND_API_URL}/api/v1/apps/${appId}/releases/${releaseId}`;
 
       console.log('[ReleaseManagementService] GET:', url);
 
@@ -243,11 +243,11 @@ class ReleaseManagementService {
    */
   async createRelease(
     request: CreateReleaseBackendRequest,
-    tenantId: string,
+    appId: string,
     userId: string
   ): Promise<CreateReleaseResponse> {
     try {
-      const url = `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/releases`;
+      const url = `${BACKEND_API_URL}/api/v1/apps/${appId}/releases`;
       
       console.log('[ReleaseManagementService] POST to:', url);
       console.log('[ReleaseManagementService] Payload:', JSON.stringify(request, null, 2));
@@ -305,12 +305,12 @@ class ReleaseManagementService {
    */
   async updateRelease(
     releaseId: string,
-    tenantId: string,
+    appId: string,
     userId: string,
     updates: any
   ): Promise<{ success: boolean; release?: BackendReleaseResponse; error?: string }> {
     try {
-      const url = `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/releases/${releaseId}`;
+      const url = `${BACKEND_API_URL}/api/v1/apps/${appId}/releases/${releaseId}`;
 
       console.log('[ReleaseManagementService] PATCH:', url);
 

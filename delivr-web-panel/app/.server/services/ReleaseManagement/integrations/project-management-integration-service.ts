@@ -20,7 +20,7 @@ export interface PMIntegrationConfig {
 
 export interface PMIntegration {
   id: string;
-  tenantId: string;
+  appId: string;
   name: string;
   providerType: ProjectManagementProviderType;
   config: PMIntegrationConfig;
@@ -41,7 +41,7 @@ export interface UpdatePMIntegrationRequest {
 }
 
 export interface VerifyPMRequest {
-  tenantId?: string;
+  appId?: string;
   providerType: ProjectManagementProviderType;
   config: PMIntegrationConfig;
 }
@@ -79,8 +79,8 @@ class ProjectManagementIntegrationServiceClass extends IntegrationService {
     data: VerifyPMRequest,
     userId: string
   ): Promise<PMVerifyResponse> {
-    const tenantId = data.tenantId || 'default-tenant';
-    const endpoint = PROJECT_MANAGEMENT.verify(tenantId);
+    const appId = data.appId || 'default-tenant';
+    const endpoint = PROJECT_MANAGEMENT.verify(appId);
     
     console.log('[ProjectManagementIntegrationService] Calling backend:', {
       url: `${this.baseUrl}${endpoint}`,
@@ -174,13 +174,13 @@ class ProjectManagementIntegrationServiceClass extends IntegrationService {
    * List all integrations, optionally filtered by provider type
    */
   async listIntegrations(
-    tenantId: string,
+    appId: string,
     userId: string,
     providerType?: ProjectManagementProviderType
   ): Promise<PMListResponse> {
     try {
       const response = await this.get<{ success: boolean; data: any[] }>(
-        PROJECT_MANAGEMENT.list(tenantId),
+        PROJECT_MANAGEMENT.list(appId),
         userId
       );
       
@@ -210,12 +210,12 @@ class ProjectManagementIntegrationServiceClass extends IntegrationService {
    * Get integration for tenant, optionally filtered by provider type
    */
   async getIntegration(
-    tenantId: string,
+    appId: string,
     userId: string,
     providerType?: ProjectManagementProviderType
   ): Promise<PMIntegrationResponse> {
     try {
-      const list = await this.listIntegrations(tenantId, userId, providerType);
+      const list = await this.listIntegrations(appId, userId, providerType);
       
       if (!list.success || !list.data || list.data.length === 0) {
         return {
@@ -243,13 +243,13 @@ class ProjectManagementIntegrationServiceClass extends IntegrationService {
    * Create PM integration for tenant
    */
   async createIntegration(
-    tenantId: string,
+    appId: string,
     userId: string,
     data: CreatePMIntegrationRequest
   ): Promise<PMIntegrationResponse> {
     try {
       return await this.post<PMIntegrationResponse>(
-        PROJECT_MANAGEMENT.create(tenantId),
+        PROJECT_MANAGEMENT.create(appId),
         {
           name: data.name,
           providerType: data.providerType,
@@ -269,14 +269,14 @@ class ProjectManagementIntegrationServiceClass extends IntegrationService {
    * Update PM integration for tenant
    */
   async updateIntegration(
-    tenantId: string,
+    appId: string,
     integrationId: string,
     userId: string,
     data: UpdatePMIntegrationRequest
   ): Promise<PMIntegrationResponse> {
     try {
       return await this.put<PMIntegrationResponse>(
-        PROJECT_MANAGEMENT.update(tenantId, integrationId),
+        PROJECT_MANAGEMENT.update(appId, integrationId),
         data,
         userId
       );
@@ -292,13 +292,13 @@ class ProjectManagementIntegrationServiceClass extends IntegrationService {
    * Delete PM integration for tenant
    */
   async deleteIntegration(
-    tenantId: string,
+    appId: string,
     integrationId: string,
     userId: string
   ): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       return await this.delete<{ success: boolean; message?: string }>(
-        PROJECT_MANAGEMENT.delete(tenantId, integrationId),
+        PROJECT_MANAGEMENT.delete(appId, integrationId),
         userId
       );
     } catch (error: any) {
@@ -314,12 +314,12 @@ class ProjectManagementIntegrationServiceClass extends IntegrationService {
    * Fetches all projects from Jira using the integration credentials
    */
   async getJiraProjects(
-    tenantId: string,
+    appId: string,
     integrationId: string,
     userId: string
   ): Promise<{ success: boolean; data?: Array<{ key: string; name: string }>; error?: string }> {
     try {
-      const endpoint = PROJECT_MANAGEMENT.jiraMetadata.getProjects(tenantId, integrationId);
+      const endpoint = PROJECT_MANAGEMENT.jiraMetadata.getProjects(appId, integrationId);
       
       this.logRequest('GET', endpoint);
       
@@ -336,7 +336,7 @@ class ProjectManagementIntegrationServiceClass extends IntegrationService {
         error: (result as any).error
       };
     } catch (error: any) {
-      this.logResponse('GET', PROJECT_MANAGEMENT.jiraMetadata.getProjects(tenantId, integrationId), false);
+      this.logResponse('GET', PROJECT_MANAGEMENT.jiraMetadata.getProjects(appId, integrationId), false);
       
       // Check if this is a network/connection error
       if (error.message === 'No response from server') {

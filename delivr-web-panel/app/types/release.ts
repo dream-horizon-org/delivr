@@ -31,7 +31,7 @@ export interface ReleaseCustomizations {
 
 export interface Release {
   id: string;
-  tenantId: string;
+  appId: string;
   releaseKey: string;        // e.g., "R-2024-01"
   
   // Basic Info
@@ -94,7 +94,7 @@ export interface Release {
  * Input from old UI create release flow
  */
 export interface CreateReleaseInput {
-  tenantId: string;
+  appId: string;
   configId?: string;              // Selected configuration ID
   version: string;
   releaseType: ReleaseType;

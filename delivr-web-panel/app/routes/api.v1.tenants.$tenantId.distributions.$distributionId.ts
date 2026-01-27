@@ -1,12 +1,12 @@
 /**
  * Remix API Route: Get Distribution Details by ID
- * GET /api/v1/tenants/:tenantId/distributions/:distributionId
+ * GET /api/v1/apps/:appId/distributions/:distributionId
  * 
  * Returns complete distribution object with all submissions and artifacts.
  * Used by Distribution Management Page to fetch full details.
  * 
  * Path Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - distributionId: Distribution ID (required)
  * 
  * Reference: DISTRIBUTION_API_SPEC.md lines 920-1050
@@ -31,7 +31,7 @@ import { authenticateLoaderRequest } from '~/utils/authenticate';
  * GET - Get complete distribution details by distributionId
  * 
  * Path Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - distributionId: Distribution ID (required)
  * 
  * Returns:
@@ -41,17 +41,17 @@ import { authenticateLoaderRequest } from '~/utils/authenticate';
  * - Platform-specific fields
  * 
  * Error Cases:
- * - 400: Missing tenantId or distributionId
+ * - 400: Missing appId or distributionId
  * - 403: Unauthorized (tenant validation failed)
  * - 404: Distribution not found
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, request, user }: LoaderFunctionArgs & { user: User }) => {
-    const { tenantId, distributionId } = params;
+    const { appId, distributionId } = params;
 
     // Validate required parameters
-    if (!tenantId) {
-      return createValidationError(ERROR_MESSAGES.TENANT_ID_REQUIRED);
+    if (!appId) {
+      return createValidationError(ERROR_MESSAGES.APP_ID_REQUIRED);
     }
 
     if (!distributionId) {
@@ -59,7 +59,7 @@ export const loader = authenticateLoaderRequest(
     }
 
     try {
-      const response = await DistributionService.getDistribution(tenantId, distributionId);
+      const response = await DistributionService.getDistribution(appId, distributionId);
       return json(response.data);
     } catch (error) {
       logApiError(LOG_CONTEXT.DISTRIBUTION_MANAGEMENT_LOADER, error);

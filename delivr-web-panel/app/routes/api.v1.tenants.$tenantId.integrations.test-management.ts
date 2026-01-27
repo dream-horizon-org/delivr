@@ -1,11 +1,11 @@
 /**
  * BFF API Routes: Test Management Integration CRUD (Tenant-Level)
- * Proxies to backend: /test-management/tenants/:tenantId/integrations
+ * Proxies to backend: /test-management/apps/:appId/integrations
  * 
- * GET    /api/v1/tenants/:tenantId/integrations/test-management - List integrations
- * POST   /api/v1/tenants/:tenantId/integrations/test-management - Create integration
- * PUT    /api/v1/tenants/:tenantId/integrations/test-management?integrationId=<id> - Update integration  
- * DELETE /api/v1/tenants/:tenantId/integrations/test-management?integrationId=<id> - Delete integration
+ * GET    /api/v1/apps/:appId/integrations/test-management - List integrations
+ * POST   /api/v1/apps/:appId/integrations/test-management - Create integration
+ * PUT    /api/v1/apps/:appId/integrations/test-management?integrationId=<id> - Update integration  
+ * DELETE /api/v1/apps/:appId/integrations/test-management?integrationId=<id> - Delete integration
  */
 
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
@@ -19,14 +19,14 @@ import { logApiError } from '~/utils/api-route-helpers';
  */
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId } = params;
+  const { appId } = params;
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id is required' }, { status: 400 });
   }
 
   try {
-    const result = await CheckmateIntegrationService.listIntegrations(tenantId, userId);
+    const result = await CheckmateIntegrationService.listIntegrations(appId, userId);
     return json(result, { status: result.success ? 200 : 404 });
   } catch (error: any) {
     logApiError('[Test Management-List]', error);
@@ -42,10 +42,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
  */
 export async function action({ request, params }: ActionFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId } = params;
+  const { appId } = params;
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id is required' }, { status: 400 });
   }
 
   const method = request.method;
@@ -81,7 +81,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       console.log('[Test Management Create] _encrypted:', config._encrypted);
 
       const result = await CheckmateIntegrationService.createIntegration({
-        tenantId,
+        appId,
         name,
         config: {
           baseUrl: config.baseUrl,
@@ -112,7 +112,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       // Build update payload - only include fields that are provided
       const updatePayload: UpdateCheckmateIntegrationRequest = {
         integrationId,
-        tenantId,
+        appId,
         userId,
         ...(name && { name }),
         ...(config && {
@@ -139,7 +139,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         return json({ success: false, error: 'Integration ID is required for delete' }, { status: 400 });
       }
 
-      const result = await CheckmateIntegrationService.deleteIntegration(integrationId, tenantId, userId);
+      const result = await CheckmateIntegrationService.deleteIntegration(integrationId, appId, userId);
       return json(result, { status: result.success ? 200 : 500 });
     }
 

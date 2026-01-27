@@ -1,9 +1,9 @@
 /**
  * Remix API Route: Get Project Management Status
- * GET /api/v1/tenants/:tenantId/releases/:releaseId/project-management-run-status
+ * GET /api/v1/apps/:appId/releases/:releaseId/project-management-run-status
  * 
  * BFF route that proxies to ReleaseProcessService
- * Backend contract: GET /tenants/:tenantId/releases/:releaseId/project-management-run-status
+ * Backend contract: GET /apps/:appId/releases/:releaseId/project-management-run-status
  * Matches API contract API #24: Get Project Management Status
  */
 
@@ -21,10 +21,10 @@ import { Platform } from '~/types/release-process-enums';
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, request, user }: LoaderFunctionArgs & { user: User }) => {
-    const { tenantId, releaseId } = params;
+    const { appId, releaseId } = params;
 
-    if (!validateRequired(tenantId, 'Tenant ID is required')) {
-      return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+    if (!validateRequired(appId, 'app id is required')) {
+      return json({ success: false, error: 'app id is required' }, { status: 400 });
     }
 
     if (!validateRequired(releaseId, 'Release ID is required')) {
@@ -38,7 +38,7 @@ export const loader = authenticateLoaderRequest(
 
       console.log('[BFF] Fetching project management status for release:', releaseId, { platform });
       const response = await ReleaseProcessService.getProjectManagementStatus(
-        tenantId,
+        appId,
         releaseId,
         user.user.id,
         platform as Platform | undefined

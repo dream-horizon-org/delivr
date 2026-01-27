@@ -13,14 +13,14 @@ import { logApiError } from '~/utils/api-route-helpers';
  */
 export const loader = authenticateLoaderRequest(
   async ({ request, params, user }) => {
-    const tenantId = params.tenantId;
-    if (!tenantId) {
-      return json({ error: 'Tenant ID required' }, { status: 400 });
+    const appId = params.appId;
+    if (!appId) {
+      return json({ error: 'app id required' }, { status: 400 });
     }
 
     try {
       const integration = await SCMIntegrationService.getSCMIntegration(
-        tenantId,
+        appId,
         user.user.id
       );
 
@@ -45,12 +45,12 @@ export const loader = authenticateLoaderRequest(
  * POST - Create SCM integration
  */
 const createSCMIntegration: AuthenticatedActionFunction = async ({ request, params, user }) => {
-  const tenantId = params.tenantId;
-  if (!tenantId) {
-    return json({ error: 'Tenant ID required' }, { status: 400 });
+  const appId = params.appId;
+  if (!appId) {
+    return json({ error: 'app id required' }, { status: 400 });
   }
 
-  console.log(`[Frontend-Create-Route] Creating SCM integration for tenant: ${tenantId}, userId: ${user.user.id}`);
+  console.log(`[Frontend-Create-Route] Creating SCM integration for tenant: ${appId}, userId: ${user.user.id}`);
 
   try {
     const body = await request.json();
@@ -72,7 +72,7 @@ const createSCMIntegration: AuthenticatedActionFunction = async ({ request, para
     console.log(`[Frontend-Create-Route] Calling SCMIntegrationService.createSCMIntegration`);
     
     const requestData: CreateSCMIntegrationRequest = {
-      tenantId,
+      appId,
       scmType,
       owner,
       repo,
@@ -85,7 +85,7 @@ const createSCMIntegration: AuthenticatedActionFunction = async ({ request, para
     };
     
     const integration = await SCMIntegrationService.createSCMIntegration(
-      tenantId,
+      appId,
       user.user.id,
       requestData
 
@@ -108,9 +108,9 @@ const createSCMIntegration: AuthenticatedActionFunction = async ({ request, para
  * PATCH - Update SCM integration
  */
 const updateSCMIntegration: AuthenticatedActionFunction = async ({ request, params, user }) => {
-  const tenantId = params.tenantId;
-  if (!tenantId) {
-    return json({ error: 'Tenant ID required' }, { status: 400 });
+  const appId = params.appId;
+  if (!appId) {
+    return json({ error: 'app id required' }, { status: 400 });
   }
 
   try {
@@ -122,7 +122,7 @@ const updateSCMIntegration: AuthenticatedActionFunction = async ({ request, para
     }
 
     const integration = await SCMIntegrationService.updateSCMIntegration(
-      tenantId,
+      appId,
       user.user.id,
       integrationId,
       updateData
@@ -144,12 +144,12 @@ const updateSCMIntegration: AuthenticatedActionFunction = async ({ request, para
  * DELETE - Delete SCM integration
  */
 const deleteSCMIntegration: AuthenticatedActionFunction = async ({ request, params, user }) => {
-  const tenantId = params.tenantId;
-  if (!tenantId) {
-    return json({ error: 'Tenant ID required' }, { status: 400 });
+  const appId = params.appId;
+  if (!appId) {
+    return json({ error: 'app id required' }, { status: 400 });
   }
 
-  console.log(`[Frontend-Delete-Route] Attempting to delete SCM integration for tenant: ${tenantId}, userId: ${user.user.id}`);
+  console.log(`[Frontend-Delete-Route] Attempting to delete SCM integration for tenant: ${appId}, userId: ${user.user.id}`);
 
   try {
     // For DELETE requests, body might be empty, so we'll fetch the integration first
@@ -164,7 +164,7 @@ const deleteSCMIntegration: AuthenticatedActionFunction = async ({ request, para
       // Body might be empty, try to get integration to determine scmType
       console.log(`[Frontend-Delete-Route] No body, trying to fetch existing integration to get scmType`);
       try {
-        const integration = await SCMIntegrationService.getSCMIntegration(tenantId, user.user.id);
+        const integration = await SCMIntegrationService.getSCMIntegration(appId, user.user.id);
         console.log(`[Frontend-Delete-Route] Fetched integration:`, integration ? { id: integration.id, scmType: integration.scmType } : 'null');
         if (integration?.scmType) {
           scmType = integration.scmType;
@@ -175,8 +175,8 @@ const deleteSCMIntegration: AuthenticatedActionFunction = async ({ request, para
       }
     }
 
-    console.log(`[Frontend-Delete-Route] Calling deleteSCMIntegration with tenantId: ${tenantId}, scmType: ${scmType}`);
-    await SCMIntegrationService.deleteSCMIntegration(tenantId, user.user.id, '', scmType);
+    console.log(`[Frontend-Delete-Route] Calling deleteSCMIntegration with appId: ${appId}, scmType: ${scmType}`);
+    await SCMIntegrationService.deleteSCMIntegration(appId, user.user.id, '', scmType);
 
     console.log(`[Frontend-Delete-Route] Successfully deleted SCM integration`);
     return json({ success: true });

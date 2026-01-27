@@ -21,7 +21,7 @@ export const ERROR_MESSAGES = {
   DISTRIBUTION_ID_REQUIRED: 'Distribution ID is required',
   BUILD_ID_REQUIRED: 'Build ID is required',
   SUBMISSION_ID_REQUIRED: 'Submission ID is required',
-  TENANT_ID_REQUIRED: 'Tenant ID is required',
+  APP_ID_REQUIRED: 'app id is required',
   PLATFORM_REQUIRED: 'Platform is required',
   FILE_REQUIRED: 'AAB file is required',
   TESTFLIGHT_BUILD_NUMBER_REQUIRED: 'TestFlight build number is required',
@@ -109,20 +109,20 @@ export const VALIDATION = {
  * - Self-documenting with JSDoc
  * - Consistent usage across all components
  * 
- * IMPORTANT: All routes now require tenantId as first parameter for tenant-scoped access
+ * IMPORTANT: All routes now require appId as first parameter for tenant-scoped access
  * 
  * Usage:
  * ```typescript
  * import { API_ROUTES } from '~/constants/distribution/distribution-api.constants';
  * 
  * // In component
- * const apiUrl = API_ROUTES.getArtifactDownloadUrl(tenantId, submissionId, platform);
+ * const apiUrl = API_ROUTES.getArtifactDownloadUrl(appId, submissionId, platform);
  * const response = await fetch(apiUrl);
  * 
  * // With useFetcher
  * fetcher.submit(payload, {
  *   method: 'post',
- *   action: API_ROUTES.createSubmission(tenantId, distributionId),
+ *   action: API_ROUTES.createSubmission(appId, distributionId),
  *   encType: 'application/json',
  * });
  * ```
@@ -134,35 +134,35 @@ export const API_ROUTES = {
   
   /**
    * Create new submission (Android/iOS)
-   * @param tenantId - Tenant ID for authorization
+   * @param appId - app id for authorization
    * @param releaseId - Release ID for ownership validation
    * @param distributionId - Distribution ID
-   * @returns POST /api/v1/tenants/:tenantId/releases/:releaseId/distributions/:distributionId/submissions
+   * @returns POST /api/v1/apps/:appId/releases/:releaseId/distributions/:distributionId/submissions
    */
-  createSubmission: (tenantId: string, releaseId: string, distributionId: string) =>
-    `/api/v1/tenants/${tenantId}/releases/${releaseId}/distributions/${distributionId}/submissions`,
+  createSubmission: (appId: string, releaseId: string, distributionId: string) =>
+    `/api/v1/apps/${appId}/releases/${releaseId}/distributions/${distributionId}/submissions`,
   
   /**
    * Submit to app store (promote PENDING → SUBMITTED/IN_REVIEW)
-   * @param tenantId - Tenant ID for authorization
+   * @param appId - app id for authorization
    * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param platform - Platform (ANDROID or IOS)
-   * @returns PUT /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/submit?platform={platform}
+   * @returns PUT /api/v1/apps/:appId/releases/:releaseId/submissions/:submissionId/submit?platform={platform}
    */
-  submitToStore: (tenantId: string, releaseId: string, submissionId: string, platform: string) =>
-    `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/submit?platform=${platform}`,
+  submitToStore: (appId: string, releaseId: string, submissionId: string, platform: string) =>
+    `/api/v1/apps/${appId}/releases/${releaseId}/submissions/${submissionId}/submit?platform=${platform}`,
   
   /**
    * Cancel submission (iOS only - Android cannot cancel)
-   * @param tenantId - Tenant ID for authorization
+   * @param appId - app id for authorization
    * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param platform - Platform (should be IOS)
-   * @returns PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/cancel?platform={platform}
+   * @returns PATCH /api/v1/apps/:appId/releases/:releaseId/submissions/:submissionId/cancel?platform={platform}
    */
-  cancelSubmission: (tenantId: string, releaseId: string, submissionId: string, platform: string) =>
-    `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/cancel?platform=${platform}`,
+  cancelSubmission: (appId: string, releaseId: string, submissionId: string, platform: string) =>
+    `/api/v1/apps/${appId}/releases/${releaseId}/submissions/${submissionId}/cancel?platform=${platform}`,
   
   // ============================================================================
   // ROLLOUT MANAGEMENT
@@ -172,49 +172,49 @@ export const API_ROUTES = {
    * Update rollout percentage
    * - Android: 0.01-100 (supports decimals)
    * - iOS: Only 100 (complete early for phased release)
-   * @param tenantId - Tenant ID for authorization
+   * @param appId - app id for authorization
    * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param platform - Platform (ANDROID or IOS)
-   * @returns PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout?platform={platform}
+   * @returns PATCH /api/v1/apps/:appId/releases/:releaseId/submissions/:submissionId/rollout?platform={platform}
    */
-  updateRollout: (tenantId: string, releaseId: string, submissionId: string, platform: string) =>
-    `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/rollout?platform=${platform}`,
+  updateRollout: (appId: string, releaseId: string, submissionId: string, platform: string) =>
+    `/api/v1/apps/${appId}/releases/${releaseId}/submissions/${submissionId}/rollout?platform=${platform}`,
   
   /**
    * Pause rollout (iOS phased release only)
-   * @param tenantId - Tenant ID for authorization
+   * @param appId - app id for authorization
    * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param platform - Platform (IOS)
-   * @returns PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/pause?platform={platform}
+   * @returns PATCH /api/v1/apps/:appId/releases/:releaseId/submissions/:submissionId/rollout/pause?platform={platform}
    */
-  pauseRollout: (tenantId: string, releaseId: string, submissionId: string, platform: string) =>
-    `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/rollout/pause?platform=${platform}`,
+  pauseRollout: (appId: string, releaseId: string, submissionId: string, platform: string) =>
+    `/api/v1/apps/${appId}/releases/${releaseId}/submissions/${submissionId}/rollout/pause?platform=${platform}`,
   
   /**
    * Resume rollout (Both platforms - from PAUSED/HALTED)
    * - iOS: Resume from PAUSED (phased release)
    * - Android: Resume from HALTED
-   * @param tenantId - Tenant ID for authorization
+   * @param appId - app id for authorization
    * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param platform - Platform (ANDROID or IOS)
-   * @returns PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/resume?platform={platform}
+   * @returns PATCH /api/v1/apps/:appId/releases/:releaseId/submissions/:submissionId/rollout/resume?platform={platform}
    */
-  resumeRollout: (tenantId: string, releaseId: string, submissionId: string, platform: string) =>
-    `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/rollout/resume?platform=${platform}`,
+  resumeRollout: (appId: string, releaseId: string, submissionId: string, platform: string) =>
+    `/api/v1/apps/${appId}/releases/${releaseId}/submissions/${submissionId}/rollout/resume?platform=${platform}`,
   
   /**
    * Halt rollout (Emergency stop - Both platforms)
-   * @param tenantId - Tenant ID for authorization
+   * @param appId - app id for authorization
    * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param platform - Platform (ANDROID or IOS)
-   * @returns PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/halt?platform={platform}
+   * @returns PATCH /api/v1/apps/:appId/releases/:releaseId/submissions/:submissionId/rollout/halt?platform={platform}
    */
-  haltRollout: (tenantId: string, releaseId: string, submissionId: string, platform: string) =>
-    `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/rollout/halt?platform=${platform}`,
+  haltRollout: (appId: string, releaseId: string, submissionId: string, platform: string) =>
+    `/api/v1/apps/${appId}/releases/${releaseId}/submissions/${submissionId}/rollout/halt?platform=${platform}`,
   
   // ============================================================================
   // ARTIFACTS & DOWNLOADS
@@ -223,12 +223,12 @@ export const API_ROUTES = {
   /**
    * Get artifact download URL (presigned S3 URL)
    * Returns a presigned URL that expires after set time
-   * @param tenantId - Tenant ID for authorization
+   * @param appId - app id for authorization
    * @param submissionId - Submission ID
    * @param platform - Platform (ANDROID or IOS)
-   * @returns GET /api/v1/tenants/:tenantId/submissions/:submissionId/artifact?platform={platform}
+   * @returns GET /api/v1/apps/:appId/submissions/:submissionId/artifact?platform={platform}
    */
-  getArtifactDownloadUrl: (tenantId: string, submissionId: string, platform: string) =>
-    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/artifact?platform=${platform}`,
+  getArtifactDownloadUrl: (appId: string, submissionId: string, platform: string) =>
+    `/api/v1/apps/${appId}/submissions/${submissionId}/artifact?platform=${platform}`,
 } as const;
 

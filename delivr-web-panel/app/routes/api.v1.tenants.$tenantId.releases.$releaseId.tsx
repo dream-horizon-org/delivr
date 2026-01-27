@@ -12,17 +12,17 @@ import { getReleaseById, updateRelease } from '~/.server/services/ReleaseManagem
 import { logApiError } from '~/utils/api-route-helpers';
 
 /**
- * GET /api/v1/tenants/:tenantId/releases/:releaseId
+ * GET /api/v1/apps/:appId/releases/:releaseId
  * Fetch a single release by ID from backend API
  * 
  * BFF route that calls the release retrieval service
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, request, user }: LoaderFunctionArgs & { user: User }) => {
-    const { tenantId, releaseId } = params;
+    const { appId, releaseId } = params;
 
-    if (!tenantId) {
-      return json({ success: false, error: 'Tenant ID required' }, { status: 400 });
+    if (!appId) {
+      return json({ success: false, error: 'app id required' }, { status: 400 });
     }
 
     if (!releaseId) {
@@ -32,9 +32,9 @@ export const loader = authenticateLoaderRequest(
     try {
       const userId = user.user.id;
 
-    console.log('[BFF] Fetching release:', { tenantId, releaseId });
+    console.log('[BFF] Fetching release:', { appId, releaseId });
 
-    const result = await getReleaseById(releaseId, tenantId, userId);
+    const result = await getReleaseById(releaseId, appId, userId);
 
     if (!result.success) {
       console.error('[BFF] Get failed:', result.error);
@@ -62,16 +62,16 @@ export const loader = authenticateLoaderRequest(
 );
 
 /**
- * PATCH/PUT /api/v1/tenants/:tenantId/releases/:releaseId - Update a release
+ * PATCH/PUT /api/v1/apps/:appId/releases/:releaseId - Update a release
  * 
  * BFF route that calls the release retrieval service for update operations
  */
 export const action = authenticateActionRequest({
   PUT: async ({ params, request, user }: ActionFunctionArgs & { user: User }) => {
-    const { tenantId, releaseId } = params;
+    const { appId, releaseId } = params;
 
-    if (!tenantId) {
-      return json({ success: false, error: 'Tenant ID required' }, { status: 400 });
+    if (!appId) {
+      return json({ success: false, error: 'app id required' }, { status: 400 });
     }
 
     if (!releaseId) {
@@ -82,9 +82,9 @@ export const action = authenticateActionRequest({
       const userId = user.user.id;
       const updates = await request.json();
 
-      console.log('[BFF] Updating release:', { tenantId, releaseId, updates: Object.keys(updates) });
+      console.log('[BFF] Updating release:', { appId, releaseId, updates: Object.keys(updates) });
 
-      const result = await updateRelease(releaseId, tenantId, userId, updates);
+      const result = await updateRelease(releaseId, appId, userId, updates);
 
       if (!result.success) {
         console.error('[BFF] Update failed:', result.error);
@@ -109,10 +109,10 @@ export const action = authenticateActionRequest({
     }
   },
   PATCH: async ({ params, request, user }: ActionFunctionArgs & { user: User }) => {
-    const { tenantId, releaseId } = params;
+    const { appId, releaseId } = params;
 
-    if (!tenantId) {
-      return json({ success: false, error: 'Tenant ID required' }, { status: 400 });
+    if (!appId) {
+      return json({ success: false, error: 'app id required' }, { status: 400 });
     }
 
     if (!releaseId) {
@@ -123,9 +123,9 @@ export const action = authenticateActionRequest({
       const userId = user.user.id;
       const updates = await request.json();
 
-      console.log('[BFF] Updating release:', { tenantId, releaseId, updates: Object.keys(updates) });
+      console.log('[BFF] Updating release:', { appId, releaseId, updates: Object.keys(updates) });
 
-      const result = await updateRelease(releaseId, tenantId, userId, updates);
+      const result = await updateRelease(releaseId, appId, userId, updates);
 
       if (!result.success) {
         console.error('[BFF] Update failed:', result.error);

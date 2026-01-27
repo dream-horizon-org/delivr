@@ -286,7 +286,7 @@ export default function EditWorkflowPage() {
   return (
     <Box>
       <WorkflowForm
-        tenantId={organizationId}
+        appId={organizationId}
         onSubmit={handleSubmit}
         onCancel={handleCancel}
         availableIntegrations={availableIntegrations}

@@ -1,9 +1,9 @@
 /**
  * Remix API Route: Get Release Notifications
- * GET /api/v1/tenants/:tenantId/releases/:releaseId/notifications
+ * GET /api/v1/apps/:appId/releases/:releaseId/notifications
  * 
  * BFF route that proxies to ReleaseProcessService
- * Backend contract: GET /api/v1/tenants/:tenantId/releases/:releaseId/notifications
+ * Backend contract: GET /api/v1/apps/:appId/releases/:releaseId/notifications
  * Matches API contract API #26: Get Release Notifications
  */
 
@@ -20,10 +20,10 @@ import { handleAxiosError, logApiError, validateRequired } from '~/utils/api-rou
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, request, user }: LoaderFunctionArgs & { user: User }) => {
-    const { tenantId, releaseId } = params;
+    const { appId, releaseId } = params;
 
-    if (!validateRequired(tenantId, 'Tenant ID is required')) {
-      return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+    if (!validateRequired(appId, 'app id is required')) {
+      return json({ success: false, error: 'app id is required' }, { status: 400 });
     }
 
     if (!validateRequired(releaseId, 'Release ID is required')) {
@@ -32,7 +32,7 @@ export const loader = authenticateLoaderRequest(
 
     try {
       console.log('[BFF] Fetching notifications for release:', releaseId);
-      const response = await ReleaseProcessService.getNotifications(tenantId, releaseId, user.user.id);
+      const response = await ReleaseProcessService.getNotifications(appId, releaseId, user.user.id);
       console.log('[BFF] Notifications response:', response.data);
       
       return json(response.data);

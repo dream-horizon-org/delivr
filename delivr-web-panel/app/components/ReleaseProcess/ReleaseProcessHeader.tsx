@@ -8,7 +8,7 @@
  * - Action buttons: Edit, Archive, Pause/Resume, Activity Log, Post Slack Message
  * 
  * Data Source:
- * - Uses existing `GET /api/v1/tenants/:tenantId/releases/:releaseId` (backend)
+ * - Uses existing `GET /api/v1/apps/:appId/releases/:releaseId` (backend)
  * - Stage status from stage API responses
  */
 

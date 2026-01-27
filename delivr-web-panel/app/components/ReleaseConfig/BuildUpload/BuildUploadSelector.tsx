@@ -19,7 +19,7 @@ export function BuildUploadSelector({
 }: BuildUploadSelectorProps) {
   const theme = useMantineTheme();
   const params = useParams();
-  const tenantId = params.org || '';
+  const appId = params.org || '';
   
   // Ensure hasManualBuildUpload is explicitly set (default to true if undefined)
   useEffect(() => {
@@ -158,7 +158,7 @@ export function BuildUploadSelector({
                   <Box mt="xs">
                     <NoIntegrationAlert
                       category={IntegrationCategory.CI_CD}
-                      tenantId={tenantId}
+                      appId={appId}
                       color="yellow"
                       message="Connect at least one CI/CD provider (Jenkins or GitHub Actions) to use this option."
                     />

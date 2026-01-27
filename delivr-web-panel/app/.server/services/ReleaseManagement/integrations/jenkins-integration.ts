@@ -18,7 +18,7 @@ export enum VerificationStatus {
 }
 
 export interface VerifyJenkinsRequest {
-  tenantId: string;
+  appId: string;
   displayName?: string;
   hostUrl: string;
   username: string;
@@ -39,7 +39,7 @@ export interface VerifyJenkinsResponse {
 }
 
 export interface CreateJenkinsIntegrationRequest {
-  tenantId: string;
+  appId: string;
   displayName?: string;
   hostUrl: string;
   username: string;
@@ -53,7 +53,7 @@ export interface CreateJenkinsIntegrationRequest {
 }
 
 export interface UpdateJenkinsIntegrationRequest {
-  tenantId: string;
+  appId: string;
   integrationId: string;
   displayName?: string;
   hostUrl?: string;
@@ -69,7 +69,7 @@ export interface UpdateJenkinsIntegrationRequest {
 
 export interface JenkinsIntegration {
   id: string;
-  tenantId: string;
+  appId: string;
   displayName: string;
   hostUrl: string;
   username: string;
@@ -102,7 +102,7 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
    * Verify Jenkins connection
    */
   async verifyJenkins(data: VerifyJenkinsRequest): Promise<VerifyJenkinsResponse> {
-    const endpoint = CICD.verifyConnection(data.tenantId, 'JENKINS');
+    const endpoint = CICD.verifyConnection(data.appId, 'JENKINS');
     this.logRequest('POST', endpoint, { ...data, apiToken: '[REDACTED]', _encrypted: data._encrypted });
     
     try {
@@ -139,7 +139,7 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
    * Create Jenkins integration
    */
   async createIntegration(data: CreateJenkinsIntegrationRequest): Promise<JenkinsIntegrationResponse> {
-    const endpoint = CICD.createConnection(data.tenantId, 'JENKINS');
+    const endpoint = CICD.createConnection(data.appId, 'JENKINS');
     this.logRequest('POST', endpoint, { _encrypted: data._encrypted });
     
     try {
@@ -169,10 +169,10 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
   /**
    * Get Jenkins integration for tenant
    */
-  async getIntegration(tenantId: string, userId: string): Promise<JenkinsIntegrationResponse> {
+  async getIntegration(appId: string, userId: string): Promise<JenkinsIntegrationResponse> {
     try {
       return await this.get<JenkinsIntegrationResponse>(
-        CICD.getProvider(tenantId, 'jenkins'),
+        CICD.getProvider(appId, 'jenkins'),
         userId
       );
     } catch (error: any) {
@@ -194,7 +194,7 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
    * Update Jenkins integration
    */
   async updateIntegration(data: UpdateJenkinsIntegrationRequest): Promise<JenkinsIntegrationResponse> {
-    const endpoint = CICD.updateConnection(data.tenantId, data.integrationId);
+    const endpoint = CICD.updateConnection(data.appId, data.integrationId);
     this.logRequest('PATCH', endpoint, { _encrypted: data._encrypted });
     
     try {
@@ -224,10 +224,10 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
   /**
    * Delete Jenkins integration
    */
-  async deleteIntegration(tenantId: string, integrationId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  async deleteIntegration(appId: string, integrationId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       return await this.delete<{ success: boolean; message?: string }>(
-        CICD.deleteConnection(tenantId, integrationId),
+        CICD.deleteConnection(appId, integrationId),
         userId
       );
     } catch (error: any) {
@@ -245,10 +245,10 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
   /**
    * Fetch Jenkins job parameters
    */
-  async fetchJobParameters(tenantId: string, userId: string, integrationId: string, jobUrl: string): Promise<any> {
+  async fetchJobParameters(appId: string, userId: string, integrationId: string, jobUrl: string): Promise<any> {
     try {
       return await this.post(
-        CICD.jobParameters(tenantId, integrationId),
+        CICD.jobParameters(appId, integrationId),
         { workflowUrl: jobUrl },
         userId
       );
@@ -264,9 +264,9 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
   /**
    * List Jenkins workflows for tenant
    */
-  async listWorkflows(tenantId: string, userId: string, filters?: any): Promise<any> {
+  async listWorkflows(appId: string, userId: string, filters?: any): Promise<any> {
     try {
-      const url = buildUrlWithQuery(CICD.listWorkflows(tenantId), {
+      const url = buildUrlWithQuery(CICD.listWorkflows(appId), {
         providerType: 'JENKINS',
         platform: filters?.platform,
         workflowType: filters?.workflowType
@@ -285,10 +285,10 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
   /**
    * Create Jenkins workflow configuration
    */
-  async createWorkflow(tenantId: string, userId: string, data: any): Promise<any> {
+  async createWorkflow(appId: string, userId: string, data: any): Promise<any> {
     try {
       return await this.post(
-        CICD.createWorkflow(tenantId),
+        CICD.createWorkflow(appId),
         { ...data, providerType: 'JENKINS' },
         userId
       );
@@ -303,10 +303,10 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
   /**
    * Update Jenkins workflow configuration
    */
-  async updateWorkflow(tenantId: string, workflowId: string, userId: string, data: any): Promise<any> {
+  async updateWorkflow(appId: string, workflowId: string, userId: string, data: any): Promise<any> {
     try {
       return await this.patch(
-        CICD.updateWorkflow(tenantId, workflowId),
+        CICD.updateWorkflow(appId, workflowId),
         data,
         userId
       );
@@ -321,10 +321,10 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
   /**
    * Delete Jenkins workflow configuration
    */
-  async deleteWorkflow(tenantId: string, workflowId: string, userId: string): Promise<any> {
+  async deleteWorkflow(appId: string, workflowId: string, userId: string): Promise<any> {
     try {
       return await this.delete(
-        CICD.deleteWorkflow(tenantId, workflowId),
+        CICD.deleteWorkflow(appId, workflowId),
         userId
       );
     } catch (error: any) {

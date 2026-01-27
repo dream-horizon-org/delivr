@@ -75,9 +75,9 @@ class ReleaseProcess {
    * Get stage tasks - Matches backend contract API #2
    * Single endpoint with stage query parameter
    */
-  async getStageTasks(tenantId: string, releaseId: string, stage: TaskStage, userId: string) {
+  async getStageTasks(appId: string, releaseId: string, stage: TaskStage, userId: string) {
     return this.__client.get<null, AxiosResponse<KickoffStageResponse | RegressionStageResponse | PreReleaseStageResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/tasks`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/tasks`,
       { 
         params: { stage },
         headers: this.buildHeaders(userId)
@@ -88,30 +88,30 @@ class ReleaseProcess {
   /**
    * Get kickoff stage data - Convenience method
    */
-  async getKickoffStage(tenantId: string, releaseId: string, userId: string) {
-    return this.getStageTasks(tenantId, releaseId, TaskStage.KICKOFF, userId) as Promise<AxiosResponse<KickoffStageResponse>>;
+  async getKickoffStage(appId: string, releaseId: string, userId: string) {
+    return this.getStageTasks(appId, releaseId, TaskStage.KICKOFF, userId) as Promise<AxiosResponse<KickoffStageResponse>>;
   }
 
   /**
    * Get regression stage data - Convenience method
    */
-  async getRegressionStage(tenantId: string, releaseId: string, userId: string) {
-    return this.getStageTasks(tenantId, releaseId, TaskStage.REGRESSION, userId) as Promise<AxiosResponse<RegressionStageResponse>>;
+  async getRegressionStage(appId: string, releaseId: string, userId: string) {
+    return this.getStageTasks(appId, releaseId, TaskStage.REGRESSION, userId) as Promise<AxiosResponse<RegressionStageResponse>>;
   }
 
   /**
    * Get pre-release stage data - Convenience method
    */
-  async getPreReleaseStage(tenantId: string, releaseId: string, userId: string) {
-    return this.getStageTasks(tenantId, releaseId, TaskStage.PRE_RELEASE, userId) as Promise<AxiosResponse<PreReleaseStageResponse>>;
+  async getPreReleaseStage(appId: string, releaseId: string, userId: string) {
+    return this.getStageTasks(appId, releaseId, TaskStage.PRE_RELEASE, userId) as Promise<AxiosResponse<PreReleaseStageResponse>>;
   }
 
   /**
    * Get post-regression stage data - Legacy alias
    * @deprecated Use getPreReleaseStage instead
    */
-  async getPostRegressionStage(tenantId: string, releaseId: string, userId: string) {
-    return this.getPreReleaseStage(tenantId, releaseId, userId);
+  async getPostRegressionStage(appId: string, releaseId: string, userId: string) {
+    return this.getPreReleaseStage(appId, releaseId, userId);
   }
 
   // ======================
@@ -121,9 +121,9 @@ class ReleaseProcess {
   /**
    * Retry a failed task - Matches backend contract API #8
    */
-  async retryTask(tenantId: string, releaseId: string, taskId: string, userId: string) {
+  async retryTask(appId: string, releaseId: string, taskId: string, userId: string) {
     return this.__client.post<null, AxiosResponse<RetryTaskResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/tasks/${taskId}/retry`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/tasks/${taskId}/retry`,
       undefined,
       { headers: this.buildHeaders(userId) }
     );
@@ -135,12 +135,12 @@ class ReleaseProcess {
 
   /**
    * Upload manual build - Matches backend contract
-   * POST /tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform
+   * POST /apps/:appId/releases/:releaseId/stages/:stage/builds/:platform
    * 
    * Maps BuildUploadStage to TaskStage and uses backend route structure
    */
   async uploadBuild(
-    tenantId: string,
+    appId: string,
     releaseId: string,
     file: Blob,
     platform: Platform,
@@ -166,7 +166,7 @@ class ReleaseProcess {
     // #endregion
 
     console.log('[ReleaseProcessService.uploadBuild]', {
-      tenantId,
+      appId,
       releaseId,
       backendStage,
       platform,
@@ -181,7 +181,7 @@ class ReleaseProcess {
         // API contract specifies PUT for upload
         // Use longer timeout (5 minutes) for file uploads
         return this.__client.put<FormData, AxiosResponse<BuildUploadResponse>>(
-          `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/${backendStage}/builds/${platform}`,
+          `/api/v1/apps/${appId}/releases/${releaseId}/stages/${backendStage}/builds/${platform}`,
           formData,
           { 
             headers: this.buildHeaders(userId),
@@ -193,18 +193,18 @@ class ReleaseProcess {
   /**
    * Delete uploaded build
    */
-  async deleteBuild(tenantId: string, releaseId: string, buildId: string, userId: string) {
+  async deleteBuild(appId: string, releaseId: string, buildId: string, userId: string) {
     return this.__client.delete<null, AxiosResponse<{ success: boolean; message: string }>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/builds/${buildId}`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/builds/${buildId}`,
       { headers: this.buildHeaders(userId) }
     );
   }
 
   /**
    * Get presigned URL for build artifact download
-   * Backend endpoint: GET /api/v1/tenants/{tenantId}/builds/{buildId}/artifact
+   * Backend endpoint: GET /api/v1/tenants/{appId}/builds/{buildId}/artifact
    */
-  async getBuildArtifactDownloadUrl(tenantId: string, buildId: string, userId: string) {
+  async getBuildArtifactDownloadUrl(appId: string, buildId: string, userId: string) {
     return this.__client.get<null, AxiosResponse<{
       success: true;
       data: {
@@ -212,7 +212,7 @@ class ReleaseProcess {
         expiresAt: string;
       };
     }>>(
-      `/api/v1/tenants/${tenantId}/builds/${buildId}/artifact`,
+      `/api/v1/apps/${appId}/builds/${buildId}/artifact`,
       { headers: this.buildHeaders(userId) }
     );
   }
@@ -224,10 +224,10 @@ class ReleaseProcess {
   /**
    * Get test management status - Matches backend contract API #17
    */
-  async getTestManagementStatus(tenantId: string, releaseId: string, userId: string, platform?: Platform) {
+  async getTestManagementStatus(appId: string, releaseId: string, userId: string, platform?: Platform) {
     const params = platform ? { platform } : {};
     return this.__client.get<null, AxiosResponse<TestManagementStatusResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/test-management-run-status`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/test-management-run-status`,
       { 
         params,
         headers: this.buildHeaders(userId)
@@ -238,10 +238,10 @@ class ReleaseProcess {
   /**
    * Get project management status - Matches backend contract API #18
    */
-  async getProjectManagementStatus(tenantId: string, releaseId: string, userId: string, platform?: Platform) {
+  async getProjectManagementStatus(appId: string, releaseId: string, userId: string, platform?: Platform) {
     const params = platform ? { platform } : {};
     return this.__client.get<null, AxiosResponse<ProjectManagementStatusResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/project-management-run-status`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/project-management-run-status`,
       { 
         params,
         headers: this.buildHeaders(userId)
@@ -252,9 +252,9 @@ class ReleaseProcess {
   /**
    * Get cherry pick status - Matches backend contract API #19
    */
-  async getCherryPickStatus(tenantId: string, releaseId: string, userId: string) {
+  async getCherryPickStatus(appId: string, releaseId: string, userId: string) {
     return this.__client.get<null, AxiosResponse<CherryPickStatusResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/check-cherry-pick-status`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/check-cherry-pick-status`,
       { headers: this.buildHeaders(userId) }
     );
   }
@@ -265,11 +265,11 @@ class ReleaseProcess {
 
   /**
    * Approve regression stage - Matches backend contract API #11
-   * Backend endpoint: POST /api/v1/tenants/{tenantId}/releases/{releaseId}/trigger-pre-release
+   * Backend endpoint: POST /api/v1/tenants/{appId}/releases/{releaseId}/trigger-pre-release
    */
-  async approveRegressionStage(tenantId: string, releaseId: string, request: ApproveRegressionStageRequest, userId: string) {
+  async approveRegressionStage(appId: string, releaseId: string, request: ApproveRegressionStageRequest, userId: string) {
     return this.__client.post<ApproveRegressionStageRequest, AxiosResponse<ApproveRegressionStageResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/trigger-pre-release`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/trigger-pre-release`,
       request,
       { headers: this.buildHeaders(userId) }
     );
@@ -277,16 +277,16 @@ class ReleaseProcess {
 
   /**
    * Trigger Distribution (Stage 4) / Approve Pre-Release Stage
-   * Backend contract: POST /api/v1/tenants/{tenantId}/releases/{releaseId}/trigger-distribution
+   * Backend contract: POST /api/v1/tenants/{appId}/releases/{releaseId}/trigger-distribution
    */
   async triggerDistributionStage(
-    tenantId: string, 
+    appId: string, 
     releaseId: string, 
     userId: string,
     request?: { comments?: string; forceApprove?: boolean }
   ) {
     return this.__client.post<{ approvedBy: string; comments?: string; forceApprove?: boolean }, AxiosResponse<TriggerDistributionResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/trigger-distribution`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/trigger-distribution`,
       {
         approvedBy: userId,
         ...(request?.comments && { comments: request.comments }),
@@ -303,9 +303,9 @@ class ReleaseProcess {
   /**
    * Get release notifications - Matches backend contract API #20
    */
-  async getNotifications(tenantId: string, releaseId: string, userId: string) {
+  async getNotifications(appId: string, releaseId: string, userId: string) {
     return this.__client.get<null, AxiosResponse<NotificationsResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/notifications`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/notifications`,
       { headers: this.buildHeaders(userId) }
     );
   }
@@ -313,9 +313,9 @@ class ReleaseProcess {
   /**
    * Send release notification - Matches backend contract API #21
    */
-  async sendNotification(tenantId: string, releaseId: string, request: NotificationRequest, userId: string) {
+  async sendNotification(appId: string, releaseId: string, request: NotificationRequest, userId: string) {
     return this.__client.post<NotificationRequest, AxiosResponse<SendNotificationResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/notify`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/notify`,
       request,
       { headers: this.buildHeaders(userId) }
     );
@@ -328,9 +328,9 @@ class ReleaseProcess {
   /**
    * Get activity logs - Matches backend contract API #23
    */
-  async getActivityLogs(tenantId: string, releaseId: string, userId: string) {
+  async getActivityLogs(appId: string, releaseId: string, userId: string) {
     return this.__client.get<null, AxiosResponse<ActivityLogsResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/activity-logs`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/activity-logs`,
       { headers: this.buildHeaders(userId) }
     );
   }
@@ -342,9 +342,9 @@ class ReleaseProcess {
   /**
    * Get release details - Matches backend contract API #1
    */
-  async getReleaseDetails(tenantId: string, releaseId: string, userId: string) {
+  async getReleaseDetails(appId: string, releaseId: string, userId: string) {
     return this.__client.get<null, AxiosResponse<GetReleaseDetailsResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}`,
+      `/api/v1/apps/${appId}/releases/${releaseId}`,
       { headers: this.buildHeaders(userId) }
     );
   }
@@ -355,10 +355,10 @@ class ReleaseProcess {
 
   /**
    * List build artifacts - Matches backend contract
-   * GET /tenants/:tenantId/releases/:releaseId/builds/artifacts
+   * GET /apps/:appId/releases/:releaseId/builds/artifacts
    */
   async listBuildArtifacts(
-    tenantId: string,
+    appId: string,
     releaseId: string,
     userId: string,
     filters?: { platform?: Platform; buildStage?: string }
@@ -368,7 +368,7 @@ class ReleaseProcess {
     if (filters?.buildStage) params.buildStage = filters.buildStage;
 
     return this.__client.get<null, AxiosResponse<ListBuildArtifactsResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/builds/artifacts`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/builds/artifacts`,
       { 
         params,
         headers: this.buildHeaders(userId)
@@ -379,10 +379,10 @@ class ReleaseProcess {
 
   /**
    * Verify TestFlight build - Matches backend contract
-   * POST /tenants/:tenantId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight
+   * POST /apps/:appId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight
    */
   async verifyTestFlight(
-    tenantId: string,
+    appId: string,
     releaseId: string,
     stage: BuildUploadStage,
     request: { testflightBuildNumber: string },
@@ -395,7 +395,7 @@ class ReleaseProcess {
       { testflightBuildNumber: string },
       AxiosResponse<BuildUploadResponse>
     >(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/${backendStage}/builds/ios/verify-testflight`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/stages/${backendStage}/builds/ios/verify-testflight`,
       request,
       { headers: this.buildHeaders(userId) }
     );
@@ -405,14 +405,14 @@ class ReleaseProcess {
    * Get all builds - Matches backend contract API #14
    */
   async getAllBuilds(
-    tenantId: string,
+    appId: string,
     releaseId: string,
     userId: string,
     filters?: { stage?: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE'; platform?: Platform; status?: 'PENDING' | 'UPLOADED' | 'FAILED' }
   ) {
     const params = filters || {};
     return this.__client.get<null, AxiosResponse<GetBuildsResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/builds`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/builds`,
       { 
         params,
         headers: this.buildHeaders(userId)
@@ -426,11 +426,11 @@ class ReleaseProcess {
 
   /**
    * Pause release (stop cron job) - Matches backend implementation
-   * POST /api/v1/tenants/:tenantId/releases/:releaseId/pause
+   * POST /api/v1/apps/:appId/releases/:releaseId/pause
    */
-  async pauseRelease(tenantId: string, releaseId: string, userId: string) {
+  async pauseRelease(appId: string, releaseId: string, userId: string) {
     return this.__client.post<null, AxiosResponse<{ success: boolean; message: string; releaseId: string }>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/pause`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/pause`,
       undefined,
       { headers: this.buildHeaders(userId) }
     );
@@ -438,11 +438,11 @@ class ReleaseProcess {
 
   /**
    * Resume release (start cron job) - Matches backend implementation
-   * POST /api/v1/tenants/:tenantId/releases/:releaseId/resume
+   * POST /api/v1/apps/:appId/releases/:releaseId/resume
    */
-  async resumeRelease(tenantId: string, releaseId: string, userId: string) {
+  async resumeRelease(appId: string, releaseId: string, userId: string) {
     return this.__client.post<null, AxiosResponse<{ success: boolean; message: string; releaseId: string }>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/resume`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/resume`,
       undefined,
       { headers: this.buildHeaders(userId) }
     );
@@ -450,11 +450,11 @@ class ReleaseProcess {
 
   /**
    * Archive release - Matches backend implementation
-   * PUT /api/v1/tenants/:tenantId/releases/:releaseId/archive
+   * PUT /api/v1/apps/:appId/releases/:releaseId/archive
    */
-  async archiveRelease(tenantId: string, releaseId: string, userId: string) {
+  async archiveRelease(appId: string, releaseId: string, userId: string) {
     return this.__client.put<null, AxiosResponse<{ success: boolean; message: string }>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/archive`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/archive`,
       undefined,
       { headers: this.buildHeaders(userId) }
     );

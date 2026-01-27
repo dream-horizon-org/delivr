@@ -31,7 +31,7 @@ export interface WorkflowsTabContentProps {
     jenkins: Array<{ id: string; name: string }>;
     githubActions: Array<{ id: string; name: string }>;
   };
-  tenantId: string;
+  appId: string;
   cicdIntegrationsCount: number;
   hasIntegrations: boolean;
   providerType?: string; // CICD_PROVIDER_TYPES value to determine which tab this is
@@ -44,7 +44,7 @@ export interface WorkflowsTabContentProps {
 export const WorkflowsTabContent = memo(function WorkflowsTabContent({
   workflows,
   availableIntegrations,
-  tenantId,
+  appId,
   cicdIntegrationsCount,
   hasIntegrations,
   providerType,
@@ -74,7 +74,7 @@ export const WorkflowsTabContent = memo(function WorkflowsTabContent({
           </Box>
           <Button
             component={Link}
-            to={`/dashboard/${tenantId}/integrations`}
+            to={`/dashboard/${appId}/integrations`}
             size="md"
             color="brand"
             leftSection={<IconPlug size={18} />}
@@ -120,7 +120,7 @@ export const WorkflowsTabContent = memo(function WorkflowsTabContent({
     <WorkflowList
       workflows={workflows}
       availableIntegrations={availableIntegrations}
-      tenantId={tenantId}
+      appId={appId}
       onRefresh={onRefresh}
       onCreate={onCreate}
       onUpdate={onUpdate}

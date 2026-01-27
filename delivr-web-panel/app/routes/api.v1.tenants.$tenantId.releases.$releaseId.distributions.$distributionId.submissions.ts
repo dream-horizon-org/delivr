@@ -1,13 +1,13 @@
 /**
  * Remix API Route: Create Resubmission (After Rejection or Cancellation)
- * POST /api/v1/tenants/:tenantId/distributions/:distributionId/submissions
+ * POST /api/v1/apps/:appId/distributions/:distributionId/submissions
  * 
  * This endpoint creates a COMPLETELY NEW submission after rejection or cancellation.
  * It requires a new artifact (AAB file for Android, TestFlight build for iOS).
  * The new submission gets a new submissionId and is immediately submitted to the store.
  * 
  * Path Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - distributionId: Distribution ID (required)
  * 
  * Use Case: Resubmission after rejection or user-initiated cancellation
@@ -102,7 +102,7 @@ const uploadHandler: import('@remix-run/node').UploadHandler = async ({ data, fi
  * POST - Create new submission (resubmission after rejection/cancellation)
  * 
  * Path Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - distributionId: Distribution ID (required)
  * 
  * Query Parameters:
@@ -126,11 +126,11 @@ const uploadHandler: import('@remix-run/node').UploadHandler = async ({ data, fi
  * - releaseNotes: "..."
  */
 const createResubmission: AuthenticatedActionFunction = async ({ params, request }) => {
-  const { tenantId, releaseId, distributionId } = params;
+  const { appId, releaseId, distributionId } = params;
 
-  // Validate tenantId
-  if (!tenantId) {
-    return createValidationError(ERROR_MESSAGES.TENANT_ID_REQUIRED);
+  // Validate appId
+  if (!appId) {
+    return createValidationError(ERROR_MESSAGES.APP_ID_REQUIRED);
   }
 
   // Validate releaseId
@@ -218,7 +218,7 @@ const createResubmission: AuthenticatedActionFunction = async ({ params, request
       serviceFormData.append('releaseNotes', androidRequest.releaseNotes);
 
       const response = await DistributionService.createResubmission(
-        tenantId,
+        appId,
         releaseId,
         distributionId,
         serviceFormData
@@ -286,7 +286,7 @@ const createResubmission: AuthenticatedActionFunction = async ({ params, request
       };
 
       const response = await DistributionService.createResubmission(
-        tenantId,
+        appId,
         releaseId,
         distributionId,
         iosRequest

@@ -16,7 +16,7 @@ export interface SlackChannel {
 }
 
 export interface VerifySlackRequest {
-  tenantId: string;
+  appId: string;
   botToken: string;
   userId: string;
   _encrypted?: boolean; // Flag to indicate botToken is encrypted
@@ -43,7 +43,7 @@ export interface FetchSlackChannelsResponse {
 }
 
 export interface CreateSlackIntegrationRequest {
-  tenantId: string;
+  appId: string;
   botToken: string;
   botUserId?: string;
   workspaceId?: string;
@@ -54,7 +54,7 @@ export interface CreateSlackIntegrationRequest {
 }
 
 export interface UpdateSlackIntegrationRequest {
-  tenantId: string;
+  appId: string;
   botToken?: string;
   botUserId?: string;
   workspaceId?: string;
@@ -66,7 +66,7 @@ export interface UpdateSlackIntegrationRequest {
 
 export interface SlackIntegration {
   id: string;
-  tenantId: string;
+  appId: string;
   communicationType: 'SLACK' | 'TEAMS' | 'DISCORD';
   slackBotUserId: string | null;
   slackWorkspaceId: string | null;
@@ -93,7 +93,7 @@ export class SlackIntegrationServiceClass extends IntegrationService {
    * Verify Slack bot token
    */
   async verifySlack(data: VerifySlackRequest): Promise<VerifySlackResponse> {
-    const endpoint = COMMUNICATION.slack.verify(data.tenantId);
+    const endpoint = COMMUNICATION.slack.verify(data.appId);
     this.logRequest('POST', endpoint, { _encrypted: data._encrypted });
     
     try {
@@ -125,7 +125,7 @@ export class SlackIntegrationServiceClass extends IntegrationService {
    */
   async createOrUpdateIntegration(data: CreateSlackIntegrationRequest): Promise<SlackIntegrationResponse> {
     try {
-      const endpoint = COMMUNICATION.slack.create(data.tenantId);
+      const endpoint = COMMUNICATION.slack.create(data.appId);
       const result = await this.post<SlackIntegrationResponse>(
         endpoint,
         {
@@ -152,10 +152,10 @@ export class SlackIntegrationServiceClass extends IntegrationService {
   /**
    * Get Slack integration for tenant
    */
-  async getIntegration(tenantId: string, userId: string): Promise<SlackIntegrationResponse> {
+  async getIntegration(appId: string, userId: string): Promise<SlackIntegrationResponse> {
     try {
       return await this.get<SlackIntegrationResponse>(
-        COMMUNICATION.slack.get(tenantId),
+        COMMUNICATION.slack.get(appId),
         userId
       );
     } catch (error: any) {
@@ -175,10 +175,10 @@ export class SlackIntegrationServiceClass extends IntegrationService {
 
   /**
    * Fetch ALL Slack channels (live from Slack API using stored token)
-   * Can use either tenantId (legacy) or integrationId (new)
+   * Can use either appId (legacy) or integrationId (new)
    */
   async fetchChannelsForIntegration(
-    tenantId: string, 
+    appId: string, 
     userId: string, 
     integrationId?: string
   ): Promise<FetchSlackChannelsResponse> {
@@ -186,7 +186,7 @@ export class SlackIntegrationServiceClass extends IntegrationService {
       // If integrationId is provided, use the new endpoint
       if (integrationId) {
         return await this.get<FetchSlackChannelsResponse>(
-          COMMUNICATION.slack.getChannelsByIntegrationId(tenantId, integrationId),
+          COMMUNICATION.slack.getChannelsByIntegrationId(appId, integrationId),
           userId
         );
       }
@@ -194,7 +194,7 @@ export class SlackIntegrationServiceClass extends IntegrationService {
       // Otherwise, use the legacy endpoint (requires botToken in body, which we don't have)
       // This will likely fail, but keeping for backward compatibility
       return await this.get<FetchSlackChannelsResponse>(
-        COMMUNICATION.slack.getChannels(tenantId),
+        COMMUNICATION.slack.getChannels(appId),
         userId
       );
     } catch (error: any) {
@@ -213,7 +213,7 @@ export class SlackIntegrationServiceClass extends IntegrationService {
    */
   async updateIntegration(data: UpdateSlackIntegrationRequest): Promise<SlackIntegrationResponse> {
     try {
-      const endpoint = COMMUNICATION.slack.update(data.tenantId);
+      const endpoint = COMMUNICATION.slack.update(data.appId);
       const result = await this.patch<SlackIntegrationResponse>(
         endpoint,
         {
@@ -240,10 +240,10 @@ export class SlackIntegrationServiceClass extends IntegrationService {
   /**
    * Delete Slack integration
    */
-  async deleteIntegration(tenantId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  async deleteIntegration(appId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       return await this.delete<{ success: boolean; message?: string }>(
-        COMMUNICATION.slack.delete(tenantId),
+        COMMUNICATION.slack.delete(appId),
         userId
       );
     } catch (error: any) {

@@ -19,7 +19,7 @@ import { ConsumedBuildsDisplay } from './builds/ConsumedBuildsDisplay';
 
 interface BuildTaskDetailsProps {
   task: Task;
-  tenantId?: string;
+  appId?: string;
   releaseId?: string;
   onUploadComplete?: () => void;
   uploadedBuilds?: BuildInfo[];  // Stage-level uploaded builds (not yet consumed)
@@ -27,12 +27,12 @@ interface BuildTaskDetailsProps {
 
 export function BuildTaskDetails({
   task,
-  tenantId,
+  appId,
   releaseId,
   onUploadComplete,
   uploadedBuilds = [],  // Stage-level uploaded builds (not yet consumed)
 }: BuildTaskDetailsProps) {
-  const { release } = useRelease(tenantId || '', releaseId || '');
+  const { release } = useRelease(appId || '', releaseId || '');
   const isManualMode = release?.hasManualBuildUpload === true;
 
   // Determine build stage based on task type
@@ -114,7 +114,7 @@ export function BuildTaskDetails({
       task.taskStatus === TaskStatus.IN_PROGRESS ||
       task.taskStatus === TaskStatus.AWAITING_MANUAL_BUILD) &&
     expectedPlatforms.length > 0 &&
-    tenantId &&
+    appId &&
     releaseId;
 
   // Determine if this is a Pre-Release build task
@@ -153,9 +153,9 @@ export function BuildTaskDetails({
     <Stack gap="md">
       {/* Build Upload Widget - Show for platforms without builds (Manual mode only) */}
       {/* Only show for non-consumed builds (task not completed) */}
-      {showBuildUpload && buildStage && tenantId && releaseId && task.taskStatus !== TaskStatus.COMPLETED && (
+      {showBuildUpload && buildStage && appId && releaseId && task.taskStatus !== TaskStatus.COMPLETED && (
         <BuildUploadSection
-          tenantId={tenantId}
+          appId={appId}
           releaseId={releaseId}
           buildStage={buildStage}
           taskType={task.taskType}

@@ -276,7 +276,7 @@ export const CICDTab = memo(function CICDTab({ org }: CICDTabProps) {
       <WorkflowList
         workflows={workflows}
         availableIntegrations={availableIntegrations}
-        tenantId={org}
+        appId={org}
         onRefresh={fetchWorkflows}
         onCreate={handleCreateWorkflow}
         onUpdate={handleUpdateWorkflow}

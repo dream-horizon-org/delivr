@@ -13,14 +13,14 @@
  */
 export function validateStageProps(
   props: {
-    tenantId?: string;
+    appId?: string;
     releaseId?: string;
   },
   componentName: string
-): asserts props is { tenantId: string; releaseId: string } {
-  if (!props.tenantId) {
+): asserts props is { appId: string; releaseId: string } {
+  if (!props.appId) {
     const error = new Error(
-      `${componentName}: tenantId is required but was not provided`
+      `${componentName}: appId is required but was not provided`
     );
     if (process.env.NODE_ENV === 'development') {
       console.error(error);

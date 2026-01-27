@@ -1,6 +1,6 @@
 /**
  * BFF API Route: Get Tenant Information
- * GET /api/v1/tenants/:tenantId
+ * GET /api/v1/apps/:appId
  */
 
 import { json } from '@remix-run/node';
@@ -13,10 +13,10 @@ import {
 import { logApiError } from '~/utils/api-route-helpers';
 
 const getTenantInfo: AuthenticatedLoaderFunction = async ({ params, user }) => {
-  const tenantId = params.tenantId;
+  const appId = params.appId;
   
-  if (!tenantId) {
-    return json({ error: 'Tenant ID required' }, { status: 400 });
+  if (!appId) {
+    return json({ error: 'app id required' }, { status: 400 });
   }
 
   // Safety check for user object
@@ -26,16 +26,16 @@ const getTenantInfo: AuthenticatedLoaderFunction = async ({ params, user }) => {
   }
 
   try {
-    console.log(`[BFF-TenantInfo] Fetching tenant info for: ${tenantId}, userId: ${user.user.id}`);
+    console.log(`[BFF-TenantInfo] Fetching tenant info for: ${appId}, userId: ${user.user.id}`);
     
     // Fetch base tenant info
     const response = await CodepushService.getTenantInfo({
       userId: user.user.id,
-      tenantId,
+      appId,
     });
 
     // Fetch app distribution integrations
-    const distributionsResponse = await AppDistributionService.listIntegrations(tenantId, user.user.id);
+    const distributionsResponse = await AppDistributionService.listIntegrations(appId, user.user.id);
     // Flatten the grouped data into a single array
     const distributions = distributionsResponse.success && distributionsResponse.data
       ? [...(distributionsResponse.data.IOS || []), ...(distributionsResponse.data.ANDROID || [])]

@@ -13,10 +13,10 @@ import type { CICDProviderType } from '~/.server/services/ReleaseManagement/inte
  */
 export async function action({ request, params }: ActionFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId } = params;
+  const { appId } = params;
   
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id is required' }, { status: 400 });
   }
   
   if (request.method !== 'POST') {
@@ -43,7 +43,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
   
   const result = await CICDIntegrationService.fetchJobParameters(
-    tenantId,
+    appId,
     userId,
     providerType as CICDProviderType,
     integrationId,

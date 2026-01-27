@@ -1,5 +1,5 @@
 /**
- * GET /api/v1/tenants/:tenantId/builds/:buildId/artifact
+ * GET /api/v1/apps/:appId/builds/:buildId/artifact
  * Fetch presigned URL for build artifact download
  */
 
@@ -12,10 +12,10 @@ const LOG_CONTEXT = 'BUILD_ARTIFACT_DOWNLOAD_API';
 
 export const loader = authenticateLoaderRequest(
   async ({ params, user }: LoaderFunctionArgs & { user: any }) => {
-    const { tenantId, buildId } = params;
+    const { appId, buildId } = params;
 
-    if (!validateRequired(tenantId, 'Tenant ID is required')) {
-      return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+    if (!validateRequired(appId, 'app id is required')) {
+      return json({ success: false, error: 'app id is required' }, { status: 400 });
     }
 
     if (!validateRequired(buildId, 'Build ID is required')) {
@@ -24,7 +24,7 @@ export const loader = authenticateLoaderRequest(
 
     try {
       const response = await ReleaseProcessService.getBuildArtifactDownloadUrl(
-        tenantId,
+        appId,
         buildId,
         user.user.id
       );

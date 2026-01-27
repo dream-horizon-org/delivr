@@ -1,6 +1,6 @@
 /**
  * Remix API Route: Slack Token Verification
- * POST /api/v1/tenants/:tenantId/integrations/slack/verify
+ * POST /api/v1/apps/:appId/integrations/slack/verify
  */
 
 import { json } from '@remix-run/node';
@@ -11,9 +11,9 @@ import type { User } from '~/.server/services/Auth/auth.interface';
 
 export const action = authenticateActionRequest({
   POST: async ({ request, params, user }: ActionFunctionArgs & { user: User }) => {
-    const tenantId = params.tenantId;
-    if (!tenantId) {
-      return json({ error: 'Tenant ID required' }, { status: 400 });
+    const appId = params.appId;
+    if (!appId) {
+      return json({ error: 'app id required' }, { status: 400 });
     }
 
     try {
@@ -39,11 +39,11 @@ export const action = authenticateActionRequest({
         );
       }
 
-      console.log(`[Slack-Verify] Verifying token for tenant: ${tenantId}, _encrypted: ${_encrypted}`);
+      console.log(`[Slack-Verify] Verifying token for tenant: ${appId}, _encrypted: ${_encrypted}`);
 
 
       const result = await SlackIntegrationService.verifySlack({
-        tenantId,
+        appId,
         botToken,
         userId: user.user.id,
         _encrypted, // Forward encryption flag to backend

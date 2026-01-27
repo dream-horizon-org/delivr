@@ -1,9 +1,9 @@
 /**
  * Remix API Route: Kickoff Stage
- * GET /api/v1/tenants/:tenantId/releases/:releaseId/stages/kickoff
+ * GET /api/v1/apps/:appId/releases/:releaseId/stages/kickoff
  * 
  * BFF route that proxies to ReleaseProcessService
- * Backend contract: GET /api/v1/tenants/:tenantId/releases/:releaseId/tasks?stage=KICKOFF
+ * Backend contract: GET /api/v1/apps/:appId/releases/:releaseId/tasks?stage=KICKOFF
  */
 
 import { json } from '@remix-run/node';
@@ -25,10 +25,10 @@ import {
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, user }: LoaderFunctionArgs & { user: User }) => {
-    const { tenantId, releaseId } = params;
+    const { appId, releaseId } = params;
 
-    if (!validateRequired(tenantId, 'Tenant ID is required')) {
-      return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+    if (!validateRequired(appId, 'app id is required')) {
+      return json({ success: false, error: 'app id is required' }, { status: 400 });
     }
 
     if (!validateRequired(releaseId, 'Release ID is required')) {
@@ -37,7 +37,7 @@ export const loader = authenticateLoaderRequest(
 
     try {
       console.log('[BFF] Fetching kickoff stage for release:', releaseId);
-      const response = await ReleaseProcessService.getKickoffStage(tenantId, releaseId, user.user.id);
+      const response = await ReleaseProcessService.getKickoffStage(appId, releaseId, user.user.id);
       console.log('[BFF] Kickoff stage response:', response.data);
       
       // Backend returns { success: true, stage: 'KICKOFF', releaseId, tasks, stageStatus }

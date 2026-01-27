@@ -22,13 +22,13 @@ class GitHubActionsIntegrationService extends IntegrationService {
    * Verify GitHub Actions token/credentials
    */
   async verifyConnection(
-    tenantId: string,
+    appId: string,
     userId: string,
     data?: VerifyGitHubActionsRequest
   ): Promise<GitHubActionsVerifyResponse> {
     try {
       return await this.post<GitHubActionsVerifyResponse>(
-        CICD.verifyConnection(tenantId, 'GITHUB_ACTIONS'),
+        CICD.verifyConnection(appId, 'GITHUB_ACTIONS'),
         data || {},
         userId
       );
@@ -44,13 +44,13 @@ class GitHubActionsIntegrationService extends IntegrationService {
    * Create GitHub Actions integration
    */
   async createIntegration(
-    tenantId: string,
+    appId: string,
     userId: string,
     data: CreateGitHubActionsRequest
   ): Promise<GitHubActionsIntegrationResponse> {
     try {
       return await this.post<GitHubActionsIntegrationResponse>(
-        CICD.createConnection(tenantId, 'GITHUB_ACTIONS'),
+        CICD.createConnection(appId, 'GITHUB_ACTIONS'),
         data,
         userId
       );
@@ -66,12 +66,12 @@ class GitHubActionsIntegrationService extends IntegrationService {
    * Get GitHub Actions integration
    */
   async getIntegration(
-    tenantId: string,
+    appId: string,
     userId: string
   ): Promise<GitHubActionsIntegrationResponse> {
     try {
       return await this.get<GitHubActionsIntegrationResponse>(
-        CICD.getProvider(tenantId, 'github-actions'),
+        CICD.getProvider(appId, 'github-actions'),
         userId
       );
     } catch (error: any) {
@@ -86,14 +86,14 @@ class GitHubActionsIntegrationService extends IntegrationService {
    * Update GitHub Actions integration
    */
   async updateIntegration(
-    tenantId: string,
+    appId: string,
     integrationId: string,
     userId: string,
     data: UpdateGitHubActionsRequest
   ): Promise<GitHubActionsIntegrationResponse> {
     try {
       return await this.patch<GitHubActionsIntegrationResponse>(
-        CICD.updateConnection(tenantId, integrationId),
+        CICD.updateConnection(appId, integrationId),
         data,
         userId
       );
@@ -109,13 +109,13 @@ class GitHubActionsIntegrationService extends IntegrationService {
    * Delete GitHub Actions integration
    */
   async deleteIntegration(
-    tenantId: string,
+    appId: string,
     integrationId: string,
     userId: string
   ): Promise<GitHubActionsIntegrationResponse> {
     try {
       return await this.delete<GitHubActionsIntegrationResponse>(
-        CICD.deleteConnection(tenantId, integrationId),
+        CICD.deleteConnection(appId, integrationId),
         userId
       );
     } catch (error: any) {
@@ -133,10 +133,10 @@ class GitHubActionsIntegrationService extends IntegrationService {
   /**
    * Fetch GitHub Actions workflow inputs (job parameters)
    */
-  async fetchWorkflowInputs(tenantId: string, userId: string, integrationId: string, workflowUrl: string): Promise<any> {
+  async fetchWorkflowInputs(appId: string, userId: string, integrationId: string, workflowUrl: string): Promise<any> {
     try {
       return await this.post(
-        CICD.jobParameters(tenantId, integrationId),
+        CICD.jobParameters(appId, integrationId),
         { workflowUrl },
         userId
       );
@@ -152,9 +152,9 @@ class GitHubActionsIntegrationService extends IntegrationService {
   /**
    * List GitHub Actions workflows for tenant
    */
-  async listWorkflows(tenantId: string, userId: string, filters?: any): Promise<any> {
+  async listWorkflows(appId: string, userId: string, filters?: any): Promise<any> {
     try {
-      const url = buildUrlWithQuery(CICD.listWorkflows(tenantId), {
+      const url = buildUrlWithQuery(CICD.listWorkflows(appId), {
         providerType: 'GITHUB_ACTIONS',
         platform: filters?.platform,
         workflowType: filters?.workflowType
@@ -173,10 +173,10 @@ class GitHubActionsIntegrationService extends IntegrationService {
   /**
    * Create GitHub Actions workflow configuration
    */
-  async createWorkflow(tenantId: string, userId: string, data: any): Promise<any> {
+  async createWorkflow(appId: string, userId: string, data: any): Promise<any> {
     try {
       return await this.post(
-        CICD.createWorkflow(tenantId),
+        CICD.createWorkflow(appId),
         { ...data, providerType: 'GITHUB_ACTIONS' },
         userId
       );
@@ -191,10 +191,10 @@ class GitHubActionsIntegrationService extends IntegrationService {
   /**
    * Update GitHub Actions workflow configuration
    */
-  async updateWorkflow(tenantId: string, workflowId: string, userId: string, data: any): Promise<any> {
+  async updateWorkflow(appId: string, workflowId: string, userId: string, data: any): Promise<any> {
     try {
       return await this.patch(
-        CICD.updateWorkflow(tenantId, workflowId),
+        CICD.updateWorkflow(appId, workflowId),
         data,
         userId
       );
@@ -209,10 +209,10 @@ class GitHubActionsIntegrationService extends IntegrationService {
   /**
    * Delete GitHub Actions workflow configuration
    */
-  async deleteWorkflow(tenantId: string, workflowId: string, userId: string): Promise<any> {
+  async deleteWorkflow(appId: string, workflowId: string, userId: string): Promise<any> {
     try {
       return await this.delete(
-        CICD.deleteWorkflow(tenantId, workflowId),
+        CICD.deleteWorkflow(appId, workflowId),
         userId
       );
     } catch (error: any) {

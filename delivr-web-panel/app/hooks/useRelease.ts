@@ -16,9 +16,9 @@ interface ReleaseResponse {
   error?: string;
 }
 
-const QUERY_KEY = (tenantId: string, releaseId: string) => ['release', tenantId, releaseId];
+const QUERY_KEY = (appId: string, releaseId: string) => ['release', appId, releaseId];
 
-export function useRelease(tenantId?: string, releaseId?: string) {
+export function useRelease(appId?: string, releaseId?: string) {
   const queryClient = useQueryClient();
 
   // Fetch single release by ID
@@ -28,16 +28,16 @@ export function useRelease(tenantId?: string, releaseId?: string) {
     error,
     refetch,
   } = useQuery<ReleaseResponse, Error>(
-    QUERY_KEY(tenantId || '', releaseId || ''),
+    QUERY_KEY(appId || '', releaseId || ''),
     async () => {
-      if (!tenantId || !releaseId) {
+      if (!appId || !releaseId) {
         return { success: false };
       }
       
       const result = await apiGet<{ release?: BackendReleaseResponse }>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}`
+        `/api/v1/apps/${appId}/releases/${releaseId}`
       );
-      // console.log('[useRelease] API GET:', `/api/v1/tenants/${tenantId}/releases/${releaseId}`);
+      // console.log('[useRelease] API GET:', `/api/v1/apps/${appId}/releases/${releaseId}`);
       // console.log('[useRelease] Result:', result);
       
       return {
@@ -47,7 +47,7 @@ export function useRelease(tenantId?: string, releaseId?: string) {
       };
     },
     {
-      enabled: !!tenantId && !!releaseId, // Only fetch if both IDs exist
+      enabled: !!appId && !!releaseId, // Only fetch if both IDs exist
       staleTime: 2 * 60 * 1000, // 2 minutes - data stays fresh
       cacheTime: 10 * 60 * 1000, // 10 minutes - cache time
       refetchOnWindowFocus: true, // Refetch when user returns to tab
@@ -58,19 +58,19 @@ export function useRelease(tenantId?: string, releaseId?: string) {
 
   // Invalidate cache (call after update/delete)
   const invalidateCache = useCallback(() => {
-    if (tenantId && releaseId) {
-      console.log('[useRelease] Invalidating cache for release:', { tenantId, releaseId });
-      queryClient.invalidateQueries(QUERY_KEY(tenantId, releaseId));
+    if (appId && releaseId) {
+      console.log('[useRelease] Invalidating cache for release:', { appId, releaseId });
+      queryClient.invalidateQueries(QUERY_KEY(appId, releaseId));
     }
-  }, [tenantId, releaseId, queryClient]);
+  }, [appId, releaseId, queryClient]);
 
   // Optimistically update the release in cache
   const updateReleaseInCache = useCallback(
     (updater: (release: BackendReleaseResponse) => BackendReleaseResponse) => {
-    if (!tenantId || !releaseId) return;
+    if (!appId || !releaseId) return;
     
     queryClient.setQueryData<ReleaseResponse>(
-      QUERY_KEY(tenantId, releaseId),
+      QUERY_KEY(appId, releaseId),
       (old: ReleaseResponse | undefined): ReleaseResponse => {
         if (!old || !old.release) return { success: false };
         
@@ -81,7 +81,7 @@ export function useRelease(tenantId?: string, releaseId?: string) {
       }
     );
     },
-    [tenantId, releaseId, queryClient]
+    [appId, releaseId, queryClient]
   );
 
   return {

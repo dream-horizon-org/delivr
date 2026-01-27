@@ -33,7 +33,7 @@ export function FixedPipelineCategories({
   onChange,
   availableIntegrations,
   selectedPlatforms,
-  tenantId,
+  appId,
   showValidation = false,
 }: FixedPipelineCategoriesProps) {
   const [editModalOpened, setEditModalOpened] = useState(false);
@@ -51,19 +51,19 @@ export function FixedPipelineCategories({
   console.log("pipelines", pipelines, "selectedPlatforms", selectedPlatforms, "needsAndroid", needsAndroid, "needsIOS", needsIOS);
   // Fetch workflows when component mounts
   useEffect(() => {
-    if (tenantId) {
+    if (appId) {
       fetchWorkflows();
     }
-  }, [tenantId]);
+  }, [appId]);
   
   const fetchWorkflows = async () => {
-    if (!tenantId) return;
+    if (!appId) return;
     
     setLoadingWorkflows(true);
     
     try {
       const result = await apiGet<{ workflows: CICDWorkflow[] }>(
-        `/api/v1/tenants/${tenantId}/workflows`
+        `/api/v1/apps/${appId}/workflows`
       );
       
       if (result.success && result.data?.workflows) {
@@ -353,7 +353,7 @@ export function FixedPipelineCategories({
         fixedPlatform={editingCategory?.platform}
         fixedEnvironment={editingCategory?.environment}
         workflows={workflows}
-        tenantId={tenantId}
+        appId={appId}
       />
       </Stack>
     </div>

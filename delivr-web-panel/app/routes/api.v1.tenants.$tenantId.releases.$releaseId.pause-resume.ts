@@ -1,11 +1,11 @@
 /**
  * Remix API Route: Pause/Resume Release
- * POST /api/v1/tenants/:tenantId/releases/:releaseId/pause-resume
+ * POST /api/v1/apps/:appId/releases/:releaseId/pause-resume
  * 
  * BFF route that proxies to ReleaseProcessService
  * Backend implementation:
- *   - Pause: POST /api/v1/tenants/:tenantId/releases/:releaseId/pause
- *   - Resume: POST /api/v1/tenants/:tenantId/releases/:releaseId/resume
+ *   - Pause: POST /api/v1/apps/:appId/releases/:releaseId/pause
+ *   - Resume: POST /api/v1/apps/:appId/releases/:releaseId/resume
  * Matches API contract API #29 (Pause) and API #30 (Resume)
  */
 
@@ -31,14 +31,14 @@ interface PauseResumeRequest {
  * POST - Pause or resume release
  * Request body: { action: 'pause' | 'resume' }
  * Calls backend API based on action:
- *   - pause: POST /api/v1/tenants/:tenantId/releases/:releaseId/pause
- *   - resume: POST /api/v1/tenants/:tenantId/releases/:releaseId/resume
+ *   - pause: POST /api/v1/apps/:appId/releases/:releaseId/pause
+ *   - resume: POST /api/v1/apps/:appId/releases/:releaseId/resume
  */
 const pauseResumeRelease: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { tenantId, releaseId } = params;
+  const { appId, releaseId } = params;
 
-  if (!validateRequired(tenantId, 'Tenant ID is required')) {
-    return createValidationError('Tenant ID is required');
+  if (!validateRequired(appId, 'app id is required')) {
+    return createValidationError('app id is required');
   }
 
   if (!validateRequired(releaseId, 'Release ID is required')) {
@@ -55,8 +55,8 @@ const pauseResumeRelease: AuthenticatedActionFunction = async ({ params, request
     console.log(`[BFF] ${body.action === 'pause' ? 'Pausing' : 'Resuming'} release:`, releaseId);
     
     const response = body.action === 'pause'
-      ? await ReleaseProcessService.pauseRelease(tenantId, releaseId, user.user.id)
-      : await ReleaseProcessService.resumeRelease(tenantId, releaseId, user.user.id);
+      ? await ReleaseProcessService.pauseRelease(appId, releaseId, user.user.id)
+      : await ReleaseProcessService.resumeRelease(appId, releaseId, user.user.id);
     
     console.log(`[BFF] ${body.action === 'pause' ? 'Pause' : 'Resume'} release response:`, response.data);
     

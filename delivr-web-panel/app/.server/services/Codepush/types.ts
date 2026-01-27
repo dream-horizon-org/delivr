@@ -446,7 +446,7 @@ export type CreateReleaseResponse = {
 
 // Tenant Info Types
 export type TenantInfoRequest = BaseHeader & {
-  tenantId: string;
+  appId: string;
 };
 
 export type TenantInfoResponse = {

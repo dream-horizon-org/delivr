@@ -1,6 +1,6 @@
 /**
  * API Route: Fetch Slack Channels (LIVE from Slack API)
- * GET /api/v1/integrations/:integrationId/channels?tenantId=xxx
+ * GET /api/v1/integrations/:integrationId/channels?appId=xxx
  * 
  * Fetches ALL available Slack channels by calling Slack API with stored token
  * Used in Release Config to show all channels, not just stored ones
@@ -13,7 +13,7 @@ import { SlackIntegrationService } from '~/.server/services/ReleaseManagement/in
 export const loader = authenticateLoaderRequest(async ({ params, request, user }) => {
   const { integrationId } = params;
   const url = new URL(request.url);
-  const tenantId = url.searchParams.get('tenantId');
+  const appId = url.searchParams.get('appId');
 
   if (!integrationId) {
     return json(
@@ -22,19 +22,19 @@ export const loader = authenticateLoaderRequest(async ({ params, request, user }
     );
   }
 
-  if (!tenantId) {
+  if (!appId) {
     return json(
-      { success: false, error: 'Tenant ID is required' },
+      { success: false, error: 'app id is required' },
       { status: 400 }
     );
   }
 
   try {
-    console.log(`[Slack Channels API] Fetching LIVE channels from Slack API for tenant: ${tenantId}, integrationId: ${integrationId}`);
+    console.log(`[Slack Channels API] Fetching LIVE channels from Slack API for tenant: ${appId}, integrationId: ${integrationId}`);
     
     // Use service to call backend (handles authentication properly)
     // Pass integrationId to use the new endpoint that retrieves token internally
-    const result = await SlackIntegrationService.fetchChannelsForIntegration(tenantId, user.user.id, integrationId);
+    const result = await SlackIntegrationService.fetchChannelsForIntegration(appId, user.user.id, integrationId);
     
     if (!result.success) {
       console.error(`[Slack Channels API] Error:`, result.error);

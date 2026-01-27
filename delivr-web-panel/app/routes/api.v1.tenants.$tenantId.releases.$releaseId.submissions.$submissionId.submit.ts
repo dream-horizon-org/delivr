@@ -1,6 +1,6 @@
 /**
  * Remix API Route: Submit Existing Submission (First-Time Submission)
- * PUT /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/submit?platform=ANDROID|IOS
+ * PUT /api/v1/apps/:appId/releases/:releaseId/submissions/:submissionId/submit?platform=ANDROID|IOS
  * 
  * This endpoint submits an existing PENDING submission to the store.
  * The submission is already created when the distribution is created.
@@ -10,7 +10,7 @@
  * (android_submission_builds or ios_submission_builds)
  * 
  * Path Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - releaseId: Release ID (required for ownership validation)
  * - submissionId: Submission ID (required)
  * 
@@ -61,7 +61,7 @@ function validateInAppPriority(priority: unknown): boolean {
  * PUT - Submit existing PENDING submission
  * 
  * Path Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - submissionId: Submission ID (required)
  * 
  * Query Parameters:
@@ -83,13 +83,13 @@ function validateInAppPriority(priority: unknown): boolean {
  * }
  */
 const submitSubmission: AuthenticatedActionFunction = async ({ params, request }) => {
-  const { tenantId, releaseId, submissionId } = params;
+  const { appId, releaseId, submissionId } = params;
   const url = new URL(request.url);
   const platform = url.searchParams.get('platform');
 
-  // Validate tenantId
-  if (!tenantId) {
-    return createValidationError(ERROR_MESSAGES.TENANT_ID_REQUIRED);
+  // Validate appId
+  if (!appId) {
+    return createValidationError(ERROR_MESSAGES.APP_ID_REQUIRED);
   }
 
   // Validate releaseId
@@ -177,7 +177,7 @@ const submitSubmission: AuthenticatedActionFunction = async ({ params, request }
     }
 
     const response = await DistributionService.submitSubmission(
-      tenantId,
+      appId,
       releaseId,
       submissionId,
       body,

@@ -8,16 +8,16 @@ import {
 } from "~/utils/authenticate";
 import { logApiError } from '~/utils/api-route-helpers';
 
-// GET /api/v1/tenants/:tenantId/collaborators
+// GET /api/v1/apps/:appId/collaborators
 const getTenantCollaborators: AuthenticatedLoaderFunction = async ({ params, user }) => {
   try {
-    const { tenantId } = params;
+    const { appId } = params;
     
-    if (!tenantId) {
-      return json({ error: "tenantId is required" }, { status: 400 });
+    if (!appId) {
+      return json({ error: "appId is required" }, { status: 400 });
     }
 
-    const response = await CodepushService.getTenantCollaborators(tenantId, user.user.id);
+    const response = await CodepushService.getTenantCollaborators(appId, user.user.id);
     return json(response.data, { status: response.status });
   } catch (error: any) {
     logApiError('[Collaborators-Get]', error);
@@ -30,13 +30,13 @@ const getTenantCollaborators: AuthenticatedLoaderFunction = async ({ params, use
 
 export const loader = authenticateLoaderRequest(getTenantCollaborators);
 
-// POST /api/v1/tenants/:tenantId/collaborators
+// POST /api/v1/apps/:appId/collaborators
 const addCollaborator: AuthenticatedActionFunction = async ({ request, params, user }) => {
   try {
-    const { tenantId } = params;
+    const { appId } = params;
     
-    if (!tenantId) {
-      return json({ error: "tenantId is required" }, { status: 400 });
+    if (!appId) {
+      return json({ error: "appId is required" }, { status: 400 });
     }
 
     const body = await request.json();
@@ -51,7 +51,7 @@ const addCollaborator: AuthenticatedActionFunction = async ({ request, params, u
     }
 
     const response = await CodepushService.addTenantCollaborator(
-      tenantId,
+      appId,
       email,
       permission,
       user.user.id
@@ -73,13 +73,13 @@ const addCollaborator: AuthenticatedActionFunction = async ({ request, params, u
   }
 };
 
-// PATCH /api/v1/tenants/:tenantId/collaborators
+// PATCH /api/v1/apps/:appId/collaborators
 const updateCollaborator: AuthenticatedActionFunction = async ({ request, params, user }) => {
   try {
-    const { tenantId } = params;
+    const { appId } = params;
     
-    if (!tenantId) {
-      return json({ error: "tenantId is required" }, { status: 400 });
+    if (!appId) {
+      return json({ error: "appId is required" }, { status: 400 });
     }
 
     const body = await request.json();
@@ -94,7 +94,7 @@ const updateCollaborator: AuthenticatedActionFunction = async ({ request, params
     }
 
     const response = await CodepushService.updateTenantCollaborator(
-      tenantId,
+      appId,
       email,
       permission,
       user.user.id
@@ -110,13 +110,13 @@ const updateCollaborator: AuthenticatedActionFunction = async ({ request, params
   }
 };
 
-// DELETE /api/v1/tenants/:tenantId/collaborators
+// DELETE /api/v1/apps/:appId/collaborators
 const removeCollaborator: AuthenticatedActionFunction = async ({ request, params, user }) => {
   try {
-    const { tenantId } = params;
+    const { appId } = params;
     
-    if (!tenantId) {
-      return json({ error: "tenantId is required" }, { status: 400 });
+    if (!appId) {
+      return json({ error: "appId is required" }, { status: 400 });
     }
 
     const body = await request.json();
@@ -127,7 +127,7 @@ const removeCollaborator: AuthenticatedActionFunction = async ({ request, params
     }
 
     const response = await CodepushService.removeTenantCollaborator(
-      tenantId,
+      appId,
       email,
       user.user.id
     );

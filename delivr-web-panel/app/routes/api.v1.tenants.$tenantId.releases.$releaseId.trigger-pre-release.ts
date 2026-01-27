@@ -1,9 +1,9 @@
 /**
  * Remix API Route: Approve Regression Stage (Trigger Pre-Release)
- * POST /api/v1/tenants/:tenantId/releases/:releaseId/trigger-pre-release
+ * POST /api/v1/apps/:appId/releases/:releaseId/trigger-pre-release
  * 
  * BFF route that calls the ReleaseProcessService to approve regression stage and trigger pre-release
- * Backend contract: POST /api/v1/tenants/{tenantId}/releases/{releaseId}/trigger-pre-release
+ * Backend contract: POST /api/v1/tenants/{appId}/releases/{releaseId}/trigger-pre-release
  * Matches backend contract API #11
  */
 
@@ -23,11 +23,11 @@ import {
 import type { ApproveRegressionStageRequest, ApproveRegressionStageResponse } from '~/types/release-process.types';
 
 const approveRegressionStage: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { tenantId, releaseId } = params;
+  const { appId, releaseId } = params;
 
   // Validate required path parameters
-  if (!validateRequired(tenantId, 'Tenant ID is required')) {
-    return createValidationError('Tenant ID is required');
+  if (!validateRequired(appId, 'app id is required')) {
+    return createValidationError('app id is required');
   }
 
   if (!validateRequired(releaseId, 'Release ID is required')) {
@@ -39,7 +39,7 @@ const approveRegressionStage: AuthenticatedActionFunction = async ({ params, req
     const body = await request.json() as ApproveRegressionStageRequest;
 
     console.log('[BFF] Approving regression stage for release:', releaseId, body);
-    const response = await ReleaseProcessService.approveRegressionStage(tenantId, releaseId, body, user.user.id);
+    const response = await ReleaseProcessService.approveRegressionStage(appId, releaseId, body, user.user.id);
     
     // Axios response structure: response.data contains the actual response body
     console.log('[BFF] Regression stage approval response:', response.data);

@@ -10,13 +10,13 @@ import { getApiErrorMessage } from '~/utils/api-client';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
 
 interface UseTaskHandlersOptions {
-  tenantId: string;
+  appId: string;
   releaseId: string;
   refetch: () => unknown;
 }
 
-export function useTaskHandlers({ tenantId, releaseId, refetch }: UseTaskHandlersOptions) {
-  const retryMutation = useRetryTask(tenantId, releaseId);
+export function useTaskHandlers({ appId, releaseId, refetch }: UseTaskHandlersOptions) {
+  const retryMutation = useRetryTask(appId, releaseId);
 
   const handleRetry = useCallback(
     async (taskId: string) => {

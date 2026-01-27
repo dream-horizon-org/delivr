@@ -1,9 +1,9 @@
 /**
  * Remix API Route: List Build Artifacts
- * GET /api/v1/tenants/:tenantId/releases/:releaseId/builds/artifacts
+ * GET /api/v1/apps/:appId/releases/:releaseId/builds/artifacts
  * 
  * BFF route that proxies to ReleaseProcessService
- * Backend contract: GET /tenants/:tenantId/releases/:releaseId/builds/artifacts
+ * Backend contract: GET /apps/:appId/releases/:releaseId/builds/artifacts
  */
 
 import { json } from '@remix-run/node';
@@ -26,10 +26,10 @@ import type { ListBuildArtifactsResponse } from '~/types/release-process.types';
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, request, user }: LoaderFunctionArgs & { user: User }) => {
-    const { tenantId, releaseId } = params;
+    const { appId, releaseId } = params;
 
-    if (!validateRequired(tenantId, 'Tenant ID is required')) {
-      return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+    if (!validateRequired(appId, 'app id is required')) {
+      return json({ success: false, error: 'app id is required' }, { status: 400 });
     }
 
     if (!validateRequired(releaseId, 'Release ID is required')) {
@@ -43,7 +43,7 @@ export const loader = authenticateLoaderRequest(
       const buildStage = url.searchParams.get('buildStage') || undefined;
 
       console.log('[BFF] Fetching build artifacts for release:', releaseId, { platform, buildStage });
-      const response = await ReleaseProcessService.listBuildArtifacts(tenantId, releaseId, user.user.id, {
+      const response = await ReleaseProcessService.listBuildArtifacts(appId, releaseId, user.user.id, {
         platform: platform as any,
         buildStage,
       });

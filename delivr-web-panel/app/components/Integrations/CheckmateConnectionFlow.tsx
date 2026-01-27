@@ -41,7 +41,7 @@ interface CheckmateConnectionFormData {
 export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = false, existingData }: CheckmateConnectionFlowProps) {
   const theme = useMantineTheme();
   const params = useParams();
-  const tenantId = params.org;
+  const appId = params.org;
   const isInFlowRef = useRef(false);
 
   // State to store fetched integration data
@@ -49,7 +49,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
 
   const { formData, setFormData, isDraftRestored, markSaveSuccessful } = useDraftStorage<CheckmateConnectionFormData>(
     {
-      storageKey: generateStorageKey('checkmate-tm', tenantId || ''),
+      storageKey: generateStorageKey('checkmate-tm', appId || ''),
       sensitiveFields: ['authToken'],
       shouldSaveDraft: (data) => !isInFlowRef.current && !isEditMode && !!(data.baseUrl || data.name || data.orgId),
     },
@@ -79,7 +79,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
       const fetchIntegrationDetails = async () => {
         try {
           const result = await apiGet<any>(
-            `/api/v1/tenants/${tenantId}/integrations/test-management?providerType=CHECKMATE`
+            `/api/v1/apps/${appId}/integrations/test-management?providerType=CHECKMATE`
           );
           if (result.success) {
             // The API returns { success: true, data: CheckmateIntegration[] }
@@ -98,7 +98,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
       };
       fetchIntegrationDetails();
     }
-  }, [isEditMode, existingData?.id, tenantId, fetchedIntegrationData]);
+  }, [isEditMode, existingData?.id, appId, fetchedIntegrationData]);
 
   // Check encryption configuration on mount
   useEffect(() => {
@@ -154,7 +154,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
         _encrypted: true, // Flag to indicate encryption
       });
       
-      const endpoint = `/api/v1/tenants/${tenantId}/integrations/test-management/verify`;
+      const endpoint = `/api/v1/apps/${appId}/integrations/test-management/verify`;
       
       
       const result = await apiPost<{ verified: boolean }>(
@@ -182,7 +182,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
     isInFlowRef.current = true;
 
     try {
-      const baseEndpoint = `/api/v1/tenants/${tenantId}/integrations/test-management`;
+      const baseEndpoint = `/api/v1/apps/${appId}/integrations/test-management`;
       const endpoint = isEditMode && integrationId 
         ? `${baseEndpoint}?integrationId=${integrationId}`
         : baseEndpoint;

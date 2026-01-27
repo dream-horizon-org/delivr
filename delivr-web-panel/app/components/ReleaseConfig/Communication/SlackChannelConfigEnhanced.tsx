@@ -31,7 +31,7 @@ export function SlackChannelConfigEnhanced({
   config,
   onChange,
   availableIntegrations,
-  tenantId,
+  appId,
 }: SlackChannelConfigEnhancedProps) {
   const theme = useMantineTheme();
   const [availableChannels, setAvailableChannels] = useState<SlackChannel[]>([]);
@@ -55,7 +55,7 @@ export function SlackChannelConfigEnhanced({
 
     try {
       const result = await apiGet<SlackChannel[]>(
-        `/api/v1/communication/slack/${integrationId}/channels?tenantId=${tenantId}`
+        `/api/v1/communication/slack/${integrationId}/channels?appId=${appId}`
       );
 
       if (result.success && result.data) {

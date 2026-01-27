@@ -18,7 +18,7 @@ export type DefaultTrack = 'PRODUCTION' | 'BETA' | 'ALPHA' | 'INTERNAL' | 'TESTF
 export interface AppDistributionIntegration {
   integrationId: string;
   storeType: StoreType;
-  tenantId: string;
+  appId: string;
   platform: Platform; // Backend uses singular
   status: IntegrationStatus;
   displayName: string;
@@ -60,7 +60,7 @@ export interface AppStorePayload {
 // API Request Types (matches backend /integrations/store/*)
 export interface VerifyStoreRequest {
   storeType: StoreType;
-  tenantId: string;
+  appId: string;
   platform: Platform; // Singular, not array
   userId: string;
   payload: Partial<PlayStorePayload> | Partial<AppStorePayload>;
@@ -68,7 +68,7 @@ export interface VerifyStoreRequest {
 
 export interface ConnectStoreRequest {
   storeType: StoreType;
-  tenantId: string;
+  appId: string;
   platform: Platform; // Singular, not array
   userId: string;
   payload: PlayStorePayload | AppStorePayload;

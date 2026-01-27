@@ -33,7 +33,7 @@ export interface SlackConnectionData {
 
 export function useSlackConnection(existingData?: any, isEditMode: boolean = false) {
   const { org } = useParams();
-  const tenantId = org!;
+  const appId = org!;
 
   // Initialize workspace info from existing data in edit mode
   const initialWorkspaceInfo: SlackWorkspaceInfo = isEditMode && existingData ? {
@@ -87,7 +87,7 @@ export function useSlackConnection(existingData?: any, isEditMode: boolean = fal
         _encrypted: true, // Flag to indicate encryption
       });
       
-      const endpoint = `/api/v1/tenants/${tenantId}/integrations/slack/verify`;
+      const endpoint = `/api/v1/apps/${appId}/integrations/slack/verify`;
       const result = await apiPost<{
         verified: boolean;
         workspaceId: string;
@@ -123,7 +123,7 @@ export function useSlackConnection(existingData?: any, isEditMode: boolean = fal
       setIsVerifying(false);
       return false;
     }
-  }, [tenantId]);
+  }, [appId]);
 
   /**
    * Step 2.5: Save Slack integration WITHOUT channel selection
@@ -153,7 +153,7 @@ export function useSlackConnection(existingData?: any, isEditMode: boolean = fal
         payload._encrypted = true; // Flag to indicate encryption
       }
 
-      const endpoint = `/api/v1/tenants/${tenantId}/integrations/slack`;
+      const endpoint = `/api/v1/apps/${appId}/integrations/slack`;
       
       if (isUpdate) {
         // Use PATCH for updates
@@ -175,7 +175,7 @@ export function useSlackConnection(existingData?: any, isEditMode: boolean = fal
       setIsSaving(false);
       return false;
     }
-  }, [tenantId]);
+  }, [appId]);
 
   /**
    * Step 3: Save Slack integration (without channel selection)

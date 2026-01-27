@@ -443,12 +443,12 @@ class Codepush {
   }
 
   // Tenant Collaborator Methods
-  async getTenantCollaborators(tenantId: string, userId: string) {
+  async getTenantCollaborators(appId: string, userId: string) {
     return this.__client.get<
       null,
       AxiosResponse<{ collaborators: Record<string, { accountId: string; permission: string }> }>
     >(
-      `/tenants/${tenantId}/collaborators`,
+      `/apps/${appId}/collaborators`,
       {
         headers: {
           userId: userId,
@@ -457,12 +457,12 @@ class Codepush {
     );
   }
 
-  async addTenantCollaborator(tenantId: string, email: string, permission: string, userId: string) {
+  async addTenantCollaborator(appId: string, email: string, permission: string, userId: string) {
     return this.__client.post<
       { email: string; permission: string },
       AxiosResponse<{ message: string }>
     >(
-      `/tenants/${tenantId}/collaborators`,
+      `/apps/${appId}/collaborators`,
       {
         email,
         permission,
@@ -475,12 +475,12 @@ class Codepush {
     );
   }
 
-  async updateTenantCollaborator(tenantId: string, email: string, permission: string, userId: string) {
+  async updateTenantCollaborator(appId: string, email: string, permission: string, userId: string) {
     return this.__client.patch<
       { permission: string },
       AxiosResponse<{ message: string }>
     >(
-      `/tenants/${tenantId}/collaborators/${encodeURIComponent(email)}`,
+      `/apps/${appId}/collaborators/${encodeURIComponent(email)}`,
       {
         permission,
       },
@@ -492,12 +492,12 @@ class Codepush {
     );
   }
 
-  async removeTenantCollaborator(tenantId: string, email: string, userId: string) {
+  async removeTenantCollaborator(appId: string, email: string, userId: string) {
     return this.__client.delete<
       null,
       AxiosResponse<{ message: string }>
     >(
-      `/tenants/${tenantId}/collaborators/${encodeURIComponent(email)}`,
+      `/apps/${appId}/collaborators/${encodeURIComponent(email)}`,
       {
         headers: {
           userId: userId,
@@ -523,7 +523,7 @@ class Codepush {
     };
     
     return this.__client.get<TenantInfoResponse>(
-      `/apps/${data.tenantId}`, // tenantId is actually appId now
+      `/apps/${data.appId}`, // appId is actually appId now
       { headers }
     );
   }

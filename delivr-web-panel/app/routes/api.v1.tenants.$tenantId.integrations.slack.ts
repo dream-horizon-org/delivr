@@ -1,9 +1,9 @@
 /**
  * Remix API Route: Slack Integration CRUD
- * GET    /api/v1/tenants/:tenantId/integrations/slack    - Fetch integration
- * POST   /api/v1/tenants/:tenantId/integrations/slack    - Create integration
- * PATCH  /api/v1/tenants/:tenantId/integrations/slack    - Update integration
- * DELETE /api/v1/tenants/:tenantId/integrations/slack    - Delete integration
+ * GET    /api/v1/apps/:appId/integrations/slack    - Fetch integration
+ * POST   /api/v1/apps/:appId/integrations/slack    - Create integration
+ * PATCH  /api/v1/apps/:appId/integrations/slack    - Update integration
+ * DELETE /api/v1/apps/:appId/integrations/slack    - Delete integration
  */
 
 import { json } from '@remix-run/node';
@@ -21,14 +21,14 @@ import { logApiError } from '~/utils/api-route-helpers';
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, user }: LoaderFunctionArgs & { user: User }) => {
-    const tenantId = params.tenantId;
-    if (!tenantId) {
-      return json({ error: 'Tenant ID required' }, { status: 400 });
+    const appId = params.appId;
+    if (!appId) {
+      return json({ error: 'app id required' }, { status: 400 });
     }
 
     try {
       const result = await SlackIntegrationService.getIntegration(
-        tenantId,
+        appId,
         user.user.id
       );
 
@@ -53,9 +53,9 @@ export const loader = authenticateLoaderRequest(
  * POST - Create Slack integration
  */
 const createSlackIntegration = async ({ request, params, user }: ActionFunctionArgs & { user: User }) => {
-  const tenantId = params.tenantId;
-  if (!tenantId) {
-    return json({ error: 'Tenant ID required' }, { status: 400 });
+  const appId = params.appId;
+  if (!appId) {
+    return json({ error: 'app id required' }, { status: 400 });
   }
 
   try {
@@ -73,11 +73,11 @@ const createSlackIntegration = async ({ request, params, user }: ActionFunctionA
       );
     }
 
-    console.log(`[Slack-Create] Creating integration for tenant: ${tenantId}, _encrypted: ${_encrypted}`);
+    console.log(`[Slack-Create] Creating integration for tenant: ${appId}, _encrypted: ${_encrypted}`);
     console.log(`[Slack-Create] Workspace: ${workspaceName}`);
 
     const result = await SlackIntegrationService.createOrUpdateIntegration({
-      tenantId,
+      appId,
       botToken,
       botUserId,
       workspaceId,
@@ -106,19 +106,19 @@ const createSlackIntegration = async ({ request, params, user }: ActionFunctionA
  * PATCH - Update Slack integration
  */
 const updateSlackIntegration = async ({ request, params, user }: ActionFunctionArgs & { user: User }) => {
-  const tenantId = params.tenantId;
-  if (!tenantId) {
-    return json({ error: 'Tenant ID required' }, { status: 400 });
+  const appId = params.appId;
+  if (!appId) {
+    return json({ error: 'app id required' }, { status: 400 });
   }
 
   try {
     const body = await request.json();
     const { botToken, botUserId, workspaceId, workspaceName, channels, _encrypted } = body;
 
-    console.log(`[Slack-Update] Updating integration for tenant: ${tenantId}, _encrypted: ${_encrypted}`);
+    console.log(`[Slack-Update] Updating integration for tenant: ${appId}, _encrypted: ${_encrypted}`);
 
     const result = await SlackIntegrationService.updateIntegration({
-      tenantId,
+      appId,
       botToken,
       botUserId,
       workspaceId,
@@ -145,15 +145,15 @@ const updateSlackIntegration = async ({ request, params, user }: ActionFunctionA
  * DELETE - Delete Slack integration
  */
 const deleteSlackIntegration = async ({ params, user }: ActionFunctionArgs & { user: User }) => {
-  const tenantId = params.tenantId;
-  if (!tenantId) {
-    return json({ error: 'Tenant ID required' }, { status: 400 });
+  const appId = params.appId;
+  if (!appId) {
+    return json({ error: 'app id required' }, { status: 400 });
   }
 
   try {
-    console.log(`[Slack-Delete] Deleting integration for tenant: ${tenantId}`);
+    console.log(`[Slack-Delete] Deleting integration for tenant: ${appId}`);
 
-    const response = await SlackIntegrationService.deleteIntegration(tenantId, user.user.id);
+    const response = await SlackIntegrationService.deleteIntegration(appId, user.user.id);
 
     console.log(`[Slack-Delete] Response:`, response);
 

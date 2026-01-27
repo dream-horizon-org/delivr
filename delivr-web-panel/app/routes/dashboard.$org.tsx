@@ -50,7 +50,7 @@ export const loader = authenticateLoaderRequest(async ({ request, params, user }
     // Extract app config from app response (check both app and organisation for backward compatibility)
     const config = result.data?.app?.releaseManagement?.config || result.data?.organisation?.releaseManagement?.config;
     const initialAppConfig: TenantConfig | null = config ? {
-      tenantId: appId, // Keep tenantId for backward compatibility with TenantConfig type
+      appId: appId, // Keep appId for backward compatibility with TenantConfig type
       organization: {
         id: app.id,
         name: app.displayName,
@@ -77,7 +77,7 @@ export const loader = authenticateLoaderRequest(async ({ request, params, user }
       user,
       initialAppConfig,
       // Legacy fields for backward compatibility
-      tenantId: appId,
+      appId: appId,
       organisation: result.data?.organisation || result.data?.app, // Use app if organisation not present
       initialTenantConfig: initialAppConfig,
     }, {
@@ -100,7 +100,7 @@ export type AppLayoutLoaderData = {
   user: any;
   initialAppConfig: TenantConfig | null;
   // Legacy fields for backward compatibility
-  tenantId: string;
+  appId: string;
   organisation: App | undefined;
   initialTenantConfig: TenantConfig | null;
 };
@@ -133,7 +133,7 @@ export default function AppLayout() {
   
   return (
     <ConfigProvider
-      tenantId={appId} // ConfigProvider still uses tenantId internally
+      appId={appId} // ConfigProvider still uses appId internally
       initialSystemMetadata={initialSystemMetadata}
       initialTenantConfig={initialAppConfig || initialTenantConfig}
     >

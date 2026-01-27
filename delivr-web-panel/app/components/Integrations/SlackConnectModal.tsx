@@ -42,7 +42,7 @@ export function SlackConnectionFlow({
 
     // TODO: YOU WILL IMPLEMENT THIS
     // Example:
-    // const result = await slackService.verifyToken({ botToken, tenantId, userId });
+    // const result = await slackService.verifyToken({ botToken, appId, userId });
     
     // MOCK - Replace with actual API call
     setTimeout(() => {
@@ -63,7 +63,7 @@ export function SlackConnectionFlow({
 
     // TODO: YOU WILL IMPLEMENT THIS
     // Example:
-    // const result = await slackService.fetchChannels({ botToken, tenantId, userId });
+    // const result = await slackService.fetchChannels({ botToken, appId, userId });
     
     // MOCK - Replace with actual API call
     setTimeout(() => {
@@ -89,7 +89,7 @@ export function SlackConnectionFlow({
     // TODO: YOU WILL IMPLEMENT THIS
     // Example:
     // const result = await slackService.createOrUpdateIntegration({
-    //   tenantId,
+    //   appId,
     //   botToken,
     //   workspaceId: workspaceInfo.workspaceId,
     //   workspaceName: workspaceInfo.workspaceName,

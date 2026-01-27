@@ -1,9 +1,9 @@
 /**
  * Remix API Route: Verify iOS TestFlight Build
- * POST /api/v1/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight
+ * POST /api/v1/apps/:appId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight
  * 
  * BFF route that proxies to backend API for TestFlight verification
- * Matches API contract: POST /tenants/{tenantId}/releases/{releaseId}/stages/{stage}/builds/ios/verify-testflight
+ * Matches API contract: POST /tenants/{appId}/releases/{releaseId}/stages/{stage}/builds/ios/verify-testflight
  * 
  * This endpoint verifies an iOS build exists in TestFlight and stages it in the release_uploads table.
  */
@@ -24,11 +24,11 @@ import {
 import { BuildUploadStage } from '~/types/release-process-enums';
 
 const verifyTestFlight: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { tenantId, releaseId, stage } = params;
+  const { appId, releaseId, stage } = params;
 
   // Validate required path parameters
-  if (!validateRequired(tenantId, 'Tenant ID is required')) {
-    return createValidationError('Tenant ID is required');
+  if (!validateRequired(appId, 'app id is required')) {
+    return createValidationError('app id is required');
   }
 
   if (!validateRequired(releaseId, 'Release ID is required')) {
@@ -56,14 +56,14 @@ const verifyTestFlight: AuthenticatedActionFunction = async ({ params, request, 
     const buildUploadStage = stage as BuildUploadStage;
 
     console.log('[BFF] Verifying TestFlight build:', {
-      tenantId,
+      appId,
       releaseId,
       stage: buildUploadStage,
       testflightBuildNumber,
     });
 
     const response = await ReleaseProcessService.verifyTestFlight(
-      tenantId,
+      appId,
       releaseId,
       buildUploadStage,
       {

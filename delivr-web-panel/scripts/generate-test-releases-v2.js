@@ -296,7 +296,7 @@ function createStagingBuild(releaseId, platform, stage, options = {}) {
   
   return {
     id: buildId,
-    tenantId: TENANT_ID,
+    appId: TENANT_ID,
     releaseId: releaseId,
     platform: platform,
     stage: stage,
@@ -320,7 +320,7 @@ function createBuild(releaseId, platform, options = {}) {
   
   return {
     id: buildId,
-    tenantId: TENANT_ID,
+    appId: TENANT_ID,
     releaseId: releaseId,
     platform: platform,
     storeType: platform === Platform.ANDROID ? 'PLAY_STORE' : 'APP_STORE',
@@ -2151,7 +2151,7 @@ function generateRelease(releaseId, config, baseDate, kickoffDate, index) {
     id: releaseId,
     releaseId: generateReleaseId(index + 1),
     releaseConfigId: RELEASE_CONFIG_ID,
-    tenantId: TENANT_ID,
+    appId: TENANT_ID,
     type: 'PLANNED',
     status: config.status || ReleaseStatus.IN_PROGRESS,
     releasePhase: Phase[config.stage] || Phase.KICKOFF,
@@ -2525,7 +2525,7 @@ function createDistributionData(releaseId, config, baseDate, builds = []) {
   
   const distribution = {
     id: distributionId,
-    tenantId: TENANT_ID,
+    appId: TENANT_ID,
     releaseId: releaseId,
     status: distributionStatus,
     createdAt: submissionDate,

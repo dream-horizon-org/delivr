@@ -1,15 +1,15 @@
 /**
  * Remix API Route: Rollout Control
  * 
- * PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout?platform=<ANDROID|IOS>         - Update rollout percentage
- * PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/pause?platform=<ANDROID|IOS>   - Pause rollout (both platforms)
- * PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/resume?platform=<ANDROID|IOS>  - Resume rollout (both platforms)
+ * PATCH /api/v1/apps/:appId/releases/:releaseId/submissions/:submissionId/rollout?platform=<ANDROID|IOS>         - Update rollout percentage
+ * PATCH /api/v1/apps/:appId/releases/:releaseId/submissions/:submissionId/rollout/pause?platform=<ANDROID|IOS>   - Pause rollout (both platforms)
+ * PATCH /api/v1/apps/:appId/releases/:releaseId/submissions/:submissionId/rollout/resume?platform=<ANDROID|IOS>  - Resume rollout (both platforms)
  * 
  * IMPORTANT: Backend requires `platform` query parameter to identify which table to update
  * (android_submission_builds or ios_submission_builds)
  * 
  * Path Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - releaseId: Release ID (required for ownership validation)
  * - submissionId: Submission ID (required)
  * 
@@ -41,7 +41,7 @@ import { authenticateActionRequest, AuthenticatedActionFunction } from '~/utils/
  * PATCH - Update rollout percentage
  * 
  * Path Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - submissionId: Submission ID (required)
  * 
  * Query Parameters:
@@ -67,13 +67,13 @@ import { authenticateActionRequest, AuthenticatedActionFunction } from '~/utils/
  * See: platform-rules.ts, LIVE_STATE_VERIFICATION.md
  */
 const updateRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { tenantId, releaseId, submissionId } = params;
+  const { appId, releaseId, submissionId } = params;
   const url = new URL(request.url);
   const platform = url.searchParams.get('platform');
 
-  // Validate tenantId
-  if (!tenantId) {
-    return createValidationError(ERROR_MESSAGES.TENANT_ID_REQUIRED);
+  // Validate appId
+  if (!appId) {
+    return createValidationError(ERROR_MESSAGES.APP_ID_REQUIRED);
   }
 
   // Validate releaseId
@@ -114,7 +114,7 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
 
     // Backend expects 'rolloutPercent' (without 'age'), so transform the field name
     const requestData = { rolloutPercent: rolloutPercentage };
-    const response = await DistributionService.updateRollout(tenantId, releaseId, submissionId, requestData as any, platform as Platform);
+    const response = await DistributionService.updateRollout(appId, releaseId, submissionId, requestData as any, platform as Platform);
 
     return json(response.data);
   } catch (error) {
@@ -127,7 +127,7 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
  * PATCH - Pause rollout (both Android and iOS)
  * 
  * Path Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - submissionId: Submission ID (required)
  * 
  * Query Parameters:
@@ -142,13 +142,13 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
  * - iOS: LIVE → PAUSED (displayed as "Rollout Paused", phased release only)
  */
 const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { tenantId, releaseId, submissionId } = params;
+  const { appId, releaseId, submissionId } = params;
   const url = new URL(request.url);
   const platform = url.searchParams.get('platform');
 
-  // Validate tenantId
-  if (!tenantId) {
-    return createValidationError(ERROR_MESSAGES.TENANT_ID_REQUIRED);
+  // Validate appId
+  if (!appId) {
+    return createValidationError(ERROR_MESSAGES.APP_ID_REQUIRED);
   }
 
   // Validate releaseId
@@ -184,7 +184,7 @@ const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user
     }
 
     const requestData = { reason };
-    const response = await DistributionService.pauseRollout(tenantId, releaseId, submissionId, requestData, platform);
+    const response = await DistributionService.pauseRollout(appId, releaseId, submissionId, requestData, platform);
 
     return json(response.data);
   } catch (error) {
@@ -197,7 +197,7 @@ const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user
  * PATCH - Resume rollout (both Android and iOS)
  * 
  * Path Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - submissionId: Submission ID (required)
  * 
  * Query Parameters:
@@ -211,13 +211,13 @@ const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user
  * - iOS: PAUSED → LIVE
  */
 const resumeRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { tenantId, releaseId, submissionId } = params;
+  const { appId, releaseId, submissionId } = params;
   const url = new URL(request.url);
   const platform = url.searchParams.get('platform');
 
-  // Validate tenantId
-  if (!tenantId) {
-    return createValidationError(ERROR_MESSAGES.TENANT_ID_REQUIRED);
+  // Validate appId
+  if (!appId) {
+    return createValidationError(ERROR_MESSAGES.APP_ID_REQUIRED);
   }
 
   // Validate releaseId
@@ -245,7 +245,7 @@ const resumeRollout: AuthenticatedActionFunction = async ({ params, request, use
   }
 
   try {
-    const response = await DistributionService.resumeRollout(tenantId, releaseId, submissionId, platform);
+    const response = await DistributionService.resumeRollout(appId, releaseId, submissionId, platform);
     return json(response.data);
   } catch (error) {
     logApiError(LOG_CONTEXT.RESUME_ROLLOUT_API, error);

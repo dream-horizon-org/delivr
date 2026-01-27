@@ -2,10 +2,10 @@
  * BFF API Routes: Project Management Configuration CRUD (Tenant-Level)
  * Proxies to backend: /projects/:projectId/integrations/project-management/config
  * 
- * POST   /api/v1/tenants/:tenantId/integrations/project-management/config - Create PM config
- * GET    /api/v1/tenants/:tenantId/integrations/project-management/config/:configId - Get PM config
- * PUT    /api/v1/tenants/:tenantId/integrations/project-management/config/:configId - Update PM config
- * DELETE /api/v1/tenants/:tenantId/integrations/project-management/config/:configId - Delete PM config
+ * POST   /api/v1/apps/:appId/integrations/project-management/config - Create PM config
+ * GET    /api/v1/apps/:appId/integrations/project-management/config/:configId - Get PM config
+ * PUT    /api/v1/apps/:appId/integrations/project-management/config/:configId - Update PM config
+ * DELETE /api/v1/apps/:appId/integrations/project-management/config/:configId - Delete PM config
  */
 
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
@@ -17,14 +17,14 @@ import { ProjectManagementConfigService } from '~/.server/services/ReleaseManage
  */
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId } = params;
+  const { appId } = params;
   
   // Get configId from URL search params
   const url = new URL(request.url);
   const configId = url.searchParams.get('configId');
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id is required' }, { status: 400 });
   }
 
   if (!configId) {
@@ -32,7 +32,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 
   try {
-    const result = await ProjectManagementConfigService.getConfig(tenantId, configId, userId);
+    const result = await ProjectManagementConfigService.getConfig(appId, configId, userId);
 
     if (!result.success) {
       return json(
@@ -56,10 +56,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
  */
 export async function action({ request, params }: ActionFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId } = params;
+  const { appId } = params;
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id is required' }, { status: 400 });
   }
 
   const method = request.method;
@@ -85,7 +85,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         );
       }
 
-      const result = await ProjectManagementConfigService.createConfig(tenantId, userId, {
+      const result = await ProjectManagementConfigService.createConfig(appId, userId, {
         integrationId: body.integrationId,
         name: body.name,
         platformConfigurations: body.platformConfigurations,
@@ -111,7 +111,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       }
 
       const result = await ProjectManagementConfigService.updateConfig(
-        tenantId,
+        appId,
         configId,
         userId,
         updateData
@@ -136,7 +136,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         return json({ success: false, error: 'Config ID is required' }, { status: 400 });
       }
 
-      const result = await ProjectManagementConfigService.deleteConfig(tenantId, configId, userId);
+      const result = await ProjectManagementConfigService.deleteConfig(appId, configId, userId);
 
       if (!result.success) {
         return json(

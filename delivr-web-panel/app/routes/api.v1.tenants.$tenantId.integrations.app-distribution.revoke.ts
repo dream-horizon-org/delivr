@@ -1,6 +1,6 @@
 /**
  * BFF API Route: Revoke App Distribution Integration (Play Store / App Store)
- * DELETE /api/v1/tenants/:tenantId/integrations/app-distribution/revoke?storeType=X&platform=Y
+ * DELETE /api/v1/apps/:appId/integrations/app-distribution/revoke?storeType=X&platform=Y
  */
 
 import { json, type ActionFunctionArgs } from '@remix-run/node';
@@ -17,15 +17,15 @@ const deleteIntegrationAction = async ({
   params,
   user,
 }: ActionFunctionArgs & { user: User }) => {
-  const { tenantId } = params;
+  const { appId } = params;
   const userId = user.user.id;
   
   const url = new URL(request.url);
   const storeType = url.searchParams.get('storeType');
   const platform = url.searchParams.get('platform');
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id is required' }, { status: 400 });
   }
 
   if (!storeType) {
@@ -38,7 +38,7 @@ const deleteIntegrationAction = async ({
 
   try {
     const result = await AppDistributionService.revokeIntegration(
-      tenantId,
+      appId,
       storeType as StoreType,
       platform as Platform,
       userId

@@ -26,20 +26,20 @@ import { shouldEnableCherryPickStatus, determineReleasePhase } from '~/utils/rel
 import { AppBadge } from '~/components/Common/AppBadge';
 
 interface IntegrationsStatusSidebarProps {
-  tenantId: string;
+  appId: string;
   releaseId: string;
   currentStage: TaskStage | null;
   className?: string;
 }
 
 export function IntegrationsStatusSidebar({
-  tenantId,
+  appId,
   releaseId,
   currentStage,
   className,
 }: IntegrationsStatusSidebarProps) {
   // Get release data to access releaseConfigId
-  const { release } = useRelease(tenantId, releaseId);
+  const { release } = useRelease(appId, releaseId);
   
   // Get cached release configs from ConfigContext
   const { releaseConfigs } = useConfig();
@@ -71,11 +71,11 @@ export function IntegrationsStatusSidebar({
   );
   
   // Fetch cherry pick status (only enabled for REGRESSION and PRE_RELEASE stages, not archived/pre-kickoff)
-  const cherryPickStatus = useCherryPickStatus(tenantId, releaseId, cherryPickEnabled);
+  const cherryPickStatus = useCherryPickStatus(appId, releaseId, cherryPickEnabled);
   
   // Fetch test management status (Regression stage only, and only if configured)
   const testManagementStatus = useTestManagementStatus(
-    tenantId,
+    appId,
     releaseId,
     undefined, // No platform filter = all platforms
     currentStage === TaskStageEnum.REGRESSION && hasTestManagement // Only enable if in regression stage and config exists
@@ -83,7 +83,7 @@ export function IntegrationsStatusSidebar({
   
   // Fetch project management status (Pre-Release stage only, and only if configured)
   const projectManagementStatus = useProjectManagementStatus(
-    tenantId,
+    appId,
     releaseId,
     undefined, // No platform filter = all platforms
     currentStage === TaskStageEnum.PRE_RELEASE && hasProjectManagement // Only enable if in pre-release stage and config exists

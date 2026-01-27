@@ -47,7 +47,7 @@ import { PlatformCheckbox } from './PlatformCheckbox';
 // ============================================================================
 
 export function SubmitToStoresForm({
-  tenantId,
+  appId,
   releaseId,
   distributionId,
   submissions,
@@ -150,7 +150,7 @@ export function SubmitToStoresForm({
           JSON.stringify(androidPayload),
           {
             method: 'PUT',
-            action: API_ROUTES.submitToStore(tenantId, androidSubmission.id, Platform.ANDROID),
+            action: API_ROUTES.submitToStore(appId, androidSubmission.id, Platform.ANDROID),
             encType: 'application/json',
           }
         );
@@ -175,7 +175,7 @@ export function SubmitToStoresForm({
           JSON.stringify(iosPayload),
           {
             method: 'PUT',
-            action: API_ROUTES.submitToStore(tenantId, iosSubmission.id, Platform.IOS),
+            action: API_ROUTES.submitToStore(appId, iosSubmission.id, Platform.IOS),
             encType: 'application/json',
           }
         );

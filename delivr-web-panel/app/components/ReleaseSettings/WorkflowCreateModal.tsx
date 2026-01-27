@@ -56,7 +56,7 @@ export interface WorkflowCreateModalProps {
     jenkins: Array<{ id: string; name: string }>;
     githubActions: Array<{ id: string; name: string }>;
   };
-  tenantId: string;
+  appId: string;
   existingWorkflow?: CICDWorkflow | null;
   workflows?: CICDWorkflow[];
   fixedPlatform?: string; // Pre-fill platform (from PipelineEditModal)
@@ -68,7 +68,7 @@ function WorkflowCreateModalComponent({
   onClose,
   onSave,
   availableIntegrations,
-  tenantId,
+  appId,
   existingWorkflow,
   workflows = [],
   fixedPlatform,
@@ -494,7 +494,7 @@ function WorkflowCreateModalComponent({
                   }}
                   availableIntegrations={availableIntegrations.jenkins}
                   workflows={workflows}
-                  tenantId={tenantId}
+                  appId={appId}
                 />
                 {errors.jobUrl && (
                   <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light" radius="md">
@@ -521,7 +521,7 @@ function WorkflowCreateModalComponent({
                   }}
                   availableIntegrations={availableIntegrations.githubActions}
                   workflows={workflows}
-                  tenantId={tenantId}
+                  appId={appId}
                 />
                 {errors.workflowUrl && (
                   <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light" radius="md">

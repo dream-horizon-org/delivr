@@ -83,7 +83,7 @@ function unwrapDistributionResponse(
  * - User submits → triggers refetch
  * - User manages in Distribution Management → updates there
  */
-export function useDistributionStage(tenantId: string, releaseId: string) {
+export function useDistributionStage(appId: string, releaseId: string) {
   const {
     data,
     isLoading,
@@ -96,12 +96,12 @@ export function useDistributionStage(tenantId: string, releaseId: string) {
         throw new Error('Release ID is required');
       }
       
-      if (!tenantId) {
-        throw new Error('Tenant ID is required');
+      if (!appId) {
+        throw new Error('app id is required');
       }
 
       const response = await apiGet<DistributionResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/distribution`
+        `/api/v1/apps/${appId}/releases/${releaseId}/distribution`
       );
 
       if (!response.success) {
@@ -111,7 +111,7 @@ export function useDistributionStage(tenantId: string, releaseId: string) {
       return unwrapDistributionResponse(response);
     },
     {
-      enabled: !!releaseId && !!tenantId,
+      enabled: !!releaseId && !!appId,
       staleTime: 30000, // Cache for 30s
       refetchOnWindowFocus: false, // Don't refetch on focus
       retry: shouldRetryOnError, // Don't retry auth errors to prevent cascading failures

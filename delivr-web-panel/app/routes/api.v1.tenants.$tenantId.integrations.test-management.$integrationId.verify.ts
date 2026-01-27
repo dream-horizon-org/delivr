@@ -1,6 +1,6 @@
 /**
  * BFF API Route: Verify Test Management Integration
- * POST /api/v1/tenants/:tenantId/integrations/test-management/:integrationId/verify
+ * POST /api/v1/apps/:appId/integrations/test-management/:integrationId/verify
  */
 
 import { json, type ActionFunctionArgs } from '@remix-run/node';
@@ -9,10 +9,10 @@ import { requireUserId } from '~/.server/services/Auth';
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId, integrationId } = params;
+  const { appId, integrationId } = params;
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id is required' }, { status: 400 });
   }
 
   if (!integrationId) {
@@ -20,7 +20,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   try {
-    const result = await CheckmateIntegrationService.verifyIntegration(integrationId, tenantId, userId);
+    const result = await CheckmateIntegrationService.verifyIntegration(integrationId, appId, userId);
 
     return json(result, { status: result.success ? 200 : 400 });
   } catch (error: any) {

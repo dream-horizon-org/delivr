@@ -1,12 +1,12 @@
 /**
  * Remix API Route: Cancel Submission
- * PATCH /api/v1/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/cancel?platform=<ANDROID|IOS>
+ * PATCH /api/v1/apps/:appId/releases/:releaseId/submissions/:submissionId/cancel?platform=<ANDROID|IOS>
  * 
  * IMPORTANT: Backend requires `platform` query parameter to identify which table to update
  * (android_submission_builds or ios_submission_builds)
  * 
  * Path Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - releaseId: Release ID (required for ownership validation)
  * - submissionId: Submission ID (required)
  * 
@@ -36,7 +36,7 @@ import {
  * PATCH - Cancel a submission
  * 
  * Path Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - submissionId: Submission ID (required)
  * 
  * Query Parameters:
@@ -50,13 +50,13 @@ import {
  * - id, status (CANCELLED), statusUpdatedAt
  */
 const cancelSubmission: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { tenantId, releaseId, submissionId } = params;
+  const { appId, releaseId, submissionId } = params;
   const url = new URL(request.url);
   const platform = url.searchParams.get('platform');
 
-  // Validate tenantId
-  if (!tenantId) {
-    return createValidationError(ERROR_MESSAGES.TENANT_ID_REQUIRED);
+  // Validate appId
+  if (!appId) {
+    return createValidationError(ERROR_MESSAGES.APP_ID_REQUIRED);
   }
 
   // Validate releaseId
@@ -98,7 +98,7 @@ const cancelSubmission: AuthenticatedActionFunction = async ({ params, request, 
       }
     }
 
-    const response = await DistributionService.cancelSubmission(tenantId, releaseId, submissionId, {
+    const response = await DistributionService.cancelSubmission(appId, releaseId, submissionId, {
       reason,
     }, platform as Platform);
 

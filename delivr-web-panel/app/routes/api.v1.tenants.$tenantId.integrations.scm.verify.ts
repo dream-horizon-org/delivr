@@ -7,12 +7,12 @@ import { SCMIntegrationService } from '~/.server/services/ReleaseManagement/inte
 import { logApiError } from '~/utils/api-route-helpers';
 
 const verifySCM: AuthenticatedActionFunction = async ({ request, params, user }) => {
-  const tenantId = params.tenantId;
-  if (!tenantId) {
-    return json({ error: 'Tenant ID required' }, { status: 400 });
+  const appId = params.appId;
+  if (!appId) {
+    return json({ error: 'app id required' }, { status: 400 });
   }
 
-  console.log(`[Frontend-Verify-Route] Received verify request for tenant: ${tenantId}, userId: ${user.user.id}`);
+  console.log(`[Frontend-Verify-Route] Received verify request for tenant: ${appId}, userId: ${user.user.id}`);
 
   try {
     const body = await request.json();
@@ -35,7 +35,7 @@ const verifySCM: AuthenticatedActionFunction = async ({ request, params, user })
     console.log(`[Frontend-Verify-Route] Calling SCMIntegrationService.verifySCM`);
     const result = await SCMIntegrationService.verifySCM(
       {
-        tenantId,
+        appId,
         scmType,
         owner,
         repo,

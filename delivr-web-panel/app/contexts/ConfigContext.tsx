@@ -93,12 +93,12 @@ const ConfigContext = createContext<ConfigContextValue | null>(null);
 
 export function ConfigProvider({
   children,
-  tenantId,
+  appId,
   initialSystemMetadata,
   initialTenantConfig,
 }: {
   children: ReactNode;
-  tenantId?: string;
+  appId?: string;
   initialSystemMetadata?: SystemMetadataBackend | null;
   initialTenantConfig?: TenantConfig | null;
 }) {
@@ -116,7 +116,7 @@ export function ConfigProvider({
     data: tenantConfig,
     isLoading: isLoadingTenantConfig,
     error: tenantConfigError,
-  } = useTenantConfig(tenantId, initialTenantConfig);
+  } = useTenantConfig(appId, initialTenantConfig);
   
   // Fetch release configurations (cached)
   const {
@@ -129,7 +129,7 @@ export function ConfigProvider({
     refetch: refreshReleaseConfigs,
     invalidateCache: invalidateReleaseConfigs,
     updateConfigInCache: updateReleaseConfigInCache,
-  } = useReleaseConfigs(tenantId);
+  } = useReleaseConfigs(appId);
   
   // Enrich backend data with frontend UI metadata
   const systemMetadata = useMemo<SystemMetadata | undefined>(() => {

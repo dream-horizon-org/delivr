@@ -26,24 +26,24 @@ import { ApprovalConfirmationModal } from './shared/ApprovalConfirmationModal';
 import { AppBadge } from '~/components/Common/AppBadge';
 
 interface PreReleaseStageProps {
-  tenantId: string;
+  appId: string;
   releaseId: string;
   className?: string;
 }
 
-export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseStageProps) {
+export function PreReleaseStage({ appId, releaseId, className }: PreReleaseStageProps) {
   // Validate required props
-  validateStageProps({ tenantId, releaseId }, 'PreReleaseStage');
+  validateStageProps({ appId, releaseId }, 'PreReleaseStage');
 
-  const { data, isLoading, error, refetch, dataUpdatedAt } = usePreReleaseStage(tenantId, releaseId);
+  const { data, isLoading, error, refetch, dataUpdatedAt } = usePreReleaseStage(appId, releaseId);
   
   // Get release data to access releaseConfigId
-  const { release } = useRelease(tenantId, releaseId);
+  const { release } = useRelease(appId, releaseId);
 
   // Get user data and check permissions
   const orgLayoutData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
   const userId = orgLayoutData?.user?.user?.id || '';
-  const { canPerformReleaseAction } = usePermissions(tenantId, userId);
+  const { canPerformReleaseAction } = usePermissions(appId, userId);
   const canPerform = canPerformReleaseAction(release?.releasePilotAccountId || null);
   
   // Get cached release configs from ConfigContext
@@ -62,7 +62,7 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
   
   // Use shared task handlers
   const { handleRetry } = useTaskHandlers({
-    tenantId,
+    appId,
     releaseId,
     refetch,
   });
@@ -73,13 +73,13 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
 
   // Fetch project management status - only if configured
   const projectManagementStatus = useProjectManagementStatus(
-    tenantId,
+    appId,
     releaseId,
     undefined, // No platform filter
     hasProjectManagement // Only enable if PM is configured
   );
   
-  const completeMutation = useCompletePreReleaseStage(tenantId, releaseId);
+  const completeMutation = useCompletePreReleaseStage(appId, releaseId);
   const [approvalModalOpened, setApprovalModalOpened] = useState(false);
 
   // Extract tasks, uploadedBuilds, and approvalStatus from data
@@ -208,7 +208,7 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
         {!isFetchingTasks && tasks.length > 0 && (
           <PreReleaseTasksList
             tasks={tasks}
-            tenantId={tenantId}
+            appId={appId}
             releaseId={releaseId}
             isArchived={release?.status === ReleaseStatus.ARCHIVED}
             onRetry={handleRetry}

@@ -68,7 +68,7 @@ export interface ReleaseCustomizations {
 }
 
 export interface CompleteReleaseData {
-  tenantId: string;
+  appId: string;
   configId?: string; // Reference to configuration used (null for manual mode)
   
   basicDetails: ReleaseBasicDetails;

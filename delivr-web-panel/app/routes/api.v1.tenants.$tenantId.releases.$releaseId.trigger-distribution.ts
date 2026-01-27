@@ -1,9 +1,9 @@
 /**
  * Remix API Route: Trigger Distribution (Approve Pre-Release Stage)
- * POST /api/v1/tenants/:tenantId/releases/:releaseId/trigger-distribution
+ * POST /api/v1/apps/:appId/releases/:releaseId/trigger-distribution
  * 
  * BFF route that calls the ReleaseProcessService to approve pre-release and trigger distribution
- * Backend contract: POST /api/v1/tenants/{tenantId}/releases/{releaseId}/trigger-distribution
+ * Backend contract: POST /api/v1/tenants/{appId}/releases/{releaseId}/trigger-distribution
  */
 
 import { json } from '@remix-run/node';
@@ -22,10 +22,10 @@ import {
 import type { TriggerDistributionResponse } from '~/types/release-process.types';
 
 const triggerDistribution: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { tenantId, releaseId } = params;
+  const { appId, releaseId } = params;
 
-  if (!validateRequired(tenantId, 'Tenant ID is required')) {
-    return createValidationError('Tenant ID is required');
+  if (!validateRequired(appId, 'app id is required')) {
+    return createValidationError('app id is required');
   }
 
   if (!validateRequired(releaseId, 'Release ID is required')) {
@@ -38,7 +38,7 @@ const triggerDistribution: AuthenticatedActionFunction = async ({ params, reques
     
     console.log('[BFF] Triggering distribution for release:', releaseId, body);
     const response = await ReleaseProcessService.triggerDistributionStage(
-      tenantId, 
+      appId, 
       releaseId, 
       user.user.id,
       body

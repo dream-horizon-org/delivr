@@ -1,7 +1,7 @@
 /**
  * BFF Route: Create & List Release Configurations
- * POST   /api/v1/tenants/:tenantId/release-config  - Create new config
- * GET    /api/v1/tenants/:tenantId/release-config  - List all configs
+ * POST   /api/v1/apps/:appId/release-config  - Create new config
+ * GET    /api/v1/apps/:appId/release-config  - List all configs
  */
 
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
@@ -15,11 +15,11 @@ import { logApiError } from '~/utils/api-route-helpers';
  */
 export async function action({ request, params }: ActionFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId } = params;
-  console.log('[BFF] action:', request, params, userId, tenantId); 
+  const { appId } = params;
+  console.log('[BFF] action:', request, params, userId, appId); 
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id is required' }, { status: 400 });
   }
 
   if (request.method !== 'POST') {
@@ -30,14 +30,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const config: ReleaseConfiguration = await request.json();
 
     console.log('[BFF] Creating release config:', {
-      tenantId,
+      appId,
       name: config.name,
       releaseType: config.releaseType,
       platformTargets: config.platformTargets?.length || 0,
     });
 
     // Pass frontend format directly to service - transformation happens in service layer
-    const result = await ReleaseConfigService.create(config, tenantId, userId);
+    const result = await ReleaseConfigService.create(config, appId, userId);
 
     if (!result.success) {
       console.error('[BFF] Create failed:', result.error);
@@ -60,16 +60,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
  */
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId } = params;
+  const { appId } = params;
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id is required' }, { status: 400 });
   }
 
   try {
-    // console.log('[BFF] Listing release configs for tenant:', tenantId);
+    // console.log('[BFF] Listing release configs for tenant:', appId);
 
-    const result = await ReleaseConfigService.list(tenantId, userId);
+    const result = await ReleaseConfigService.list(appId, userId);
 
     if (!result.success) {
       console.error('[BFF] List failed:', result.error);

@@ -1,9 +1,9 @@
 /**
  * API Routes: GitHub Actions CI/CD Integration CRUD
- * GET /api/v1/tenants/:tenantId/integrations/ci-cd/github-actions - Get connection
- * POST /api/v1/tenants/:tenantId/integrations/ci-cd/github-actions - Create connection
- * PATCH /api/v1/tenants/:tenantId/integrations/ci-cd/github-actions - Update connection
- * DELETE /api/v1/tenants/:tenantId/integrations/ci-cd/github-actions - Delete connection
+ * GET /api/v1/apps/:appId/integrations/ci-cd/github-actions - Get connection
+ * POST /api/v1/apps/:appId/integrations/ci-cd/github-actions - Create connection
+ * PATCH /api/v1/apps/:appId/integrations/ci-cd/github-actions - Update connection
+ * DELETE /api/v1/apps/:appId/integrations/ci-cd/github-actions - Delete connection
  */
 
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
@@ -16,14 +16,14 @@ import { logApiError } from '~/utils/api-route-helpers';
  */
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId } = params;
+  const { appId } = params;
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id is required' }, { status: 400 });
   }
 
   try {
-    const result = await GitHubActionsIntegrationService.getIntegration(tenantId, userId);
+    const result = await GitHubActionsIntegrationService.getIntegration(appId, userId);
     return json(result, { status: result.success ? 200 : 404 });
   } catch (error: any) {
     logApiError('[GitHubActions-Get]', error);
@@ -39,10 +39,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
  */
 export async function action({ request, params }: ActionFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId } = params;
+  const { appId } = params;
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id is required' }, { status: 400 });
   }
 
   const method = request.method;
@@ -54,7 +54,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       const { displayName, apiToken, hostUrl, _encrypted } = body;
 
       const result = await GitHubActionsIntegrationService.createIntegration(
-        tenantId,
+        appId,
         userId,
         {
           displayName,
@@ -73,7 +73,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       const { integrationId, displayName, apiToken, hostUrl, _encrypted } = body;
 
       const result = await GitHubActionsIntegrationService.updateIntegration(
-        tenantId,
+        appId,
         integrationId, // Service layer will use this to determine backend path
         userId,
         {
@@ -92,7 +92,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       const body = await request.json();
       const { integrationId } = body;
 
-      const result = await GitHubActionsIntegrationService.deleteIntegration(tenantId, integrationId, userId);
+      const result = await GitHubActionsIntegrationService.deleteIntegration(appId, integrationId, userId);
       return json(result, { status: result.success ? 200 : 500 });
     }
 

@@ -13,17 +13,17 @@ import { useActivityLogs } from '~/hooks/useReleaseProcess';
 interface ActivityLogsDrawerProps {
   opened: boolean;
   onClose: () => void;
-  tenantId: string;
+  appId: string;
   releaseId: string;
 }
 
 export function ActivityLogsDrawer({
   opened,
   onClose,
-  tenantId,
+  appId,
   releaseId,
 }: ActivityLogsDrawerProps) {
-  const { data: activityLogs, isLoading, error } = useActivityLogs(tenantId, releaseId);
+  const { data: activityLogs, isLoading, error } = useActivityLogs(appId, releaseId);
 
   const logCount = activityLogs?.activityLogs?.length || 0;
 

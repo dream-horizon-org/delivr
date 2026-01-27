@@ -80,8 +80,8 @@ export default function IntegrationsPage() {
   // Get user data and check permissions
   const orgLayoutData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
   const userId = orgLayoutData?.user?.user?.id || '';
-  const tenantId = params.org!;
-  const { isOwner } = usePermissions(tenantId, userId);
+  const appId = params.org!;
+  const { isOwner } = usePermissions(appId, userId);
 
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationDetails | null>(null);
   const [connectingIntegration, setConnectingIntegration] = useState<Integration | null>(null);
@@ -251,7 +251,7 @@ export default function IntegrationsPage() {
   const isLoading = isLoadingMetadata || isLoadingTenantConfig;
 
   // Breadcrumb items
-  const breadcrumbItems = getBreadcrumbItems('integrations', { org: tenantId });
+  const breadcrumbItems = getBreadcrumbItems('integrations', { org: appId });
 
   // Loading state
   if (isLoading) {
@@ -406,7 +406,7 @@ export default function IntegrationsPage() {
         onClose={handleCloseDetailModal}
         onDisconnectComplete={handleDisconnectComplete}
         onEdit={isOwner ? handleEdit : undefined}
-        tenantId={tenantId}
+        appId={appId}
       />
 
       <IntegrationConnectModal

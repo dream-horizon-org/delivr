@@ -11,7 +11,7 @@ Primary table for release records.
 |--------|------|-------------|
 | `id` | string | Primary key (e.g., `rel_001`) |
 | `releaseId` | string | Business ID (e.g., `REL-2025-001`) |
-| `tenantId` | string | Organization ID |
+| `appId` | string | Organization ID |
 | `branch` | string | Git branch name (e.g., `release/3.0.0`) |
 | `version` | string | Version number (e.g., `3.0.0`) |
 | `status` | string | Release status |
@@ -35,7 +35,7 @@ Maps releases to their store distribution process.
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | string | Primary key (e.g., `dist_001`) |
-| `tenantId` | string | Organization ID |
+| `appId` | string | Organization ID |
 | `releaseId` | string | **Foreign key** → `releases.id` |
 | `status` | enum | `PENDING`, `PARTIALLY_SUBMITTED`, `SUBMITTED`, `PARTIALLY_RELEASED`, `RELEASED` |
 | `createdAt` | ISO 8601 | When distribution was created |
@@ -52,7 +52,7 @@ All Android submissions (current + historical).
 | `id` | string | Primary key (e.g., `asb_001`) |
 | `distributionId` | string | **Foreign key** → `store_distribution.id` |
 | `releaseId` | string | **Foreign key** → `releases.id` |
-| `tenantId` | string | Organization ID |
+| `appId` | string | Organization ID |
 | `storeType` | string | Always `PLAY_STORE` |
 | `status` | enum | `PENDING`, `IN_REVIEW`, `APPROVED`, `LIVE`, `PAUSED`, `REJECTED`, `HALTED`, `CANCELLED` |
 | `version` | string | Version number (e.g., `3.0.0`) |
@@ -87,7 +87,7 @@ All iOS submissions (current + historical).
 | `id` | string | Primary key (e.g., `isb_001`) |
 | `distributionId` | string | **Foreign key** → `store_distribution.id` |
 | `releaseId` | string | **Foreign key** → `releases.id` |
-| `tenantId` | string | Organization ID |
+| `appId` | string | Organization ID |
 | `storeType` | string | Always `APP_STORE` |
 | `status` | enum | `PENDING`, `IN_REVIEW`, `APPROVED`, `LIVE`, `PAUSED`, `REJECTED`, `HALTED`, `CANCELLED` |
 | `version` | string | Version number (e.g., `3.0.0`) |

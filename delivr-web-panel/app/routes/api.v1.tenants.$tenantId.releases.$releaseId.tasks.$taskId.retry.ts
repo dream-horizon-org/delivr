@@ -1,6 +1,6 @@
 /**
  * Remix API Route: Retry Task
- * POST /api/v1/tenants/:tenantId/releases/:releaseId/tasks/:taskId/retry
+ * POST /api/v1/apps/:appId/releases/:releaseId/tasks/:taskId/retry
  * 
  * BFF route that calls the ReleaseProcessService to retry a failed task
  * Matches backend contract API #8
@@ -22,11 +22,11 @@ import {
 import type { RetryTaskResponse } from '~/types/release-process.types';
 
 const retryTask: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { tenantId, releaseId, taskId } = params;
+  const { appId, releaseId, taskId } = params;
 
   // Validate required path parameters
-  if (!validateRequired(tenantId, 'Tenant ID is required')) {
-    return createValidationError('Tenant ID is required');
+  if (!validateRequired(appId, 'app id is required')) {
+    return createValidationError('app id is required');
   }
 
   if (!validateRequired(releaseId, 'Release ID is required')) {
@@ -38,7 +38,7 @@ const retryTask: AuthenticatedActionFunction = async ({ params, request, user })
   }
 
   try {
-    const response = await ReleaseProcessService.retryTask(tenantId, releaseId, taskId, user.user.id);
+    const response = await ReleaseProcessService.retryTask(appId, releaseId, taskId, user.user.id);
     
     // Axios response structure: response.data contains the actual response body
     return json(response.data as RetryTaskResponse);

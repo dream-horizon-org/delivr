@@ -1,9 +1,9 @@
 /**
  * API Route: Fetch Checkmate Metadata
- * NEW: GET /api/v1/tenants/:tenantId/integrations/test-management/:integrationId/metadata/:metadataType?projectId=456
+ * NEW: GET /api/v1/apps/:appId/integrations/test-management/:integrationId/metadata/:metadataType?projectId=456
  * 
  * Fetches Checkmate metadata (labels, projects, sections, squads)
- * Updated to match new API format with tenantId in path
+ * Updated to match new API format with appId in path
  */
 
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
@@ -11,13 +11,13 @@ import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { CheckmateIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 
 export const loader = authenticateLoaderRequest(async ({ params, request, user }) => {
-  const { tenantId, integrationId, metadataType } = params;
+  const { appId, integrationId, metadataType } = params;
   const url = new URL(request.url);
   const projectId = url.searchParams.get('projectId');
 
-  if (!tenantId) {
+  if (!appId) {
     return json(
-      { success: false, error: 'Tenant ID is required' },
+      { success: false, error: 'app id is required' },
       { status: 400 }
     );
   }
@@ -56,7 +56,7 @@ export const loader = authenticateLoaderRequest(async ({ params, request, user }
   try {
     const result = await CheckmateIntegrationService.fetchMetadata(
       integrationId,
-      tenantId,
+      appId,
       metadataType as 'labels' | 'projects' | 'sections' | 'squads',
       projectId || undefined,
       user?.user?.id

@@ -255,7 +255,7 @@ export interface CommunicationConfig {
 
 export interface ReleaseConfiguration {
   id: string; // Config ID
-  tenantId: string; // Match backend schema (was: organizationId)
+  appId: string; // Match backend schema (was: organizationId)
   
   // Configuration metadata
   name: string; // e.g., "Standard Release Configuration", "Hotfix Configuration"

@@ -163,7 +163,7 @@ function getAccountDetails(accountId) {
 
 // Helper function to transform release to backend format
 // Matches BackendReleaseResponse interface and backend contract
-function transformRelease(release, tenantId) {
+function transformRelease(release, appId) {
   // Check if release is in new format by looking for new format fields
   // New format has: releasePhase, cronJob, createdByAccountId, or platformTargetMappings array
   // Also check if releaseId is different from id (new format indicator)
@@ -186,8 +186,8 @@ function transformRelease(release, tenantId) {
       console.log(`[transformRelease] WARNING: platformTargetMappings is missing or undefined in release ${release.id}`);
     }
     
-    // Only override tenantId to match request
-    transformed.tenantId = tenantId;
+    // Only override appId to match request
+    transformed.appId = appId;
     
     // Ensure account ID fields use new format (fallback to old if needed, but don't overwrite if already set)
     if (!transformed.createdByAccountId && transformed.createdBy) {
@@ -228,7 +228,7 @@ function transformRelease(release, tenantId) {
     id: release.id,
     releaseId: release.releaseId || release.id,
     releaseConfigId: release.releaseConfigId || null,
-    tenantId: tenantId,
+    appId: appId,
     type: release.type || 'MINOR',
     status: release.status || 'IN_PROGRESS',
     releasePhase: release.releasePhase || null,
@@ -266,11 +266,11 @@ function transformRelease(release, tenantId) {
 }
 
 /**
- * GET /tenants/:tenantId/releases/:releaseId
+ * GET /tenants/:appId/releases/:releaseId
  * Get single release by ID (can be either 'id' or 'releaseId' field)
  */
-server.get('/api/v1/tenants/:tenantId/releases/:releaseId', (req, res) => {
-  const { tenantId, releaseId } = req.params;
+server.get('/api/v1/tenants/:appId/releases/:releaseId', (req, res) => {
+  const { appId, releaseId } = req.params;
   const db = router.db;
   
   // Try to find by 'id' first, then by 'releaseId' field
@@ -287,17 +287,17 @@ server.get('/api/v1/tenants/:tenantId/releases/:releaseId', (req, res) => {
   }
   
   // Debug: Log the release found
-  console.log(`[GET /tenants/:tenantId/releases/:releaseId] Found release:`, {
+  console.log(`[GET /tenants/:appId/releases/:releaseId] Found release:`, {
     id: release.id,
     releaseId: release.releaseId,
     hasPlatformTargetMappings: Array.isArray(release.platformTargetMappings),
     platformTargetMappingsLength: release.platformTargetMappings?.length || 0,
   });
   
-  const transformed = transformRelease(release, tenantId);
+  const transformed = transformRelease(release, appId);
   
   // Debug: Log after transformation
-  console.log(`[GET /tenants/:tenantId/releases/:releaseId] Transformed release:`, {
+  console.log(`[GET /tenants/:appId/releases/:releaseId] Transformed release:`, {
     id: transformed.id,
     releaseId: transformed.releaseId,
     hasPlatformTargetMappings: Array.isArray(transformed.platformTargetMappings),
@@ -311,16 +311,16 @@ server.get('/api/v1/tenants/:tenantId/releases/:releaseId', (req, res) => {
 });
 
 /**
- * GET /tenants/:tenantId/releases
+ * GET /tenants/:appId/releases
  * List all releases for a tenant (matches ReleaseManagement service)
  */
-server.get('/api/v1/tenants/:tenantId/releases', (req, res) => {
+server.get('/api/v1/tenants/:appId/releases', (req, res) => {
   const db = router.db;
   const releases = db.get('releases').value() || [];
   
   // Debug: Log first release to see what we're working with
   if (releases.length > 0) {
-    console.log(`[GET /tenants/:tenantId/releases] First release from db:`, {
+    console.log(`[GET /tenants/:appId/releases] First release from db:`, {
       id: releases[0].id,
       releaseId: releases[0].releaseId,
       hasReleasePhase: releases[0].releasePhase !== undefined,
@@ -333,10 +333,10 @@ server.get('/api/v1/tenants/:tenantId/releases', (req, res) => {
   
   // Transform to match backend response format
   const transformedReleases = releases.map(release => {
-    const transformed = transformRelease(release, req.params.tenantId);
+    const transformed = transformRelease(release, req.params.appId);
     // Debug: Log after transformation
     if (release.id === releases[0]?.id) {
-      console.log(`[GET /tenants/:tenantId/releases] After transform:`, {
+      console.log(`[GET /tenants/:appId/releases] After transform:`, {
         id: transformed.id,
         releaseId: transformed.releaseId,
         hasPlatformTargetMappings: Array.isArray(transformed.platformTargetMappings),
@@ -353,22 +353,22 @@ server.get('/api/v1/tenants/:tenantId/releases', (req, res) => {
 });
 
 /**
- * GET /api/v1/tenants/:tenantId/releases
+ * GET /api/v1/tenants/:appId/releases
  * List all releases for a tenant (with /api/v1 prefix - matches backend API)
  */
-server.get('/api/v1/tenants/:tenantId/releases', (req, res) => {
+server.get('/api/v1/tenants/:appId/releases', (req, res) => {
   const db = router.db;
   const releases = db.get('releases').value() || [];
   
-  console.log(`[GET /api/v1/tenants/:tenantId/releases] Tenant ID:`, req.params.tenantId);
-  console.log(`[GET /api/v1/tenants/:tenantId/releases] Total releases in DB:`, releases.length);
+  console.log(`[GET /api/v1/tenants/:appId/releases] app id:`, req.params.appId);
+  console.log(`[GET /api/v1/tenants/:appId/releases] Total releases in DB:`, releases.length);
   
   // Transform to match backend response format
   const transformedReleases = releases.map(release => {
-    return transformRelease(release, req.params.tenantId);
+    return transformRelease(release, req.params.appId);
   });
   
-  console.log(`[GET /api/v1/tenants/:tenantId/releases] Returning ${transformedReleases.length} releases`);
+  console.log(`[GET /api/v1/tenants/:appId/releases] Returning ${transformedReleases.length} releases`);
   
   // Return format matches backend: {success: true, releases: [...]}
   // The BFF layer will wrap this in {success: true, data: {releases: [...]}} for the frontend
@@ -379,10 +379,10 @@ server.get('/api/v1/tenants/:tenantId/releases', (req, res) => {
 });
 
 /**
- * GET /tenants/:tenantId/release-configs
+ * GET /tenants/:appId/release-configs
  * List release configs (mock to prevent errors)
  */
-server.get('/api/v1/tenants/:tenantId/release-configs', (req, res) => {
+server.get('/api/v1/tenants/:appId/release-configs', (req, res) => {
   res.json({
     success: true,
     data: [],
@@ -390,10 +390,10 @@ server.get('/api/v1/tenants/:tenantId/release-configs', (req, res) => {
 });
 
 /**
- * GET /api/v1/tenants/:tenantId/release-config
+ * GET /api/v1/tenants/:appId/release-config
  * List release configs (alternate path - for client-side calls)
  */
-server.get('/api/v1/tenants/:tenantId/release-config', (req, res) => {
+server.get('/api/v1/tenants/:appId/release-config', (req, res) => {
   res.json({
     success: true,
     data: [],
@@ -1288,12 +1288,12 @@ server.patch('/api/v1/submissions/:submissionId/rollout/halt', (req, res) => {
 // History feature not in API spec
 
 /**
- * GET /api/v1/distributions?tenantId=xxx&page=1&pageSize=10
+ * GET /api/v1/distributions?appId=xxx&page=1&pageSize=10
  * List all distributions with pagination
  * ✅ 100% ALIGNED WITH DISTRIBUTION_API_SPEC.md
  * 
  * Query Parameters:
- * - tenantId: Tenant/Organization ID (required)
+ * - appId: Tenant/Organization ID (required)
  * - page: Page number (default: 1)
  * - pageSize: Items per page (default: 10, max: 100)
  * - status: Filter by status (optional)
@@ -1306,25 +1306,25 @@ server.get('/api/v1/distributions', (req, res) => {
   const db = router.db;
   
   // Extract query params
-  const tenantId = req.query.tenantId;
+  const appId = req.query.appId;
   const page = parseInt(req.query.page) || 1;
   const pageSize = Math.min(parseInt(req.query.pageSize) || 10, 100); // Max 100
   const statusFilter = req.query.status; // PENDING, PARTIALLY_SUBMITTED, SUBMITTED, PARTIALLY_RELEASED, RELEASED
   const platformFilter = req.query.platform; // ANDROID, IOS
   
-  // Validate tenantId
-  if (!tenantId) {
+  // Validate appId
+  if (!appId) {
     return res.status(400).json({
       success: false,
-      error: { code: 'MISSING_TENANT_ID', message: 'tenantId query parameter is required' },
+      error: { code: 'MISSING_TENANT_ID', message: 'appId query parameter is required' },
     });
   }
   
-  console.log(`[distributions] Fetching distributions for tenant: ${tenantId}`);
+  console.log(`[distributions] Fetching distributions for tenant: ${appId}`);
   
-  // ✅ Query from actual database tables and filter by tenantId
+  // ✅ Query from actual database tables and filter by appId
   const allDistributionsFromDb = (db.get('store_distribution').value() || [])
-    .filter(d => d.tenantId === tenantId);
+    .filter(d => d.appId === appId);
   const androidSubmissions = db.get('android_submission_builds').value() || [];
   const iosSubmissions = db.get('ios_submission_builds').value() || [];
   const releases = db.get('releases').value() || [];

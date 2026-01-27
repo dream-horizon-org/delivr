@@ -1,9 +1,9 @@
 /**
  * Remix API Route: Check Cherry Pick Status
- * GET /api/v1/tenants/:tenantId/releases/:releaseId/check-cherry-pick-status
+ * GET /api/v1/apps/:appId/releases/:releaseId/check-cherry-pick-status
  * 
  * BFF route that proxies to ReleaseProcessService
- * Backend contract: GET /api/v1/tenants/:tenantId/releases/:releaseId/check-cherry-pick-status
+ * Backend contract: GET /api/v1/apps/:appId/releases/:releaseId/check-cherry-pick-status
  */
 
 import { json } from '@remix-run/node';
@@ -25,10 +25,10 @@ import {
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, user }: LoaderFunctionArgs & { user: User }) => {
-    const { tenantId, releaseId } = params;
+    const { appId, releaseId } = params;
 
-    if (!validateRequired(tenantId, 'Tenant ID is required')) {
-      return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+    if (!validateRequired(appId, 'app id is required')) {
+      return json({ success: false, error: 'app id is required' }, { status: 400 });
     }
 
     if (!validateRequired(releaseId, 'Release ID is required')) {
@@ -37,7 +37,7 @@ export const loader = authenticateLoaderRequest(
 
     try {
       console.log('[BFF] Fetching cherry pick status for release:', releaseId);
-      const response = await ReleaseProcessService.getCherryPickStatus(tenantId, releaseId, user.user.id);
+      const response = await ReleaseProcessService.getCherryPickStatus(appId, releaseId, user.user.id);
       console.log('[BFF] Cherry pick status response:', response.data);
       
       // Backend returns { success: true, releaseId, latestReleaseTag, commitIdsMatch }

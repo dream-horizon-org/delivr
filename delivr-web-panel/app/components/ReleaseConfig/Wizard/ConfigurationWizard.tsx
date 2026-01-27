@@ -46,7 +46,7 @@ import { getPlatformsFromPlatformTargets, getTargetsFromPlatformTargets } from '
 import { AppBadge } from '~/components/Common/AppBadge';
 
 export function ConfigurationWizard({
-  tenantId,
+  appId,
   onSubmit,
   onCancel,
   availableIntegrations,
@@ -69,13 +69,13 @@ export function ConfigurationWizard({
     updateMetadata,
   } = useDraftStorage<Partial<ReleaseConfiguration>>(
     {
-      storageKey: generateStorageKey('release-config', tenantId),
+      storageKey: generateStorageKey('release-config', appId),
       sensitiveFields: [],
       shouldSaveDraft: () => false,
       ttl: 30 * 24 * 60 * 60 * 1000,
       enableMetadata: true,
     },
-    createDefaultConfig(tenantId), // initialData - always default
+    createDefaultConfig(appId), // initialData - always default
     isEditMode && existingConfig ? existingConfig : undefined // existingData - only in edit mode (skips draft loading)
   );
   console.log("config", config);
@@ -208,8 +208,8 @@ export function ConfigurationWizard({
       } as ReleaseConfiguration;
       
       const endpoint = isEditMode && config.id
-        ? `/api/v1/tenants/${tenantId}/release-config/${config.id}`
-        : `/api/v1/tenants/${tenantId}/release-config`;
+        ? `/api/v1/apps/${appId}/release-config/${config.id}`
+        : `/api/v1/apps/${appId}/release-config`;
       
       const result = isEditMode
         ? await apiPut<ReleaseConfiguration>(endpoint, completeConfig)
@@ -242,7 +242,7 @@ export function ConfigurationWizard({
 
   // Breadcrumb items
   const breadcrumbItems = getBreadcrumbItems('releases.configure', {
-    org: tenantId,
+    org: appId,
     isEditMode,
   });
 
@@ -255,7 +255,7 @@ export function ConfigurationWizard({
           <BasicInfoForm
             config={config}
             onChange={setConfig}
-            tenantId={tenantId}
+            appId={appId}
             showValidation={attemptedSteps.has(STEP_INDEX.BASIC)}
             hasScmIntegration={availableIntegrations.github.length > 0}
           />
@@ -297,7 +297,7 @@ export function ConfigurationWizard({
               githubActions: availableIntegrations.githubActions,
             }}
             selectedPlatforms={getPlatformsFromPlatformTargets(config.platformTargets || [])}
-            tenantId={tenantId}
+            appId={appId}
             showValidation={attemptedSteps.has(STEP_INDEX.PIPELINES)}
           />
         );
@@ -319,7 +319,7 @@ export function ConfigurationWizard({
             onChange={(projectManagementConfig) => setConfig({ ...config, projectManagementConfig })}
             availableIntegrations={availableIntegrations.jira}
             selectedPlatforms={getPlatformsFromPlatformTargets(config.platformTargets || [])}
-            tenantId={tenantId}
+            appId={appId}
           />
         );
         
@@ -329,7 +329,7 @@ export function ConfigurationWizard({
             config={config.communicationConfig!}
             onChange={(communicationConfig) => setConfig({ ...config, communicationConfig })}
             availableIntegrations={{ slack: availableIntegrations.slack }}
-            tenantId={tenantId}
+            appId={appId}
           />
         );
         

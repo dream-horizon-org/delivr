@@ -1,9 +1,9 @@
 /**
  * Remix API Route: Archive Release
- * PUT /api/v1/tenants/:tenantId/releases/:releaseId/archive
+ * PUT /api/v1/apps/:appId/releases/:releaseId/archive
  * 
  * BFF route that proxies to ReleaseProcessService
- * Backend implementation: PUT /api/v1/tenants/:tenantId/releases/:releaseId/archive
+ * Backend implementation: PUT /api/v1/apps/:appId/releases/:releaseId/archive
  */
 
 import { json } from '@remix-run/node';
@@ -26,13 +26,13 @@ import {
 /**
  * PUT - Archive release
  * No request body required
- * Calls backend API: PUT /api/v1/tenants/:tenantId/releases/:releaseId/archive
+ * Calls backend API: PUT /api/v1/apps/:appId/releases/:releaseId/archive
  */
 const archiveRelease: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { tenantId, releaseId } = params;
+  const { appId, releaseId } = params;
 
-  if (!validateRequired(tenantId, 'Tenant ID is required')) {
-    return createValidationError('Tenant ID is required');
+  if (!validateRequired(appId, 'app id is required')) {
+    return createValidationError('app id is required');
   }
 
   if (!validateRequired(releaseId, 'Release ID is required')) {
@@ -46,7 +46,7 @@ const archiveRelease: AuthenticatedActionFunction = async ({ params, request, us
 
   try {
     // Fetch release to check permissions
-    const releaseResult = await getReleaseById(releaseId, tenantId, user.user.id);
+    const releaseResult = await getReleaseById(releaseId, appId, user.user.id);
     if (!releaseResult.success || !releaseResult.release) {
       return json({ error: 'Release not found' }, { status: 404 });
     }
@@ -64,7 +64,7 @@ const archiveRelease: AuthenticatedActionFunction = async ({ params, request, us
 
     console.log(`[BFF] Archiving release:`, releaseId);
     
-    const response = await ReleaseProcessService.archiveRelease(tenantId, releaseId, user.user.id);
+    const response = await ReleaseProcessService.archiveRelease(appId, releaseId, user.user.id);
     
     console.log(`[BFF] Archive release response:`, response.data);
     

@@ -1,6 +1,6 @@
 /**
  * BFF Route: Fetch Jira Projects
- * GET /api/v1/tenants/:tenantId/integrations/project-management/:integrationId/jira/metadata/projects
+ * GET /api/v1/apps/:appId/integrations/project-management/:integrationId/jira/metadata/projects
  * 
  * Fetches all Jira projects for a given Jira integration
  * This is a proxy route that calls the backend Jira metadata service
@@ -11,11 +11,11 @@ import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { ProjectManagementIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 
 export const loader = authenticateLoaderRequest(async ({ params, user }: LoaderFunctionArgs & { user: any }) => {
-  const { tenantId, integrationId } = params;
+  const { appId, integrationId } = params;
 
-  if (!tenantId) {
+  if (!appId) {
     return json(
-      { success: false, error: 'Tenant ID is required' },
+      { success: false, error: 'app id is required' },
       { status: 400 }
     );
   }
@@ -29,7 +29,7 @@ export const loader = authenticateLoaderRequest(async ({ params, user }: LoaderF
 
   try {
     const result = await ProjectManagementIntegrationService.getJiraProjects(
-      tenantId,
+      appId,
       integrationId,
       user.user.id
     );

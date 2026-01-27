@@ -94,7 +94,7 @@ export enum IntegrationType {
 
 export interface SCMIntegration {
   id: string;
-  tenantId: string;
+  appId: string;
   scmType: 'GITHUB' | 'GITLAB' | 'BITBUCKET';
   displayName: string;
   owner: string;
@@ -113,7 +113,7 @@ export interface SCMIntegration {
 
 export interface Release {
   id: string;
-  tenantId: string;
+  appId: string;
   releaseKey: string;
   version: string;
   type: ReleaseType;
@@ -253,7 +253,7 @@ export interface ReleaseAnalytics {
 
 export interface TenantIntegration {
   id: string;
-  tenantId: string;
+  appId: string;
   integrationType: IntegrationType;
   isEnabled: boolean;
   isRequired: boolean;
@@ -271,7 +271,7 @@ export interface TenantIntegration {
 
 export interface ReleaseCycle {
   id: string;
-  tenantId: string;
+  appId: string;
   name: string;
   duration: number; // in weeks
   phases: ReleasePhase[];
@@ -292,7 +292,7 @@ export interface ReleasePhase {
 // ============================================================================
 
 export interface CreateReleaseRequest {
-  tenantId: string;
+  appId: string;
   version: string;
   type: ReleaseType;
   baseVersion: string;
@@ -370,7 +370,7 @@ export interface ReleaseCyclesResponse {
 
 
 export interface VerifySCMRequest {
-  tenantId: string;
+  appId: string;
   scmType: 'GITHUB' | 'GITLAB' | 'BITBUCKET';
   owner: string;
   repo: string;
@@ -389,7 +389,7 @@ export interface VerifySCMResponse {
 }
 
 export interface CreateSCMIntegrationRequest {
-  tenantId: string;
+  appId: string;
   scmType: 'GITHUB' | 'GITLAB' | 'BITBUCKET';
   owner: string;
   repo: string;

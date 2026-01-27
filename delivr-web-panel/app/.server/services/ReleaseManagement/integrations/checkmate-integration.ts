@@ -37,7 +37,7 @@ export interface VerifyCheckmateResponse {
 }
 
 export interface CreateCheckmateIntegrationRequest {
-  tenantId: string;
+  appId: string;
   name: string;
   config: CheckmateConfig;
   userId: string;
@@ -45,7 +45,7 @@ export interface CreateCheckmateIntegrationRequest {
 
 export interface UpdateCheckmateIntegrationRequest {
   integrationId: string;
-  tenantId: string; // Required for new API format
+  appId: string; // Required for new API format
   name?: string;
   config?: Partial<CheckmateConfig>;
   userId: string;
@@ -53,7 +53,7 @@ export interface UpdateCheckmateIntegrationRequest {
 
 export interface CheckmateIntegration {
   id: string;
-  tenantId: string;
+  appId: string;
   name: string;
   providerType: 'checkmate'; // Backend uses lowercase
   config: CheckmateConfig;
@@ -93,10 +93,10 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
    */
   async verifyCredentials(
     data: VerifyCheckmateCredentialsRequest,
-    tenantId: string,
+    appId: string,
     userId: string
   ): Promise<CheckmateVerifyResponse> {
-    const endpoint = TEST_MANAGEMENT.verifyCredentials(tenantId);
+    const endpoint = TEST_MANAGEMENT.verifyCredentials(appId);
     
     console.log('[CheckmateIntegrationService] Verifying credentials:', {
       endpoint,
@@ -196,13 +196,13 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
    * Create Checkmate integration
    */
   async createIntegration(data: CreateCheckmateIntegrationRequest): Promise<CheckmateIntegrationResponse> {
-    const endpoint = TEST_MANAGEMENT.create(data.tenantId);
+    const endpoint = TEST_MANAGEMENT.create(data.appId);
     
     console.log('[CheckmateIntegrationService] Creating integration:', {
       endpoint,
       baseUrl: this.baseUrl,
       fullUrl: `${this.baseUrl}${endpoint}`,
-      tenantId: data.tenantId,
+      appId: data.appId,
       name: data.name,
       configKeys: Object.keys(data.config)
     });
@@ -252,10 +252,10 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
   /**
    * Get all Checkmate integrations for a tenant
    */
-  async listIntegrations(tenantId: string, userId: string): Promise<CheckmateIntegrationResponse> {
+  async listIntegrations(appId: string, userId: string): Promise<CheckmateIntegrationResponse> {
     try {
       const result = await this.get<{ success: boolean; data: CheckmateIntegration[]; error?: string }>(
-        TEST_MANAGEMENT.list(tenantId),
+        TEST_MANAGEMENT.list(appId),
         userId
       );
 
@@ -285,10 +285,10 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
   /**
    * Get single Checkmate integration
    */
-  async getIntegration(integrationId: string, tenantId: string, userId: string): Promise<CheckmateIntegrationResponse> {
+  async getIntegration(integrationId: string, appId: string, userId: string): Promise<CheckmateIntegrationResponse> {
     try {
       const result = await this.get<{ success: boolean; data: CheckmateIntegration; error?: string }>(
-        TEST_MANAGEMENT.get(tenantId, integrationId),
+        TEST_MANAGEMENT.get(appId, integrationId),
         userId
       );
 
@@ -316,7 +316,7 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
    * Update Checkmate integration
    */
   async updateIntegration(data: UpdateCheckmateIntegrationRequest, userId: string): Promise<CheckmateIntegrationResponse> {
-    const endpoint = TEST_MANAGEMENT.update(data.tenantId, data.integrationId);
+    const endpoint = TEST_MANAGEMENT.update(data.appId, data.integrationId);
     this.logRequest('PUT', endpoint);
     
     try {
@@ -354,10 +354,10 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
   /**
    * Delete Checkmate integration
    */
-  async deleteIntegration(integrationId: string, tenantId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  async deleteIntegration(integrationId: string, appId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       const result = await this.delete<{ success: boolean; message?: string; error?: string }>(
-        TEST_MANAGEMENT.delete(tenantId, integrationId),
+        TEST_MANAGEMENT.delete(appId, integrationId),
         userId
       );
 
@@ -373,8 +373,8 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
   /**
    * Verify Checkmate integration connection
    */
-  async verifyIntegration(integrationId: string, tenantId: string, userId: string): Promise<VerifyCheckmateResponse> {
-    const endpoint = TEST_MANAGEMENT.verify(tenantId, integrationId);
+  async verifyIntegration(integrationId: string, appId: string, userId: string): Promise<VerifyCheckmateResponse> {
+    const endpoint = TEST_MANAGEMENT.verify(appId, integrationId);
     this.logRequest('POST', endpoint);
     
     try {
@@ -401,7 +401,7 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
    */
   async fetchMetadata(
     integrationId: string,
-    tenantId: string,
+    appId: string,
     metadataType: 'labels' | 'projects' | 'sections' | 'squads',
     projectId?: string,
     userId?: string
@@ -410,16 +410,16 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
     
     switch (metadataType) {
       case 'labels':
-        endpoint = TEST_MANAGEMENT.checkmate.labels(tenantId, integrationId);
+        endpoint = TEST_MANAGEMENT.checkmate.labels(appId, integrationId);
         break;
       case 'projects':
-        endpoint = TEST_MANAGEMENT.checkmate.projects(tenantId, integrationId);
+        endpoint = TEST_MANAGEMENT.checkmate.projects(appId, integrationId);
         break;
       case 'sections':
-        endpoint = TEST_MANAGEMENT.checkmate.sections(tenantId, integrationId);
+        endpoint = TEST_MANAGEMENT.checkmate.sections(appId, integrationId);
         break;
       case 'squads':
-        endpoint = TEST_MANAGEMENT.checkmate.squads(tenantId, integrationId);
+        endpoint = TEST_MANAGEMENT.checkmate.squads(appId, integrationId);
         break;
       default:
         return {

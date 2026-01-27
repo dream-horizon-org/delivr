@@ -1,7 +1,7 @@
 /**
  * BFF Route: Verify Project Management Credentials
  * Generic route for all PM providers (JIRA, LINEAR, ASANA, etc.)
- * POST /api/v1/tenants/:tenantId/integrations/project-management/verify?providerType=JIRA
+ * POST /api/v1/apps/:appId/integrations/project-management/verify?providerType=JIRA
  */
 
 import { json } from '@remix-run/node';
@@ -18,10 +18,10 @@ const verifyPMCredentials = async ({
   params,
   user,
 }: ActionFunctionArgs & { user: User }) => {
-  const { tenantId } = params;
+  const { appId } = params;
 
-  if (!tenantId) {
-    return json({ success: false, verified: false, error: 'Tenant ID required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, verified: false, error: 'app id required' }, { status: 400 });
   }
 
   try {
@@ -61,7 +61,7 @@ const verifyPMCredentials = async ({
 
     const result = await ProjectManagementIntegrationService.verifyCredentials(
       {
-        tenantId,
+        appId,
         providerType,
         config,
       },

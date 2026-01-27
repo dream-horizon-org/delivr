@@ -35,7 +35,7 @@ import { formatDateTime, formatStatus } from '~/utils/distribution/distribution-
 export interface SubmissionHistoryTimelineProps {
   submissions: Submission[];
   platform: Platform;
-  tenantId: string; // Required for artifact download API authorization
+  appId: string; // Required for artifact download API authorization
 }
 
 function getStatusIcon(status: SubmissionStatus) {
@@ -64,20 +64,20 @@ function getStatusIcon(status: SubmissionStatus) {
 export function SubmissionHistoryTimeline({
   submissions,
   platform,
-  tenantId,
+  appId,
 }: SubmissionHistoryTimelineProps) {
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
 
   /**
    * Handle artifact download by fetching presigned URL from API.
-   * Per API spec: GET /api/v1/tenants/:tenantId/submissions/:submissionId/artifact?platform=<ANDROID|IOS>
+   * Per API spec: GET /api/v1/apps/:appId/submissions/:submissionId/artifact?platform=<ANDROID|IOS>
    */
   const handleDownloadArtifact = async (submissionId: string, platform: Platform) => {
     setDownloadingIds(prev => new Set(prev).add(submissionId));
     
     try {
       // Step 1: Call frontend API route (which proxies to backend) - uses centralized API route builder
-      const apiUrl = API_ROUTES.getArtifactDownloadUrl(tenantId, submissionId, platform);
+      const apiUrl = API_ROUTES.getArtifactDownloadUrl(appId, submissionId, platform);
       const response = await fetch(apiUrl);
       const data = await response.json();
       

@@ -1,9 +1,9 @@
 /**
  * API Routes: Jenkins CI/CD Integration CRUD
- * POST   /api/v1/tenants/:tenantId/integrations/ci-cd/jenkins - Create
- * GET    /api/v1/tenants/:tenantId/integrations/ci-cd/jenkins - Read
- * PATCH  /api/v1/tenants/:tenantId/integrations/ci-cd/jenkins - Update
- * DELETE /api/v1/tenants/:tenantId/integrations/ci-cd/jenkins - Delete
+ * POST   /api/v1/apps/:appId/integrations/ci-cd/jenkins - Create
+ * GET    /api/v1/apps/:appId/integrations/ci-cd/jenkins - Read
+ * PATCH  /api/v1/apps/:appId/integrations/ci-cd/jenkins - Update
+ * DELETE /api/v1/apps/:appId/integrations/ci-cd/jenkins - Delete
  */
 
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
@@ -16,14 +16,14 @@ import { logApiError } from '~/utils/api-route-helpers';
  */
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId } = params;
+  const { appId } = params;
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id is required' }, { status: 400 });
   }
 
   try {
-    const result = await JenkinsIntegrationService.getIntegration(tenantId, userId);
+    const result = await JenkinsIntegrationService.getIntegration(appId, userId);
 
     if (result.success) {
       return json(result, { status: 200 });
@@ -46,10 +46,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
  */
 export async function action({ request, params }: ActionFunctionArgs) {
   const userId = await requireUserId(request);
-  const { tenantId } = params;
+  const { appId } = params;
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id is required' }, { status: 400 });
   }
 
   try {
@@ -70,7 +70,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       console.log('[Jenkins Create] _encrypted:', _encrypted);
 
       const result = await JenkinsIntegrationService.createIntegration({
-        tenantId,
+        appId,
         displayName,
         hostUrl,
         username,
@@ -95,7 +95,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       console.log('[Jenkins Update] _encrypted:', _encrypted);
 
       const result = await JenkinsIntegrationService.updateIntegration({
-        tenantId,
+        appId,
         integrationId, // Service layer will use this to determine backend path
         displayName,
         hostUrl,
@@ -118,7 +118,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       const body = await request.json();
       const { integrationId } = body;
 
-      const result = await JenkinsIntegrationService.deleteIntegration(tenantId, integrationId, userId);
+      const result = await JenkinsIntegrationService.deleteIntegration(appId, integrationId, userId);
 
       if (result.success) {
         return json(result, { status: 200 });

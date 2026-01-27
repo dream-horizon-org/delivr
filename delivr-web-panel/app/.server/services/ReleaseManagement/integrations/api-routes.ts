@@ -16,52 +16,52 @@
 export const PROJECT_MANAGEMENT = {
   /**
    * Verify credentials (stateless - no save)
-   * POST /api/v1/tenants/:tenantId/integrations/project-management/verify
+   * POST /api/v1/apps/:appId/integrations/project-management/verify
    */
-  verify: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/project-management/verify`,
+  verify: (appId: string) => 
+    `/api/v1/apps/${appId}/integrations/project-management/verify`,
   
   /**
    * List all project management integrations
-   * GET /api/v1/tenants/:tenantId/integrations/project-management
+   * GET /api/v1/apps/:appId/integrations/project-management
    */
-  list: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/project-management`,
+  list: (appId: string) => 
+    `/api/v1/apps/${appId}/integrations/project-management`,
   
   /**
    * Create project management integration
-   * POST /api/v1/tenants/:tenantId/integrations/project-management
+   * POST /api/v1/apps/:appId/integrations/project-management
    */
-  create: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/project-management`,
+  create: (appId: string) => 
+    `/api/v1/apps/${appId}/integrations/project-management`,
   
   /**
    * Get single integration
-   * GET /api/v1/tenants/:tenantId/integrations/project-management/:integrationId
+   * GET /api/v1/apps/:appId/integrations/project-management/:integrationId
    */
-  get: (tenantId: string, integrationId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/project-management/${integrationId}`,
+  get: (appId: string, integrationId: string) => 
+    `/api/v1/apps/${appId}/integrations/project-management/${integrationId}`,
   
   /**
    * Update integration
-   * PUT /api/v1/tenants/:tenantId/integrations/project-management/:integrationId
+   * PUT /api/v1/apps/:appId/integrations/project-management/:integrationId
    */
-  update: (tenantId: string, integrationId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/project-management/${integrationId}`,
+  update: (appId: string, integrationId: string) => 
+    `/api/v1/apps/${appId}/integrations/project-management/${integrationId}`,
   
   /**
    * Delete integration
-   * DELETE /api/v1/tenants/:tenantId/integrations/project-management/:integrationId
+   * DELETE /api/v1/apps/:appId/integrations/project-management/:integrationId
    */
-  delete: (tenantId: string, integrationId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/project-management/${integrationId}`,
+  delete: (appId: string, integrationId: string) => 
+    `/api/v1/apps/${appId}/integrations/project-management/${integrationId}`,
   
   /**
    * Verify existing integration
-   * POST /api/v1/tenants/:tenantId/integrations/project-management/:integrationId/verify
+   * POST /api/v1/apps/:appId/integrations/project-management/:integrationId/verify
    */
-  verifyExisting: (tenantId: string, integrationId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/project-management/${integrationId}/verify`,
+  verifyExisting: (appId: string, integrationId: string) => 
+    `/api/v1/apps/${appId}/integrations/project-management/${integrationId}/verify`,
   
   /**
    * Project Management Config Routes
@@ -70,31 +70,31 @@ export const PROJECT_MANAGEMENT = {
   config: {
     /**
      * Create PM configuration
-     * POST /api/v1/tenants/:tenantId/integrations/project-management/config
+     * POST /api/v1/apps/:appId/integrations/project-management/config
      */
-    create: (tenantId: string) => 
-      `/api/v1/tenants/${tenantId}/integrations/project-management/config`,
+    create: (appId: string) => 
+      `/api/v1/apps/${appId}/integrations/project-management/config`,
     
     /**
      * Get PM configuration
-     * GET /api/v1/tenants/:tenantId/integrations/project-management/config/:configId
+     * GET /api/v1/apps/:appId/integrations/project-management/config/:configId
      */
-    get: (tenantId: string, configId: string) => 
-      `/api/v1/tenants/${tenantId}/integrations/project-management/config/${configId}`,
+    get: (appId: string, configId: string) => 
+      `/api/v1/apps/${appId}/integrations/project-management/config/${configId}`,
     
     /**
      * Update PM configuration
-     * PUT /api/v1/tenants/:tenantId/integrations/project-management/config/:configId
+     * PUT /api/v1/apps/:appId/integrations/project-management/config/:configId
      */
-    update: (tenantId: string, configId: string) => 
-      `/api/v1/tenants/${tenantId}/integrations/project-management/config/${configId}`,
+    update: (appId: string, configId: string) => 
+      `/api/v1/apps/${appId}/integrations/project-management/config/${configId}`,
     
     /**
      * Delete PM configuration
-     * DELETE /api/v1/tenants/:tenantId/integrations/project-management/config/:configId
+     * DELETE /api/v1/apps/:appId/integrations/project-management/config/:configId
      */
-    delete: (tenantId: string, configId: string) => 
-      `/api/v1/tenants/${tenantId}/integrations/project-management/config/${configId}`,
+    delete: (appId: string, configId: string) => 
+      `/api/v1/apps/${appId}/integrations/project-management/config/${configId}`,
   },
   
   /**
@@ -104,10 +104,10 @@ export const PROJECT_MANAGEMENT = {
   jiraMetadata: {
     /**
      * Get all Jira projects
-     * GET /api/v1/tenants/:tenantId/integrations/project-management/:integrationId/jira/metadata/projects
+     * GET /api/v1/apps/:appId/integrations/project-management/:integrationId/jira/metadata/projects
      */
-    getProjects: (tenantId: string, integrationId: string) =>
-      `/api/v1/tenants/${tenantId}/integrations/project-management/${integrationId}/jira/metadata/projects`,
+    getProjects: (appId: string, integrationId: string) =>
+      `/api/v1/apps/${appId}/integrations/project-management/${integrationId}/jira/metadata/projects`,
   },
 } as const;
 
@@ -118,80 +118,80 @@ export const PROJECT_MANAGEMENT = {
 export const CICD = {
   /**
    * Verify provider credentials
-   * POST /api/v1/tenants/:tenantId/integrations/ci-cd/connections/:providerType/verify
+   * POST /api/v1/apps/:appId/integrations/ci-cd/connections/:providerType/verify
    */
-  verifyConnection: (tenantId: string, providerType: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/ci-cd/connections/${providerType}/verify`,
+  verifyConnection: (appId: string, providerType: string) => 
+    `/api/v1/apps/${appId}/integrations/ci-cd/connections/${providerType}/verify`,
   
   /**
    * Create CI/CD connection
-   * POST /api/v1/tenants/:tenantId/integrations/ci-cd/connections/:providerType
+   * POST /api/v1/apps/:appId/integrations/ci-cd/connections/:providerType
    */
-  createConnection: (tenantId: string, providerType: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/ci-cd/connections/${providerType}`,
+  createConnection: (appId: string, providerType: string) => 
+    `/api/v1/apps/${appId}/integrations/ci-cd/connections/${providerType}`,
   
   /**
    * Get provider integration
-   * GET /api/v1/tenants/:tenantId/integrations/ci-cd/:provider
+   * GET /api/v1/apps/:appId/integrations/ci-cd/:provider
    */
-  getProvider: (tenantId: string, provider: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/ci-cd/${provider}`,
+  getProvider: (appId: string, provider: string) => 
+    `/api/v1/apps/${appId}/integrations/ci-cd/${provider}`,
   
   /**
    * Update connection
-   * PATCH /api/v1/tenants/:tenantId/integrations/ci-cd/connections/:integrationId
+   * PATCH /api/v1/apps/:appId/integrations/ci-cd/connections/:integrationId
    */
-  updateConnection: (tenantId: string, integrationId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/ci-cd/connections/${integrationId}`,
+  updateConnection: (appId: string, integrationId: string) => 
+    `/api/v1/apps/${appId}/integrations/ci-cd/connections/${integrationId}`,
   
   /**
    * Delete connection
-   * DELETE /api/v1/tenants/:tenantId/integrations/ci-cd/connections/:integrationId
+   * DELETE /api/v1/apps/:appId/integrations/ci-cd/connections/:integrationId
    */
-  deleteConnection: (tenantId: string, integrationId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/ci-cd/connections/${integrationId}`,
+  deleteConnection: (appId: string, integrationId: string) => 
+    `/api/v1/apps/${appId}/integrations/ci-cd/connections/${integrationId}`,
   
   /**
    * Fetch job parameters (Jenkins/GitHub Actions)
-   * POST /api/v1/tenants/:tenantId/integrations/ci-cd/:integrationId/job-parameters
+   * POST /api/v1/apps/:appId/integrations/ci-cd/:integrationId/job-parameters
    */
-  jobParameters: (tenantId: string, integrationId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/ci-cd/${integrationId}/job-parameters`,
+  jobParameters: (appId: string, integrationId: string) => 
+    `/api/v1/apps/${appId}/integrations/ci-cd/${integrationId}/job-parameters`,
   
   /**
    * List all workflows (with optional filters)
-   * GET /api/v1/tenants/:tenantId/integrations/ci-cd/workflows
+   * GET /api/v1/apps/:appId/integrations/ci-cd/workflows
    */
-  listWorkflows: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/ci-cd/workflows`,
+  listWorkflows: (appId: string) => 
+    `/api/v1/apps/${appId}/integrations/ci-cd/workflows`,
   
   /**
    * Get single workflow
-   * GET /api/v1/tenants/:tenantId/integrations/ci-cd/workflows/:workflowId
+   * GET /api/v1/apps/:appId/integrations/ci-cd/workflows/:workflowId
    */
-  getWorkflow: (tenantId: string, workflowId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/ci-cd/workflows/${workflowId}`,
+  getWorkflow: (appId: string, workflowId: string) => 
+    `/api/v1/apps/${appId}/integrations/ci-cd/workflows/${workflowId}`,
   
   /**
    * Create workflow
-   * POST /api/v1/tenants/:tenantId/integrations/ci-cd/workflows
+   * POST /api/v1/apps/:appId/integrations/ci-cd/workflows
    */
-  createWorkflow: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/ci-cd/workflows`,
+  createWorkflow: (appId: string) => 
+    `/api/v1/apps/${appId}/integrations/ci-cd/workflows`,
   
   /**
    * Update workflow
-   * PATCH /api/v1/tenants/:tenantId/integrations/ci-cd/workflows/:workflowId
+   * PATCH /api/v1/apps/:appId/integrations/ci-cd/workflows/:workflowId
    */
-  updateWorkflow: (tenantId: string, workflowId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/ci-cd/workflows/${workflowId}`,
+  updateWorkflow: (appId: string, workflowId: string) => 
+    `/api/v1/apps/${appId}/integrations/ci-cd/workflows/${workflowId}`,
   
   /**
    * Delete workflow
-   * DELETE /api/v1/tenants/:tenantId/integrations/ci-cd/workflows/:workflowId
+   * DELETE /api/v1/apps/:appId/integrations/ci-cd/workflows/:workflowId
    */
-  deleteWorkflow: (tenantId: string, workflowId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/ci-cd/workflows/${workflowId}`,
+  deleteWorkflow: (appId: string, workflowId: string) => 
+    `/api/v1/apps/${appId}/integrations/ci-cd/workflows/${workflowId}`,
 } as const;
 
 // ============================================================================
@@ -202,53 +202,53 @@ export const COMMUNICATION = {
   slack: {
     /**
      * Verify Slack bot token
-     * POST /api/v1/tenants/:tenantId/integrations/slack/verify
+     * POST /api/v1/apps/:appId/integrations/slack/verify
      */
-    verify: (tenantId: string) => 
-      `/api/v1/tenants/${tenantId}/integrations/slack/verify`,
+    verify: (appId: string) => 
+      `/api/v1/apps/${appId}/integrations/slack/verify`,
     
     /**
      * Get Slack channels (using stored integration)
      * Backend requires POST with botToken in body
-     * POST /api/v1/tenants/:tenantId/integrations/slack/channels
+     * POST /api/v1/apps/:appId/integrations/slack/channels
      */
-    getChannels: (tenantId: string) => 
-      `/api/v1/tenants/${tenantId}/integrations/slack/channels`,
+    getChannels: (appId: string) => 
+      `/api/v1/apps/${appId}/integrations/slack/channels`,
     
     /**
      * Get Slack channels by Integration ID (uses stored token)
-     * GET /api/v1/tenants/:tenantId/integrations/slack/:integrationId/channels
+     * GET /api/v1/apps/:appId/integrations/slack/:integrationId/channels
      */
-    getChannelsByIntegrationId: (tenantId: string, integrationId: string) => 
-      `/api/v1/tenants/${tenantId}/integrations/slack/${integrationId}/channels`,
+    getChannelsByIntegrationId: (appId: string, integrationId: string) => 
+      `/api/v1/apps/${appId}/integrations/slack/${integrationId}/channels`,
     
     /**
      * Create/Update Slack integration
-     * POST /api/v1/tenants/:tenantId/integrations/slack
+     * POST /api/v1/apps/:appId/integrations/slack
      */
-    create: (tenantId: string) => 
-      `/api/v1/tenants/${tenantId}/integrations/slack`,
+    create: (appId: string) => 
+      `/api/v1/apps/${appId}/integrations/slack`,
     
     /**
      * Get Slack integration
-     * GET /api/v1/tenants/:tenantId/integrations/slack
+     * GET /api/v1/apps/:appId/integrations/slack
      */
-    get: (tenantId: string) => 
-      `/api/v1/tenants/${tenantId}/integrations/slack`,
+    get: (appId: string) => 
+      `/api/v1/apps/${appId}/integrations/slack`,
     
     /**
      * Update Slack integration
-     * PATCH /api/v1/tenants/:tenantId/integrations/slack
+     * PATCH /api/v1/apps/:appId/integrations/slack
      */
-    update: (tenantId: string) => 
-      `/api/v1/tenants/${tenantId}/integrations/slack`,
+    update: (appId: string) => 
+      `/api/v1/apps/${appId}/integrations/slack`,
     
     /**
      * Delete Slack integration
-     * DELETE /api/v1/tenants/:tenantId/integrations/slack
+     * DELETE /api/v1/apps/:appId/integrations/slack
      */
-    delete: (tenantId: string) => 
-      `/api/v1/tenants/${tenantId}/integrations/slack`,
+    delete: (appId: string) => 
+      `/api/v1/apps/${appId}/integrations/slack`,
   },
 } as const;
 
@@ -259,60 +259,60 @@ export const COMMUNICATION = {
 export const SCM = {
   /**
    * Verify SCM connection
-   * Backend uses provider-specific routes (e.g., /api/v1/tenants/:tenantId/integrations/scm/github/verify)
-   * POST /api/v1/tenants/:tenantId/integrations/scm/:provider/verify
+   * Backend uses provider-specific routes (e.g., /api/v1/apps/:appId/integrations/scm/github/verify)
+   * POST /api/v1/apps/:appId/integrations/scm/:provider/verify
    */
-  verify: (tenantId: string, scmType: string = 'GITHUB') => {
+  verify: (appId: string, scmType: string = 'GITHUB') => {
     const provider = scmType.toLowerCase();
-    return `/api/v1/tenants/${tenantId}/integrations/scm/${provider}/verify`;
+    return `/api/v1/apps/${appId}/integrations/scm/${provider}/verify`;
   },
   
   /**
    * Create SCM integration
-   * Backend uses provider-specific routes (e.g., /api/v1/tenants/:tenantId/integrations/scm/github)
-   * POST /api/v1/tenants/:tenantId/integrations/scm/:provider
+   * Backend uses provider-specific routes (e.g., /api/v1/apps/:appId/integrations/scm/github)
+   * POST /api/v1/apps/:appId/integrations/scm/:provider
    */
-  create: (tenantId: string, scmType: string = 'GITHUB') => {
+  create: (appId: string, scmType: string = 'GITHUB') => {
     const provider = scmType.toLowerCase();
-    return `/api/v1/tenants/${tenantId}/integrations/scm/${provider}`;
+    return `/api/v1/apps/${appId}/integrations/scm/${provider}`;
   },
   
   /**
    * Get SCM integration
-   * Backend uses provider-specific routes (e.g., /api/v1/tenants/:tenantId/integrations/scm/github)
-   * GET /api/v1/tenants/:tenantId/integrations/scm/:provider
+   * Backend uses provider-specific routes (e.g., /api/v1/apps/:appId/integrations/scm/github)
+   * GET /api/v1/apps/:appId/integrations/scm/:provider
    */
-  get: (tenantId: string, scmType: string = 'GITHUB') => {
+  get: (appId: string, scmType: string = 'GITHUB') => {
     const provider = scmType.toLowerCase();
-    return `/api/v1/tenants/${tenantId}/integrations/scm/${provider}`;
+    return `/api/v1/apps/${appId}/integrations/scm/${provider}`;
   },
   
   /**
    * Update SCM integration
-   * Backend uses provider-specific routes (e.g., /api/v1/tenants/:tenantId/integrations/scm/github)
-   * PATCH /api/v1/tenants/:tenantId/integrations/scm/:provider
+   * Backend uses provider-specific routes (e.g., /api/v1/apps/:appId/integrations/scm/github)
+   * PATCH /api/v1/apps/:appId/integrations/scm/:provider
    */
-  update: (tenantId: string, scmType: string = 'GITHUB') => {
+  update: (appId: string, scmType: string = 'GITHUB') => {
     const provider = scmType.toLowerCase();
-    return `/api/v1/tenants/${tenantId}/integrations/scm/${provider}`;
+    return `/api/v1/apps/${appId}/integrations/scm/${provider}`;
   },
   
   /**
    * Delete SCM integration
-   * Backend uses provider-specific routes (e.g., /api/v1/tenants/:tenantId/integrations/scm/github)
-   * DELETE /api/v1/tenants/:tenantId/integrations/scm/:provider
+   * Backend uses provider-specific routes (e.g., /api/v1/apps/:appId/integrations/scm/github)
+   * DELETE /api/v1/apps/:appId/integrations/scm/:provider
    */
-  delete: (tenantId: string, scmType: string = 'GITHUB') => {
+  delete: (appId: string, scmType: string = 'GITHUB') => {
     const provider = scmType.toLowerCase();
-    return `/api/v1/tenants/${tenantId}/integrations/scm/${provider}`;
+    return `/api/v1/apps/${appId}/integrations/scm/${provider}`;
   },
   
   /**
    * Fetch branches from repository
-   * GET /api/v1/tenants/:tenantId/integrations/scm/github/branches
+   * GET /api/v1/apps/:appId/integrations/scm/github/branches
    */
-  branches: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/scm/github/branches`,
+  branches: (appId: string) => 
+    `/api/v1/apps/${appId}/integrations/scm/github/branches`,
 } as const;
 
 // ============================================================================
@@ -322,85 +322,85 @@ export const SCM = {
 export const TEST_MANAGEMENT = {
   /**
    * Verify credentials (stateless - no save)
-   * NEW: POST /tenants/:tenantId/integrations/test-management/verify
+   * NEW: POST /apps/:appId/integrations/test-management/verify
    */
-  verifyCredentials: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/test-management/verify`,
+  verifyCredentials: (appId: string) => 
+    `/api/v1/apps/${appId}/integrations/test-management/verify`,
   
   /**
    * List all test management integrations for tenant
-   * NEW: GET /tenants/:tenantId/integrations/test-management
+   * NEW: GET /apps/:appId/integrations/test-management
    */
-  list: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/test-management`,
+  list: (appId: string) => 
+    `/api/v1/apps/${appId}/integrations/test-management`,
   
   /**
    * Create test management integration
-   * NEW: POST /tenants/:tenantId/integrations/test-management
+   * NEW: POST /apps/:appId/integrations/test-management
    */
-  create: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/test-management`,
+  create: (appId: string) => 
+    `/api/v1/apps/${appId}/integrations/test-management`,
   
   /**
    * Get single integration
-   * NEW: GET /tenants/:tenantId/integrations/test-management/:integrationId
+   * NEW: GET /apps/:appId/integrations/test-management/:integrationId
    */
-  get: (tenantId: string, integrationId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}`,
+  get: (appId: string, integrationId: string) => 
+    `/api/v1/apps/${appId}/integrations/test-management/${integrationId}`,
   
   /**
    * Update integration
-   * NEW: PUT /tenants/:tenantId/integrations/test-management/:integrationId
+   * NEW: PUT /apps/:appId/integrations/test-management/:integrationId
    */
-  update: (tenantId: string, integrationId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}`,
+  update: (appId: string, integrationId: string) => 
+    `/api/v1/apps/${appId}/integrations/test-management/${integrationId}`,
   
   /**
    * Delete integration
-   * NEW: DELETE /tenants/:tenantId/integrations/test-management/:integrationId
+   * NEW: DELETE /apps/:appId/integrations/test-management/:integrationId
    */
-  delete: (tenantId: string, integrationId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}`,
+  delete: (appId: string, integrationId: string) => 
+    `/api/v1/apps/${appId}/integrations/test-management/${integrationId}`,
   
   /**
    * Verify existing integration connection
-   * NEW: POST /tenants/:tenantId/integrations/test-management/:integrationId/verify
+   * NEW: POST /apps/:appId/integrations/test-management/:integrationId/verify
    */
-  verify: (tenantId: string, integrationId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}/verify`,
+  verify: (appId: string, integrationId: string) => 
+    `/api/v1/apps/${appId}/integrations/test-management/${integrationId}/verify`,
   
   /**
    * Checkmate-specific metadata routes
-   * NEW: GET /tenants/:tenantId/integrations/test-management/:integrationId/checkmate/metadata/*
+   * NEW: GET /apps/:appId/integrations/test-management/:integrationId/checkmate/metadata/*
    */
   checkmate: {
     /**
      * Get Checkmate projects
-     * NEW: GET /tenants/:tenantId/integrations/test-management/:integrationId/checkmate/metadata/projects
+     * NEW: GET /apps/:appId/integrations/test-management/:integrationId/checkmate/metadata/projects
      */
-    projects: (tenantId: string, integrationId: string) => 
-      `/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}/checkmate/metadata/projects`,
+    projects: (appId: string, integrationId: string) => 
+      `/api/v1/apps/${appId}/integrations/test-management/${integrationId}/checkmate/metadata/projects`,
     
     /**
      * Get Checkmate sections
-     * NEW: GET /tenants/:tenantId/integrations/test-management/:integrationId/checkmate/metadata/sections?projectId={projectId}
+     * NEW: GET /apps/:appId/integrations/test-management/:integrationId/checkmate/metadata/sections?projectId={projectId}
      */
-    sections: (tenantId: string, integrationId: string) => 
-      `/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}/checkmate/metadata/sections`,
+    sections: (appId: string, integrationId: string) => 
+      `/api/v1/apps/${appId}/integrations/test-management/${integrationId}/checkmate/metadata/sections`,
     
     /**
      * Get Checkmate labels
-     * NEW: GET /tenants/:tenantId/integrations/test-management/:integrationId/checkmate/metadata/labels?projectId={projectId}
+     * NEW: GET /apps/:appId/integrations/test-management/:integrationId/checkmate/metadata/labels?projectId={projectId}
      */
-    labels: (tenantId: string, integrationId: string) => 
-      `/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}/checkmate/metadata/labels`,
+    labels: (appId: string, integrationId: string) => 
+      `/api/v1/apps/${appId}/integrations/test-management/${integrationId}/checkmate/metadata/labels`,
     
     /**
      * Get Checkmate squads
-     * NEW: GET /tenants/:tenantId/integrations/test-management/:integrationId/checkmate/metadata/squads?projectId={projectId}
+     * NEW: GET /apps/:appId/integrations/test-management/:integrationId/checkmate/metadata/squads?projectId={projectId}
      */
-    squads: (tenantId: string, integrationId: string) => 
-      `/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}/checkmate/metadata/squads`,
+    squads: (appId: string, integrationId: string) => 
+      `/api/v1/apps/${appId}/integrations/test-management/${integrationId}/checkmate/metadata/squads`,
   },
 } as const;
 
@@ -430,10 +430,10 @@ export const APP_DISTRIBUTION = {
   
   /**
    * List all store integrations for tenant
-   * GET /api/v1/integrations/store/tenant/:tenantId
+   * GET /api/v1/integrations/store/tenant/:appId
    */
-  list: (tenantId: string) => 
-    `/api/v1/integrations/store/tenant/${tenantId}`,
+  list: (appId: string) => 
+    `/api/v1/integrations/store/tenant/${appId}`,
   
   /**
    * Get single store integration
@@ -444,10 +444,10 @@ export const APP_DISTRIBUTION = {
   
   /**
    * Revoke store integration
-   * PATCH /api/v1/integrations/store/tenant/:tenantId/revoke
+   * PATCH /api/v1/integrations/store/tenant/:appId/revoke
    */
-  revoke: (tenantId: string, storeType: string, platform: string) => 
-    `/api/v1/integrations/store/tenant/${tenantId}/revoke?storeType=${storeType}&platform=${platform}`,
+  revoke: (appId: string, storeType: string, platform: string) => 
+    `/api/v1/integrations/store/tenant/${appId}/revoke?storeType=${storeType}&platform=${platform}`,
 } as const;
 
 // ============================================================================
@@ -457,38 +457,38 @@ export const APP_DISTRIBUTION = {
 export const APPSTORE = {
   /**
    * Verify App Store Connect credentials
-   * GET /api/v1/tenants/:tenantId/integrations/app-distribution/appstore/verify
+   * GET /api/v1/apps/:appId/integrations/app-distribution/appstore/verify
    */
-  verify: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/app-distribution/appstore/verify`,
+  verify: (appId: string) => 
+    `/api/v1/apps/${appId}/integrations/app-distribution/appstore/verify`,
   
   /**
    * Create App Store Connect integration
-   * POST /api/v1/tenants/:tenantId/integrations/app-distribution/appstore
+   * POST /api/v1/apps/:appId/integrations/app-distribution/appstore
    */
-  create: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/app-distribution/appstore`,
+  create: (appId: string) => 
+    `/api/v1/apps/${appId}/integrations/app-distribution/appstore`,
   
   /**
    * Get App Store Connect integration
-   * GET /api/v1/tenants/:tenantId/integrations/app-distribution/appstore
+   * GET /api/v1/apps/:appId/integrations/app-distribution/appstore
    */
-  get: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/app-distribution/appstore`,
+  get: (appId: string) => 
+    `/api/v1/apps/${appId}/integrations/app-distribution/appstore`,
   
   /**
    * Update App Store Connect integration
-   * PATCH /api/v1/tenants/:tenantId/integrations/app-distribution/appstore
+   * PATCH /api/v1/apps/:appId/integrations/app-distribution/appstore
    */
-  update: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/app-distribution/appstore`,
+  update: (appId: string) => 
+    `/api/v1/apps/${appId}/integrations/app-distribution/appstore`,
   
   /**
    * Delete App Store Connect integration
-   * DELETE /api/v1/tenants/:tenantId/integrations/app-distribution/appstore
+   * DELETE /api/v1/apps/:appId/integrations/app-distribution/appstore
    */
-  delete: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}/integrations/app-distribution/appstore`,
+  delete: (appId: string) => 
+    `/api/v1/apps/${appId}/integrations/app-distribution/appstore`,
 } as const;
 
 // ============================================================================
@@ -510,10 +510,10 @@ export const MANAGEMENT = {
   
   /**
    * Get single tenant with integrations
-   * GET /api/v1/tenants/:tenantId
+   * GET /api/v1/apps/:appId
    */
-  tenant: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}`,
+  tenant: (appId: string) => 
+    `/api/v1/apps/${appId}`,
   
   /**
    * Create tenant
@@ -523,10 +523,10 @@ export const MANAGEMENT = {
   
   /**
    * Delete tenant
-   * DELETE /api/v1/tenants/:tenantId
+   * DELETE /api/v1/apps/:appId
    */
-  deleteTenant: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}`,
+  deleteTenant: (appId: string) => 
+    `/api/v1/apps/${appId}`,
 } as const;
 
 // ============================================================================
@@ -564,38 +564,38 @@ export function buildUrlWithQuery(
 export const RELEASE_CONFIG = {
   /**
    * Create release configuration
-   * POST /api/v1/tenants/:tenantId/release-configs
+   * POST /api/v1/apps/:appId/release-configs
    */
-  create: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}/release-configs`,
+  create: (appId: string) => 
+    `/api/v1/apps/${appId}/release-configs`,
   
   /**
    * List all release configurations
-   * GET /api/v1/tenants/:tenantId/release-configs
+   * GET /api/v1/apps/:appId/release-configs
    */
-  list: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}/release-configs`,
+  list: (appId: string) => 
+    `/api/v1/apps/${appId}/release-configs`,
   
   /**
    * Get single release configuration
-   * GET /api/v1/tenants/:tenantId/release-configs/:configId
+   * GET /api/v1/apps/:appId/release-configs/:configId
    */
-  get: (tenantId: string, configId: string) => 
-    `/api/v1/tenants/${tenantId}/release-configs/${configId}`,
+  get: (appId: string, configId: string) => 
+    `/api/v1/apps/${appId}/release-configs/${configId}`,
   
   /**
    * Update release configuration
-   * PUT /api/v1/tenants/:tenantId/release-configs/:configId
+   * PUT /api/v1/apps/:appId/release-configs/:configId
    */
-  update: (tenantId: string, configId: string) => 
-    `/api/v1/tenants/${tenantId}/release-configs/${configId}`,
+  update: (appId: string, configId: string) => 
+    `/api/v1/apps/${appId}/release-configs/${configId}`,
   
   /**
    * Delete release configuration
-   * DELETE /api/v1/tenants/:tenantId/release-configs/:configId
+   * DELETE /api/v1/apps/:appId/release-configs/:configId
    */
-  delete: (tenantId: string, configId: string) => 
-    `/api/v1/tenants/${tenantId}/release-configs/${configId}`,
+  delete: (appId: string, configId: string) => 
+    `/api/v1/apps/${appId}/release-configs/${configId}`,
 };
 
 // ============================================================================

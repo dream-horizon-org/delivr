@@ -59,7 +59,7 @@ const environmentOptions = [
 ];
 
 export interface WorkflowFormProps {
-  tenantId: string;
+  appId: string;
   onSubmit: () => void;
   onCancel: () => void;
   availableIntegrations: {
@@ -73,7 +73,7 @@ export interface WorkflowFormProps {
 }
 
 export function WorkflowForm({
-  tenantId,
+  appId,
   onSubmit,
   onCancel,
   availableIntegrations,
@@ -364,7 +364,7 @@ export function WorkflowForm({
         }
         
         const result = await apiPatch<{ success: boolean; error?: string }>(
-          `/api/v1/tenants/${tenantId}/workflows/${idToUse}`,
+          `/api/v1/apps/${appId}/workflows/${idToUse}`,
           workflowData
         );
 
@@ -377,7 +377,7 @@ export function WorkflowForm({
         }
       } else {
         const result = await apiPost<{ success: boolean; error?: string }>(
-          `/api/v1/tenants/${tenantId}/workflows`,
+          `/api/v1/apps/${appId}/workflows`,
           workflowData
         );
 
@@ -394,7 +394,7 @@ export function WorkflowForm({
       showErrorToast({ title: 'Error', message: errorMessage });
       setIsSaving(false);
     }
-  }, [validate, provider, providerConfig, name, platform, environment, isSaving, isEditMode, existingWorkflow, workflowId, tenantId, onSubmit]);
+  }, [validate, provider, providerConfig, name, platform, environment, isSaving, isEditMode, existingWorkflow, workflowId, appId, onSubmit]);
 
   const handlePlatformChange = useCallback((val: string | null) => {
     const newPlatform = (val || PLATFORMS.ANDROID) as Platform;
@@ -411,7 +411,7 @@ export function WorkflowForm({
 
   // Breadcrumb items
   const breadcrumbItems = getBreadcrumbItems('releases.workflows.detail', {
-    org: tenantId,
+    org: appId,
     isEditMode,
   });
   const areMandatoryFieldsFilled = useMemo(() => {
@@ -560,7 +560,7 @@ export function WorkflowForm({
                       }}
                       availableIntegrations={availableIntegrations.jenkins}
                       workflows={[]}
-                      tenantId={tenantId}
+                      appId={appId}
                     />
                     {errors.jobUrl && (
                       <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light" radius="md">
@@ -586,7 +586,7 @@ export function WorkflowForm({
                       }}
                       availableIntegrations={availableIntegrations.githubActions}
                       workflows={[]}
-                      tenantId={tenantId}
+                      appId={appId}
                     />
                     {errors.workflowUrl && (
                       <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light" radius="md">

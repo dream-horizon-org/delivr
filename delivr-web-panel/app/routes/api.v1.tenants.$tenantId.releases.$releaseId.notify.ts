@@ -1,9 +1,9 @@
 /**
  * Remix API Route: Send Release Notification
- * POST /api/v1/tenants/:tenantId/releases/:releaseId/notify
+ * POST /api/v1/apps/:appId/releases/:releaseId/notify
  * 
  * BFF route that proxies to ReleaseProcessService
- * Backend contract: POST /api/v1/tenants/:tenantId/releases/:releaseId/notify
+ * Backend contract: POST /api/v1/apps/:appId/releases/:releaseId/notify
  * Matches API contract API #27: Send Release Notification
  */
 
@@ -15,10 +15,10 @@ import { createValidationError, handleAxiosError, logApiError, validateRequired 
 import type { NotificationRequest } from '~/types/release-process.types';
 
 const sendNotification: AuthenticatedActionFunction = async ({ params, request, user }) => {
-  const { tenantId, releaseId } = params;
+  const { appId, releaseId } = params;
 
-  if (!validateRequired(tenantId, 'Tenant ID is required')) {
-    return createValidationError('Tenant ID is required');
+  if (!validateRequired(appId, 'app id is required')) {
+    return createValidationError('app id is required');
   }
 
   if (!validateRequired(releaseId, 'Release ID is required')) {
@@ -33,7 +33,7 @@ const sendNotification: AuthenticatedActionFunction = async ({ params, request, 
     }
 
     console.log('[BFF] Sending notification for release:', releaseId, { messageType: body.messageType });
-    const response = await ReleaseProcessService.sendNotification(tenantId, releaseId, body, user.user.id);
+    const response = await ReleaseProcessService.sendNotification(appId, releaseId, body, user.user.id);
     console.log('[BFF] Send notification response:', response.data);
     
     return json(response.data, { status: 201 });

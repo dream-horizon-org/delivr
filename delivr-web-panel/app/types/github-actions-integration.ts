@@ -1,11 +1,11 @@
 /**
  * GitHub Actions Integration Types
- * Aligned with backend API structure at /tenants/:tenantId/integrations/ci-cd/github-actions
+ * Aligned with backend API structure at /apps/:appId/integrations/ci-cd/github-actions
  */
 
 export interface GitHubActionsIntegration {
   id: string;
-  tenantId: string;
+  appId: string;
   providerType: 'GITHUB_ACTIONS';
   displayName: string;
   hostUrl: string;

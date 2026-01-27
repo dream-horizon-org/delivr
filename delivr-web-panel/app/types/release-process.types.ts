@@ -138,7 +138,7 @@ export interface BuildInfo {
   // MANDATORY: Available in BOTH builds and uploads
   // ============================================================================
   id: string;
-  tenantId: string;
+  appId: string;
   releaseId: string;
   platform: Platform;
   buildStage: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE';
@@ -643,7 +643,7 @@ export interface ReleaseDetails {
   id: string;                              // Primary key (UUID)
   releaseId: string;                       // User-facing release identifier (e.g., "REL-001")
   releaseConfigId: string | null;          // FK to release configuration
-  tenantId: string;                        // Tenant UUID
+  appId: string;                        // Tenant UUID
   
   // Release metadata
   type: 'MAJOR' | 'MINOR' | 'HOTFIX';
@@ -725,7 +725,7 @@ export interface MessageResponse {
  */
 export interface ReleaseNotification {
   id: number;
-  tenantId: number;
+  appId: number;
   releaseId: number;
   notificationType: NotificationType;
   isSystemGenerated: boolean;

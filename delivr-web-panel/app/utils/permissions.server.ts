@@ -17,7 +17,7 @@ export const PermissionService = {
   /**
    * Get user's role for a tenant (server-side only)
    */
-  async getTenantRole(tenantId: string, userId: string): Promise<TenantRoleType> {
+  async getTenantRole(appId: string, userId: string): Promise<TenantRoleType> {
     try {
       const response = await CodepushService.getTenants(userId);
       if (!response.data) {
@@ -25,9 +25,9 @@ export const PermissionService = {
         return null;
       }
       
-      const org = response.data.organisations.find((o) => o.id === tenantId);
+      const org = response.data.organisations.find((o) => o.id === appId);
       if (!org) {
-        console.warn(`[PermissionService] Organization ${tenantId} not found`);
+        console.warn(`[PermissionService] Organization ${appId} not found`);
         return null;
       }
       
@@ -46,9 +46,9 @@ export const PermissionService = {
   /**
    * Check if user is tenant owner (server-side only)
    */
-  async isTenantOwner(tenantId: string, userId: string): Promise<boolean> {
+  async isTenantOwner(appId: string, userId: string): Promise<boolean> {
     try {
-      const role = await this.getTenantRole(tenantId, userId);
+      const role = await this.getTenantRole(appId, userId);
       return role === TenantRole.OWNER;
     } catch (error) {
       console.error('[PermissionService] Error checking tenant owner:', error);
@@ -59,9 +59,9 @@ export const PermissionService = {
   /**
    * Check if user is tenant editor or owner (server-side only)
    */
-  async isTenantEditor(tenantId: string, userId: string): Promise<boolean> {
+  async isTenantEditor(appId: string, userId: string): Promise<boolean> {
     try {
-      const role = await this.getTenantRole(tenantId, userId);
+      const role = await this.getTenantRole(appId, userId);
       return role === TenantRole.EDITOR || role === TenantRole.OWNER;
     } catch (error) {
       console.error('[PermissionService] Error checking tenant editor:', error);
@@ -83,7 +83,7 @@ export const PermissionService = {
    * - Tenant owner
    */
   async canPerformReleaseAction(
-    tenantId: string,
+    appId: string,
     userId: string,
     releasePilotAccountId: string | null
   ): Promise<boolean> {
@@ -93,7 +93,7 @@ export const PermissionService = {
     }
 
     // Check tenant owner (async)
-    return await this.isTenantOwner(tenantId, userId);
+    return await this.isTenantOwner(appId, userId);
   },
 };
 

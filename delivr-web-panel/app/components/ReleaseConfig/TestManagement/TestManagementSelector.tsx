@@ -34,7 +34,7 @@ export function TestManagementSelector({
 }: TestManagementSelectorProps) {
   const theme = useMantineTheme();
   const params = useParams();
-  const tenantId = params.org || '';
+  const appId = params.org || '';
 
   const isEnabled = config?.enabled ?? false;
   const hasConnection = availableIntegrations.checkmate.length > 0;
@@ -168,7 +168,7 @@ export function TestManagementSelector({
                     availableIntegrations={availableIntegrations.checkmate}
                     selectedTargets={selectedTargets}
                     integrationId={connection.id}
-                    tenantId={tenantId}
+                    appId={appId}
                   />
                 </Box>
               </>
@@ -176,7 +176,7 @@ export function TestManagementSelector({
               /* No Connection Warning */
               <NoIntegrationAlert
                 category={IntegrationCategory.TEST_MANAGEMENT}
-                tenantId={tenantId}
+                appId={appId}
                 color="yellow"
               />
             )}

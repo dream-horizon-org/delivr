@@ -69,7 +69,7 @@ export const loader = authenticateLoaderRequest(
 
     try {
       // Fetch distribution details by distributionId
-      // This calls GET /api/v1/tenants/:tenantId/distributions/:distributionId
+      // This calls GET /api/v1/apps/:appId/distributions/:distributionId
       const response = await DistributionService.getDistribution(org, distributionId);
       const distribution = response.data.data;
 
@@ -790,7 +790,7 @@ export default function DistributionDetailPage() {
                 {latestAndroidSubmission ? (
                   <LatestSubmissionCard
                     submission={latestAndroidSubmission}
-                    tenantId={org}
+                    appId={org}
                     onPromote={handleOpenAndroidPromoteDialog}
                     onUpdateRollout={handleOpenAndroidUpdateRolloutDialog}
                     onPause={handleOpenAndroidPauseDialog}
@@ -830,7 +830,7 @@ export default function DistributionDetailPage() {
                   <SubmissionHistoryTimeline
                     submissions={historicalAndroidSubmissions}
                     platform={Platform.ANDROID}
-                    tenantId={org}
+                    appId={org}
                   />
                 ) : (
                   <Paper p="xl" radius="md" withBorder className="text-center">
@@ -867,7 +867,7 @@ export default function DistributionDetailPage() {
                 {latestIOSSubmission ? (
                   <LatestSubmissionCard
                     submission={latestIOSSubmission}
-                    tenantId={org}
+                    appId={org}
                     onPromote={handleOpenIOSPromoteDialog}
                     onUpdateRollout={handleOpenIOSUpdateRolloutDialog}
                     onPause={handleOpenIOSPauseDialog}
@@ -906,7 +906,7 @@ export default function DistributionDetailPage() {
                   <SubmissionHistoryTimeline
                     submissions={historicalIOSSubmissions}
                     platform={Platform.IOS}
-                    tenantId={org}
+                    appId={org}
                   />
                 ) : (
                   <Paper p="xl" radius="md" withBorder className="text-center">
@@ -984,7 +984,7 @@ export default function DistributionDetailPage() {
           <CancelSubmissionDialog
             opened={isCancelDialogOpen}
             onClose={handleCloseDialogs}
-            tenantId={org}
+            appId={org}
             submissionId={selectedSubmission.id}
             platform={selectedSubmission.platform}
             version={selectedSubmission.version}
@@ -1014,7 +1014,7 @@ export default function DistributionDetailPage() {
             <ResubmissionDialog
               opened={isResubmitDialogOpen}
               onClose={handleCloseDialogs}
-              tenantId={org}
+              appId={org}
               releaseId={distribution.releaseId}
               distributionId={distribution.id}
               previousSubmission={selectedSubmission}

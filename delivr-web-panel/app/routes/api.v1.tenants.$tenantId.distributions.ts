@@ -2,10 +2,10 @@
  * BFF API Route: App Distribution Integrations
  * Proxies to backend /integrations/store/* endpoints
  * 
- * GET    /api/v1/tenants/:tenantId/distributions           - List all distributions
- * POST   /api/v1/tenants/:tenantId/distributions/verify    - Verify credentials
- * POST   /api/v1/tenants/:tenantId/distributions           - Connect/Create distribution
- * DELETE /api/v1/tenants/:tenantId/distributions/:id       - Delete distribution
+ * GET    /api/v1/apps/:appId/distributions           - List all distributions
+ * POST   /api/v1/apps/:appId/distributions/verify    - Verify credentials
+ * POST   /api/v1/apps/:appId/distributions           - Connect/Create distribution
+ * DELETE /api/v1/apps/:appId/distributions/:id       - Delete distribution
  */
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node';
@@ -19,14 +19,14 @@ import { authenticateActionRequest, authenticateLoaderRequest } from '~/utils/au
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, user }: LoaderFunctionArgs & { user: User }) => {
-    const { tenantId } = params;
+    const { appId } = params;
 
-    if (!tenantId) {
-      return json({ success: false, error: 'Tenant ID required' }, { status: 400 });
+    if (!appId) {
+      return json({ success: false, error: 'app id required' }, { status: 400 });
     }
 
     try {
-      const result = await AppDistributionService.listIntegrations(tenantId, user.user.id);
+      const result = await AppDistributionService.listIntegrations(appId, user.user.id);
       return json(result);
     } catch (error) {
       return json(
@@ -48,12 +48,12 @@ const postDistributionAction = async ({
   params,
   user,
 }: ActionFunctionArgs & { user: User }) => {
-  const { tenantId } = params;
+  const { appId } = params;
   const url = new URL(request.url);
   const isVerify = url.searchParams.get('action') === 'verify';
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, error: 'app id required' }, { status: 400 });
   }
 
   try {
@@ -72,7 +72,7 @@ const postDistributionAction = async ({
         );
       }
       
-      const result = await AppDistributionService.verifyStore(tenantId, user.user.id, body);
+      const result = await AppDistributionService.verifyStore(appId, user.user.id, body);
       
       // Transform backend response to match API client expectations
       // Backend returns: {success, verified, message, details}
@@ -106,7 +106,7 @@ const postDistributionAction = async ({
           { status: 400 }
         );
       }
-      const result = await AppDistributionService.connectStore(tenantId, user.user.id, body);
+      const result = await AppDistributionService.connectStore(appId, user.user.id, body);
       
       return json(result, { status: result.success ? 201 : 500 });
     }
@@ -129,12 +129,12 @@ const patchDistributionAction = async ({
   request,
   user,
 }: ActionFunctionArgs & { user: User }) => {
-  const { tenantId } = params;
+  const { appId } = params;
   const url = new URL(request.url);
   const integrationId = url.searchParams.get('integrationId');
 
-  if (!tenantId || !integrationId) {
-    return json({ success: false, error: 'Tenant ID and integration ID required' }, { status: 400 });
+  if (!appId || !integrationId) {
+    return json({ success: false, error: 'app id and integration ID required' }, { status: 400 });
   }
 
   try {
@@ -152,7 +152,7 @@ const patchDistributionAction = async ({
     }
     
     const result = await AppDistributionService.updateStore(
-      tenantId,
+      appId,
       integrationId,
       body.payload,
       user.user.id
@@ -178,18 +178,18 @@ const deleteDistributionAction = async ({
   request,
   user,
 }: ActionFunctionArgs & { user: User }) => {
-  const { tenantId } = params;
+  const { appId } = params;
   const url = new URL(request.url);
   const storeType = url.searchParams.get('storeType');
   const platform = url.searchParams.get('platform');
 
-  if (!tenantId || !storeType || !platform) {
-    return json({ success: false, error: 'Tenant ID, storeType, and platform required' }, { status: 400 });
+  if (!appId || !storeType || !platform) {
+    return json({ success: false, error: 'app id, storeType, and platform required' }, { status: 400 });
   }
 
   try {
     const result = await AppDistributionService.revokeIntegration(
-      tenantId, 
+      appId, 
       storeType as any, 
       platform as any, 
       user.user.id

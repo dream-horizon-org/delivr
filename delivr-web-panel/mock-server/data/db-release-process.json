@@ -4,7 +4,7 @@
       "id": "7cddcf49-812e-4964-94dc-f976b7e72389",
       "releaseId": "REL-TEST-0001",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "UPCOMING",
       "releasePhase": "NOT_STARTED",
@@ -54,7 +54,7 @@
       "id": "9b3669d7-d519-46e2-9fa6-abedcf7b9f04",
       "releaseId": "REL-TEST-0002",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "UPCOMING",
       "releasePhase": "NOT_STARTED",
@@ -104,7 +104,7 @@
       "id": "c3c9ab6d-da6f-4701-bc95-d7ead8222623",
       "releaseId": "REL-TEST-0003",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "UPCOMING",
       "releasePhase": "NOT_STARTED",
@@ -154,7 +154,7 @@
       "id": "19de646f-972c-4cb2-843e-2cdb08fe5f8c",
       "releaseId": "REL-TEST-0004",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "KICKOFF",
@@ -313,7 +313,7 @@
       "id": "1fded933-e9b7-4437-bf4f-017c53b13a5f",
       "releaseId": "REL-TEST-0005",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "KICKOFF",
@@ -499,7 +499,7 @@
       "id": "cbc0b7fe-adb6-4a5c-baba-4bdf5b86618b",
       "releaseId": "REL-TEST-0006",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "KICKOFF",
@@ -685,7 +685,7 @@
       "id": "5538cee6-7200-47f7-8970-4756e3f91337",
       "releaseId": "REL-TEST-0007",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "KICKOFF",
@@ -871,7 +871,7 @@
       "id": "a87eca1c-bad2-4d52-b94d-c20dd4c630c5",
       "releaseId": "REL-TEST-0008",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "KICKOFF",
@@ -1056,7 +1056,7 @@
       "id": "8a344591-32d8-481b-a1ac-3990a79fbf42",
       "releaseId": "REL-TEST-0009",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "KICKOFF",
@@ -1242,7 +1242,7 @@
       "id": "441ae1db-91c9-4959-950f-af16820d28c9",
       "releaseId": "REL-TEST-0010",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "KICKOFF",
@@ -1401,7 +1401,7 @@
       "id": "a39510a9-024d-41ce-a8ed-2ae7de225d1a",
       "releaseId": "REL-TEST-0011",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "KICKOFF",
@@ -1598,7 +1598,7 @@
       "id": "f65db32b-c271-45f3-8bc3-1b024c1bea66",
       "releaseId": "REL-TEST-0012",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "KICKOFF",
@@ -1786,7 +1786,7 @@
       "id": "20e662f5-74cc-4295-a1fd-424539f7942e",
       "releaseId": "REL-TEST-0013",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "KICKOFF",
@@ -1972,7 +1972,7 @@
       "id": "b50061a0-49fd-4231-b1c5-ea1c7779e9cf",
       "releaseId": "REL-TEST-0014",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "KICKOFF",
@@ -2120,7 +2120,7 @@
       "id": "7137755f-caf1-4a10-8e26-e4bfc13d7963",
       "releaseId": "REL-TEST-0015",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "KICKOFF",
@@ -2268,7 +2268,7 @@
       "id": "e0efe30f-f4c7-46e3-81d8-e8197a1a1996",
       "releaseId": "REL-TEST-0016",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "KICKOFF",
@@ -2427,7 +2427,7 @@
       "id": "2b3a292e-0393-4d7f-91fd-bf815f980c71",
       "releaseId": "REL-TEST-0017",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -2618,7 +2618,7 @@
       "id": "a3adcb99-c6ba-4f98-8c43-d28bb6a645ff",
       "releaseId": "REL-TEST-0018",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -2910,7 +2910,7 @@
       "id": "180f7b8e-a94f-4e62-a6aa-ff0244c78861",
       "releaseId": "REL-TEST-0019",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -3207,7 +3207,7 @@
       "id": "e9267d5d-f001-4708-bcf0-34bcf3f80acd",
       "releaseId": "REL-TEST-0020",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -3605,7 +3605,7 @@
       "id": "31e03776-7062-4f2a-93fb-6058d3aae4f9",
       "releaseId": "REL-TEST-0021",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -3902,7 +3902,7 @@
       "id": "64d1e29b-f083-422a-898d-e349034b66a6",
       "releaseId": "REL-TEST-0022",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -4199,7 +4199,7 @@
       "id": "c719cc7f-e5eb-402e-bb95-844da890bb5a",
       "releaseId": "REL-TEST-0023",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -4597,7 +4597,7 @@
       "id": "3355785e-020b-430a-8ddb-405f4453b68d",
       "releaseId": "REL-TEST-0024",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -4894,7 +4894,7 @@
       "id": "46208048-84b0-4f7d-935d-9ddde41a1dba",
       "releaseId": "REL-TEST-0025",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -5191,7 +5191,7 @@
       "id": "604f04a7-24a7-4550-9d17-607dbec0289e",
       "releaseId": "REL-TEST-0026",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -5488,7 +5488,7 @@
       "id": "18df0dca-15e8-4f5a-a36c-d8f5bdb91417",
       "releaseId": "REL-TEST-0027",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -5782,7 +5782,7 @@
       "id": "88fa4942-6109-462d-82ab-b7951702058e",
       "releaseId": "REL-TEST-0028",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -6076,7 +6076,7 @@
       "id": "d24ff851-4254-42fb-9603-e0c01985b59e",
       "releaseId": "REL-TEST-0029",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -6479,7 +6479,7 @@
       "id": "06d11410-50d3-44dc-bda0-70a8634315b0",
       "releaseId": "REL-TEST-0030",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -7301,7 +7301,7 @@
       "id": "dee7a474-fe5e-46c8-b1be-53e1e00c6a22",
       "releaseId": "REL-TEST-0031",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -7805,7 +7805,7 @@
       "id": "e56eae61-28d9-4a78-a406-6dcd6c4a0620",
       "releaseId": "REL-TEST-0032",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -8108,7 +8108,7 @@
       "id": "c6545ec7-5099-4dcb-9e70-bc1a27c18abe",
       "releaseId": "REL-TEST-0033",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -8402,7 +8402,7 @@
       "id": "3fe42030-c3af-4e4c-9dcb-8f9cd2fda7f0",
       "releaseId": "REL-TEST-0034",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -8800,7 +8800,7 @@
       "id": "8e448358-2838-40fb-9bda-b1c6bc63b6a3",
       "releaseId": "REL-TEST-0035",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "REGRESSION",
@@ -9220,7 +9220,7 @@
       "id": "71423925-cb54-43d8-9079-7b2f7cb57871",
       "releaseId": "REL-TEST-0036",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -9600,7 +9600,7 @@
       "id": "a67730fc-014a-4829-b948-1d37e1c77929",
       "releaseId": "REL-TEST-0037",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE",
@@ -9980,7 +9980,7 @@
       "id": "a2820863-118c-46fe-8883-56651edf8b4b",
       "releaseId": "REL-TEST-0038",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE",
@@ -10360,7 +10360,7 @@
       "id": "434704a7-c9c8-448e-af8f-d82c3429e84f",
       "releaseId": "REL-TEST-0039",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE",
@@ -10740,7 +10740,7 @@
       "id": "9be86cb6-0c59-4a38-8373-a4e2a6476efb",
       "releaseId": "REL-TEST-0040",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE",
@@ -11127,7 +11127,7 @@
       "id": "7759cdfa-3254-4e63-be80-b42b2b8bd862",
       "releaseId": "REL-TEST-0041",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE",
@@ -11512,7 +11512,7 @@
       "id": "ed5fbbe1-4cf6-4393-8c1f-77ee2e8e4996",
       "releaseId": "REL-TEST-0042",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE",
@@ -11897,7 +11897,7 @@
       "id": "28dd54fd-2bae-4d9c-b014-30f6035feb90",
       "releaseId": "REL-TEST-0043",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE",
@@ -12282,7 +12282,7 @@
       "id": "c9b3d704-a7f8-40ed-8ead-bff8be8214e8",
       "releaseId": "REL-TEST-0044",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE",
@@ -12664,7 +12664,7 @@
       "id": "5fe3a377-4efe-4f86-9e62-bf966c7149f1",
       "releaseId": "REL-TEST-0045",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE",
@@ -13049,7 +13049,7 @@
       "id": "7a174901-8911-42cc-b5d3-9af2bd20f807",
       "releaseId": "REL-TEST-0046",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE",
@@ -13429,7 +13429,7 @@
       "id": "d6c21553-01bd-442f-9492-29846032397f",
       "releaseId": "REL-TEST-0047",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE",
@@ -13823,7 +13823,7 @@
       "id": "9f615a15-1c31-49f2-954b-161e341f728e",
       "releaseId": "REL-TEST-0048",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE",
@@ -14207,7 +14207,7 @@
       "id": "f0a17029-d7dd-4721-8b0b-9999bb609848",
       "releaseId": "REL-TEST-0049",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE",
@@ -14592,7 +14592,7 @@
       "id": "4c19f44c-c2be-4f14-97f0-c68fac32a91f",
       "releaseId": "REL-TEST-0050",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE",
@@ -14925,7 +14925,7 @@
       "id": "9daa8535-5652-44e0-8722-04502e3c9845",
       "releaseId": "REL-TEST-0051",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE",
@@ -15258,7 +15258,7 @@
       "id": "f7b51be4-91da-46f9-a2c1-b43e0e91bb57",
       "releaseId": "REL-TEST-0052",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE",
@@ -15638,7 +15638,7 @@
       "id": "fb3c602f-215b-4979-90ae-d70538970d65",
       "releaseId": "REL-TEST-0053",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "AWAITING_SUBMISSION",
@@ -16023,7 +16023,7 @@
       "id": "ad2eff28-a8b1-4efa-8c5d-0e46db64342e",
       "releaseId": "REL-TEST-0054",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -16408,7 +16408,7 @@
       "id": "fe8ce14c-6f44-4a65-bd85-f579ed164a86",
       "releaseId": "REL-TEST-0055",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "SUBMITTED",
       "releasePhase": "SUBMITTED_PENDING_APPROVAL",
@@ -16793,7 +16793,7 @@
       "id": "dc2afa87-0d5f-4dc4-bbaf-b75b7cd3e53f",
       "releaseId": "REL-TEST-0056",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -17131,7 +17131,7 @@
       "id": "af28ca4e-0f5a-46d4-bb8c-5a557994192a",
       "releaseId": "REL-TEST-0057",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -17469,7 +17469,7 @@
       "id": "ae028cdb-a6a4-4569-b719-0e5c56b83119",
       "releaseId": "REL-TEST-0058",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -17960,7 +17960,7 @@
       "id": "564b96a4-d1bf-4e66-b34f-8c7bf7fbcbaf",
       "releaseId": "REL-TEST-0059",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "AWAITING_SUBMISSION",
@@ -18345,7 +18345,7 @@
       "id": "01601e6e-a229-4d12-b9dc-cd1e63800077",
       "releaseId": "REL-TEST-0060",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -18730,7 +18730,7 @@
       "id": "127a06a0-9181-445c-8294-b36077d828a0",
       "releaseId": "REL-TEST-0061",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "SUBMITTED",
       "releasePhase": "SUBMITTED_PENDING_APPROVAL",
@@ -19115,7 +19115,7 @@
       "id": "acbdd9b9-a7ba-431a-af91-90f220dbaa18",
       "releaseId": "REL-TEST-0062",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -19606,7 +19606,7 @@
       "id": "bd820965-d4f2-4ca8-b79b-438359a908ae",
       "releaseId": "REL-DIST-TEST-001",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -19650,7 +19650,7 @@
       "id": "d2251ea9-3401-48ae-a0a3-fb7ca22ec6ff",
       "releaseId": "REL-DIST-TEST-002",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -19694,7 +19694,7 @@
       "id": "33502703-3b29-4820-a3f6-ffc5875f0717",
       "releaseId": "REL-DIST-TEST-003",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -19749,7 +19749,7 @@
       "id": "d250980b-e66f-49ea-a99f-75b384327c1e",
       "releaseId": "REL-DIST-TEST-004",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -19804,7 +19804,7 @@
       "id": "78e47721-76b1-4960-a238-b00d65b9fc34",
       "releaseId": "REL-DIST-TEST-005",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -19859,7 +19859,7 @@
       "id": "8b02bcbc-870c-453f-b0c7-bb7e1107e799",
       "releaseId": "REL-DIST-TEST-006",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -19914,7 +19914,7 @@
       "id": "e5820517-0e1a-4c66-8a14-e743411ace30",
       "releaseId": "REL-DIST-TEST-007",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -19969,7 +19969,7 @@
       "id": "30f3378f-934c-42a0-820f-dc4ae4ba64f8",
       "releaseId": "REL-DIST-TEST-008",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -20013,7 +20013,7 @@
       "id": "1a029896-e50d-4ce8-86a6-dc211cad8166",
       "releaseId": "REL-DIST-TEST-009",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -20057,7 +20057,7 @@
       "id": "255e8145-ca5d-443f-b336-413a08295ab7",
       "releaseId": "REL-DIST-TEST-010",
       "releaseConfigId": "NklcgYBbmx",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "PLANNED",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -36172,7 +36172,7 @@
   "buildUploadsStaging": [
     {
       "id": "staging_cbc0b7fe_ANDROID_1765973787703",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "cbc0b7fe-adb6-4a5c-baba-4bdf5b86618b",
       "platform": "ANDROID",
       "stage": "PRE_REGRESSION",
@@ -36191,7 +36191,7 @@
     },
     {
       "id": "staging_3355785e_ANDROID_1765973787705",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "3355785e-020b-430a-8ddb-405f4453b68d",
       "platform": "ANDROID",
       "stage": "REGRESSION",
@@ -36210,7 +36210,7 @@
     },
     {
       "id": "staging_46208048_ANDROID_1765973787705",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "46208048-84b0-4f7d-935d-9ddde41a1dba",
       "platform": "ANDROID",
       "stage": "REGRESSION",
@@ -36229,7 +36229,7 @@
     },
     {
       "id": "staging_46208048_IOS_1765973787705",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "46208048-84b0-4f7d-935d-9ddde41a1dba",
       "platform": "IOS",
       "stage": "REGRESSION",
@@ -36248,7 +36248,7 @@
     },
     {
       "id": "staging_9be86cb6_IOS_1765973787707",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "9be86cb6-0c59-4a38-8373-a4e2a6476efb",
       "platform": "IOS",
       "stage": "PRE_RELEASE",
@@ -36269,7 +36269,7 @@
   "builds": [
     {
       "id": "build_5538cee6_ANDROID_1765973787703",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "5538cee6-7200-47f7-8970-4756e3f91337",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -36292,7 +36292,7 @@
     },
     {
       "id": "build_5538cee6_IOS_1765973787703",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "5538cee6-7200-47f7-8970-4756e3f91337",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -36315,7 +36315,7 @@
     },
     {
       "id": "build_8a344591_ANDROID_1765973787703",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "8a344591-32d8-481b-a1ac-3990a79fbf42",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -36338,7 +36338,7 @@
     },
     {
       "id": "build_8a344591_IOS_1765973787703",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "8a344591-32d8-481b-a1ac-3990a79fbf42",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -36361,7 +36361,7 @@
     },
     {
       "id": "build_a39510a9_ANDROID_1765973787704",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "a39510a9-024d-41ce-a8ed-2ae7de225d1a",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -36384,7 +36384,7 @@
     },
     {
       "id": "build_a39510a9_IOS_1765973787704",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "a39510a9-024d-41ce-a8ed-2ae7de225d1a",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -36407,7 +36407,7 @@
     },
     {
       "id": "build_f65db32b_ANDROID_1765973787704",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "f65db32b-c271-45f3-8bc3-1b024c1bea66",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -36430,7 +36430,7 @@
     },
     {
       "id": "build_f65db32b_IOS_1765973787704",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "f65db32b-c271-45f3-8bc3-1b024c1bea66",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -36453,7 +36453,7 @@
     },
     {
       "id": "build_20e662f5_ANDROID_1765973787704",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "20e662f5-74cc-4295-a1fd-424539f7942e",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -36476,7 +36476,7 @@
     },
     {
       "id": "build_20e662f5_IOS_1765973787704",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "20e662f5-74cc-4295-a1fd-424539f7942e",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -36499,7 +36499,7 @@
     },
     {
       "id": "build_a3adcb99_ANDROID_1765973787704",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "a3adcb99-c6ba-4f98-8c43-d28bb6a645ff",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -36522,7 +36522,7 @@
     },
     {
       "id": "build_a3adcb99_IOS_1765973787704",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "a3adcb99-c6ba-4f98-8c43-d28bb6a645ff",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -36545,7 +36545,7 @@
     },
     {
       "id": "build_e9267d5d_ANDROID_1765973787705",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "e9267d5d-f001-4708-bcf0-34bcf3f80acd",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -36568,7 +36568,7 @@
     },
     {
       "id": "build_e9267d5d_IOS_1765973787705",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "e9267d5d-f001-4708-bcf0-34bcf3f80acd",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -36591,7 +36591,7 @@
     },
     {
       "id": "build_18df0dca_ANDROID_1765973787705",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "18df0dca-15e8-4f5a-a36c-d8f5bdb91417",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -36614,7 +36614,7 @@
     },
     {
       "id": "build_18df0dca_IOS_1765973787705",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "18df0dca-15e8-4f5a-a36c-d8f5bdb91417",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -36637,7 +36637,7 @@
     },
     {
       "id": "build_88fa4942_ANDROID_1765973787705",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "88fa4942-6109-462d-82ab-b7951702058e",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -36660,7 +36660,7 @@
     },
     {
       "id": "build_88fa4942_IOS_1765973787705",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "88fa4942-6109-462d-82ab-b7951702058e",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -36683,7 +36683,7 @@
     },
     {
       "id": "build_d24ff851_ANDROID_1765973787706",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "d24ff851-4254-42fb-9603-e0c01985b59e",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -36706,7 +36706,7 @@
     },
     {
       "id": "build_d24ff851_IOS_1765973787706",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "d24ff851-4254-42fb-9603-e0c01985b59e",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -36729,7 +36729,7 @@
     },
     {
       "id": "build_06d11410_ANDROID_1765973787706",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "06d11410-50d3-44dc-bda0-70a8634315b0",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -36752,7 +36752,7 @@
     },
     {
       "id": "build_06d11410_IOS_1765973787706",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "06d11410-50d3-44dc-bda0-70a8634315b0",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -36775,7 +36775,7 @@
     },
     {
       "id": "build_e56eae61_ANDROID_1765973787706",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "e56eae61-28d9-4a78-a406-6dcd6c4a0620",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -36798,7 +36798,7 @@
     },
     {
       "id": "build_e56eae61_IOS_1765973787706",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "e56eae61-28d9-4a78-a406-6dcd6c4a0620",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -36821,7 +36821,7 @@
     },
     {
       "id": "build_c6545ec7_ANDROID_1765973787706",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "c6545ec7-5099-4dcb-9e70-bc1a27c18abe",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -36844,7 +36844,7 @@
     },
     {
       "id": "build_c6545ec7_IOS_1765973787706",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "c6545ec7-5099-4dcb-9e70-bc1a27c18abe",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -36867,7 +36867,7 @@
     },
     {
       "id": "build_3fe42030_ANDROID_1765973787706",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "3fe42030-c3af-4e4c-9dcb-8f9cd2fda7f0",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -36890,7 +36890,7 @@
     },
     {
       "id": "build_3fe42030_IOS_1765973787706",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "3fe42030-c3af-4e4c-9dcb-8f9cd2fda7f0",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -36913,7 +36913,7 @@
     },
     {
       "id": "build_3fe42030_ANDROID_1765973787706",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "3fe42030-c3af-4e4c-9dcb-8f9cd2fda7f0",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -36936,7 +36936,7 @@
     },
     {
       "id": "build_3fe42030_IOS_1765973787706",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "3fe42030-c3af-4e4c-9dcb-8f9cd2fda7f0",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -36959,7 +36959,7 @@
     },
     {
       "id": "build_8e448358_ANDROID_1765973787706",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "8e448358-2838-40fb-9bda-b1c6bc63b6a3",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -36982,7 +36982,7 @@
     },
     {
       "id": "build_8e448358_IOS_1765973787706",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "8e448358-2838-40fb-9bda-b1c6bc63b6a3",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37005,7 +37005,7 @@
     },
     {
       "id": "build_8e448358_ANDROID_1765973787706",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "8e448358-2838-40fb-9bda-b1c6bc63b6a3",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -37028,7 +37028,7 @@
     },
     {
       "id": "build_8e448358_IOS_1765973787706",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "8e448358-2838-40fb-9bda-b1c6bc63b6a3",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37051,7 +37051,7 @@
     },
     {
       "id": "build_7759cdfa_IOS_1765973787707",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "7759cdfa-3254-4e63-be80-b42b2b8bd862",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37074,7 +37074,7 @@
     },
     {
       "id": "build_7759cdfa_ANDROID_1765973787707",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "7759cdfa-3254-4e63-be80-b42b2b8bd862",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -37097,7 +37097,7 @@
     },
     {
       "id": "build_ed5fbbe1_IOS_1765973787707",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "ed5fbbe1-4cf6-4393-8c1f-77ee2e8e4996",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37120,7 +37120,7 @@
     },
     {
       "id": "build_ed5fbbe1_ANDROID_1765973787707",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "ed5fbbe1-4cf6-4393-8c1f-77ee2e8e4996",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -37143,7 +37143,7 @@
     },
     {
       "id": "build_28dd54fd_IOS_1765973787707",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "28dd54fd-2bae-4d9c-b014-30f6035feb90",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37166,7 +37166,7 @@
     },
     {
       "id": "build_28dd54fd_ANDROID_1765973787707",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "28dd54fd-2bae-4d9c-b014-30f6035feb90",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -37189,7 +37189,7 @@
     },
     {
       "id": "build_c9b3d704_IOS_1765973787707",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "c9b3d704-a7f8-40ed-8ead-bff8be8214e8",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37212,7 +37212,7 @@
     },
     {
       "id": "build_c9b3d704_ANDROID_1765973787707",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "c9b3d704-a7f8-40ed-8ead-bff8be8214e8",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -37235,7 +37235,7 @@
     },
     {
       "id": "build_5fe3a377_IOS_1765973787707",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "5fe3a377-4efe-4f86-9e62-bf966c7149f1",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37258,7 +37258,7 @@
     },
     {
       "id": "build_5fe3a377_ANDROID_1765973787707",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "5fe3a377-4efe-4f86-9e62-bf966c7149f1",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -37281,7 +37281,7 @@
     },
     {
       "id": "build_d6c21553_IOS_1765973787707",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "d6c21553-01bd-442f-9492-29846032397f",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37304,7 +37304,7 @@
     },
     {
       "id": "build_d6c21553_ANDROID_1765973787707",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "d6c21553-01bd-442f-9492-29846032397f",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -37327,7 +37327,7 @@
     },
     {
       "id": "build_9f615a15_IOS_1765973787707",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "9f615a15-1c31-49f2-954b-161e341f728e",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37350,7 +37350,7 @@
     },
     {
       "id": "build_9f615a15_ANDROID_1765973787707",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "9f615a15-1c31-49f2-954b-161e341f728e",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -37373,7 +37373,7 @@
     },
     {
       "id": "build_f0a17029_IOS_1765973787707",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "f0a17029-d7dd-4721-8b0b-9999bb609848",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37396,7 +37396,7 @@
     },
     {
       "id": "build_f0a17029_ANDROID_1765973787707",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "f0a17029-d7dd-4721-8b0b-9999bb609848",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -37419,7 +37419,7 @@
     },
     {
       "id": "build_fb3c602f_IOS_1765973787708",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "fb3c602f-215b-4979-90ae-d70538970d65",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37442,7 +37442,7 @@
     },
     {
       "id": "build_fb3c602f_ANDROID_1765973787708",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "fb3c602f-215b-4979-90ae-d70538970d65",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -37465,7 +37465,7 @@
     },
     {
       "id": "build_ad2eff28_IOS_1765973787708",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "ad2eff28-a8b1-4efa-8c5d-0e46db64342e",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37488,7 +37488,7 @@
     },
     {
       "id": "build_ad2eff28_ANDROID_1765973787708",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "ad2eff28-a8b1-4efa-8c5d-0e46db64342e",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -37511,7 +37511,7 @@
     },
     {
       "id": "build_fe8ce14c_IOS_1765973787708",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "fe8ce14c-6f44-4a65-bd85-f579ed164a86",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37534,7 +37534,7 @@
     },
     {
       "id": "build_fe8ce14c_ANDROID_1765973787708",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "fe8ce14c-6f44-4a65-bd85-f579ed164a86",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -37557,7 +37557,7 @@
     },
     {
       "id": "build_dc2afa87_ANDROID_1765973787709",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "dc2afa87-0d5f-4dc4-bbaf-b75b7cd3e53f",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -37580,7 +37580,7 @@
     },
     {
       "id": "build_af28ca4e_IOS_1765973787709",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "af28ca4e-0f5a-46d4-bb8c-5a557994192a",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37603,7 +37603,7 @@
     },
     {
       "id": "build_ae028cdb_IOS_1765973787709",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "ae028cdb-a6a4-4569-b719-0e5c56b83119",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37626,7 +37626,7 @@
     },
     {
       "id": "build_ae028cdb_ANDROID_1765973787709",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "ae028cdb-a6a4-4569-b719-0e5c56b83119",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -37649,7 +37649,7 @@
     },
     {
       "id": "build_564b96a4_IOS_1765973787709",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "564b96a4-d1bf-4e66-b34f-8c7bf7fbcbaf",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37672,7 +37672,7 @@
     },
     {
       "id": "build_564b96a4_ANDROID_1765973787709",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "564b96a4-d1bf-4e66-b34f-8c7bf7fbcbaf",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -37695,7 +37695,7 @@
     },
     {
       "id": "build_01601e6e_IOS_1765973787709",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "01601e6e-a229-4d12-b9dc-cd1e63800077",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37718,7 +37718,7 @@
     },
     {
       "id": "build_01601e6e_ANDROID_1765973787709",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "01601e6e-a229-4d12-b9dc-cd1e63800077",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -37741,7 +37741,7 @@
     },
     {
       "id": "build_127a06a0_IOS_1765973787709",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "127a06a0-9181-445c-8294-b36077d828a0",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37764,7 +37764,7 @@
     },
     {
       "id": "build_127a06a0_ANDROID_1765973787709",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "127a06a0-9181-445c-8294-b36077d828a0",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -37787,7 +37787,7 @@
     },
     {
       "id": "build_acbdd9b9_IOS_1765973787709",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "acbdd9b9-a7ba-431a-af91-90f220dbaa18",
       "platform": "IOS",
       "storeType": "APP_STORE",
@@ -37810,7 +37810,7 @@
     },
     {
       "id": "build_acbdd9b9_ANDROID_1765973787709",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "acbdd9b9-a7ba-431a-af91-90f220dbaa18",
       "platform": "ANDROID",
       "storeType": "PLAY_STORE",
@@ -37835,7 +37835,7 @@
   "store_distribution": [
     {
       "id": "dist_fb3c602f_001",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "fb3c602f-215b-4979-90ae-d70538970d65",
       "status": "PENDING",
       "createdAt": "2024-12-07T10:00:00.000Z",
@@ -37843,7 +37843,7 @@
     },
     {
       "id": "dist_ad2eff28_002",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "ad2eff28-a8b1-4efa-8c5d-0e46db64342e",
       "status": "SUBMITTED",
       "createdAt": "2024-12-07T10:00:00.000Z",
@@ -37851,7 +37851,7 @@
     },
     {
       "id": "dist_fe8ce14c_003",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "fe8ce14c-6f44-4a65-bd85-f579ed164a86",
       "status": "SUBMITTED",
       "createdAt": "2024-12-07T10:00:00.000Z",
@@ -37859,7 +37859,7 @@
     },
     {
       "id": "dist_dc2afa87_004",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "dc2afa87-0d5f-4dc4-bbaf-b75b7cd3e53f",
       "status": "SUBMITTED",
       "createdAt": "2024-12-07T10:00:00.000Z",
@@ -37867,7 +37867,7 @@
     },
     {
       "id": "dist_af28ca4e_005",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "af28ca4e-0f5a-46d4-bb8c-5a557994192a",
       "status": "SUBMITTED",
       "createdAt": "2024-12-07T10:00:00.000Z",
@@ -37875,7 +37875,7 @@
     },
     {
       "id": "dist_ae028cdb_006",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "ae028cdb-a6a4-4569-b719-0e5c56b83119",
       "status": "SUBMITTED",
       "createdAt": "2024-12-07T10:00:00.000Z",
@@ -37883,7 +37883,7 @@
     },
     {
       "id": "dist_564b96a4_007",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "564b96a4-d1bf-4e66-b34f-8c7bf7fbcbaf",
       "status": "PENDING",
       "createdAt": "2024-12-07T10:00:00.000Z",
@@ -37891,7 +37891,7 @@
     },
     {
       "id": "dist_01601e6e_008",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "01601e6e-a229-4d12-b9dc-cd1e63800077",
       "status": "SUBMITTED",
       "createdAt": "2024-12-07T10:00:00.000Z",
@@ -37899,7 +37899,7 @@
     },
     {
       "id": "dist_127a06a0_009",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "127a06a0-9181-445c-8294-b36077d828a0",
       "status": "SUBMITTED",
       "createdAt": "2024-12-07T10:00:00.000Z",
@@ -37907,7 +37907,7 @@
     },
     {
       "id": "dist_acbdd9b9_010",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "acbdd9b9-a7ba-431a-af91-90f220dbaa18",
       "status": "SUBMITTED",
       "createdAt": "2024-12-07T10:00:00.000Z",
@@ -37916,7 +37916,7 @@
     {
       "id": "dist_71423925",
       "releaseId": "71423925-cb54-43d8-9079-7b2f7cb57871",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "status": "PENDING",
       "createdAt": "2025-12-22T19:49:07.875Z",
       "updatedAt": "2025-12-22T19:49:07.876Z"
@@ -37929,7 +37929,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-23T12:00:00.000Z",
       "updatedAt": "2025-12-23T12:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_ios_rejected_current",
@@ -37939,7 +37939,7 @@
       "iosSubmissionId": "isb_test_ios_rejected_current",
       "createdAt": "2025-12-23T12:00:00.000Z",
       "updatedAt": "2025-12-23T12:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_android_suspended",
@@ -37949,7 +37949,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-22T12:00:00.000Z",
       "updatedAt": "2025-12-23T12:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_android_user_action",
@@ -37959,7 +37959,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-22T11:00:00.000Z",
       "updatedAt": "2025-12-23T11:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_android_rejected",
@@ -37969,7 +37969,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-22T10:00:00.000Z",
       "updatedAt": "2025-12-23T10:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_android_cancelled",
@@ -37979,7 +37979,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-22T09:00:00.000Z",
       "updatedAt": "2025-12-23T09:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_ios_rejected",
@@ -37989,7 +37989,7 @@
       "iosSubmissionId": "isb_test_ios_rejected_2",
       "createdAt": "2025-12-22T08:00:00.000Z",
       "updatedAt": "2025-12-23T08:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_ios_cancelled",
@@ -37999,7 +37999,7 @@
       "iosSubmissionId": "isb_test_ios_cancelled_2",
       "createdAt": "2025-12-22T07:00:00.000Z",
       "updatedAt": "2025-12-23T07:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_001",
@@ -38009,7 +38009,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_002",
@@ -38019,7 +38019,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_003",
@@ -38029,7 +38029,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_004",
@@ -38039,7 +38039,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_005",
@@ -38049,7 +38049,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_015",
@@ -38059,7 +38059,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_016",
@@ -38069,7 +38069,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_017",
@@ -38079,7 +38079,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-22T11:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_018",
@@ -38089,7 +38089,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-22T12:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_019",
@@ -38099,7 +38099,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_020",
@@ -38109,7 +38109,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_021",
@@ -38119,7 +38119,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_022",
@@ -38129,7 +38129,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_006",
@@ -38139,7 +38139,7 @@
       "iosSubmissionId": "isb_test_006",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_007",
@@ -38149,7 +38149,7 @@
       "iosSubmissionId": "isb_test_007",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_008",
@@ -38159,7 +38159,7 @@
       "iosSubmissionId": "isb_test_008",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_009",
@@ -38169,7 +38169,7 @@
       "iosSubmissionId": "isb_test_009",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_010",
@@ -38179,7 +38179,7 @@
       "iosSubmissionId": "isb_test_010",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_011",
@@ -38189,7 +38189,7 @@
       "iosSubmissionId": "isb_test_011",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_016_ios",
@@ -38199,7 +38199,7 @@
       "iosSubmissionId": "isb_test_016",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_012",
@@ -38209,7 +38209,7 @@
       "iosSubmissionId": "isb_test_012",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_013",
@@ -38219,7 +38219,7 @@
       "iosSubmissionId": "isb_test_013",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_014",
@@ -38229,7 +38229,7 @@
       "iosSubmissionId": "isb_test_014",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_017_cross",
@@ -38239,7 +38239,7 @@
       "iosSubmissionId": "isb_test_017_cross",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_018_cross",
@@ -38249,11 +38249,11 @@
       "iosSubmissionId": "isb_test_018_cross",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_android-only-pending",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "bd820965-d4f2-4ca8-b79b-438359a908ae",
       "status": "PENDING",
       "createdAt": "2024-12-02T00:00:00.000Z",
@@ -38261,7 +38261,7 @@
     },
     {
       "id": "dist_test_ios-only-pending",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "d2251ea9-3401-48ae-a0a3-fb7ca22ec6ff",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2024-12-03T00:00:00.000Z",
@@ -38269,7 +38269,7 @@
     },
     {
       "id": "dist_test_both-android-in-review",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "33502703-3b29-4820-a3f6-ffc5875f0717",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2024-12-04T00:00:00.000Z",
@@ -38277,7 +38277,7 @@
     },
     {
       "id": "dist_test_both-in-review",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "d250980b-e66f-49ea-a99f-75b384327c1e",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2024-12-05T00:00:00.000Z",
@@ -38285,7 +38285,7 @@
     },
     {
       "id": "dist_test_both-rejected",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "78e47721-76b1-4960-a238-b00d65b9fc34",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2024-12-06T00:00:00.000Z",
@@ -38293,7 +38293,7 @@
     },
     {
       "id": "dist_test_mixed-android-live-ios-review",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "8b02bcbc-870c-453f-b0c7-bb7e1107e799",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2024-12-07T00:00:00.000Z",
@@ -38301,7 +38301,7 @@
     },
     {
       "id": "dist_test_both-live",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "e5820517-0e1a-4c66-8a14-e743411ace30",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2024-12-08T00:00:00.000Z",
@@ -38309,7 +38309,7 @@
     },
     {
       "id": "dist_test_android-only-completed",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "30f3378f-934c-42a0-820f-dc4ae4ba64f8",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2024-12-09T00:00:00.000Z",
@@ -38317,7 +38317,7 @@
     },
     {
       "id": "dist_test_ios-only-rejected",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "1a029896-e50d-4ce8-86a6-dc211cad8166",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2024-12-10T00:00:00.000Z",
@@ -38325,7 +38325,7 @@
     },
     {
       "id": "dist_test_both-paused",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "255e8145-ca5d-443f-b336-413a08295ab7",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2024-12-11T00:00:00.000Z",

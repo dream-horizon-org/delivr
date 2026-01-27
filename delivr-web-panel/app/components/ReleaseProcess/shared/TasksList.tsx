@@ -15,7 +15,7 @@ import { formatLastUpdated } from '~/utils/release-process-date';
 
 interface TasksListProps {
   tasks: Task[];
-  tenantId: string;
+  appId: string;
   releaseId: string;
   onRetry?: (taskId: string) => void;
   emptyMessage?: string;
@@ -27,7 +27,7 @@ interface TasksListProps {
 
 export function TasksList({
   tasks,
-  tenantId,
+  appId,
   releaseId,
   onRetry,
   emptyMessage = 'No tasks available',
@@ -85,7 +85,7 @@ export function TasksList({
               <TaskCard
                 key={task.id}
                 task={task}
-                tenantId={tenantId}
+                appId={appId}
                 releaseId={releaseId}
                 onRetry={onRetry}
                 uploadedBuilds={uploadedBuilds}

@@ -27,7 +27,7 @@ export interface WorkflowParameter {
 
 export interface CICDWorkflow {
   id: string;
-  tenantId: string;
+  appId: string;
   providerType: CICDProviderType;
   integrationId: string;
   displayName: string;
@@ -86,7 +86,7 @@ export class CICDIntegrationServiceClass extends IntegrationService {
    * This is the main method to use when you want to show all available workflows
    */
   async listAllWorkflows(
-    tenantId: string,
+    appId: string,
     userId: string,
     filters?: WorkflowFilters
   ): Promise<WorkflowListResponse> {
@@ -107,7 +107,7 @@ export class CICDIntegrationServiceClass extends IntegrationService {
         queryParams.append('integrationId', filters.integrationId);
       }
 
-      const url = buildUrlWithQuery(CICD.listWorkflows(tenantId), {
+      const url = buildUrlWithQuery(CICD.listWorkflows(appId), {
         providerType: filters?.providerType,
         platform: filters?.platform,
         workflowType: filters?.workflowType,
@@ -128,47 +128,47 @@ export class CICDIntegrationServiceClass extends IntegrationService {
    * List workflows by provider type
    */
   async listWorkflowsByProvider(
-    tenantId: string,
+    appId: string,
     userId: string,
     providerType: CICDProviderType,
     filters?: Omit<WorkflowFilters, 'providerType'>
   ): Promise<WorkflowListResponse> {
-    return this.listAllWorkflows(tenantId, userId, { ...filters, providerType });
+    return this.listAllWorkflows(appId, userId, { ...filters, providerType });
   }
 
   /**
    * List Jenkins workflows
    */
   async listJenkinsWorkflows(
-    tenantId: string,
+    appId: string,
     userId: string,
     filters?: Omit<WorkflowFilters, 'providerType'>
   ): Promise<WorkflowListResponse> {
-    return JenkinsIntegrationService.listWorkflows(tenantId, userId, filters);
+    return JenkinsIntegrationService.listWorkflows(appId, userId, filters);
   }
 
   /**
    * List GitHub Actions workflows
    */
   async listGitHubActionsWorkflows(
-    tenantId: string,
+    appId: string,
     userId: string,
     filters?: Omit<WorkflowFilters, 'providerType'>
   ): Promise<WorkflowListResponse> {
-    return GitHubActionsIntegrationService.listWorkflows(tenantId, userId, filters);
+    return GitHubActionsIntegrationService.listWorkflows(appId, userId, filters);
   }
 
   /**
    * Get specific workflow by ID
    */
   async getWorkflow(
-    tenantId: string,
+    appId: string,
     workflowId: string,
     userId: string
   ): Promise<WorkflowResponse> {
     try {
       return await this.get<WorkflowResponse>(
-        CICD.getWorkflow(tenantId, workflowId),
+        CICD.getWorkflow(appId, workflowId),
         userId
       );
     } catch (error: any) {
@@ -183,13 +183,13 @@ export class CICDIntegrationServiceClass extends IntegrationService {
    * Create new workflow configuration
    */
   async createWorkflow(
-    tenantId: string,
+    appId: string,
     userId: string,
     data: CreateWorkflowRequest
   ): Promise<WorkflowResponse> {
     try {
       return await this.post<WorkflowResponse>(
-        CICD.createWorkflow(tenantId),
+        CICD.createWorkflow(appId),
         data,
         userId
       );
@@ -205,14 +205,14 @@ export class CICDIntegrationServiceClass extends IntegrationService {
    * Update workflow configuration
    */
   async updateWorkflow(
-    tenantId: string,
+    appId: string,
     workflowId: string,
     userId: string,
     data: Partial<CreateWorkflowRequest>
   ): Promise<WorkflowResponse> {
     try {
       return await this.patch<WorkflowResponse>(
-        CICD.updateWorkflow(tenantId, workflowId),
+        CICD.updateWorkflow(appId, workflowId),
         data,
         userId
       );
@@ -228,13 +228,13 @@ export class CICDIntegrationServiceClass extends IntegrationService {
    * Delete workflow configuration
    */
   async deleteWorkflow(
-    tenantId: string,
+    appId: string,
     workflowId: string,
     userId: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
       return await this.delete(
-        CICD.deleteWorkflow(tenantId, workflowId),
+        CICD.deleteWorkflow(appId, workflowId),
         userId
       );
     } catch (error: any) {
@@ -250,16 +250,16 @@ export class CICDIntegrationServiceClass extends IntegrationService {
    * Delegates to the appropriate provider service
    */
   async fetchJobParameters(
-    tenantId: string,
+    appId: string,
     userId: string,
     providerType: CICDProviderType,
     integrationId: string,
     url: string
   ): Promise<JobParametersResponse> {
     if (providerType === 'JENKINS') {
-      return JenkinsIntegrationService.fetchJobParameters(tenantId, userId, integrationId, url);
+      return JenkinsIntegrationService.fetchJobParameters(appId, userId, integrationId, url);
     } else if (providerType === 'GITHUB_ACTIONS') {
-      return GitHubActionsIntegrationService.fetchWorkflowInputs(tenantId, userId, integrationId, url);
+      return GitHubActionsIntegrationService.fetchWorkflowInputs(appId, userId, integrationId, url);
     }
 
     return {
@@ -273,24 +273,24 @@ export class CICDIntegrationServiceClass extends IntegrationService {
    * Fetch Jenkins job parameters
    */
   async fetchJenkinsJobParameters(
-    tenantId: string,
+    appId: string,
     userId: string,
     integrationId: string,
     jobUrl: string
   ): Promise<JobParametersResponse> {
-    return JenkinsIntegrationService.fetchJobParameters(tenantId, userId, integrationId, jobUrl);
+    return JenkinsIntegrationService.fetchJobParameters(appId, userId, integrationId, jobUrl);
   }
 
   /**
    * Fetch GitHub Actions workflow inputs
    */
   async fetchGitHubActionsInputs(
-    tenantId: string,
+    appId: string,
     userId: string,
     integrationId: string,
     workflowUrl: string
   ): Promise<JobParametersResponse> {
-    return GitHubActionsIntegrationService.fetchWorkflowInputs(tenantId, userId, integrationId, workflowUrl);
+    return GitHubActionsIntegrationService.fetchWorkflowInputs(appId, userId, integrationId, workflowUrl);
   }
 
   /**
@@ -298,7 +298,7 @@ export class CICDIntegrationServiceClass extends IntegrationService {
    * Useful for the build configuration step
    */
   async getWorkflowsByEnvironment(
-    tenantId: string,
+    appId: string,
     userId: string
   ): Promise<{
     success: boolean;
@@ -306,7 +306,7 @@ export class CICDIntegrationServiceClass extends IntegrationService {
     error?: string;
   }> {
     try {
-      const result = await this.listAllWorkflows(tenantId, userId);
+      const result = await this.listAllWorkflows(appId, userId);
       
       if (!result.success || !result.workflows) {
         return { success: false, error: result.error };

@@ -1,6 +1,6 @@
 /**
  * BFF Route: Verify Test Management Credentials (Checkmate)
- * POST /api/v1/tenants/:tenantId/integrations/test-management/verify
+ * POST /api/v1/apps/:appId/integrations/test-management/verify
  */
 
 import { json } from '@remix-run/node';
@@ -15,10 +15,10 @@ const verifyTestManagementCredentials = async ({
   params,
   user,
 }: ActionFunctionArgs & { user: User }) => {
-  const { tenantId } = params;
+  const { appId } = params;
 
-  if (!tenantId) {
-    return json({ success: false, verified: false, error: 'Tenant ID required' }, { status: 400 });
+  if (!appId) {
+    return json({ success: false, verified: false, error: 'app id required' }, { status: 400 });
   }
 
   try {
@@ -42,7 +42,7 @@ const verifyTestManagementCredentials = async ({
       return json({ success: false, verified: false, error: 'Organization ID is required' }, { status: 400 });
     }
 
-    console.log('[BFF-TestMgmt-Verify] Verifying Checkmate credentials for tenant:', tenantId);
+    console.log('[BFF-TestMgmt-Verify] Verifying Checkmate credentials for tenant:', appId);
     console.log('[BFF-TestMgmt-Verify] Config:', { 
       baseUrl: config.baseUrl,
       orgId: config.orgId,
@@ -57,7 +57,7 @@ const verifyTestManagementCredentials = async ({
         orgId: config.orgId,
         _encrypted: config._encrypted, // Forward encryption flag
       },
-      tenantId,
+      appId,
       user.user.id
     );
 
