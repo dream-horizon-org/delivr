@@ -147,5 +147,37 @@ export class JiraProvider implements IProjectManagementProvider {
     const projects = await client.getProjects();
     return projects.map((p) => ({ key: p.key, name: p.name }));
   }
+
+  /**
+   * Get available JIRA statuses for a project
+   * Returns all unique statuses across all issue types in the project
+   */
+  async getProjectStatuses(
+    config: ProjectManagementIntegrationConfig,
+    projectKey: string
+  ): Promise<Array<{ id: string; name: string; category: string }>> {
+    const jiraConfig = this.getJiraConfig(config);
+    const client = new JiraClient(jiraConfig);
+
+    const statusResponses = await client.getProjectStatuses(projectKey);
+    
+    // Collect all unique statuses across all issue types
+    const statusMap = new Map<string, { id: string; name: string; category: string }>();
+    
+    statusResponses.forEach((issueTypeStatus) => {
+      issueTypeStatus.statuses.forEach((status) => {
+        const statusExists = statusMap.has(status.id);
+        if (!statusExists) {
+          statusMap.set(status.id, {
+            id: status.id,
+            name: status.name,
+            category: status.statusCategory.name
+          });
+        }
+      });
+    });
+
+    return Array.from(statusMap.values());
+  }
 }
 

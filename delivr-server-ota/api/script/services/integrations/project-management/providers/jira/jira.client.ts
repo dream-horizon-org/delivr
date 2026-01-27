@@ -2,7 +2,8 @@ import type {
   JiraIntegrationConfig,
   JiraIssueResponse,
   JiraProjectResponse,
-  JiraCreateIssueRequest
+  JiraCreateIssueRequest,
+  JiraStatusResponse
 } from './jira.interface';
 import { JIRA_API_VERSION, JIRA_ERROR_MESSAGES } from './jira.constants';
 
@@ -117,6 +118,22 @@ export class JiraClient {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : JIRA_ERROR_MESSAGES.GET_ISSUE_FAILED;
+      throw new Error(errorMessage);
+    }
+  }
+
+  /**
+   * Get all statuses for a project
+   * Returns all issue types and their available statuses in the project's workflow
+   */
+  async getProjectStatuses(projectKey: string): Promise<JiraStatusResponse[]> {
+    try {
+      return await this.makeRequest<JiraStatusResponse[]>(`/project/${projectKey}/statuses`, { 
+        method: 'GET' 
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : JIRA_ERROR_MESSAGES.GET_STATUSES_FAILED;
       throw new Error(errorMessage);
     }
   }

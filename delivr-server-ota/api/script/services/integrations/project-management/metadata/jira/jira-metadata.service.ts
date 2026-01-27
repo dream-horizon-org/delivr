@@ -13,6 +13,12 @@ export type JiraProject = {
   name: string;
 };
 
+export type JiraProjectStatus = {
+  id: string;
+  name: string;
+  category: string;
+};
+
 export class JiraMetadataService {
   constructor(
     private readonly integrationRepo: ProjectManagementIntegrationRepository
@@ -53,6 +59,33 @@ export class JiraMetadataService {
     const projects = await provider.getProjects(integration.config);
     
     return projects;
+  }
+
+  /**
+   * Get all statuses for a Jira project
+   */
+  async getProjectStatuses(
+    integrationId: string, 
+    projectKey: string,
+    tenantId?: string
+  ): Promise<JiraProjectStatus[]> {
+    const integration = await this.integrationRepo.findById(integrationId);
+    
+    if (!integration) {
+      throw new Error(`Integration not found: ${integrationId}`);
+    }
+
+    // Validate tenant ownership if tenantId provided
+    if (tenantId && integration.tenantId !== tenantId) {
+      throw new Error(`Integration ${integrationId} does not belong to tenant ${tenantId}`);
+    }
+
+    this.validateJiraIntegration(integration.providerType, integrationId);
+
+    const provider = new JiraProvider();
+    const statuses = await provider.getProjectStatuses(integration.config, projectKey);
+    
+    return statuses;
   }
 }
 

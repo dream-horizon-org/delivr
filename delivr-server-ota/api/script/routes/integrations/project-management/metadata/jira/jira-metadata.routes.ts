@@ -26,6 +26,16 @@ export const createJiraMetadataRoutes = (
     controller.getProjects
   );
 
+  /**
+   * GET /tenants/:tenantId/integrations/project-management/:integrationId/jira/metadata/statuses?projectKey=PROJ
+   * Fetch all statuses for a Jira project
+   */
+  router.get(
+    '/tenants/:tenantId/integrations/project-management/:integrationId/jira/metadata/statuses',
+    tenantPermissions.requireEditor({ storage }),
+    controller.getProjectStatuses
+  );
+
   return router;
 };
 
