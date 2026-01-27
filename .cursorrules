@@ -1,0 +1,134 @@
+# Cursor Rules for Delivr Project
+
+## TypeScript Standards
+
+### Type Safety
+- **NO `any` types allowed** - Use proper types, interfaces, or `unknown` with type guards
+- **Strict TypeScript** - All TypeScript files must pass strict type checking
+- **No implicit any** - All variables, parameters, and return types must be explicitly typed
+- **Use type guards** - When dealing with `unknown`, use type guards to narrow types
+
+### Interface & Type Declarations
+- **Separate interface files** - Create dedicated files for interfaces/types (e.g., `types.ts`, `interfaces.ts`)
+- **Proper naming** - Interfaces use PascalCase, types use PascalCase
+- **Export interfaces** - All interfaces should be exported for reusability
+- **Group related types** - Keep related interfaces/types together in the same file
+- **Document complex types** - Add JSDoc comments for complex interfaces
+
+### Code Organization
+- **Separation of Concerns** - Each file should have a single responsibility
+- **Separate files for:**
+  - Interfaces/Types → `types/` or `interfaces/` directory
+  - Models → `models/` directory
+  - Services → `services/` directory
+  - Controllers → `controllers/` directory
+  - Repositories → `repositories/` directory
+  - Utils → `utils/` directory
+  - Constants → `constants/` directory
+- **File naming** - Use kebab-case for files (e.g., `app-service.ts`, `app-model.ts`)
+- **One class/interface per file** - Unless closely related (e.g., related interfaces)
+
+### Code Quality
+- **No linting errors** - All code must pass ESLint/TSLint without errors
+- **No TypeScript errors** - All code must compile without errors
+- **Proper error handling** - Use try-catch blocks, return proper error types
+- **Async/await** - Prefer async/await over promises chains
+- **Consistent formatting** - Follow project's Prettier/formatting rules
+
+### Best Practices
+- **Use const assertions** - For readonly data structures
+- **Use readonly** - Mark properties as readonly when they shouldn't be modified
+- **Avoid type assertions** - Use type guards instead of `as` assertions when possible
+- **Proper null checks** - Use optional chaining (`?.`) and nullish coalescing (`??`)
+- **Explicit return types** - Functions should have explicit return types
+- **Use enums or const objects** - For fixed sets of values
+
+### Database & Models
+- **Type-safe models** - All Sequelize models must have proper TypeScript interfaces
+- **Separate model interfaces** - Create interfaces for model attributes, creation attributes, etc.
+- **Repository pattern** - Use repository pattern for database access
+- **Type-safe queries** - All database queries should be type-safe
+
+### API & Routes
+- **Type-safe routes** - All route handlers should have proper request/response types
+- **Separate route types** - Create interfaces for route parameters, query params, body
+- **Error response types** - Define proper error response interfaces
+- **Validation** - Use type-safe validation (e.g., Zod, Joi with TypeScript)
+
+### Testing
+- **Type-safe tests** - All test files should be properly typed
+- **Mock types** - Create proper types for mocks
+- **Test interfaces** - Define interfaces for test data
+
+## Migration-Specific Rules
+
+### Database Migrations
+- **Type-safe migrations** - All migration files should be properly typed
+- **Separate migration types** - Create interfaces for migration data structures
+- **Rollback support** - All migrations must have proper rollback logic
+
+### Model Updates
+- **Backward compatibility** - Consider backward compatibility when updating models
+- **Migration scripts** - Create type-safe migration scripts
+- **Data validation** - Validate data during migrations
+
+## File Structure Example
+
+```
+delivr-server-ota/api/script/
+├── types/
+│   ├── app.types.ts          # App-related interfaces
+│   ├── organization.types.ts # Organization interfaces
+│   └── index.ts              # Re-export all types
+├── models/
+│   ├── app.model.ts          # App model
+│   └── app-platform-target.model.ts
+├── repositories/
+│   ├── app.repository.ts
+│   └── app-platform-target.repository.ts
+├── services/
+│   ├── app.service.ts
+│   └── app-platform-target.service.ts
+└── controllers/
+    ├── app.controller.ts
+    └── app-platform-target.controller.ts
+```
+
+## Code Example
+
+```typescript
+// ✅ GOOD - Proper interface in separate file
+// types/app.types.ts
+export interface AppAttributes {
+  id: string;
+  name: string;
+  organizationId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateAppRequest {
+  name: string;
+  description?: string;
+  organizationId: string;
+}
+
+// services/app.service.ts
+import type { AppAttributes, CreateAppRequest } from '~/types/app.types';
+
+export class AppService {
+  async createApp(request: CreateAppRequest): Promise<AppAttributes> {
+    // Implementation
+  }
+}
+
+// ❌ BAD - Using any
+function processData(data: any): any {
+  return data;
+}
+
+// ✅ GOOD - Proper types
+function processData(data: CreateAppRequest): AppAttributes {
+  // Implementation
+}
+```

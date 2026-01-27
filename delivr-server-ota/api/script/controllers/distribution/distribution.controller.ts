@@ -7,7 +7,7 @@ import { Request, Response } from 'express';
 import { DistributionService } from '~services/distribution/distribution.service';
 import { HTTP_STATUS } from '~constants/http';
 import { successResponse, errorResponse, notFoundResponse } from '~utils/response.utils';
-import { getUserTenantPermission } from '~middleware/tenant-permissions';
+import { getUserAppPermission } from '~middleware/tenant-permissions';
 import type { Storage } from '~storage/storage';
 
 /**
@@ -130,7 +130,7 @@ export const createDistributionController = (service: DistributionService, stora
           );
         }
 
-        const userPermission = await getUserTenantPermission(storage, userId, tenantId);
+        const userPermission = await getUserAppPermission(storage, userId, tenantId);  // tenantId is actually appId
         if (!userPermission) {
           return res.status(HTTP_STATUS.FORBIDDEN).json(
             errorResponse(new Error('You are not a member of this organization'), 'List Distributions')

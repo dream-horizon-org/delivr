@@ -4,7 +4,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as semver from 'semver';
 import { Storage } from '../storage/storage';
-import { getUserTenantPermission } from './tenant-permissions';
+import { getUserAppPermission as getUserAppPermissionFromTenant } from './tenant-permissions';
 import { getCliVersion } from '~utils/rest-headers';
 import { MIN_CLI_VERSION_REQUIRING_TENANT } from '~constants/cli';
 
@@ -108,8 +108,9 @@ export async function getUserAppPermission(
   try {
     const sequelize = (storage as any).sequelize;
     
-    // Get app
-    const app = await sequelize.models.apps.findByPk(appId);
+    // Get DOTA app (not the new App entity)
+    // DOTA apps are stored in the 'dota_apps' table
+    const app = await sequelize.models["dota_apps"].findByPk(appId);
     
     if (!app) {
       return null;
@@ -126,11 +127,20 @@ export async function getUserAppPermission(
       };
     }
     
-    // Get tenant-level permission
-    const tenantPermission = await getUserTenantPermission(
+    // Get app-level permission (appId field references the new App entity)
+    // DOTA apps have appId (FK to new apps table), not tenantId
+    const appEntityId = app.dataValues.appId;
+    
+    if (!appEntityId) {
+      // Old-style DOTA app without App entity association
+      // Fall back to account-based permission check
+      return null;
+    }
+    
+    const tenantPermission = await getUserAppPermissionFromTenant(
       storage,
       userId,
-      app.dataValues.tenantId
+      appEntityId  // This is the App entity ID (not tenantId)
     );
     
     if (!tenantPermission) {

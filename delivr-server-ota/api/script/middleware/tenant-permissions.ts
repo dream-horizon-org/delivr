@@ -23,13 +23,13 @@ const PERMISSION_HIERARCHY = {
 };
 
 /**
- * Get user's permission in a tenant
- * Queries the unified collaborators table (appId=NULL, tenantId=X)
+ * Get user's permission in an app
+ * Queries the collaborators table using appId
  */
-export async function getUserTenantPermission(
+export async function getUserAppPermission(
   storage: Storage,
   userId: string,
-  tenantId: string
+  appId: string
 ): Promise<{ permission: string; isCreator: boolean } | null> {
   try {
     const sequelize = (storage as any).sequelize;
@@ -37,28 +37,34 @@ export async function getUserTenantPermission(
       COLLABORATOR: 'collaborator'
     };
     
-    // Query tenant-level collaborators (where appId is NULL)
-    const tenantCollab = await sequelize.models[MODELS.COLLABORATOR].findOne({
+    // Query app-level collaborators (appId = the app ID)
+    const appCollab = await sequelize.models[MODELS.COLLABORATOR].findOne({
       where: { 
         accountId: userId,
-        tenantId: tenantId,
-        appId: null  // Tenant-level collaborator
+        appId: appId  // Query by appId (the collaborators table uses appId, not tenantId)
       }
     });
     
-    if (!tenantCollab) {
+    if (!appCollab) {
       return null;
     }
     
     return {
-      permission: tenantCollab.dataValues.permission,
-      isCreator: tenantCollab.dataValues.isCreator || false
+      permission: appCollab.dataValues.permission,
+      isCreator: appCollab.dataValues.isCreator || false
     };
   } catch (error) {
-    console.error('Error fetching user tenant permission:', error);
+    console.error('Error fetching user app permission:', error);
     return null;
   }
 }
+
+/**
+ * Get user's permission in an app (legacy function name)
+ * @deprecated Use getUserAppPermission instead
+ * Kept for backward compatibility
+ */
+export const getUserTenantPermission = getUserAppPermission;
 
 /**
  * Check if user has required permission level
@@ -105,9 +111,7 @@ export function requireAppMembership(config: TenantPermissionConfig) {
       return res.status(400).json({ error: 'App ID required' });
     }
     
-    // For now, we're still using tenant-level collaborators
-    // TODO: Update to use app-level collaborators when that's implemented
-    const userPermission = await getUserTenantPermission(config.storage, userId, appId);
+    const userPermission = await getUserAppPermission(config.storage, userId, appId);
     
     if (!userPermission) {
       return res.status(403).json({ 
@@ -150,7 +154,7 @@ export function requireEditor(config: TenantPermissionConfig) {
       return res.status(400).json({ error: 'App ID required' });
     }
     
-    const userPermission = await getUserTenantPermission(config.storage, userId, appId);
+    const userPermission = await getUserAppPermission(config.storage, userId, appId);
     
     if (!userPermission) {
       return res.status(403).json({ 
@@ -201,7 +205,7 @@ export function requireOwner(config: TenantPermissionConfig) {
       return res.status(400).json({ error: 'App ID required' });
     }
     
-    const userPermission = await getUserTenantPermission(config.storage, userId, appId);
+    const userPermission = await getUserAppPermission(config.storage, userId, appId);
     
     if (!userPermission) {
       return res.status(403).json({ 
