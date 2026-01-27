@@ -3,6 +3,10 @@ import { useForm } from "@mantine/form";
 import { IconSitemap } from "@tabler/icons-react";
 import { CTAButton } from "~/components/Common/CTAButton";
 
+/**
+ * Legacy component name - kept for backward compatibility
+ * @deprecated Use CreateAppModal instead
+ */
 export function CreateOrgForm() {
   const theme = useMantineTheme();
   const form = useForm<{ name: string }>({

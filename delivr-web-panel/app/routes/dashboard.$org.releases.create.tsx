@@ -28,29 +28,30 @@ import { FormPageHeader } from '~/components/Common/FormPageHeader';
 import { PermissionService } from '~/utils/permissions.server';
 
 export const loader = authenticateLoaderRequest(async ({ params, user, request }) => {
-  const { org } = params;
+  const { org: appId } = params; // Route param is still $org but we treat it as appId
 
-  if (!org) {
-    throw new Response('Organization not found', { status: 404 });
+  if (!appId) {
+    throw new Response('App not found', { status: 404 });
   }
-  console.log('create release page loader', org, user);
+  console.log('create release page loader', appId, user);
 
   // Check if user is editor or owner - only editors/owners can create releases
   try {
-    const isEditor = await PermissionService.isTenantEditor(org, user.user.id);
+    const isEditor = await PermissionService.isAppEditor(appId, user.user.id);
     if (!isEditor) {
-      throw redirect(`/dashboard/${org}/releases`);
+      throw redirect(`/dashboard/${appId}/releases`);
     }
   } catch (error) {
     console.error('[CreateRelease] Permission check failed:', error);
-    throw redirect(`/dashboard/${org}/releases`);
+    throw redirect(`/dashboard/${appId}/releases`);
   }
 
   // Check if returnTo query param exists (user came back from config creation)
   const returnTo = new URL(request.url).searchParams.get('returnTo');
 
   return json({
-    org,
+    appId,
+    org: appId, // Legacy field for backward compatibility
     user,
     returnTo,
   });
@@ -59,18 +60,18 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
 export default function CreateReleasePage() {
   const loaderData = useLoaderData<typeof loader>();
   console.log('create release page', loaderData);
-  const org = (loaderData as { org: string }).org;
+  const appId = (loaderData as { appId?: string; org?: string }).appId || (loaderData as { org: string }).org; // Support both new and legacy
   const userId = ((loaderData as { user?: { id: string } }).user?.id) || '';
   const { activeReleaseConfigs } = useConfig();
   const hasConfigurations = activeReleaseConfigs.length > 0;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  console.log('create release page', org, userId, hasConfigurations);
+  console.log('create release page', appId, userId, hasConfigurations);
 
   // Handle form submission - use BFF route (same pattern as release-config and integrations)
   const handleSubmit = async (backendRequest: CreateReleaseBackendRequest): Promise<void> => {
     try {
-      const endpoint = `/api/v1/tenants/${org}/releases`;
+      const endpoint = `/api/v1/apps/${appId}/releases`; // Updated to use /apps endpoint
       const result = await apiPost<{ success: boolean; release?: { id: string }; error?: string }>(endpoint, backendRequest);
 
       // apiRequest normalizes the response: { success: true, release: {...} } becomes { success: true, data: { release: {...} } }
@@ -86,7 +87,7 @@ export default function CreateReleasePage() {
       const release = responseData?.release;
       
       // Invalidate React Query cache to trigger refetch
-      await invalidateReleases(queryClient, org);
+      await invalidateReleases(queryClient, appId);
       
       // Add a cache-busting timestamp to ensure Remix loader re-runs
       // This forces the browser to bypass cached loader data
@@ -94,9 +95,9 @@ export default function CreateReleasePage() {
 
       // Navigate to release detail page on success
       if (release?.id) {
-        navigate(`/dashboard/${org}/releases/${release.id}?refresh=${cacheBuster}`);
+        navigate(`/dashboard/${appId}/releases/${release.id}?refresh=${cacheBuster}`);
       } else {
-        navigate(`/dashboard/${org}/releases?refresh=${cacheBuster}`);
+        navigate(`/dashboard/${appId}/releases?refresh=${cacheBuster}`);
       }
     } catch (error) {
       const errorMessage = getApiErrorMessage(error, 'Failed to create release');
@@ -106,7 +107,7 @@ export default function CreateReleasePage() {
 
   // Handler to create new configuration
   const handleCreateNewConfig = () => {
-    navigate(`/dashboard/${org}/releases/configure?returnTo=create`);
+    navigate(`/dashboard/${appId}/releases/configure?returnTo=create`);
   };
 
   // Breadcrumb items

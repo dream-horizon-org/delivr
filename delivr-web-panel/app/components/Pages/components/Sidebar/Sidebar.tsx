@@ -20,13 +20,13 @@ import { SubItem as SubItemComponent } from "./SubItem";
 import { usePermissions } from "~/hooks/usePermissions";
 import type { OrgLayoutLoaderData } from "~/routes/dashboard.$org";
 
-// All organizations list (when on dashboard home)
-function AllOrgsList({
+// All apps list (when on dashboard home) - renamed from AllOrgsList
+function AllAppsList({
   organizations,
   onSelectOrg,
 }: {
-  organizations: Organization[];
-  onSelectOrg: (orgId: string) => void;
+  organizations: (App | Organization)[];
+  onSelectOrg: (appId: string) => void;
 }) {
   const theme = useMantineTheme();
 
@@ -46,12 +46,14 @@ function AllOrgsList({
         Projects
       </Text>
       <Stack gap={2}>
-        {organizations.map((org) => {
-          const initials = org.orgName.substring(0, 2).toUpperCase();
+        {organizations.map((app) => {
+          // Handle both App and Organization types
+          const displayName = 'displayName' in app ? app.displayName : ('orgName' in app ? app.orgName : app.id);
+          const initials = displayName.substring(0, 2).toUpperCase();
           return (
             <UnstyledButton
-              key={org.id}
-              onClick={() => onSelectOrg(org.id)}
+              key={app.id}
+              onClick={() => onSelectOrg(app.id)}
               style={{
                 width: "100%",
                 padding: "10px 12px",
@@ -85,10 +87,10 @@ function AllOrgsList({
                 </Box>
                 <Box style={{ flex: 1, minWidth: 0 }}>
                   <Text fw={500} size="sm" c={theme.colors.slate[8]} truncate>
-                    {org.orgName}
+                    {displayName}
                   </Text>
                   <Text size="xs" c={theme.colors.slate[5]}>
-                    {org.isAdmin ? "Owner" : "Member"}
+                    {app.isAdmin ? "Owner" : "Member"}
                   </Text>
                 </Box>
                 <IconChevronRight size={14} color={theme.colors.slate[4]} />
@@ -101,13 +103,13 @@ function AllOrgsList({
   );
 }
 
-// Organization-focused sidebar (when inside an org)
-function OrgSidebar({
+// App-focused sidebar (when inside an app) - renamed from OrgSidebar
+function AppSidebar({
   org,
   currentAppId,
   userEmail,
 }: {
-  org: Organization;
+  org: App | Organization; // Accept both for backward compatibility
   currentAppId?: string;
   userEmail: string;
 }) {
@@ -125,23 +127,28 @@ function OrgSidebar({
     }));
   };
 
-  const modules = getNavigationModules(org);
-  const allOrgRoutes = getOrganizationRoutes(org);
-  const initials = org.orgName.substring(0, 2).toUpperCase();
+  // Handle both App and Organization types
+  const displayName = 'displayName' in org ? org.displayName : ('orgName' in org ? org.orgName : org.id);
+  const appId = org.id;
+  const isAdmin = 'isAdmin' in org ? org.isAdmin : false;
+
+  const modules = getNavigationModules(org as Organization); // Type assertion for backward compatibility
+  const allOrgRoutes = getOrganizationRoutes(org as Organization); // Type assertion for backward compatibility
+  const initials = displayName.substring(0, 2).toUpperCase();
 
   // Get user data and check permissions to filter visible routes
   const orgLayoutData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
   const userId = orgLayoutData?.user?.user?.id || '';
-  const { isOwner, isEditor } = usePermissions(org.id, userId);
+  const { isOwner, isEditor } = usePermissions(appId, userId);
 
   // Filter orgRoutes based on permissions (same logic as SubItem component)
   const visibleOrgRoutes = allOrgRoutes.filter((route: SubItem) => {
     // Hide owner-only items if not owner
-    if (route.isOwnerOnly && !isOwner && !org.isAdmin) {
+    if (route.isOwnerOnly && !isOwner && !isAdmin) {
       return false;
     }
     // Hide editor-only items if not editor
-    if (route.isEditorOnly && !isEditor && !org.isAdmin) {
+    if (route.isEditorOnly && !isEditor && !isAdmin) {
       return false;
     }
     return true;
@@ -176,12 +183,12 @@ function OrgSidebar({
           </Box>
           <Box style={{ flex: 1, minWidth: 0 }}>
             <Text fw={600} size="14px" c={theme.colors.slate[9]} truncate style={{ lineHeight: 1.3 }}>
-              {org.orgName}
+              {displayName}
             </Text>
             <Badge
               size="xs"
               variant="light"
-              color={org.isAdmin ? "brand" : "gray"}
+              color={isAdmin ? "brand" : "gray"}
               radius="sm"
               style={{
                 textTransform: "capitalize",
@@ -189,7 +196,7 @@ function OrgSidebar({
                 marginTop: 4,
               }}
             >
-              {org.isAdmin ? "Owner" : "Member"}
+              {isAdmin ? "Owner" : "Member"}
             </Badge>
           </Box>
         </Group>
@@ -278,7 +285,7 @@ export function Sidebar({
   const theme = useMantineTheme();
   const navigate = useNavigate();
 
-  const currentOrg = organizations.find((org) => org.id === currentOrgId);
+  const currentApp = organizations.find((app) => app.id === currentOrgId); // currentOrgId is actually appId
 
   return (
     <Box
@@ -295,17 +302,17 @@ export function Sidebar({
     >
       <ScrollArea style={{ flex: 1 }}>
         <Box py={8}>
-          {currentOrg ? (
-            <OrgSidebar
-              org={currentOrg}
+          {currentApp ? (
+            <AppSidebar
+              org={currentApp as Organization} // Type assertion for backward compatibility
               currentAppId={currentAppId}
               userEmail={userEmail}
             />
           ) : (
-            <AllOrgsList
+            <AllAppsList
               organizations={organizations}
-              onSelectOrg={(orgId) =>
-                navigate(route("/dashboard/:org/ota/apps", { org: orgId }))
+              onSelectOrg={(appId) =>
+                navigate(route("/dashboard/:org/ota/apps", { org: appId })) // Route param is still $org
               }
             />
           )}

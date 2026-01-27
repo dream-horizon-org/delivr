@@ -1,41 +1,41 @@
 import { Group, TextInput } from "@mantine/core";
 import { useParams } from "@remix-run/react";
-import { useGetOrgList } from "../../OrgListNavbar/hooks/useGetOrgList";
+import { useGetAppList } from "../../OrgListNavbar/hooks/useGetAppList";
 
 export function ContextFields() {
   const params = useParams();
   
-  // Get organization list to resolve org name
-  const { data: orgs = [], isLoading } = useGetOrgList();
-  const currentOrg = orgs.find(org => org.id === params.org);
+  // Get app list to resolve app name
+  const { data: apps = [], isLoading } = useGetAppList();
+  const currentApp = apps.find(app => app.id === params.org); // params.org is actually appId
   
-  // Determine organization display value and error state
-  let orgDisplayValue: string;
-  let orgError = false;
+  // Determine app display value and error state
+  let appDisplayValue: string;
+  let appError = false;
   
   if (isLoading) {
-    orgDisplayValue = 'Loading...';
-  } else if (currentOrg) {
-    orgDisplayValue = currentOrg.orgName;
+    appDisplayValue = 'Loading...';
+  } else if (currentApp) {
+    appDisplayValue = currentApp.displayName || currentApp.name;
   } else if (params.org) {
-    orgDisplayValue = `Organization with ID '${params.org}' not found`;
-    orgError = true;
+    appDisplayValue = `App with ID '${params.org}' not found`;
+    appError = true;
   } else {
-    orgDisplayValue = 'No organization specified';
-    orgError = true;
+    appDisplayValue = 'No app specified';
+    appError = true;
   }
 
   return (
     <Group grow>
       <TextInput
-        label="Organization"
-        value={orgDisplayValue}
+        label="App"
+        value={appDisplayValue}
         readOnly
-        error={orgError}
+        error={appError}
         styles={{
           input: {
             cursor: 'default',
-            color: orgError ? 'var(--mantine-color-red-6)' : 'var(--mantine-color-dimmed)',
+            color: appError ? 'var(--mantine-color-red-6)' : 'var(--mantine-color-dimmed)',
           },
         }}
       />

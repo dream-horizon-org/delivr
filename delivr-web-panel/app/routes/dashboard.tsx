@@ -6,7 +6,7 @@ import type { User } from '~/.server/services/Auth/auth.interface';
 import { authenticateLoaderRequest } from "~/utils/authenticate";
 import { HeaderUserButton } from "~/components/UserButton/HeaderUserButton";
 import { Sidebar } from "~/components/Pages/components/Sidebar/Sidebar";
-import { useGetOrgList } from "~/components/Pages/components/OrgListNavbar/hooks/useGetOrgList";
+import { useGetAppList } from "~/components/Pages/components/OrgListNavbar/hooks/useGetAppList";
 import { CodepushService } from '~/.server/services/Codepush';
 import { STORE_TYPES, ALLOWED_PLATFORMS } from '~/types/distribution/app-distribution';
 import type { SystemMetadataBackend } from '~/types/system-metadata';
@@ -108,11 +108,11 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const params = useParams();
   const location = useLocation();
-  const { data: orgs = [], isLoading: orgsLoading, isError: hasOrgsError, error: orgsError } = useGetOrgList();
+  const { data: apps = [], isLoading: appsLoading, isError: hasAppsError, error: appsError } = useGetAppList();
   const { shouldShowBanner } = useOfflineStatus();
-  if (hasOrgsError) {
-    console.error('[Dashboard] Error loading organizations:', orgsError);
-    return <AuthErrorFallback message="Failed to load organizations" />;
+  if (hasAppsError) {
+    console.error('[Dashboard] Error loading apps:', appsError);
+    return <AuthErrorFallback message="Failed to load apps" />;
   }
   
   // Show auth error if present
@@ -124,7 +124,10 @@ export default function Dashboard() {
   const isMainDashboard = location.pathname === "/dashboard" || location.pathname === "/dashboard/";
   const isGettingStarted = location.pathname === "/dashboard/getting-started";
   const isTokensPage = location.pathname === "/dashboard/tokens";
-  const showSidebar = orgs.length > 0 && !isMainDashboard && !isGettingStarted && !isTokensPage;
+  const showSidebar = apps.length > 0 && !isMainDashboard && !isGettingStarted && !isTokensPage;
+  
+  // Legacy: orgs for backward compatibility
+  const orgs = apps;
   
   // Theme colors
   const borderColor = theme.colors?.slate?.[2] || '#e2e8f0';
@@ -133,7 +136,7 @@ export default function Dashboard() {
 
   return (
     <>
-      {orgsLoading ? (
+      {appsLoading ? (
         <Flex h="100vh" direction="column" bg={bgColor}>
           {/* Header Skeleton */}
           <Box 
@@ -236,8 +239,8 @@ export default function Dashboard() {
           <Flex style={{ flex: 1, overflow: "hidden" }}>
             {showSidebar && (
               <Sidebar
-                organizations={orgs}
-                currentOrgId={params.org}
+                organizations={apps}
+                currentOrgId={params.org} // Route param is still $org but we treat it as appId
                 currentAppId={params.app}
                 userEmail={user?.user?.email || ''}
               />

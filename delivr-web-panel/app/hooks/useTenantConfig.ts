@@ -1,6 +1,6 @@
 /**
- * React Query hook for fetching tenant-specific configuration
- * Uses the existing /api/v1/tenants/:tenantId endpoint
+ * React Query hook for fetching app-specific configuration
+ * Uses the /api/v1/apps/:appId endpoint
  * Extracts the releaseManagement.config from the response
  * Supports initialData from server-side loader for faster initial load
  */
@@ -9,8 +9,12 @@ import { useQuery } from 'react-query';
 import { apiGet } from '~/utils/api-client';
 import type { TenantConfig } from '~/types/system-metadata';
 
-interface TenantInfoResponse {
-  organisation: {
+interface AppInfoResponse {
+  app?: {
+    id: string;
+    displayName: string;
+  };
+  organisation?: {
     id: string;
     displayName: string;
     releaseManagement?: {
@@ -25,24 +29,28 @@ interface TenantInfoResponse {
   };
 }
 
-async function fetchTenantConfig(tenantId: string): Promise<TenantConfig | null> {
-  const result = await apiGet<TenantInfoResponse>(
-    `/api/v1/tenants/${tenantId}`,
+async function fetchAppConfig(appId: string): Promise<TenantConfig | null> {
+  const result = await apiGet<AppInfoResponse>(
+    `/api/v1/apps/${appId}`,
     { headers: { 'Accept': 'application/json' } }
   );
   
   const data = result.data;
   if (!data) return null;
   
+  // Handle both new format (app) and legacy format (organisation)
+  const app = data.app || data.organisation;
+  if (!app) return null;
+  
   // Extract and structure the config
   const config = data.organisation?.releaseManagement?.config;
   if (!config) return null;
   
   return {
-    tenantId,
+    tenantId: appId, // Keep tenantId for backward compatibility with TenantConfig type
     organization: {
-      id: data.organisation.id,
-      name: data.organisation.displayName,
+      id: app.id,
+      name: app.displayName,
     },
     releaseManagement: {
       connectedIntegrations: config.connectedIntegrations,
@@ -53,15 +61,15 @@ async function fetchTenantConfig(tenantId: string): Promise<TenantConfig | null>
   };
 }
 
-export function useTenantConfig(
-  tenantId: string | undefined,
+export function useAppConfig(
+  appId: string | undefined,
   initialData?: TenantConfig | null
 ) {
   return useQuery<TenantConfig | null, Error>(
-    ['tenant', tenantId, 'config'],
-    () => fetchTenantConfig(tenantId!),
+    ['app', appId, 'config'],
+    () => fetchAppConfig(appId!),
     {
-      enabled: !!tenantId, // Only fetch if tenantId exists
+      enabled: !!appId, // Only fetch if appId exists
       initialData: initialData || undefined, // Use initialData if provided
       staleTime: 100 * 60 * 5, // 5 minutes - can change more frequently
       cacheTime: 1000 * 60 * 30, // 30 minutes
@@ -70,4 +78,15 @@ export function useTenantConfig(
       retry: 2,
     }
   );
+}
+
+/**
+ * Legacy hook for backward compatibility
+ * @deprecated Use useAppConfig instead
+ */
+export function useTenantConfig(
+  tenantId: string | undefined,
+  initialData?: TenantConfig | null
+) {
+  return useAppConfig(tenantId, initialData);
 }

@@ -12,18 +12,18 @@ import {
 import { IconBuildingSkyscraper, IconCheck } from "@tabler/icons-react";
 import { useNavigate } from "@remix-run/react";
 import { route } from "routes-gen";
-import { CreateOrgModal } from "~/components/Pages/components/OrgsPage/components/CreateOrgModal";
+import { CreateAppModal } from "~/components/Pages/components/AppsPage/components/CreateAppModal";
 import { ACTION_EVENTS, actions } from "~/utils/event-emitter";
 
 export default function GettingStartedPage() {
   const theme = useMantineTheme();
   const navigate = useNavigate();
 
-  const handleOrgCreated = () => {
-    // Trigger org list refetch
-    actions.trigger(ACTION_EVENTS.REFETCH_ORGS);
+  const handleAppCreated = () => {
+    // Trigger app list refetch
+    actions.trigger(ACTION_EVENTS.REFETCH_ORGS); // Keep event name for backward compatibility
     
-    // Redirect to dashboard to show projects list
+    // Redirect to dashboard to show apps list
     navigate(route("/dashboard"));
   };
 
@@ -61,11 +61,11 @@ export default function GettingStartedPage() {
             </Title>
             
             <Text size="lg" c="slate.5" ta="center" maw={480} lh={1.6}>
-              Create your first project to start deploying updates to your mobile apps.
+              Create your first app to start deploying updates to your mobile apps.
             </Text>
           </Stack>
 
-          {/* Organization Creation Form */}
+          {/* App Creation Form */}
           <Paper 
             w="100%" 
             p="xl" 
@@ -76,7 +76,7 @@ export default function GettingStartedPage() {
               background: 'white',
             }}
           >
-            <CreateOrgModal onSuccess={handleOrgCreated} />
+            <CreateAppModal onSuccess={handleAppCreated} />
           </Paper>
 
         </Stack>

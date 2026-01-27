@@ -27,12 +27,12 @@ import {
 } from "@tabler/icons-react";
 import { useNavigate } from "@remix-run/react";
 import { route } from "routes-gen";
-import { useGetOrgList } from "../OrgListNavbar/hooks/useGetOrgList";
-import { OrgCard } from "./components/OrgCard";
+import { useGetAppList } from "../OrgListNavbar/hooks/useGetAppList";
+import { AppCard } from "./components/AppCard";
 import { Intro } from "../../Intro";
 import { CTAButton } from "~/components/Common/CTAButton";
 import { useState, useEffect } from "react";
-import { CreateOrgModal } from "./components/CreateOrgModal";
+import { CreateAppModal } from "./components/CreateAppModal";
 import { ACTION_EVENTS, actions } from "~/utils/event-emitter";
 import { DeleteModal, type DeleteModalData } from "~/components/Common/DeleteModal";
 
@@ -116,23 +116,23 @@ function FeatureCard({
   );
 }
 
-export function OrgsPage() {
+export function AppsPage() {
   const theme = useMantineTheme();
   const navigate = useNavigate();
-  const { data, isLoading, isError, refetch } = useGetOrgList();
-  const [createOrgOpen, setCreateOrgOpen] = useState(false);
+  const { data, isLoading, isError, refetch } = useGetAppList();
+  const [createAppOpen, setCreateAppOpen] = useState(false);
   const [deleteModalData, setDeleteModalData] = useState<DeleteModalData | null>(null);
 
   useEffect(() => {
     const handleRefetch = () => refetch();
-    actions.add(ACTION_EVENTS.REFETCH_ORGS, handleRefetch);
+    actions.add(ACTION_EVENTS.REFETCH_ORGS, handleRefetch); // Keep event name for backward compatibility
   }, [refetch]);
 
   // Theme colors
   const borderColor = theme.colors?.slate?.[2] || '#e2e8f0';
   const bgColor = theme.colors?.slate?.[0] || '#f8fafc';
 
-  // Show intro page if no projects exist
+  // Show intro page if no apps exist
   if (!isLoading && !isError && (!data || data.length === 0)) {
     return <Intro />;
   }
@@ -170,7 +170,7 @@ export function OrgsPage() {
           {/* Page Title */}
           <Group justify="space-between" align="center" mb="xl">
             <Group gap="md">
-              <Title order={2} c="dark.9" fw={700}>Projects</Title>
+              <Title order={2} c="dark.9" fw={700}>Apps</Title>
             </Group>
           </Group>
           
@@ -181,7 +181,7 @@ export function OrgsPage() {
                 <IconBuildingSkyscraper size={32} />
               </ThemeIcon>
               <Stack gap={4} align="center">
-                <Text fw={600} size="lg" c="dark.9">Unable to load projects</Text>
+                <Text fw={600} size="lg" c="dark.9">Unable to load apps</Text>
                 <Text c="dimmed" size="sm">There was a problem connecting to the server.</Text>
               </Stack>
               <Button 
@@ -207,7 +207,7 @@ export function OrgsPage() {
           <Group gap="md">
           <IconBriefcase size={18} color={theme.colors?.brand?.[5] || '#14b8a6'} />
              <Title order={4} c="dark.8" fw={700}>
-              Projects
+              Apps
              </Title>
              {data?.length > 6&& <Badge 
               size="lg" 
@@ -222,34 +222,34 @@ export function OrgsPage() {
           
           <CTAButton
             leftSection={<IconPlus size={16} />}
-            onClick={() => setCreateOrgOpen(true)}
+            onClick={() => setCreateAppOpen(true)}
             size="sm"
           >
-            New Project
+            New App
           </CTAButton>
         </Group>
 
         {/* Main Content */}
         
-        {/* Organizations Grid */}
+        {/* Apps Grid */}
         <Box mb={64}>
           <SimpleGrid 
             cols={{ base: 1, xs: 2, sm: 2, md: 3, lg: 4, xl: 5 }} 
             spacing={20}
             verticalSpacing={20}
           >
-            {data?.map((org) => (
-              <OrgCard
-                key={org.id}
-                org={org}
+            {data?.map((app) => (
+              <AppCard
+                key={app.id}
+                org={app} // org prop accepts both App and Organization types
                 onNavigate={() => {
-                  navigate(route("/dashboard/:org/releases", { org: org.id }));
+                  navigate(route("/dashboard/:org/releases", { org: app.id })); // Route param is still $org
                 }}
                 onDelete={() => {
                   setDeleteModalData({
-                    type: 'org',
-                    orgId: org.id,
-                    orgName: org.orgName,
+                    type: 'org', // Keep type as 'org' for backward compatibility
+                    orgId: app.id, // orgId is actually appId
+                    orgName: app.displayName || app.name, // orgName is actually app displayName
                   });
                 }}
               />
@@ -304,21 +304,21 @@ export function OrgsPage() {
         </Box>
       </Box>
 
-      {/* Create Project Modal */}
+      {/* Create App Modal */}
       <Modal
-        opened={createOrgOpen}
-        onClose={() => setCreateOrgOpen(false)}
-        title={<Text fw={600} size="md">Create Project</Text>}
+        opened={createAppOpen}
+        onClose={() => setCreateAppOpen(false)}
+        title={<Text fw={600} size="md">Create App</Text>}
         centered
         size="sm"
         padding="lg"
         radius="md"
         overlayProps={{ backgroundOpacity: 0.2, blur: 2 }}
       >
-        <CreateOrgModal
+        <CreateAppModal
           onSuccess={() => {
-            actions.trigger(ACTION_EVENTS.REFETCH_ORGS);
-            setCreateOrgOpen(false);
+            actions.trigger(ACTION_EVENTS.REFETCH_ORGS); // Keep event name for backward compatibility
+            setCreateAppOpen(false);
           }}
         />
       </Modal>

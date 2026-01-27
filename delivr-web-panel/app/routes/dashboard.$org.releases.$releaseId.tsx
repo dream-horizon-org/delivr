@@ -35,7 +35,7 @@ import { isAuthenticationError } from '~/utils/error-handler.utils';
 
 export default function ReleaseDetailsPage() {
   const params = useParams();
-  const org = params.org || '';
+  const appId = params.org || ''; // Route param is still $org but we treat it as appId
   const releaseId = params.releaseId || '';
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -44,8 +44,8 @@ export default function ReleaseDetailsPage() {
   // Get returnTo params from URL to restore filters and tab when going back
   const returnTo = searchParams.get('returnTo');
   const backUrl = returnTo 
-    ? `/dashboard/${org}/releases?${returnTo}`
-    : `/dashboard/${org}/releases`;
+    ? `/dashboard/${appId}/releases?${returnTo}`
+    : `/dashboard/${appId}/releases`;
 
   // Use cached hook - no refetching on navigation if data is fresh
   // IMPORTANT: Call hook only once at the top level (before any early returns)
@@ -54,7 +54,7 @@ export default function ReleaseDetailsPage() {
     isLoading,
     error,
     refetch,
-  } = useRelease(org, releaseId);
+  } = useRelease(appId, releaseId);
 
   // Track refetch state to show loading during retry
   const [isRetrying, setIsRetrying] = useState(false);
@@ -77,10 +77,10 @@ export default function ReleaseDetailsPage() {
   // Note: Distribution does NOT poll - it's reactive (updates via user actions)
 
   // Fetch stage data - only current active stage will poll every 30 seconds
-  const kickoffData = useKickoffStage(org, releaseId, shouldPollKickoff);
-  const regressionData = useRegressionStage(org, releaseId, shouldPollRegression);
-  const preReleaseData = usePreReleaseStage(org, releaseId, shouldPollPreRelease);
-  const { distribution, error: distributionError } = useDistributionStage(org, releaseId);
+  const kickoffData = useKickoffStage(appId, releaseId, shouldPollKickoff);
+  const regressionData = useRegressionStage(appId, releaseId, shouldPollRegression);
+  const preReleaseData = usePreReleaseStage(appId, releaseId, shouldPollPreRelease);
+  const { distribution, error: distributionError } = useDistributionStage(appId, releaseId);
 
   // Check for auth errors in any of the hooks
   const authError = useMemo(() => {
@@ -113,11 +113,11 @@ export default function ReleaseDetailsPage() {
       queryClient.cancelQueries();
       
       // Also cancel queries specific to this release to be more targeted
-      queryClient.cancelQueries(['release', org, releaseId]);
-      queryClient.cancelQueries(['release-process', org, releaseId]);
+      queryClient.cancelQueries(['release', appId, releaseId]);
+      queryClient.cancelQueries(['release-process', appId, releaseId]);
       queryClient.cancelQueries(['distribution-stage', releaseId]);
     }
-  }, [authError, queryClient, org, releaseId]);
+  }, [authError, queryClient, appId, releaseId]);
 
   // Check if kickoff stage is completed
   const isKickoffCompleted = kickoffData.data?.stageStatus === StageStatus.COMPLETED;
@@ -197,7 +197,7 @@ export default function ReleaseDetailsPage() {
   if (error && !release) {
     return (
       <ReleaseNotFound 
-        org={org} 
+        org={appId} 
         error={error} 
         onRetry={handleRetry}
         isRetrying={isRetrying}
@@ -207,13 +207,13 @@ export default function ReleaseDetailsPage() {
 
   // If no release but no error, still show not found (release might not exist)
   if (!release) {
-    return <ReleaseNotFound org={org} />;
+    return <ReleaseNotFound org={appId} />;
   }
 
   const releaseVersion = getReleaseVersion(release);
 
   // Breadcrumb items
-  const breadcrumbItems = getBreadcrumbItems('releases.detail', { org, releaseVersion });
+  const breadcrumbItems = getBreadcrumbItems('releases.detail', { org: appId, releaseVersion }); // org param for breadcrumb function
 
   // Handle stage selection from stepper
   const handleStageSelect = (stage: TaskStage | null) => {
@@ -236,19 +236,19 @@ export default function ReleaseDetailsPage() {
     }
 
     if (stageToRender === TaskStage.KICKOFF) {
-      return <KickoffStage tenantId={org} releaseId={releaseId} />;
+      return <KickoffStage tenantId={appId} releaseId={releaseId} />; // tenantId prop name kept for component compatibility
     }
 
     if (stageToRender === TaskStage.REGRESSION) {
-      return <RegressionStage tenantId={org} releaseId={releaseId} />;
+      return <RegressionStage tenantId={appId} releaseId={releaseId} />; // tenantId prop name kept for component compatibility
     }
 
     if (stageToRender === TaskStage.PRE_RELEASE) {
-      return <PreReleaseStage tenantId={org} releaseId={releaseId} />;
+      return <PreReleaseStage tenantId={appId} releaseId={releaseId} />; // tenantId prop name kept for component compatibility
     }
 
     if (stageToRender === TaskStage.DISTRIBUTION) {
-      return <DistributionStage tenantId={org} releaseId={releaseId} />;
+      return <DistributionStage tenantId={appId} releaseId={releaseId} />; // tenantId prop name kept for component compatibility
     }
 
     return null;
@@ -272,7 +272,7 @@ export default function ReleaseDetailsPage() {
         {/* Header with Actions */}
         <ReleaseProcessHeader
           release={release}
-          org={org}
+          org={appId} // org prop name kept for component compatibility
           releaseVersion={releaseVersion}
           currentStage={selectedStage}
           onUpdate={refetch}
@@ -299,7 +299,7 @@ export default function ReleaseDetailsPage() {
 
             {/* Integration Status Sidebar - Real-time status from individual APIs */}
             <IntegrationsStatusSidebar
-              tenantId={org}
+              tenantId={appId} // tenantId prop name kept for component compatibility
               releaseId={releaseId}
               currentStage={selectedStage}
             />

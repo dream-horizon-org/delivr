@@ -69,7 +69,7 @@ Form modal for creating new organizations.
 
 ## Data Flow
 
-1. **Fetch Organizations**: Uses existing `useGetOrgList` hook
+1. **Fetch Organizations**: Uses existing `useGetAppList` hook
 2. **Display Logic**:
    - If loading → Show skeleton loaders
    - If error → Show error message
@@ -100,7 +100,7 @@ Form modal for creating new organizations.
 ## Dependencies
 
 ### Existing Components (Reused)
-- `useGetOrgList` hook - Data fetching from `/api/v1/tenants`
+- `useGetAppList` hook - Data fetching from `/api/v1/tenants`
 - `Intro` component - Welcome page for new users
 - Delete modal at `/dashboard/delete` - Delete confirmation
 - Event emitter - For refetching org list after create

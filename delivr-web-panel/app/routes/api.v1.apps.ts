@@ -10,21 +10,21 @@ export const loader = authenticateLoaderRequest(async ({ user }) => {
   try {
     // Safety check for user object
     if (!user || !user.user || !user.user.id) {
-      console.error('[API-Tenants] Invalid user object:', user);
+      console.error('[API-Apps] Invalid user object:', user);
       return json({ error: 'User not authenticated' }, { status: 401 });
     }
     
-    const { data, status } = await CodepushService.getTenants(user.user.id);
+    const { data, status } = await CodepushService.getApps(user.user.id);
     return json(data, { status });
   } catch (error: any) {
-    console.error('[API-Tenants] Error fetching tenants:', error.message);
-    return json({ error: 'Failed to fetch tenants' }, { status: 500 });
+    console.error('[API-Apps] Error fetching apps:', error.message, JSON.stringify(error, null, 2));
+    return json({ error: 'Failed to fetch apps' }, { status: 500 });
   }
 });
 
-const createOrganization: AuthenticatedActionFunction = async ({ request, user }) => {
+const createApp: AuthenticatedActionFunction = async ({ request, user }) => {
   try {
-    console.log("=== CREATE ORGANIZATION REQUEST ===");
+    console.log("=== CREATE APP REQUEST ===");
     console.log("User:", user);
     
     // Safety check for user object
@@ -37,23 +37,27 @@ const createOrganization: AuthenticatedActionFunction = async ({ request, user }
     const body = await request.json();
     console.log("Request body:", body);
     
-    const { displayName } = body;
+    const { displayName, name, description } = body;
 
-    if (!displayName) {
-      console.error("displayName is missing");
-      return json({ error: "displayName is required" }, { status: 400 });
+    if (!displayName && !name) {
+      console.error("displayName or name is missing");
+      return json({ error: "displayName or name is required" }, { status: 400 });
     }
 
-    console.log("Creating organization with displayName:", displayName);
+    console.log("Creating app with displayName:", displayName || name);
     console.log("User ID:", user.user.id);
     
-    // Create organization - pass userId for backend authentication
-    const response = await CodepushService.createOrganization(displayName, user.user.id);
+    // Create app - pass userId for backend authentication
+    const response = await CodepushService.createApp(
+      displayName || name,
+      description,
+      user.user.id
+    );
     
-    console.log("Organization created successfully:", response.data);
+    console.log("App created successfully:", response.data);
     return json(response.data, { status: response.status });
   } catch (error: any) {
-    console.error("Error creating organization:", error);
+    console.error("Error creating app:", error);
     console.error("Error details:", {
       message: error.message,
       response: error.response?.data,
@@ -62,7 +66,7 @@ const createOrganization: AuthenticatedActionFunction = async ({ request, user }
     });
     
     // Extract error message from backend response - use backend message directly
-    let errorMessage = "Failed to create organization";
+    let errorMessage = "Failed to create app";
     const statusCode = error.response?.status || 500;
     
     if (error.response?.data) {
@@ -93,4 +97,4 @@ const createOrganization: AuthenticatedActionFunction = async ({ request, user }
   }
 };
 
-export const action = authenticateActionRequest({ POST: createOrganization });
+export const action = authenticateActionRequest({ POST: createApp });

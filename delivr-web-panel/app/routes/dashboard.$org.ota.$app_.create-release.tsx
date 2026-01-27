@@ -46,7 +46,7 @@ import { useCreateRelease } from "~/components/Pages/components/ReleaseForm/hook
 import {
   DirectoryUpload,
 } from "~/components/Pages/components/ReleaseForm/components";
-import { useGetOrgList } from "~/components/Pages/components/OrgListNavbar/hooks/useGetOrgList";
+import { useGetAppList } from "~/components/Pages/components/OrgListNavbar/hooks/useGetAppList"; // Path is correct, hook exists
 import { useGetAppListForOrg } from "~/components/Pages/components/AppList/hooks/useGetAppListForOrg";
 
 export const loader = authenticateLoaderRequest();
@@ -75,14 +75,14 @@ export default function CreateReleasePage() {
 
   const { data: deployments, isLoading: deploymentsLoading } = useGetDeploymentsForApp();
   const { mutate: createRelease, isLoading: isUploading } = useCreateRelease();
-  const { data: orgs = [] } = useGetOrgList();
+  const { data: appsList = [] } = useGetAppList(); // Renamed from orgs to appsList
   const { data: apps = [] } = useGetAppListForOrg({
-    orgId: params.org ?? "",
+    orgId: params.org ?? "", // orgId is actually appId now
     userEmail: user.user.email,
   });
 
-  const currentOrg = orgs.find((org) => org.id === params.org);
-  const currentApp = apps.find((app) => app.id === params.app);
+  const currentAppFromList = appsList.find((app: { id: string }) => app.id === params.org); // params.org is actually appId
+  const currentApp = apps.find((app: { id: string }) => app.id === params.app);
 
   const form = useForm<ReleaseFormData>({
     mode: "controlled",
@@ -163,7 +163,7 @@ export default function CreateReleasePage() {
 
     createRelease(
       {
-        orgName: params.org || "",
+        orgName: params.org || "", // orgName is actually appId now (kept for backward compatibility)
         appName: params.app || "",
         deploymentName: form.values.deploymentName,
         formData,

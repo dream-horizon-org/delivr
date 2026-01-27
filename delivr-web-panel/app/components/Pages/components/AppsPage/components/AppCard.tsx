@@ -16,14 +16,28 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 
+/**
+ * App entity (renamed from Organization)
+ */
+type App = {
+  id: string;
+  name: string;
+  displayName: string;
+  isAdmin: boolean;
+};
+
+/**
+ * Organization type (legacy - kept for backward compatibility)
+ * @deprecated Use App instead
+ */
 type Organization = {
   id: string;
   orgName: string;
   isAdmin: boolean;
 };
 
-type OrgCardProps = {
-  org: Organization;
+type AppCardProps = {
+  org: App | Organization; // Accept both for backward compatibility (org prop name kept for compatibility)
   onNavigate: () => void;
   onDelete: () => void;
 };
@@ -36,8 +50,8 @@ const getInitials = (name: string) => {
   return name.substring(0, 2).toUpperCase();
 };
 
-// Color themes for org cards based on name hash
-const getOrgTheme = (name: string) => {
+// Color themes for app cards based on name hash
+const getAppTheme = (name: string) => {
   const themes = [
     { accent: '#0d9488', light: '#f0fdfa', bg: 'linear-gradient(135deg, #0d9488 0%, #14b8a6 100%)' }, // Teal
     { accent: '#3b82f6', light: '#eff6ff', bg: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)' }, // Blue
@@ -53,10 +67,14 @@ const getOrgTheme = (name: string) => {
   return themes[hash % themes.length];
 };
 
-export function OrgCard({ org, onNavigate, onDelete }: OrgCardProps) {
+export function AppCard({ org, onNavigate, onDelete }: AppCardProps) {
   const theme = useMantineTheme();
-  const initials = getInitials(org.orgName);
-  const orgTheme = getOrgTheme(org.orgName);
+  // Handle both App and Organization types
+  const displayName = 'displayName' in org 
+    ? org.displayName 
+    : ('orgName' in org ? org.orgName : (org as App | Organization).id);
+  const initials = getInitials(displayName);
+  const appTheme = getAppTheme(displayName);
   
   const borderColor = theme.colors?.slate?.[2] || '#e2e8f0';
   
@@ -73,7 +91,7 @@ export function OrgCard({ org, onNavigate, onDelete }: OrgCardProps) {
       styles={{
         root: {
           "&:hover": {
-            borderColor: orgTheme.accent,
+            borderColor: appTheme.accent,
             transform: 'translateY(-4px)',
             boxShadow: `0 16px 32px -8px rgba(0, 0, 0, 0.12)`,
           },
@@ -84,7 +102,7 @@ export function OrgCard({ org, onNavigate, onDelete }: OrgCardProps) {
       {/* Gradient Header with Avatar */}
       <Box
         style={{
-          background: orgTheme.bg,
+          background: appTheme.bg,
           padding: '20px',
           position: 'relative',
         }}
@@ -161,7 +179,7 @@ export function OrgCard({ org, onNavigate, onDelete }: OrgCardProps) {
           lineClamp={1}
           style={{ letterSpacing: '-0.01em' }}
         >
-          {org.orgName}
+          {displayName}
         </Text>
         
         <Group justify="space-between" align="center">
@@ -183,7 +201,7 @@ export function OrgCard({ org, onNavigate, onDelete }: OrgCardProps) {
           
           <Box 
             style={{ 
-              color: orgTheme.accent,
+              color: appTheme.accent,
               opacity: 0.6, 
               transition: 'all 0.2s ease',
               display: 'flex',

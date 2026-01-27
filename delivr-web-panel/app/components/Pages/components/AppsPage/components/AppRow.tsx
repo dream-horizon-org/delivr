@@ -9,19 +9,33 @@ import {
 } from "@mantine/core";
 import { IconTrash, IconBuilding } from "@tabler/icons-react";
 
+/**
+ * App entity (renamed from Organization)
+ */
+type App = {
+  id: string;
+  name: string;
+  displayName: string;
+  isAdmin: boolean;
+};
+
+/**
+ * Organization type (legacy - kept for backward compatibility)
+ * @deprecated Use App instead
+ */
 type Organization = {
   id: string;
   orgName: string;
   isAdmin: boolean;
 };
 
-type OrgRowProps = {
-  org: Organization;
+type AppRowProps = {
+  org: App | Organization; // Accept both for backward compatibility (org prop name kept for compatibility)
   onNavigate: () => void;
   onDelete: () => void;
 };
 
-export function OrgRow({ org, onNavigate, onDelete }: OrgRowProps) {
+export function AppRow({ org, onNavigate, onDelete }: AppRowProps) {
   const theme = useMantineTheme();
   
   return (
@@ -57,12 +71,12 @@ export function OrgRow({ org, onNavigate, onDelete }: OrgRowProps) {
             <IconBuilding size={theme.other.sizes.icon.lg} style={{ color: theme.other.brand.primary }} />
           </Box>
           <Text fw={theme.other.typography.fontWeight.medium} size="sm" c={theme.other.text.primary}>
-            {org.orgName}
+            {'displayName' in org ? org.displayName : ('orgName' in org ? org.orgName : org.id)}
           </Text>
         </Group>
 
         {org.isAdmin && (
-          <Tooltip label="Delete Organization" position="left">
+          <Tooltip label="Delete App" position="left">
             <ActionIcon
               variant="subtle"
               color="red"

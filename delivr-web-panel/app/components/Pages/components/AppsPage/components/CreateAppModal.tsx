@@ -10,48 +10,48 @@ import { useForm } from "@mantine/form";
 import { IconBuilding } from "@tabler/icons-react";
 import { useState } from "react";
 import { showSuccessToast, showErrorToast } from "~/utils/toast";
-import { PROJECT_MESSAGES } from "~/constants/toast-messages";
+import { PROJECT_MESSAGES } from "~/constants/toast-messages"; // Keep PROJECT_MESSAGES for now (can be updated to APP_MESSAGES later)
 
-type CreateOrgModalProps = {
+type CreateAppModalProps = {
   onSuccess: () => void;
 };
 
-export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
+export function CreateAppModal({ onSuccess }: CreateAppModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const theme = useMantineTheme();
 
-  const form = useForm<{ orgName: string }>({
+  const form = useForm<{ appName: string }>({
     mode: "controlled",
-    initialValues: { orgName: "" },
+    initialValues: { appName: "" },
     validateInputOnChange: true,
     validateInputOnBlur: true,
     validate: {
-      orgName: (value) => {
-        if (!value || value.length === 0) return "Project name is required";
-        if (value.length < 3) return "Project name must be at least 3 characters";
+      appName: (value) => {
+        if (!value || value.length === 0) return "App name is required";
+        if (value.length < 3) return "App name must be at least 3 characters";
         return null;
       },
     },
   });
 
-  const handleSubmit = async (values: { orgName: string }) => {
+  const handleSubmit = async (values: { appName: string }) => {
     if (form.validate().hasErrors) {
       return;
     }
 
     setIsLoading(true);
     try {
-      const response = await fetch("/api/v1/tenants", {
+      const response = await fetch("/api/v1/apps", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ displayName: values.orgName }),
+        body: JSON.stringify({ displayName: values.appName }),
         credentials: "include",
       });
 
       if (!response.ok) {
-        let errorMessage = "Failed to create project";
+        let errorMessage = "Failed to create app";
         const statusCode = response.status;
         
         try {
@@ -96,17 +96,17 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
     <form onSubmit={form.onSubmit(handleSubmit)}>
       <Stack gap="lg">
         <Text size="sm" c="dimmed">
-          Create a new project to manage your apps and team members.
+          Create a new app to manage your releases and team members.
         </Text>
 
         <TextInput
-          label="Project Name"
-          placeholder="Enter project name"
+          label="App Name"
+          placeholder="Enter app name"
           leftSection={<IconBuilding size={18} stroke={1.5} />}
           required
           size="md"
-          key={form.key("orgName")}
-          {...form.getInputProps("orgName")}
+          key={form.key("appName")}
+          {...form.getInputProps("appName")}
           disabled={isLoading}
         />
 
@@ -118,10 +118,10 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
           disabled={
             isLoading ||
             !!Object.keys(form.errors).length ||
-            !form.values.orgName?.trim()
+            !form.values.appName?.trim()
           }
         >
-          Create Project
+          Create App
         </Button>
       </Stack>
     </form>

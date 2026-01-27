@@ -79,11 +79,16 @@ class Codepush {
   }
 
   async getTenants(userId: string) {
+    // Legacy method - delegates to getApps for backward compatibility
+    return this.getApps(userId);
+  }
+
+  async getApps(userId: string) {
     const headers: TenantsRequest = {
       userId,
     };
 
-    return this.__client.get<null, AxiosResponse<TenantsResponse>>("/tenants", {
+    return this.__client.get<null, AxiosResponse<TenantsResponse>>("/apps", {
       headers,
     });
   }
@@ -413,17 +418,25 @@ class Codepush {
   }
 
   async createOrganization(displayName: string, userId: string) {
+    // Legacy method - delegates to createApp for backward compatibility
+    return this.createApp(displayName, undefined, userId);
+  }
+
+  async createApp(displayName: string, description?: string, userId?: string) {
+    const actualUserId = userId || '';
     return this.__client.post<
-      { displayName: string },
-      AxiosResponse<{ organisation: { id: string; displayName: string; role: string; createdBy: string; createdTime: number } }>
+      { displayName: string; name?: string; description?: string },
+      AxiosResponse<{ app?: { id: string; displayName: string; role: string; createdBy: string; createdTime: number }; organisation?: { id: string; displayName: string; role: string; createdBy: string; createdTime: number } }>
     >(
-      "/tenants",
+      "/apps",
       {
         displayName,
+        name: displayName, // Use displayName as name if not provided
+        ...(description && { description }),
       },
       {
         headers: {
-          userId: userId,
+          userId: actualUserId,
         },
       }
     );
@@ -495,14 +508,22 @@ class Codepush {
 
   /**
    * Get tenant info with release management setup status
+   * Legacy method - delegates to getAppInfo
    */
   async getTenantInfo(data: TenantInfoRequest) {
+    return this.getAppInfo(data);
+  }
+
+  /**
+   * Get app info with release management setup status
+   */
+  async getAppInfo(data: TenantInfoRequest) {
     const headers: Pick<TenantInfoRequest, "userId"> = {
       userId: data.userId,
     };
     
     return this.__client.get<TenantInfoResponse>(
-      `/tenants/${data.tenantId}`,
+      `/apps/${data.tenantId}`, // tenantId is actually appId now
       { headers }
     );
   }

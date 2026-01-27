@@ -1,63 +1,94 @@
 /**
  * Simple Permission Utilities
  * 
- * Reuses existing org list data - no duplicate API calls!
- * All functions work with the Organization type from getOrgList.
+ * Reuses existing app list data - no duplicate API calls!
+ * All functions work with the App type from getAppList.
  * 
- * For use in loaders/actions (server-side), use the async functions that fetch org list.
+ * For use in loaders/actions (server-side), use the async functions that fetch app list.
  * For use in components (client-side), use the hook usePermissions().
  */
 
 import { TenantRole, type TenantRoleType } from '~/constants/permissions';
 import { apiGet } from '~/utils/api-client';
-import { route } from 'routes-gen';
 
 // Local type definition to avoid importing from server-only module
-type TenantOrg = {
+type AppWithRole = {
   id: string;
   role: 'Owner' | 'Editor' | 'Viewer' | 'Collaborator';
 };
 
-type TenantsResponse = {
-  organisations: TenantOrg[];
+type AppsResponse = {
+  apps?: AppWithRole[];
+  organisations?: AppWithRole[]; // Legacy support
 };
 
-export interface OrganizationWithRole {
+export interface AppWithRoleType {
   id: string;
   role: TenantRole;
 }
 
 /**
- * Get user's role for a tenant from existing org list
+ * Legacy type alias for backward compatibility
+ * @deprecated Use AppWithRoleType instead
+ */
+export interface OrganizationWithRole extends AppWithRoleType {}
+
+/**
+ * Get user's role for an app from existing app list
+ */
+export function getAppRole(
+  apps: AppWithRoleType[],
+  appId: string
+): TenantRoleType {
+  const app = apps.find((a) => a.id === appId);
+  return app?.role ?? null;
+}
+
+/**
+ * Check if user is app owner
+ */
+export function isAppOwner(
+  apps: AppWithRoleType[],
+  appId: string
+): boolean {
+  const app = apps.find((a) => a.id === appId);
+  return app?.role === TenantRole.OWNER;
+}
+
+/**
+ * Check if user is app editor or owner
+ */
+export function isAppEditor(
+  apps: AppWithRoleType[],
+  appId: string
+): boolean {
+  const app = apps.find((a) => a.id === appId);
+  return app?.role === TenantRole.EDITOR || app?.role === TenantRole.OWNER;
+}
+
+/**
+ * Legacy functions for backward compatibility
+ * @deprecated Use getAppRole, isAppOwner, isAppEditor instead
  */
 export function getTenantRole(
-  orgs: OrganizationWithRole[],
-  tenantId: string
+  apps: AppWithRoleType[],
+  appId: string
 ): TenantRoleType {
-  const org = orgs.find((o) => o.id === tenantId);
-  return org?.role ?? null;
+  return getAppRole(apps, appId);
 }
 
-/**
- * Check if user is tenant owner
- */
 export function isTenantOwner(
-  orgs: OrganizationWithRole[],
-  tenantId: string
+  apps: AppWithRoleType[],
+  appId: string
 ): boolean {
-  const org = orgs.find((o) => o.id === tenantId);
-  return org?.role === TenantRole.OWNER;
+  return isAppOwner(apps, appId);
 }
 
-/**
- * Check if user is tenant editor or owner
- */
 export function isTenantEditor(
-  orgs: OrganizationWithRole[],
-  tenantId: string
+  apps: AppWithRoleType[],
+  appId: string
 ): boolean {
-  const org = orgs.find((o) => o.id === tenantId);
-  return org?.role === TenantRole.EDITOR || org?.role === TenantRole.OWNER;
+  return isAppEditor(apps, appId);
 }
 
 /**
@@ -75,11 +106,11 @@ export function isReleasePilot(
  * Check if user can perform release actions
  * Release actions can be performed by:
  * - Release pilot, OR
- * - Tenant owner
+ * - App owner
  */
 export function canPerformReleaseAction(
-  orgs: OrganizationWithRole[],
-  tenantId: string,
+  apps: AppWithRoleType[],
+  appId: string,
   userId: string,
   releasePilotAccountId: string | null
 ): boolean {
@@ -88,8 +119,8 @@ export function canPerformReleaseAction(
     return true;
   }
 
-  // Check tenant owner (from existing org list)
-  return isTenantOwner(orgs, tenantId);
+  // Check app owner (from existing app list)
+  return isAppOwner(apps, appId);
 }
 
 // ============================================================================
@@ -104,58 +135,75 @@ export function canPerformReleaseAction(
  */
 export const PermissionService = {
   /**
-   * Get user's role for a tenant (client-side only - uses API route)
+   * Get user's role for an app (client-side only - uses API route)
    */
-  async getTenantRole(tenantId: string, userId: string): Promise<TenantRoleType> {
+  async getAppRole(appId: string, userId: string): Promise<TenantRoleType> {
     try {
-      const result = await apiGet<TenantsResponse>(route('/api/v1/tenants'));
+      const result = await apiGet<AppsResponse>('/api/v1/apps');
       if (!result.success || !result.data) {
-        console.warn('[PermissionService] Failed to fetch tenants from API');
+        console.warn('[PermissionService] Failed to fetch apps from API');
         return null;
       }
       
-      const org = result.data.organisations.find((o) => o.id === tenantId);
-      if (!org) {
-        console.warn(`[PermissionService] Organization ${tenantId} not found`);
+      const apps = result.data.apps || result.data.organisations || [];
+      const app = apps.find((a) => a.id === appId);
+      if (!app) {
+        console.warn(`[PermissionService] App ${appId} not found`);
         return null;
       }
       
       // Map role (handle Collaborator -> Viewer)
-      if (org.role === 'Collaborator') return TenantRole.VIEWER;
-      if (org.role === TenantRole.OWNER) return TenantRole.OWNER;
-      if (org.role === TenantRole.EDITOR) return TenantRole.EDITOR;
-      if (org.role === TenantRole.VIEWER) return TenantRole.VIEWER;
+      if (app.role === 'Collaborator') return TenantRole.VIEWER;
+      if (app.role === TenantRole.OWNER) return TenantRole.OWNER;
+      if (app.role === TenantRole.EDITOR) return TenantRole.EDITOR;
+      if (app.role === TenantRole.VIEWER) return TenantRole.VIEWER;
       return TenantRole.VIEWER; // Fallback
     } catch (error) {
-      console.error('[PermissionService] Error fetching tenant role:', error);
+      console.error('[PermissionService] Error fetching app role:', error);
       return null;
     }
   },
 
   /**
-   * Check if user is tenant owner (client-side only)
+   * Check if user is app owner (client-side only)
    */
-  async isTenantOwner(tenantId: string, userId: string): Promise<boolean> {
+  async isAppOwner(appId: string, userId: string): Promise<boolean> {
     try {
-      const role = await this.getTenantRole(tenantId, userId);
+      const role = await this.getAppRole(appId, userId);
       return role === TenantRole.OWNER;
     } catch (error) {
-      console.error('[PermissionService] Error checking tenant owner:', error);
+      console.error('[PermissionService] Error checking app owner:', error);
       return false; // Fail closed
     }
   },
 
   /**
-   * Check if user is tenant editor or owner (client-side only)
+   * Check if user is app editor or owner (client-side only)
    */
-  async isTenantEditor(tenantId: string, userId: string): Promise<boolean> {
+  async isAppEditor(appId: string, userId: string): Promise<boolean> {
     try {
-      const role = await this.getTenantRole(tenantId, userId);
+      const role = await this.getAppRole(appId, userId);
       return role === TenantRole.EDITOR || role === TenantRole.OWNER;
     } catch (error) {
-      console.error('[PermissionService] Error checking tenant editor:', error);
+      console.error('[PermissionService] Error checking app editor:', error);
       return false; // Fail closed
     }
+  },
+
+  /**
+   * Legacy methods for backward compatibility
+   * @deprecated Use getAppRole, isAppOwner, isAppEditor instead
+   */
+  async getTenantRole(appId: string, userId: string): Promise<TenantRoleType> {
+    return this.getAppRole(appId, userId);
+  },
+
+  async isTenantOwner(appId: string, userId: string): Promise<boolean> {
+    return this.isAppOwner(appId, userId);
+  },
+
+  async isTenantEditor(appId: string, userId: string): Promise<boolean> {
+    return this.isAppEditor(appId, userId);
   },
 
   /**
@@ -169,10 +217,10 @@ export const PermissionService = {
    * Check if user can perform release actions (client-side only)
    * Release actions can be performed by:
    * - Release pilot, OR
-   * - Tenant owner
+   * - App owner
    */
   async canPerformReleaseAction(
-    tenantId: string,
+    appId: string,
     userId: string,
     releasePilotAccountId: string | null
   ): Promise<boolean> {
@@ -181,8 +229,8 @@ export const PermissionService = {
       return true;
     }
 
-    // Check tenant owner (async)
-    return await this.isTenantOwner(tenantId, userId);
+    // Check app owner (async)
+    return await this.isAppOwner(appId, userId);
   },
 };
 
