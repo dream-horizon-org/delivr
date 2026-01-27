@@ -3,7 +3,7 @@
       {
         "name": "delivr-ota-server",
         "script": "./bin/script/server.js",
-        "instances": "-2",
+        "instances": "1",
         "watch": false,
         "merge_logs": true,
         "exec_mode": "cluster",
