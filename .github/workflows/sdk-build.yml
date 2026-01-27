@@ -1,0 +1,33 @@
+name: SDK Build
+
+on:
+  pull_request:
+    paths:
+      - 'delivr-sdk-ota/**'
+
+jobs:
+  build:
+    name: TypeScript Plugin Build
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./delivr-sdk-ota
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'delivr-sdk-ota/package-lock.json'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run plugin build
+        run: npm run build:plugin
+
