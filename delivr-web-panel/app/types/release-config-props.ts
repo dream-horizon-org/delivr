@@ -342,6 +342,7 @@ export interface JiraPlatformConfigCardProps {
   config: JiraPlatformConfig;
   onChange: (config: JiraPlatformConfig) => void;
   integrationId: string;
+  tenantId: string;
   onRemove?: () => void;
   projects?: Array<{ key: string; name: string }>;
 }

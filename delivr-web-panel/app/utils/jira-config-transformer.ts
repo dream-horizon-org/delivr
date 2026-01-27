@@ -151,7 +151,7 @@ export function createDefaultPlatformConfigs(platforms: Platform[]): JiraPlatfor
     parameters: {
       projectKey: '',
       issueType: 'Task', // Default issue type (required)
-      completedStatus: 'Done', // Default completion status
+      completedStatus: '', // No default - user must select
       priority: 'High', // Default priority
     },
   }));

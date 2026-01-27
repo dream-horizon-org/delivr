@@ -3,24 +3,45 @@
  * Displays configuration fields for a single platform (Web/iOS/Android)
  */
 
-import { Card, TextInput, Select, Stack, Text, Badge } from '@mantine/core';
+import { useState, useEffect } from 'react';
+import { Card, TextInput, Select, Stack, Text, Badge, Loader } from '@mantine/core';
 import type { JiraPlatformConfig } from '~/types/release-config';
 import type { JiraPlatformConfigCardProps } from '~/types/release-config-props';
 import {
   JIRA_PLATFORM_CONFIG,
   JIRA_ISSUE_TYPES,
-  JIRA_COMPLETION_STATUSES,
   JIRA_PRIORITIES,
 } from '~/constants/release-config';
 import { JIRA_LABELS, JIRA_FIELD_NAMES, VALIDATION_MESSAGES } from '~/constants/release-config-ui';
+import { apiGet, getApiErrorMessage } from '~/utils/api-client';
+
+interface JiraStatus {
+  id: string;
+  name: string;
+  category: string;
+}
+
+interface StatusOption {
+  value: string;
+  label: string;
+}
 
 export function JiraPlatformConfigCard({
   platform,
   config,
   onChange,
+  integrationId,
+  tenantId,
   projects = [],
 }: JiraPlatformConfigCardProps) {
   const platformConfig = JIRA_PLATFORM_CONFIG[platform];
+  
+  // State for completion statuses
+  const [completionStatuses, setCompletionStatuses] = useState<StatusOption[]>([
+    { value: 'Done', label: 'Done' } // Default fallback
+  ]);
+  const [loadingStatuses, setLoadingStatuses] = useState(false);
+  const [statusesError, setStatusesError] = useState<string | null>(null);
 
   const handleChange = (field: keyof JiraPlatformConfig['parameters'], value: unknown) => {
     onChange({
@@ -37,6 +58,52 @@ export function JiraPlatformConfigCard({
     value: project.key,
     label: `${project.key} - ${project.name}`,
   }));
+
+  // Get current project key
+  const projectKey = (config.parameters?.projectKey as string) || '';
+
+  // Fetch Jira statuses when project key changes
+  useEffect(() => {
+    const fetchStatuses = async () => {
+      // Don't fetch if no project key or no integration
+      if (!projectKey || !integrationId) {
+        setCompletionStatuses([{ value: 'Done', label: 'Done' }]);
+        return;
+      }
+
+      setLoadingStatuses(true);
+      setStatusesError(null);
+
+      try {
+        const result = await apiGet<JiraStatus[]>(
+          `/api/v1/tenants/${tenantId}/integrations/project-management/${integrationId}/jira/metadata/statuses?projectKey=${projectKey}`
+        );
+
+        if (result.success && result.data && Array.isArray(result.data)) {
+          // Show all statuses from Jira
+          const allStatuses = result.data.map((status) => ({
+            value: status.name,
+            label: status.name,
+          }));
+
+          setCompletionStatuses(allStatuses.length > 0 ? allStatuses : [{ value: 'Done', label: 'Done' }]);
+        } else {
+          throw new Error('Invalid response format');
+        }
+      } catch (error) {
+        console.error('Failed to fetch Jira statuses:', error);
+        const errorMessage = getApiErrorMessage(error, 'Failed to load Jira statuses');
+        setStatusesError(errorMessage);
+        
+        // Fallback to default
+        setCompletionStatuses([{ value: 'Done', label: 'Done' }]);
+      } finally {
+        setLoadingStatuses(false);
+      }
+    };
+
+    fetchStatuses();
+  }, [projectKey, integrationId, tenantId]);
 
   return (
     <Card withBorder p="md" radius="md">
@@ -96,13 +163,26 @@ export function JiraPlatformConfigCard({
         {/* Completion Status - Required */}
         <Select
           label={JIRA_LABELS.COMPLETION_STATUS}
-          placeholder={JIRA_LABELS.COMPLETION_STATUS_PLACEHOLDER}
-          description={JIRA_LABELS.COMPLETION_STATUS_DESCRIPTION}
-          data={JIRA_COMPLETION_STATUSES}
-          value={(config.parameters?.completedStatus as string) || 'Done'}
-          onChange={(value) => handleChange(JIRA_FIELD_NAMES.COMPLETED_STATUS, value || 'Done')}
+          placeholder={
+            !projectKey 
+              ? 'Select project first'
+              : loadingStatuses
+                ? 'Loading statuses...'
+                : JIRA_LABELS.COMPLETION_STATUS_PLACEHOLDER
+          }
+          description={
+            statusesError 
+              ? `${JIRA_LABELS.COMPLETION_STATUS_DESCRIPTION} (${statusesError})` 
+              : JIRA_LABELS.COMPLETION_STATUS_DESCRIPTION
+          }
+          data={completionStatuses}
+          value={(config.parameters?.completedStatus as string) || null}
+          onChange={(value) => handleChange(JIRA_FIELD_NAMES.COMPLETED_STATUS, value || '')}
           required
           searchable
+          disabled={!projectKey || loadingStatuses}
+          rightSection={loadingStatuses ? <Loader size="xs" /> : undefined}
+          error={statusesError ? 'Using default statuses due to fetch error' : undefined}
         />
 
         {/* Priority - Optional */}
