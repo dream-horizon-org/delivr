@@ -40,8 +40,12 @@ import type {
   NotificationsResponse,
   NotificationRequest,
   SendNotificationResponse,
+  AdHocNotificationRequest,
+  AdHocNotificationResponse,
 } from '~/types/release-process.types';
 import type { ApiResponse } from '~/utils/api-client';
+import { AD_HOC_NOTIFICATION_LABELS } from '~/constants/release-process-ui';
+import { showSuccessToast, showErrorToast } from '~/utils/toast';
 
 /**
  * Helper to extract error message from ApiResponse error field
@@ -686,6 +690,52 @@ export function useSendNotification(tenantId?: string, releaseId?: string) {
           // Invalidate activity logs to show notification action
           queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
         }
+      },
+    }
+  );
+}
+
+/**
+ * Send ad-hoc notification (template or custom)
+ * Backend contract: POST /notify
+ */
+export function useSendAdHocNotification(tenantId?: string, releaseId?: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation<AdHocNotificationResponse, Error, AdHocNotificationRequest>(
+    async (request) => {
+      if (!tenantId || !releaseId) {
+        throw new Error('tenantId and releaseId are required');
+      }
+
+      const result = await apiPost<AdHocNotificationResponse>(
+        `/api/v1/tenants/${tenantId}/releases/${releaseId}/notify`,
+        request
+      );
+
+      if (!result.success || !result.data) {
+        const errorMessage = extractErrorFromResponse(result) || 'Failed to send notification';
+        throw new Error(errorMessage);
+      }
+
+      return result.data;
+    },
+    {
+      onSuccess: (data) => {
+        if (tenantId && releaseId) {
+          queryClient.invalidateQueries(['release-process', 'notifications', tenantId, releaseId]);
+          queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
+        }
+        
+        showSuccessToast({
+          title: AD_HOC_NOTIFICATION_LABELS.SUCCESS_MESSAGE,
+          message: AD_HOC_NOTIFICATION_LABELS.SUCCESS_DETAIL(data.notification.sentTo),
+        });
+      },
+      onError: (error) => {
+        showErrorToast({
+          message: error.message || 'Failed to send notification',
+        });
       },
     }
   );

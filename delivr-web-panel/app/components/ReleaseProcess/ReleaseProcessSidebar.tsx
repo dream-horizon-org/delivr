@@ -6,7 +6,7 @@
  * - Vertical stage stepper
  */
 
-import { Paper, Stack, Stepper, Text, Tooltip } from '@mantine/core';
+import { Paper, Stack, Stepper, Text, Tooltip, Box } from '@mantine/core';
 import type { Icon } from '@tabler/icons-react';
 import {
   IconCheck,
@@ -233,7 +233,7 @@ export function ReleaseProcessSidebar({
                     },
                   }}
                 >
-                  {stepContent}
+                  <Box>{stepContent}</Box>
                 </Tooltip>
               );
             }

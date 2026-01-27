@@ -17,11 +17,12 @@ import {
   IconRocket,
   IconRefresh,
   IconPlane,
+  IconMessageCircle,
 } from '@tabler/icons-react';
 
 /**
  * Get icon for activity type
- * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL, RELEASE_ARCHIVED, RELEASE_CREATED, MANUAL_BUILD_UPLOADED, TASK_RETRIED, TESTFLIGHT_BUILD_VERIFIED
+ * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL, RELEASE_ARCHIVED, RELEASE_CREATED, MANUAL_BUILD_UPLOADED, TASK_RETRIED, TESTFLIGHT_BUILD_VERIFIED, AD_HOC_NOTIFICATION
  */
 export function getActivityIcon(type: string): React.ReactNode {
   switch (type) {
@@ -52,6 +53,8 @@ export function getActivityIcon(type: string): React.ReactNode {
       return <IconRefresh size={16} />;
     case 'TESTFLIGHT_BUILD_VERIFIED':
       return <IconPlane size={16} />;
+    case 'AD_HOC_NOTIFICATION':
+      return <IconMessageCircle size={16} />;
     // Legacy types (for backward compatibility)
     case 'RELEASE_STATUS_CHANGE':
       return <IconTag size={16} />;
@@ -72,7 +75,7 @@ export function getActivityIcon(type: string): React.ReactNode {
 
 /**
  * Get color for activity type
- * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL, RELEASE_ARCHIVED, RELEASE_CREATED, MANUAL_BUILD_UPLOADED, TASK_RETRIED, TESTFLIGHT_BUILD_VERIFIED
+ * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL, RELEASE_ARCHIVED, RELEASE_CREATED, MANUAL_BUILD_UPLOADED, TASK_RETRIED, TESTFLIGHT_BUILD_VERIFIED, AD_HOC_NOTIFICATION
  */
 export function getActivityColor(type: string): string {
   switch (type) {
@@ -103,6 +106,8 @@ export function getActivityColor(type: string): string {
       return 'orange';
     case 'TESTFLIGHT_BUILD_VERIFIED':
       return 'teal';
+    case 'AD_HOC_NOTIFICATION':
+      return 'brand';
     // Legacy types (for backward compatibility)
     case 'RELEASE_STATUS_CHANGE':
       return 'blue';

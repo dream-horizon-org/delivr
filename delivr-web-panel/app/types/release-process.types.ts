@@ -750,7 +750,8 @@ export interface NotificationsResponse {
  */
 export type MessageTypeEnum = 
   | 'test-results-summary'
-  | 'pre-kickoff-reminder';
+  | 'project-management-approval'
+  | 'manual-build-upload-reminder';
 
 /**
  * Notification Request - Matches backend contract from API #21
@@ -765,6 +766,49 @@ export interface NotificationRequest {
 export interface SendNotificationResponse {
   success: true;
   notification: ReleaseNotification;
+}
+
+/**
+ * Slack Channel Reference (id + name)
+ */
+export interface SlackChannelRef {
+  id: string;
+  name: string;
+}
+
+/**
+ * Ad-Hoc Notification Request
+ */
+export interface AdHocNotificationRequest {
+  type: 'template' | 'custom';
+  messageType?: MessageTypeEnum;  // Required when type='template'
+  customMessage?: string;          // Required when type='custom'
+  channels: SlackChannelRef[];     // Array of Slack channel objects (id + name)
+}
+
+/**
+ * Ad-Hoc Notification Response
+ */
+export interface AdHocNotificationResponse {
+  success: true;
+  message: string;
+  notification: {
+    id: number;
+    sentTo: string[];  // Channel names
+    sentAt: string;    // ISO timestamp
+  };
+}
+
+/**
+ * Notification Template Metadata
+ */
+export interface NotificationTemplate {
+  id: MessageTypeEnum;
+  label: string;
+  description: string;
+  icon: string;         // Tabler icon name
+  previewText?: string;
+  messageTemplate?: string;  // Message template with {{placeholder}} syntax
 }
 
 
