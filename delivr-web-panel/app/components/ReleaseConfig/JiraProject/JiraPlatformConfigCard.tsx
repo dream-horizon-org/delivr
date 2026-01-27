@@ -9,7 +9,6 @@ import type { JiraPlatformConfig } from '~/types/release-config';
 import type { JiraPlatformConfigCardProps } from '~/types/release-config-props';
 import {
   JIRA_PLATFORM_CONFIG,
-  JIRA_ISSUE_TYPES,
   JIRA_PRIORITIES,
 } from '~/constants/release-config';
 import { JIRA_LABELS, JIRA_FIELD_NAMES, VALIDATION_MESSAGES } from '~/constants/release-config-ui';
@@ -21,7 +20,19 @@ interface JiraStatus {
   category: string;
 }
 
+interface JiraIssueType {
+  id: string;
+  name: string;
+  subtask: boolean;
+  description?: string;
+}
+
 interface StatusOption {
+  value: string;
+  label: string;
+}
+
+interface IssueTypeOption {
   value: string;
   label: string;
 }
@@ -43,6 +54,13 @@ export function JiraPlatformConfigCard({
   const [loadingStatuses, setLoadingStatuses] = useState(false);
   const [statusesError, setStatusesError] = useState<string | null>(null);
 
+  // State for issue types
+  const [issueTypes, setIssueTypes] = useState<IssueTypeOption[]>([
+    { value: 'Task', label: 'Task' } // Default fallback
+  ]);
+  const [loadingIssueTypes, setLoadingIssueTypes] = useState(false);
+  const [issueTypesError, setIssueTypesError] = useState<string | null>(null);
+
   const handleChange = (field: keyof JiraPlatformConfig['parameters'], value: unknown) => {
     onChange({
       ...config,
@@ -62,47 +80,83 @@ export function JiraPlatformConfigCard({
   // Get current project key
   const projectKey = (config.parameters?.projectKey as string) || '';
 
-  // Fetch Jira statuses when project key changes
+  // Fetch Jira metadata (statuses and issue types) when project key changes
   useEffect(() => {
-    const fetchStatuses = async () => {
+    const fetchMetadata = async () => {
       // Don't fetch if no project key or no integration
       if (!projectKey || !integrationId) {
         setCompletionStatuses([{ value: 'Done', label: 'Done' }]);
+        setIssueTypes([{ value: 'Task', label: 'Task' }]);
         return;
       }
 
+      // Fetch both statuses and issue types in parallel
       setLoadingStatuses(true);
+      setLoadingIssueTypes(true);
       setStatusesError(null);
+      setIssueTypesError(null);
 
       try {
-        const result = await apiGet<JiraStatus[]>(
-          `/api/v1/tenants/${tenantId}/integrations/project-management/${integrationId}/jira/metadata/statuses?projectKey=${projectKey}`
-        );
+        const [statusesResult, issueTypesResult] = await Promise.all([
+          apiGet<JiraStatus[]>(
+            `/api/v1/tenants/${tenantId}/integrations/project-management/${integrationId}/jira/metadata/statuses?projectKey=${projectKey}`
+          ),
+          apiGet<JiraIssueType[]>(
+            `/api/v1/tenants/${tenantId}/integrations/project-management/${integrationId}/jira/metadata/issue-types?projectKey=${projectKey}`
+          ),
+        ]);
 
-        if (result.success && result.data && Array.isArray(result.data)) {
-          // Show all statuses from Jira
-          const allStatuses = result.data.map((status) => ({
+        // Process statuses
+        if (statusesResult.success && statusesResult.data && Array.isArray(statusesResult.data)) {
+          const allStatuses = statusesResult.data.map((status) => ({
             value: status.name,
             label: status.name,
           }));
-
           setCompletionStatuses(allStatuses.length > 0 ? allStatuses : [{ value: 'Done', label: 'Done' }]);
         } else {
-          throw new Error('Invalid response format');
+          throw new Error('Invalid statuses response format');
+        }
+
+        // Process issue types (filter out subtasks)
+        if (issueTypesResult.success && issueTypesResult.data && Array.isArray(issueTypesResult.data)) {
+          const mainIssueTypes = issueTypesResult.data
+            .filter((type) => !type.subtask)
+            .map((type) => ({
+              value: type.name,
+              label: type.name,
+            }));
+          setIssueTypes(mainIssueTypes.length > 0 ? mainIssueTypes : [{ value: 'Task', label: 'Task' }]);
+        } else {
+          throw new Error('Invalid issue types response format');
         }
       } catch (error) {
-        console.error('Failed to fetch Jira statuses:', error);
-        const errorMessage = getApiErrorMessage(error, 'Failed to load Jira statuses');
-        setStatusesError(errorMessage);
+        console.error('Failed to fetch Jira metadata:', error);
+        const errorMessage = getApiErrorMessage(error, 'Failed to load Jira metadata');
         
-        // Fallback to default
-        setCompletionStatuses([{ value: 'Done', label: 'Done' }]);
+        // Check which one failed and set appropriate error
+        if (error instanceof Error && error.message.includes('statuses')) {
+          setStatusesError(errorMessage);
+          setCompletionStatuses([{ value: 'Done', label: 'Done' }]);
+        }
+        if (error instanceof Error && error.message.includes('issue types')) {
+          setIssueTypesError(errorMessage);
+          setIssueTypes([{ value: 'Task', label: 'Task' }]);
+        }
+        
+        // If generic error, set both
+        if (!error || !(error instanceof Error) || (!error.message.includes('statuses') && !error.message.includes('issue types'))) {
+          setStatusesError(errorMessage);
+          setIssueTypesError(errorMessage);
+          setCompletionStatuses([{ value: 'Done', label: 'Done' }]);
+          setIssueTypes([{ value: 'Task', label: 'Task' }]);
+        }
       } finally {
         setLoadingStatuses(false);
+        setLoadingIssueTypes(false);
       }
     };
 
-    fetchStatuses();
+    fetchMetadata();
   }, [projectKey, integrationId, tenantId]);
 
   return (
@@ -151,13 +205,26 @@ export function JiraPlatformConfigCard({
         {/* Issue Type - Required */}
         <Select
           label={JIRA_LABELS.ISSUE_TYPE}
-          placeholder={JIRA_LABELS.ISSUE_TYPE_PLACEHOLDER}
-          description={JIRA_LABELS.ISSUE_TYPE_DESCRIPTION}
-          data={JIRA_ISSUE_TYPES}
+          placeholder={
+            !projectKey 
+              ? 'Select project first'
+              : loadingIssueTypes
+                ? 'Loading issue types...'
+                : JIRA_LABELS.ISSUE_TYPE_PLACEHOLDER
+          }
+          description={
+            issueTypesError 
+              ? `${JIRA_LABELS.ISSUE_TYPE_DESCRIPTION} (${issueTypesError})` 
+              : JIRA_LABELS.ISSUE_TYPE_DESCRIPTION
+          }
+          data={issueTypes}
           value={(config.parameters?.issueType as string) || null}
           onChange={(value) => handleChange(JIRA_FIELD_NAMES.ISSUE_TYPE, value || '')}
           required
           searchable
+          disabled={!projectKey || loadingIssueTypes}
+          rightSection={loadingIssueTypes ? <Loader size="xs" /> : undefined}
+          error={issueTypesError ? 'Using default issue types due to fetch error' : undefined}
         />
 
         {/* Completion Status - Required */}

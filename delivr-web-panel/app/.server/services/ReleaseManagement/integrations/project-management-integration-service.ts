@@ -397,6 +397,51 @@ class ProjectManagementIntegrationServiceClass extends IntegrationService {
       };
     }
   }
+
+  /**
+   * Get Jira issue types for a specific project
+   * Fetches all issue types from Jira for a given project using the integration credentials
+   */
+  async getJiraIssueTypes(
+    tenantId: string,
+    integrationId: string,
+    projectKey: string,
+    userId: string
+  ): Promise<{ success: boolean; data?: Array<{ id: string; name: string; subtask: boolean; description?: string }>; error?: string }> {
+    try {
+      const endpoint = PROJECT_MANAGEMENT.jiraMetadata.getIssueTypes(tenantId, integrationId, projectKey);
+      
+      this.logRequest('GET', endpoint);
+      
+      const result = await this.get<{ success: boolean; data: Array<{ id: string; name: string; subtask: boolean; description?: string }> }>(
+        endpoint,
+        userId
+      );
+      
+      this.logResponse('GET', endpoint, result.success);
+      
+      return {
+        success: result.success,
+        data: result.data || [],
+        error: (result as any).error
+      };
+    } catch (error: any) {
+      this.logResponse('GET', PROJECT_MANAGEMENT.jiraMetadata.getIssueTypes(tenantId, integrationId, projectKey), false);
+      
+      // Check if this is a network/connection error
+      if (error.message === 'No response from server') {
+        return {
+          success: false,
+          error: 'Unable to connect to backend server. Please check your backend configuration.',
+        };
+      }
+      
+      return {
+        success: false,
+        error: error.message || 'Failed to fetch Jira issue types'
+      };
+    }
+  }
 }
 
 export const ProjectManagementIntegrationService = new ProjectManagementIntegrationServiceClass();

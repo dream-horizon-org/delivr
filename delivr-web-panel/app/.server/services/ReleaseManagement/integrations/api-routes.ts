@@ -115,6 +115,13 @@ export const PROJECT_MANAGEMENT = {
      */
     getStatuses: (tenantId: string, integrationId: string, projectKey: string) =>
       `/api/v1/tenants/${tenantId}/integrations/project-management/${integrationId}/jira/metadata/statuses?projectKey=${projectKey}`,
+    
+    /**
+     * Get all Jira issue types for a project
+     * GET /api/v1/tenants/:tenantId/integrations/project-management/:integrationId/jira/metadata/issue-types?projectKey={projectKey}
+     */
+    getIssueTypes: (tenantId: string, integrationId: string, projectKey: string) =>
+      `/api/v1/tenants/${tenantId}/integrations/project-management/${integrationId}/jira/metadata/issue-types?projectKey=${projectKey}`,
   },
 } as const;
 

@@ -150,7 +150,7 @@ export function createDefaultPlatformConfigs(platforms: Platform[]): JiraPlatfor
     platform, // Use system platforms directly (ANDROID | IOS)
     parameters: {
       projectKey: '',
-      issueType: 'Task', // Default issue type (required)
+      issueType: '', // No default - user must select
       completedStatus: '', // No default - user must select
       priority: 'High', // Default priority
     },
