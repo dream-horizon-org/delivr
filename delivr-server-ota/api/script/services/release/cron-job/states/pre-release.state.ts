@@ -427,12 +427,13 @@ export class PreReleaseState implements ICronJobState {
         return;
       }
       
-      const existingNotifications = await notificationRepo.findByReleaseAndType(
+      const existingSystemNotifications = await notificationRepo.findWithFilters({
         releaseId,
-        NotificationType.PROJECT_MANAGEMENT_APPROVAL
-      );
+        notificationType: NotificationType.PROJECT_MANAGEMENT_APPROVAL,
+        isSystemGenerated: true
+      });
       
-      if (existingNotifications.length > 0) {
+      if (existingSystemNotifications.length > 0) {
         return;
       }
       
