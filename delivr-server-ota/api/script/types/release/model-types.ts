@@ -48,7 +48,6 @@ export interface ReleaseAttributes {
   version: string;
   
   // Multi-tenancy
-  tenantId: string;
   appId: string | null;
   
   // Release metadata

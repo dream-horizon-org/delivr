@@ -7,6 +7,7 @@ import type {
   CreateSlackIntegrationDto,
   UpdateSlackIntegrationDto,
   SlackIntegrationFilters,
+  AppCommunicationIntegration,
   TenantCommunicationIntegration,
   SafeSlackIntegration
 } from '~types/integrations/comm/comm-integration';
@@ -44,7 +45,7 @@ export class CommIntegrationRepository {
   private toPlainObject = (
     instance: InstanceType<CommIntegrationModelType>,
     includeToken: boolean = false
-  ): TenantCommunicationIntegration | SafeSlackIntegration => {
+  ): AppCommunicationIntegration | SafeSlackIntegration => {
     const json = instance.toJSON();
     
     // Decrypt token from backend storage if including token (handles both formats)
@@ -81,7 +82,7 @@ export class CommIntegrationRepository {
   findById = async (
     id: string,
     includeToken: boolean = false
-  ): Promise<TenantCommunicationIntegration | SafeSlackIntegration | null> => {
+  ): Promise<AppCommunicationIntegration | SafeSlackIntegration | null> => {
     const integration = await this.model.findByPk(id);
 
     if (!integration) {
@@ -97,8 +98,8 @@ export class CommIntegrationRepository {
   findAll = async (filters: SlackIntegrationFilters = {}): Promise<SafeSlackIntegration[]> => {
     const where: Record<string, unknown> = {};
 
-    if (filters.tenantId !== undefined) {
-      where.tenantId = filters.tenantId;
+    if (filters.appId !== undefined) {
+      where.appId = filters.appId;
     }
 
     if (filters.communicationType !== undefined) {
@@ -122,16 +123,16 @@ export class CommIntegrationRepository {
   };
 
   /**
-   * Find integration by tenant (most common query)
+   * Find integration by app (most common query)
    */
-  findByTenant = async (
-    tenantId: string,
+  findByApp = async (
+    appId: string,
     communicationType: CommunicationType = CommunicationType.SLACK,
     includeToken: boolean = false
-  ): Promise<TenantCommunicationIntegration | SafeSlackIntegration | null> => {
+  ): Promise<AppCommunicationIntegration | SafeSlackIntegration | null> => {
     const integration = await this.model.findOne({
       where: {
-        tenantId,
+        appId,
         communicationType
       },
       order: [['createdAt', 'DESC']]
@@ -145,14 +146,20 @@ export class CommIntegrationRepository {
   };
 
   /**
+   * @deprecated Use findByApp instead
+   * Kept for backward compatibility
+   */
+  findByTenant = this.findByApp;
+
+  /**
    * Find integration by workspace
    */
   findByWorkspace = async (
-    tenantId: string,
+    appId: string,
     workspaceId: string
   ): Promise<SafeSlackIntegration | null> => {
     const integration = await this.model.findOne({
-      where: { tenantId, slackWorkspaceId: workspaceId }
+      where: { appId, slackWorkspaceId: workspaceId }
     });
 
     if (!integration) {
@@ -219,8 +226,8 @@ export class CommIntegrationRepository {
   /**
    * Count integrations for a tenant
    */
-  count = async (tenantId: string, communicationType?: CommunicationType): Promise<number> => {
-    const where: Record<string, unknown> = { tenantId };
+  count = async (appId: string, communicationType?: CommunicationType): Promise<number> => {
+    const where: Record<string, unknown> = { appId };
     
     if (communicationType !== undefined) {
       where.communicationType = communicationType;

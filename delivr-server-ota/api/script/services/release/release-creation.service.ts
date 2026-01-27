@@ -111,7 +111,7 @@ export class ReleaseCreationService {
     let baseReleaseId = payload.baseReleaseId;
 
     if (payload.type === 'HOTFIX' && payload.baseReleaseId) {
-      const baseRelease = await this.releaseRepo.findByBaseReleaseId(payload.baseReleaseId, payload.tenantId);
+      const baseRelease = await this.releaseRepo.findByBaseReleaseId(payload.baseReleaseId, payload.appId);
       if (baseRelease) {
         baseBranch = baseRelease.branch || payload.baseBranch;
         baseReleaseId = baseRelease.id;
@@ -127,7 +127,7 @@ export class ReleaseCreationService {
       id,
       releaseId,
       releaseConfigId: payload.releaseConfigId || null,
-      tenantId: payload.tenantId,
+      appId: payload.appId,
       type: payload.type,
       status: 'IN_PROGRESS',
       branch: payload.branch || null,

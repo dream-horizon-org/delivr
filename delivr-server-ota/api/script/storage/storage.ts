@@ -72,7 +72,7 @@ export interface App {
   /*generated*/ createdTime: number;
   /*generated*/ id?: string;
   name: string;
-  tenantId?: string;
+  appId?: string;
   tenantName?: string;
 }
 
@@ -325,20 +325,20 @@ export class NameResolver {
 
   public static findByTentantId(item: App, appRequest: AppCreationRequest): boolean {
       if (!appRequest.organisation) {
-          return true; // No tenantId in request, so it's a personal app
+          return true; // No appId in request, so it's a personal app
       }
-      if (!item.tenantId) {
-          return false; // No tenantId in app, so it's a personal app
+      if (!item.appId) {
+          return false; // No appId in app, so it's a personal app
       }
-      // Check if the app's tenantId matches the requested organisation's tenantId
-      return item.tenantId === appRequest.organisation.orgId;
+      // Check if the app's appId matches the requested organisation's appId
+      return item.appId === appRequest.organisation.orgId;
   }
 
-  public static findAppByTenantId(apps: App[], tenantId: string, name: string): App {
+  public static findAppByTenantId(apps: App[], appId: string, name: string): App {
     if (!apps.length) return null;
 
     for (let i = 0; i < apps.length; i++) {
-      if (apps[i].tenantId === tenantId && apps[i].name === name) {
+      if (apps[i].appId === appId && apps[i].name === name) {
         return apps[i];
       }
     }
@@ -431,12 +431,12 @@ export class NameResolver {
       .catch(NameResolver.errorMessageOverride(ErrorCode.NotFound, `Access key "${name}" does not exist.`));
   }
 
-  public resolveApp(accountId: string, name: string, tenantId?: string, _permission?: string): Promise<App> {
+  public resolveApp(accountId: string, name: string, appId?: string, _permission?: string): Promise<App> {
     return this._storage
       .getApps(accountId)
       .then((apps: App[]): App => {
         //check this logic
-        const app: App = tenantId ? NameResolver.findAppByTenantId(apps, tenantId, name) : NameResolver.findByName(apps, name);
+        const app: App = appId ? NameResolver.findAppByTenantId(apps, appId, name) : NameResolver.findByName(apps, name);
         if (!app) throw storageError(ErrorCode.NotFound);
         return app;
       })

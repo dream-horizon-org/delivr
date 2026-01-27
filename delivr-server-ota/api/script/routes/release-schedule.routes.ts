@@ -37,8 +37,8 @@ export const createReleaseScheduleRoutes = (
   // ─────────────────────────────────────────────────────────────
   
   router.get(
-    '/tenants/:tenantId/release-schedules',
-    tenantPermissions.requireTenantMembership({ storage }),
+    '/apps/:appId/release-schedules',
+    tenantPermissions.requireAppMembership({ storage }),
     controller.listSchedulesByTenant
   );
 

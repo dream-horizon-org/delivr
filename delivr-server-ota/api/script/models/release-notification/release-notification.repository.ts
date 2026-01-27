@@ -24,7 +24,7 @@ export class ReleaseNotificationRepository {
    */
   async create(data: CreateReleaseNotificationDto): Promise<ReleaseNotification> {
     const notification = await this.model.create({
-      tenantId: data.tenantId,
+      appId: data.appId,
       releaseId: data.releaseId,
       notificationType: data.notificationType,
       isSystemGenerated: data.isSystemGenerated ?? true,
@@ -69,9 +69,9 @@ export class ReleaseNotificationRepository {
   /**
    * Find all notifications for a tenant
    */
-  async findByTenantId(tenantId: string): Promise<ReleaseNotification[]> {
+  async findByAppId(appId: string): Promise<ReleaseNotification[]> {
     const notifications = await this.model.findAll({
-      where: { tenantId },
+      where: { appId },
       order: [['createdAt', 'DESC']]
     });
     return notifications.map((n) => this.toPlainObject(n));
@@ -83,8 +83,8 @@ export class ReleaseNotificationRepository {
   async findWithFilters(filters: NotificationQueryFilters): Promise<ReleaseNotification[]> {
     const where: Record<string, unknown> = {};
 
-    if (filters.tenantId) {
-      where.tenantId = filters.tenantId;
+    if (filters.appId) {
+      where.appId = filters.appId;
     }
     if (filters.releaseId) {
       where.releaseId = filters.releaseId;

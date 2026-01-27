@@ -100,7 +100,7 @@ export function sanitizeTestManagementIntegration(integration: any): SanitizedIn
     id: integration.id,
     providerType: integration.providerType,
     name: integration.name,
-    tenantId: integration.tenantId,
+    appId: integration.appId,
     createdAt: integration.createdAt,
     updatedAt: integration.updatedAt,
     // Note: config (including authToken) is intentionally excluded (never sent to client)
@@ -298,7 +298,7 @@ export async function transformTestManagementIntegrationsForConfig(
         config: {
           name: i.name,
           providerType: i.providerType,
-          tenantId: i.tenantId,
+          appId: i.appId,
           baseUrl: i.config?.baseUrl,
           orgId: i.config?.orgId,
           // Don't expose sensitive config data (like authToken)

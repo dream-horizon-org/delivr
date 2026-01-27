@@ -8,7 +8,7 @@ import { NotificationType, NOTIFICATION_TYPES } from '~types/release-notificatio
 
 export type ReleaseNotificationAttributes = {
   id: number;
-  tenantId: string;
+  appId: string;
   releaseId: string;
   notificationType: NotificationType;
   isSystemGenerated: boolean;
@@ -34,10 +34,10 @@ export const createReleaseNotificationModel = (
         autoIncrement: true,
         allowNull: false
       },
-      tenantId: {
+      appId: {
         type: DataTypes.UUID,
         allowNull: false,
-        field: 'tenantId',
+        field: 'appId',
         references: {
           model: 'apps',  // Changed from 'tenants' to 'apps'
           key: 'id'
@@ -111,7 +111,7 @@ export const createReleaseNotificationModel = (
         },
         {
           name: 'idx_notifications_tenant',
-          fields: ['tenantId']
+          fields: ['appId']
         },
         {
           name: 'idx_notifications_created',

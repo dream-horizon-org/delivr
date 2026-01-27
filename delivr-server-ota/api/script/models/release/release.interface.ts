@@ -196,7 +196,7 @@ export interface Release {
   id: string;
   releaseId: string; // User-facing release ID (e.g., "REL-001")
   releaseConfigId: string | null;
-  tenantId: string;
+  appId: string;
   status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
   type: 'MINOR' | 'HOTFIX' | 'MAJOR';
   branch: string | null;
@@ -222,7 +222,7 @@ export interface CreateReleaseDto {
   id: string;
   releaseId: string;
   releaseConfigId: string | null;
-  tenantId: string;
+  appId: string;
   status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
   type: 'MINOR' | 'HOTFIX' | 'MAJOR';
   branch: string | null;

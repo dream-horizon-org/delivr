@@ -30,7 +30,7 @@ import {
 
 /**
  * Handler: Verify Slack Bot Token
- * POST /tenants/:tenantId/integrations/slack/verify
+ * POST /apps/:appId/integrations/slack/verify
  */
 const verifyTokenHandler = (service: CommIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -71,7 +71,7 @@ const verifyTokenHandler = (service: CommIntegrationService) =>
 
 /**
  * Handler: Fetch Slack Channels
- * POST /tenants/:tenantId/integrations/slack/channels
+ * POST /apps/:appId/integrations/slack/channels
  */
 const fetchChannelsHandler = (service: CommIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -109,14 +109,14 @@ const fetchChannelsHandler = (service: CommIntegrationService) =>
 
 /**
  * Handler: Fetch Slack Channels by Integration ID
- * GET /tenants/:tenantId/integrations/slack/:integrationId/channels
+ * GET /apps/:appId/integrations/slack/:integrationId/channels
  * 
  * Fetches channels using stored token from the integration
  */
 const fetchChannelsByIntegrationIdHandler = (service: CommIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId, integrationId } = req.params;
+      const { appId, integrationId } = req.params;
 
       if (!integrationId) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -136,7 +136,7 @@ const fetchChannelsByIntegrationIdHandler = (service: CommIntegrationService) =>
       }
 
       // Validate that integration belongs to the tenant
-      if (integration.tenantId !== tenantId) {
+      if (integration.appId !== appId) {
         res.status(HTTP_STATUS.FORBIDDEN).json(
           errorResponse(new Error('Integration does not belong to this tenant'), 'Access denied')
         );
@@ -184,12 +184,12 @@ type AuthenticatedRequest = Request & {
 
 /**
  * Handler: Create or Update Slack Integration
- * POST /tenants/:tenantId/integrations/slack
+ * POST /apps/:appId/integrations/slack
  */
 const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const { tenantId } = req.params;
+      const { appId } = req.params;
       const { botToken, botUserId, workspaceId, workspaceName, _encrypted } = req.body;
       
       // IMPORTANT: Decrypt FIRST for validation, but store encrypted value
@@ -234,7 +234,7 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
       const backendEncryptedBotToken = encryptForStorage(decryptedData.botToken);
       
       const data: CreateOrUpdateIntegrationDto = {
-        tenantId,
+        appId,
         data: {
           botToken: backendEncryptedBotToken, // Backend-encrypted value
           botUserId,
@@ -244,7 +244,7 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
       };
 
       // Check if integration exists
-      const existing = await service.getIntegrationByTenant(tenantId);
+      const existing = await service.getIntegrationByTenant(appId);
       
       let result;
       let isNew = false;
@@ -257,11 +257,11 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
           slackWorkspaceId: workspaceId,
           slackWorkspaceName: workspaceName
         };
-        result = await service.updateIntegrationByTenant(tenantId, updateData);
+        result = await service.updateIntegrationByTenant(appId, updateData);
         isNew = false;
       } else {
         // Create new - store backend-encrypted value
-        result = await service.createIntegration(tenantId, 'SLACK' as any, {
+        result = await service.createIntegration(appId, 'SLACK' as any, {
           botToken: backendEncryptedBotToken, // Backend-encrypted value
           botUserId,
           workspaceId,
@@ -287,14 +287,14 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
 
 /**
  * Handler: Get Slack Integration by Tenant
- * GET /tenants/:tenantId/integrations/slack
+ * GET /apps/:appId/integrations/slack
  */
 const getIntegrationHandler = (service: CommIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId } = req.params;
+      const { appId } = req.params;
 
-      const integration = await service.getIntegrationByTenant(tenantId);
+      const integration = await service.getIntegrationByTenant(appId);
 
       if (!integration) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
@@ -314,13 +314,13 @@ const getIntegrationHandler = (service: CommIntegrationService) =>
 
 /**
  * Handler: List Integrations (all for tenant)
- * GET /comm/tenants/:tenantId/integrations
+ * GET /comm/apps/:appId/integrations
  */
 const listIntegrationsHandler = (service: CommIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId } = req.params;
-      const integrations = await service.listIntegrations(tenantId);
+      const { appId } = req.params;
+      const integrations = await service.listIntegrations(appId);
       res.status(HTTP_STATUS.OK).json(successResponse(integrations));
     } catch (error) {
       const statusCode = getErrorStatusCode(error);
@@ -418,12 +418,12 @@ const verifyIntegrationHandler = (service: CommIntegrationService) =>
 
 /**
  * Handler: Update Slack Integration
- * PATCH /tenants/:tenantId/integrations/slack
+ * PATCH /apps/:appId/integrations/slack
  */
 const updateIntegrationHandler = (service: CommIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId } = req.params;
+      const { appId } = req.params;
       const { botToken, botUserId, workspaceId, workspaceName, _encrypted } = req.body;
 
       // IMPORTANT: Decrypt FIRST for validation if token is encrypted
@@ -482,7 +482,7 @@ const updateIntegrationHandler = (service: CommIntegrationService) =>
       if (workspaceId) updateData.slackWorkspaceId = workspaceId;
       if (workspaceName) updateData.slackWorkspaceName = workspaceName;
 
-      const updated = await service.updateIntegrationByTenant(tenantId, updateData);
+      const updated = await service.updateIntegrationByTenant(appId, updateData);
 
       res.status(HTTP_STATUS.OK).json(
         successResponse(updated, COMM_INTEGRATION_SUCCESS_MESSAGES.INTEGRATION_UPDATED)
@@ -497,14 +497,14 @@ const updateIntegrationHandler = (service: CommIntegrationService) =>
 
 /**
  * Handler: Delete Slack Integration
- * DELETE /tenants/:tenantId/integrations/slack
+ * DELETE /apps/:appId/integrations/slack
  */
 const deleteIntegrationHandler = (service: CommIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId } = req.params;
+      const { appId } = req.params;
 
-      await service.deleteIntegrationByTenant(tenantId);
+      await service.deleteIntegrationByTenant(appId);
 
       res.status(HTTP_STATUS.OK).json(
         successMessageResponse(COMM_INTEGRATION_SUCCESS_MESSAGES.INTEGRATION_DELETED)
@@ -545,7 +545,7 @@ export const createCommIntegrationController = (service: CommIntegrationService)
   fetchChannels: fetchChannelsHandler(service),
   fetchChannelsByIntegrationId: fetchChannelsByIntegrationIdHandler(service),
   createIntegration: createOrUpdateIntegrationHandler(service),
-  getIntegration: getIntegrationHandler(service),  // Uses tenantId
+  getIntegration: getIntegrationHandler(service),  // Uses appId
   updateIntegration: updateIntegrationHandler(service),
   deleteIntegration: deleteIntegrationHandler(service)
 });

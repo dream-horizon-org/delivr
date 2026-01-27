@@ -4,7 +4,7 @@ import * as validateCICD from "../../../../middleware/validate-cicd";
 import * as tenantPermissions from "../../../../middleware/tenant-permissions";
 import {
   createConfig,
-  listConfigsByTenant,
+  listConfigsByApp,
   getConfigById,
   updateConfigById,
   deleteConfigById,
@@ -15,29 +15,29 @@ export const createCICDConfigRoutes = (storage: Storage): Router => {
   const router = Router();
 
   router.post(
-    "/tenants/:tenantId/integrations/ci-cd/configs",
+    "/apps/:appId/integrations/ci-cd/configs",
     validateCICD.validateTenantId,
     tenantPermissions.requireOwner({ storage }),
     createConfig
   );
 
   router.get(
-    "/tenants/:tenantId/integrations/ci-cd/configs",
+    "/apps/:appId/integrations/ci-cd/configs",
     validateCICD.validateTenantId,
-    tenantPermissions.requireTenantMembership({ storage }),
-    listConfigsByTenant
+    tenantPermissions.requireAppMembership({ storage }),
+    listConfigsByApp
   );
 
   router.get(
-    "/tenants/:tenantId/integrations/ci-cd/configs/:configId",
+    "/apps/:appId/integrations/ci-cd/configs/:configId",
     validateCICD.validateTenantId,
     validateCICD.validateConfigIdParam,
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     getConfigById
   );
 
   router.patch(
-    "/tenants/:tenantId/integrations/ci-cd/configs/:configId",
+    "/apps/:appId/integrations/ci-cd/configs/:configId",
     validateCICD.validateTenantId,
     validateCICD.validateConfigIdParam,
     tenantPermissions.requireEditor({ storage }),
@@ -45,7 +45,7 @@ export const createCICDConfigRoutes = (storage: Storage): Router => {
   );
 
   router.delete(
-    "/tenants/:tenantId/integrations/ci-cd/configs/:configId",
+    "/apps/:appId/integrations/ci-cd/configs/:configId",
     validateCICD.validateTenantId,
     validateCICD.validateConfigIdParam,
     tenantPermissions.requireEditor({ storage }),

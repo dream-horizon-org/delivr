@@ -56,7 +56,7 @@ const createConfigHandler = (service: ReleaseConfigService) =>
       const rawRequestBody: CreateReleaseConfigRequest = req.body;
       // Normalize releaseSchedule.releaseFrequency to uppercase
       const requestBody = normalizeReleaseSchedule(rawRequestBody);
-      const { tenantId } = req.params;
+      const { appId } = req.params;
       const currentUserId = req.user?.id || 'default-user';
       console.log('createConfigHandler requestBody:', requestBody);
 
@@ -114,8 +114,8 @@ const createConfigHandler = (service: ReleaseConfigService) =>
       // STEP 1: Create release config with integration orchestration
       // ========================================================================
 
-      // Override body's tenantId with URL param (security: prevent tenant spoofing)
-      const requestWithTenant = { ...requestBody, tenantId };
+      // Override body's appId with URL param (security: prevent tenant spoofing)
+      const requestWithTenant = { ...requestBody, appId };
       const result = await service.createConfig(requestWithTenant, currentUserId);
       
       if (!result.success) {
@@ -123,7 +123,7 @@ const createConfigHandler = (service: ReleaseConfigService) =>
         
         // Log full error details for debugging
         console.error('[createConfigHandler] Error response:', JSON.stringify({
-          tenantId,
+          appId,
           errorType: errorResult.error.type,
           errorMessage: errorResult.error.message,
           errorCode: errorResult.error.code,
@@ -180,23 +180,23 @@ const getConfigByIdHandler = (service: ReleaseConfigService) =>
   };
 
 /**
- * Handler: List configs by tenant (verbose format)
+ * Handler: List configs by app (verbose format)
  */
-const listConfigsByTenantHandler = (service: ReleaseConfigService) =>
+const listConfigsByAppHandler = (service: ReleaseConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId } = req.params;
+      const { appId } = req.params;
       const includeArchived = req.query.includeArchived === 'true';
 
-      if (!tenantId) {
+      if (!appId) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('tenantId', 'tenantId parameter is required')
+          validationErrorResponse('appId', 'appId parameter is required')
         );
         return;
       }
 
       // Return verbose format to match other endpoints
-      const verboseConfigs = await service.listConfigsByTenantVerbose(tenantId, includeArchived);
+      const verboseConfigs = await service.listConfigsByAppVerbose(appId, includeArchived);
 
       res.status(HTTP_STATUS.OK).json(successResponse(verboseConfigs));
     } catch (error) {
@@ -208,14 +208,20 @@ const listConfigsByTenantHandler = (service: ReleaseConfigService) =>
   };
 
 /**
+ * @deprecated Use listConfigsByAppHandler instead
+ * Kept for backward compatibility
+ */
+const listConfigsByTenantHandler = listConfigsByAppHandler;
+
+/**
  * Handler: Update config
  */
 const updateConfigHandler = (service: ReleaseConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { configId } = req.params;
-      // Strip tenantId from update data - configs cannot change tenant (defense in depth)
-      const { tenantId: _ignoredTenantId, ...rawUpdateData } = req.body;
+      // Strip appId from update data - configs cannot change tenant (defense in depth)
+      const { appId: _ignoredTenantId, ...rawUpdateData } = req.body;
       // Normalize releaseSchedule.releaseFrequency to uppercase
       const updateData = normalizeReleaseSchedule(rawUpdateData);
       const currentUserId = req.user?.id;
@@ -343,6 +349,11 @@ export const createReleaseConfigController = (
 ) => ({
   createConfig: createConfigHandler(service),
   getConfigById: getConfigByIdHandler(service),
+  listConfigsByApp: listConfigsByAppHandler(service),
+  /**
+   * @deprecated Use listConfigsByApp instead
+   * Kept for backward compatibility
+   */
   listConfigsByTenant: listConfigsByTenantHandler(service),
   updateConfig: updateConfigHandler(service),
   deleteConfig: deleteConfigHandler(service),

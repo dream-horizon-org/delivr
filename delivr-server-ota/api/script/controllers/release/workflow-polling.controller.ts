@@ -41,7 +41,7 @@ type ValidationFailure = {
 type ValidationSuccess = {
   readonly valid: true;
   readonly releaseId: string;
-  readonly tenantId: string;
+  readonly appId: string;
 };
 
 /** Discriminated union - valid determines which fields are present */
@@ -58,7 +58,7 @@ const validateRequestBody = (body: unknown): ValidationResult => {
     return { valid: false, error: 'Request body must be an object' };
   }
 
-  const { releaseId, tenantId } = body as Record<string, unknown>;
+  const { releaseId, appId } = body as Record<string, unknown>;
 
   const releaseIdMissing = !releaseId;
   if (releaseIdMissing) {
@@ -70,21 +70,21 @@ const validateRequestBody = (body: unknown): ValidationResult => {
     return { valid: false, error: 'releaseId must be a string' };
   }
 
-  const tenantIdMissing = !tenantId;
+  const tenantIdMissing = !appId;
   if (tenantIdMissing) {
-    return { valid: false, error: WORKFLOW_POLLING_ERROR_MESSAGES.TENANT_ID_REQUIRED };
+    return { valid: false, error: WORKFLOW_POLLING_ERROR_MESSAGES.APP_ID_REQUIRED };
   }
 
-  const tenantIdNotString = typeof tenantId !== 'string';
+  const tenantIdNotString = typeof appId !== 'string';
   if (tenantIdNotString) {
-    return { valid: false, error: 'tenantId must be a string' };
+    return { valid: false, error: 'appId must be a string' };
   }
 
-  // TypeScript knows releaseId and tenantId are strings here
+  // TypeScript knows releaseId and appId are strings here
   return {
     valid: true,
     releaseId,
-    tenantId
+    appId
   };
 };
 
@@ -110,7 +110,7 @@ const createPollPendingHandler = (service: WorkflowPollingService) =>
       }
 
       // TypeScript knows validation is ValidationSuccess here
-      const result = await service.pollPendingWorkflows(validation.releaseId, validation.tenantId);
+      const result = await service.pollPendingWorkflows(validation.releaseId, validation.appId);
 
       return res.status(HTTP_STATUS.OK).json({
         success: true,
@@ -146,7 +146,7 @@ const createPollRunningHandler = (service: WorkflowPollingService) =>
       }
 
       // TypeScript knows validation is ValidationSuccess here
-      const result = await service.pollRunningWorkflows(validation.releaseId, validation.tenantId);
+      const result = await service.pollRunningWorkflows(validation.releaseId, validation.appId);
 
       return res.status(HTTP_STATUS.OK).json({
         success: true,

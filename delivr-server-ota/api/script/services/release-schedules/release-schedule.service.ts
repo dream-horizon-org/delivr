@@ -23,7 +23,6 @@ import type {
 import type { CreateReleaseResult, Platform, Target } from '~types/release';
 import {
   buildScheduledReleasePayload,
-  isFirstScheduledRelease,
   subtractWorkingDays,
   parseISODate,
   toDateString,
@@ -123,8 +122,8 @@ export class ReleaseScheduleService {
   /**
    * Get schedules by tenant
    */
-  getByTenantId = async (tenantId: string): Promise<ReleaseScheduleRecord[]> => {
-    return this.scheduleRepository.findByTenantId(tenantId);
+  getByTenantId = async (appId: string): Promise<ReleaseScheduleRecord[]> => {
+    return this.scheduleRepository.findByAppId(appId);
   };
 
   /**
@@ -134,14 +133,14 @@ export class ReleaseScheduleService {
    * @param releaseConfigId - The config this schedule belongs to (required)
    * @param releaseConfigName - For Cronicle job title
    * @param scheduleData - Schedule configuration data
-   * @param tenantId - Tenant ID (denormalized for queries)
+   * @param appId - app id (denormalized for queries)
    * @param createdByAccountId - User who created this schedule
    */
   create = async (
     releaseConfigId: string,
     releaseConfigName: string,
     scheduleData: ReleaseSchedule,
-    tenantId: string,
+    appId: string,
     createdByAccountId: string
   ): Promise<ReleaseScheduleRecord> => {
     // Generate ID for the schedule
@@ -161,7 +160,7 @@ export class ReleaseScheduleService {
     const createDto: CreateReleaseScheduleDto & { id: string } = {
       id: scheduleId,
       releaseConfigId,
-      tenantId,
+      appId,
       releaseFrequency: scheduleData.releaseFrequency,
       firstReleaseKickoffDate: scheduleData.firstReleaseKickoffDate,
       initialVersions: scheduleData.initialVersions,
@@ -464,7 +463,7 @@ export class ReleaseScheduleService {
           platform: iv.platform,
           target: iv.target,
           version: await this.releaseVersionService!.getLatestVersion(
-            config.tenantId,
+            config.appId,
             iv.platform as Platform,
             iv.target as Target
           )

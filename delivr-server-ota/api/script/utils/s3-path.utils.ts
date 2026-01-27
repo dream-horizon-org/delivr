@@ -2,7 +2,7 @@
  * S3 path utilities for standardized artifact storage paths
  */
 type BuildS3PathParams = {
-  tenantId: string;
+  appId: string;
   releaseId: string;
   platform: string;
   artifactVersionName: string;
@@ -43,16 +43,16 @@ export const parseS3Uri = (uri: string): { bucket: string; key: string } => {
 /**
  * Build S3 key for a build artifact WITHOUT version code in the path.
  * Example:
- * {tenantId}/{releaseId}/{platform}/{artifactVersionName}/{filename}
+ * {appId}/{releaseId}/{platform}/{artifactVersionName}/{filename}
  * Where filename typically is "{buildId}.{ext}"
  */
 export const buildArtifactS3Key = (
   params: Omit<BuildS3PathParams, 'buildId'>,
   fileName: string
 ): string => {
-  const { tenantId, releaseId, platform, artifactVersionName } = params;
+  const { appId, releaseId, platform, artifactVersionName } = params;
 
-  const cleanedTenantId = String(tenantId).trim();
+  const cleanedTenantId = String(appId).trim();
   const cleanedReleaseId = String(releaseId).trim();
   const cleanedPlatform = String(platform).trim();
   const cleanedVersionName = String(artifactVersionName).trim();

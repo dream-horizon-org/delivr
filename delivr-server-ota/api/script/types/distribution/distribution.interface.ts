@@ -5,7 +5,7 @@ import type { DistributionStatus, DistributionPlatform, DistributionStoreType } 
  */
 export type Distribution = {
   id: string;
-  tenantId: string;
+  appId: string;
   releaseId: string;
   branch: string;
   configuredListOfPlatforms: DistributionPlatform[];
@@ -21,7 +21,7 @@ export type Distribution = {
  */
 export type CreateDistributionDto = {
   id: string;
-  tenantId: string;
+  appId: string;
   releaseId: string;
   branch: string;
   configuredListOfPlatforms: DistributionPlatform[];
@@ -43,7 +43,7 @@ export type UpdateDistributionDto = {
  * Filters for querying distributions
  */
 export type DistributionFilters = {
-  tenantId?: string;
+  appId?: string;
   releaseId?: string;
   branch?: string;
   status?: DistributionStatus;

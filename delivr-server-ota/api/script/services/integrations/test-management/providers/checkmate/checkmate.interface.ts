@@ -18,7 +18,7 @@ export type CheckmateConfig = TenantTestManagementIntegrationConfig & {
  * Checkmate API request/response types
  */
 export type CheckmateCreateRunRequest = {
-  projectId: number;  // Checkmate's project ID (not Delivr's tenantId)
+  projectId: number;  // Checkmate's project ID (not Delivr's appId)
   runName: string;
   runDescription?: string;
   sectionIds?: number[];

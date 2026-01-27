@@ -61,8 +61,8 @@ const seedData = {
     { id: "tenant_2", displayName: "Organization Two", createdBy: "id_1" },
   ],
   apps: [
-    { id: "id_2", name: "App One", accountId: "id_0", tenantId: "tenant_1", createdTime: new Date().getTime() },
-    { id: "id_3", name: "App Two", accountId: "id_1", tenantId: "tenant_2", createdTime: new Date().getTime() },
+    { id: "id_2", name: "App One", accountId: "id_0", appId: "tenant_1", createdTime: new Date().getTime() },
+    { id: "id_3", name: "App Two", accountId: "id_1", appId: "tenant_2", createdTime: new Date().getTime() },
     { id: "id_4", name: "Independent App", accountId: "id_0", createdTime: new Date().getTime() }, // App without a tenant association
   ],
   collaborators: [

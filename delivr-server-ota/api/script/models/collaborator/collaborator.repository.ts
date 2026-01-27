@@ -1,7 +1,7 @@
 /**
  * Collaborator Repository
  * Data access layer for collaborators (app-level access)
- * Updated: Uses appId instead of tenantId
+ * Updated: Uses appId instead of appId
  */
 
 import type { Sequelize } from 'sequelize';

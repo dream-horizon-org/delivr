@@ -28,8 +28,8 @@ export class GitHubProvider implements SCMIntegration {
     this.scmController = storage.scmController;
   }
 
-  async checkBranchExists(tenantId: string, branch: string): Promise<boolean> {
-    const { client, owner, repo } = await this.getClientAndRepo(tenantId);
+  async checkBranchExists(appId: string, branch: string): Promise<boolean> {
+    const { client, owner, repo } = await this.getClientAndRepo(appId);
     try {
       await client.rest.repos.getBranch({ owner, repo, branch });
       return true;
@@ -39,21 +39,21 @@ export class GitHubProvider implements SCMIntegration {
     }
   }
 
-  async forkOutBranch(tenantId: string, releaseBranch: string, baseBranch: string): Promise<void> {
-    const { client, owner, repo } = await this.getClientAndRepo(tenantId);
+  async forkOutBranch(appId: string, releaseBranch: string, baseBranch: string): Promise<void> {
+    const { client, owner, repo } = await this.getClientAndRepo(appId);
     const baseRef = await client.rest.git.getRef({ owner, repo, ref: `heads/${baseBranch}` });
     const baseSha = baseRef.data.object.sha;
     await client.rest.git.createRef({ owner, repo, ref: `refs/heads/${releaseBranch}`, sha: baseSha });
   }
 
   async createReleaseTag(
-    tenantId: string,
+    appId: string,
     releaseBranch: string,
     tagName?: string,
     targets?: string[],
     version?: string
   ): Promise<string> {
-    const { client, owner, repo } = await this.getClientAndRepo(tenantId);
+    const { client, owner, repo } = await this.getClientAndRepo(appId);
     const hasExplicitTag = typeof tagName === 'string' && tagName.length > 0;
     const finalTagName = hasExplicitTag ? (tagName as string) : generateTagNameFromTargetsAndVersion(targets, version);
 
@@ -80,14 +80,14 @@ export class GitHubProvider implements SCMIntegration {
   }
 
   async createReleaseNotes(
-    tenantId: string,
+    appId: string,
     currentTag: string,
     previousTag?: string | null,
     baseVersion?: string,
     parentTargets?: string[],
     _releaseId?: string
   ): Promise<string> {
-    const { client, owner, repo } = await this.getClientAndRepo(tenantId);
+    const { client, owner, repo } = await this.getClientAndRepo(appId);
     const hasExplicitPrevious = typeof previousTag === 'string' && previousTag.length > 0;
     let prev = hasExplicitPrevious ? (previousTag as string) : tryGenerateTagFromTargets(parentTargets, baseVersion);
     if (!prev) {
@@ -98,12 +98,12 @@ export class GitHubProvider implements SCMIntegration {
   }
 
   async createFinalReleaseNotes(
-    tenantId: string,
+    appId: string,
     currentTag: string,
     previousTag?: string | null,
     releaseDate?: Date
   ): Promise<string> {
-    const { client, owner, repo } = await this.getClientAndRepo(tenantId);
+    const { client, owner, repo } = await this.getClientAndRepo(appId);
     const notes = await generateReleaseNotes(client, owner, repo, currentTag, previousTag ?? currentTag);
     const dateStr = (releaseDate ?? new Date()).toISOString().split('T')[0];
     const body = `## Release Date: \n${dateStr}\n\n## What's Changed\n${notes}`;
@@ -111,8 +111,8 @@ export class GitHubProvider implements SCMIntegration {
     return data.html_url;
   }
 
-  async getCommitsDiff(tenantId: string, branch: string, tag: string, _releaseId?: string): Promise<number> {
-    const { client, owner, repo } = await this.getClientAndRepo(tenantId);
+  async getCommitsDiff(appId: string, branch: string, tag: string, _releaseId?: string): Promise<number> {
+    const { client, owner, repo } = await this.getClientAndRepo(appId);
     const { data } = await client.rest.repos.compareCommits({ owner, repo, base: tag, head: branch });
     return data.total_commits;
   }
@@ -120,14 +120,14 @@ export class GitHubProvider implements SCMIntegration {
   /**
    * Check if cherry picks are available (branch diverged from tag)
    * 
-   * @param tenantId - Tenant ID (to fetch tenant-specific SCM config)
+   * @param appId - app id (to fetch tenant-specific SCM config)
    * @param branch - Branch name to check
    * @param tag - Tag name to compare against
    * @returns true if branch HEAD !== tag commit (cherry picks exist), false otherwise
    */
-  async checkCherryPickStatus(tenantId: string, branch: string, tag: string): Promise<boolean> {
+  async checkCherryPickStatus(appId: string, branch: string, tag: string): Promise<boolean> {
     // Get tenant-specific client, owner, and repo
-    const { client, owner, repo } = await this.getClientAndRepo(tenantId);
+    const { client, owner, repo } = await this.getClientAndRepo(appId);
     const branchResp = await client.rest.repos.getBranch({ owner, repo, branch });
     const branchHeadSha = branchResp.data?.commit?.sha ?? '';
     
@@ -145,15 +145,15 @@ export class GitHubProvider implements SCMIntegration {
   /**
    * Get the URL for a branch in the repository
    * 
-   * @param tenantId - Tenant ID to fetch integration config
+   * @param appId - app id to fetch integration config
    * @param branch - Branch name (e.g., 'release/v1.0.0')
    * @returns Full URL to the branch (e.g., 'https://github.com/owner/repo/tree/release/v1.0.0')
    */
-  async getBranchUrl(tenantId: string, branch: string): Promise<string> {
+  async getBranchUrl(appId: string, branch: string): Promise<string> {
     // Validate branch name
     this.validateBranchOrTagName(branch);
     
-    const { owner, repo } = await this.getClientAndRepo(tenantId);
+    const { owner, repo } = await this.getClientAndRepo(appId);
     
     // Encode each path segment separately (preserves slashes)
     const encodedBranch = branch
@@ -167,15 +167,15 @@ export class GitHubProvider implements SCMIntegration {
   /**
    * Get the URL for a tag in the repository
    * 
-   * @param tenantId - Tenant ID to fetch integration config
+   * @param appId - app id to fetch integration config
    * @param tag - Tag name (e.g., 'v1.0.0_rc_1')
    * @returns Full URL to the tag (e.g., 'https://github.com/owner/repo/releases/tag/v1.0.0_rc_1')
    */
-  async getTagUrl(tenantId: string, tag: string): Promise<string> {
+  async getTagUrl(appId: string, tag: string): Promise<string> {
     // Validate tag name
     this.validateBranchOrTagName(tag);
     
-    const { owner, repo } = await this.getClientAndRepo(tenantId);
+    const { owner, repo } = await this.getClientAndRepo(appId);
     
     // Tags don't have slashes, encode directly
     const encodedTag = encodeURIComponent(tag);
@@ -184,9 +184,9 @@ export class GitHubProvider implements SCMIntegration {
   }
 
   private getClientAndRepo = async (
-    tenantId: string
+    appId: string
   ): Promise<{ client: OctokitClient; owner: string; repo: string }> => {
-    const integration = await this.scmController.findActiveByTenantWithTokens(tenantId);
+    const integration = await this.scmController.findActiveByTenantWithTokens(appId);
     if (!integration) {
       throw new Error(SCM_ERROR_MESSAGES.ACTIVE_INTEGRATION_NOT_FOUND);
     }

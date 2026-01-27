@@ -14,7 +14,7 @@ export const createGitHubConnectionRoutes = (storage: Storage): Router => {
 
   // Verify GitHub connection
   router.post(
-    "/tenants/:tenantId/integrations/scm/github/verify",
+    "/apps/:appId/integrations/scm/github/verify",
     validateSCM.validateTenantId,
     tenantPermissions.requireOwner({ storage }),
     validateSCM.validateGitHubVerifyBody,
@@ -23,7 +23,7 @@ export const createGitHubConnectionRoutes = (storage: Storage): Router => {
 
   // Create GitHub connection
   router.post(
-    "/tenants/:tenantId/integrations/scm/github",
+    "/apps/:appId/integrations/scm/github",
     validateSCM.validateTenantId,
     tenantPermissions.requireOwner({ storage }),
     validateSCM.validateCreateGitHubBody,
@@ -32,15 +32,15 @@ export const createGitHubConnectionRoutes = (storage: Storage): Router => {
 
   // Get GitHub connection
   router.get(
-    "/tenants/:tenantId/integrations/scm/github",
+    "/apps/:appId/integrations/scm/github",
     validateSCM.validateTenantId,
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     githubConn.getGitHubConnection
   );
 
   // Update GitHub connection
   router.patch(
-    "/tenants/:tenantId/integrations/scm/github",
+    "/apps/:appId/integrations/scm/github",
     validateSCM.validateTenantId,
     tenantPermissions.requireOwner({ storage }),
     githubConn.updateGitHubConnection
@@ -48,7 +48,7 @@ export const createGitHubConnectionRoutes = (storage: Storage): Router => {
 
   // Delete GitHub connection
   router.delete(
-    "/tenants/:tenantId/integrations/scm/github",
+    "/apps/:appId/integrations/scm/github",
     validateSCM.validateTenantId,
     tenantPermissions.requireOwner({ storage }),
     githubConn.deleteGitHubConnection
@@ -56,9 +56,9 @@ export const createGitHubConnectionRoutes = (storage: Storage): Router => {
 
   // Fetch branches
   router.get(
-    "/tenants/:tenantId/integrations/scm/github/branches",
+    "/apps/:appId/integrations/scm/github/branches",
     validateSCM.validateTenantId,
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     githubConn.fetchGitHubBranches
   );
 

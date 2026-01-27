@@ -8,12 +8,12 @@ export interface SCMIntegration {
   /**
    * Check if a branch exists in the repository
    * 
-   * @param tenantId - Tenant ID to fetch integration config
+   * @param appId - app id to fetch integration config
    * @param branch - Branch name to check
    * @returns true if branch exists, false otherwise
    */
   checkBranchExists(
-    tenantId: string,
+    appId: string,
     branch: string
   ): Promise<boolean>;
 
@@ -21,12 +21,12 @@ export interface SCMIntegration {
    * Fork out a new branch from a base branch
    * Creates a new branch for the release
    * 
-   * @param tenantId - Tenant ID to fetch integration config
+   * @param appId - app id to fetch integration config
    * @param releaseBranch - Name of the new branch to create
    * @param baseBranch - Base branch to fork from
    */
   forkOutBranch(
-    tenantId: string,
+    appId: string,
     releaseBranch: string,
     baseBranch: string
   ): Promise<void>;
@@ -46,7 +46,7 @@ export interface SCMIntegration {
    * 
    * NOTE: Orchestration layer stores tag name in release.stageData (integration just returns it)
    * 
-   * @param tenantId - Tenant ID to fetch integration config
+   * @param appId - app id to fetch integration config
    * @param releaseBranch - Branch to tag (e.g., 'release/v1.0.0')
    * @param tagName - Optional explicit tag name (for RC tags: "v1.0.0_rc_0")
    * @param targets - Optional array of target names (for final tags: ['WEB', 'PLAY_STORE', 'APP_STORE'])
@@ -54,7 +54,7 @@ export interface SCMIntegration {
    * @returns Created tag name
    */
   createReleaseTag(
-    tenantId: string,
+    appId: string,
     releaseBranch: string,
     tagName?: string,
     targets?: string[],
@@ -73,7 +73,7 @@ export interface SCMIntegration {
    * - Extracts PR info or commit messages
    * - Formats release notes content
    * 
-   * @param tenantId - Tenant ID to fetch integration config
+   * @param appId - app id to fetch integration config
    * @param currentTag - Current release tag
    * @param previousTag - Optional previous release tag (from parent.releaseTag)
    *                      If null, integration will determine it using baseVersion + parentTargets or find latest tag
@@ -86,7 +86,7 @@ export interface SCMIntegration {
    * @returns Formatted release notes content as string
    */
   createReleaseNotes(
-    tenantId: string,
+    appId: string,
     currentTag: string,
     previousTag?: string | null,
     baseVersion?: string,
@@ -97,14 +97,14 @@ export interface SCMIntegration {
   /**
    * Create final release notes
    * 
-   * @param tenantId - Tenant ID to fetch integration config
+   * @param appId - app id to fetch integration config
    * @param currentTag - Current release tag
    * @param previousTag - Optional previous release tag (from parent.releaseTag)
    * @param releaseDate - Release date
    * @returns Formatted release notes content as string
    */
   createFinalReleaseNotes(
-    tenantId: string,
+    appId: string,
     currentTag: string,
     previousTag?: string | null,
     releaseDate?: Date,
@@ -114,14 +114,14 @@ export interface SCMIntegration {
    * Get commit diff between branch and tag
    * Used for checking cherry picks (new commits in release branch)
    * 
-   * @param tenantId - Tenant ID to fetch integration config
+   * @param appId - app id to fetch integration config
    * @param branch - Release branch name (e.g., 'release/v1.0.0')
    * @param tag - Previous release tag (e.g., "v1.0.0_rc_2")
    * @param releaseId - Optional release ID for logging/debugging (not required for GitHub operation)
    * @returns Number of commits between branch and tag
    */
   getCommitsDiff(
-    tenantId: string,
+    appId: string,
     branch: string,
     tag: string,
     releaseId?: string
@@ -136,7 +136,7 @@ export interface SCMIntegration {
    * - false → tag commit and branch HEAD are the same (no extra commits)
    */
   checkCherryPickStatus(
-    tenantId: string,
+    appId: string,
     branch: string,
     tag: string
   ): Promise<boolean>;
@@ -144,19 +144,19 @@ export interface SCMIntegration {
   /**
    * Get the URL for a branch in the repository
    * 
-   * @param tenantId - Tenant ID to fetch integration config
+   * @param appId - app id to fetch integration config
    * @param branch - Branch name (e.g., 'release/v1.0.0')
    * @returns Full URL to the branch (e.g., 'https://github.com/owner/repo/tree/release/v1.0.0')
    */
-  getBranchUrl(tenantId: string, branch: string): Promise<string>;
+  getBranchUrl(appId: string, branch: string): Promise<string>;
 
   /**
    * Get the URL for a tag in the repository
    * 
-   * @param tenantId - Tenant ID to fetch integration config
+   * @param appId - app id to fetch integration config
    * @param tag - Tag name (e.g., 'v1.0.0_rc_1')
    * @returns Full URL to the tag (e.g., 'https://github.com/owner/repo/releases/tag/v1.0.0_rc_1')
    */
-  getTagUrl(tenantId: string, tag: string): Promise<string>;
+  getTagUrl(appId: string, tag: string): Promise<string>;
 }
 

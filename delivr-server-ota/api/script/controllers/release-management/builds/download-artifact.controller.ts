@@ -12,7 +12,7 @@ import { getTrimmedString } from '~utils/string.utils';
  * Generates presigned download URL for a build artifact.
  * Validates build exists, belongs to tenant, and has artifact available.
  * 
- * Required: tenantId (path), buildId (path)
+ * Required: appId (path), buildId (path)
  * Returns: { url: string, expiresAt: string }
  */
 export const createBuildDownloadArtifactHandler = (storage: Storage) =>
@@ -20,7 +20,7 @@ export const createBuildDownloadArtifactHandler = (storage: Storage) =>
     try {
       // Extract path params
       const buildId = getTrimmedString(req.params.buildId);
-      const tenantId = getTrimmedString(req.params.tenantId);
+      const appId = getTrimmedString(req.params.appId);
 
       // Validate buildId
       const buildIdMissing = !buildId;
@@ -31,11 +31,11 @@ export const createBuildDownloadArtifactHandler = (storage: Storage) =>
         return;
       }
 
-      // Validate tenantId
-      const tenantIdMissing = !tenantId;
+      // Validate appId
+      const tenantIdMissing = !appId;
       if (tenantIdMissing) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('tenantId', BUILD_ARTIFACT_DOWNLOAD_ERROR_MESSAGES.INVALID_TENANT_ID)
+          validationErrorResponse('appId', BUILD_ARTIFACT_DOWNLOAD_ERROR_MESSAGES.INVALID_TENANT_ID)
         );
         return;
       }
@@ -44,7 +44,7 @@ export const createBuildDownloadArtifactHandler = (storage: Storage) =>
       const buildArtifactService = new BuildArtifactService(storage);
       
       // Get download URL with expiry
-      const result = await buildArtifactService.getBuildArtifactDownloadUrl(buildId, tenantId);
+      const result = await buildArtifactService.getBuildArtifactDownloadUrl(buildId, appId);
 
       // Success response
       res.status(HTTP_STATUS.OK).json(successResponse(result));

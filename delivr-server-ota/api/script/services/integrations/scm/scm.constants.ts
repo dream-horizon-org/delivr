@@ -1,5 +1,5 @@
 export const SCM_ERROR_MESSAGES = {
-  /** No active SCM integration for the provided tenantId */
+  /** No active SCM integration for the provided appId */
   ACTIVE_INTEGRATION_NOT_FOUND: 'Active SCM integration not found for tenant',
 
   /** Missing owner/repo details to perform repository operations */

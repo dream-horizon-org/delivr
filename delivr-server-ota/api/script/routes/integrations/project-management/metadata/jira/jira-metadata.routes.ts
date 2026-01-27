@@ -17,11 +17,11 @@ export const createJiraMetadataRoutes = (
   const controller = createJiraMetadataController(metadataService);
 
   /**
-   * GET /tenants/:tenantId/integrations/project-management/:integrationId/jira/metadata/projects
+   * GET /apps/:appId/integrations/project-management/:integrationId/jira/metadata/projects
    * Fetch all Jira projects
    */
   router.get(
-    '/tenants/:tenantId/integrations/project-management/:integrationId/jira/metadata/projects',
+    '/apps/:appId/integrations/project-management/:integrationId/jira/metadata/projects',
     tenantPermissions.requireEditor({ storage }),
     controller.getProjects
   );

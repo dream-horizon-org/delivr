@@ -18,7 +18,7 @@ import { PlatformName } from './release.interface';
  * Data required to create a new upload
  */
 export type CreateReleaseUploadDto = {
-  tenantId: string;
+  appId: string;
   releaseId: string;
   platform: PlatformName;
   stage: UploadStage;
@@ -76,7 +76,7 @@ export class ReleaseUploadsRepository {
     const id = uuidv4();
     const instance = await this.model.create({
       id,
-      tenantId: data.tenantId,
+      appId: data.appId,
       releaseId: data.releaseId,
       platform: data.platform,
       stage: data.stage,

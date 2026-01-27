@@ -12,7 +12,7 @@ export const createCommIntegrationModel = (sequelize: Sequelize) => {
     implements TenantCommunicationIntegration
   {
     declare id: string;
-    declare tenantId: string;
+    declare appId: string;
     declare communicationType: CommunicationType;
     declare slackBotToken: string;
     declare slackBotUserId: string | null;
@@ -32,7 +32,7 @@ export const createCommIntegrationModel = (sequelize: Sequelize) => {
         allowNull: false,
         comment: 'Unique identifier (nanoid)'
       },
-      tenantId: {
+      appId: {
         type: DataTypes.UUID,
         allowNull: false,
         references: {
@@ -103,7 +103,7 @@ export const createCommIntegrationModel = (sequelize: Sequelize) => {
       indexes: [
         {
           name: 'idx_comm_tenant',
-          fields: ['tenantId']
+          fields: ['appId']
         },
         {
           name: 'idx_comm_type',

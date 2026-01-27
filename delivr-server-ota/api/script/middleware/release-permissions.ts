@@ -61,11 +61,11 @@ export async function getUserReleasePermission(
       };
     }
     
-    // Fallback to app-level permission (tenantId field contains appId)
+    // Fallback to app-level permission (appId field contains appId)
     const tenantPermission = await getUserAppPermission(
       storage,
       userId,
-      release.dataValues.tenantId  // This is actually appId now
+      release.dataValues.appId  // This is actually appId now
     );
     
     if (!tenantPermission) {

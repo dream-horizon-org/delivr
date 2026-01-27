@@ -8,7 +8,7 @@ export const createCICDIntegrationModel = (sequelize: Sequelize) => {
     implements TenantCICDIntegration
   {
     declare id: string;
-    declare tenantId: string;
+    declare appId: string;
     declare providerType: CICDProviderType;
     declare displayName: string;
     declare hostUrl: string;
@@ -34,7 +34,7 @@ export const createCICDIntegrationModel = (sequelize: Sequelize) => {
         allowNull: false,
         comment: 'Unique identifier (shortid)'
       },
-      tenantId: {
+      appId: {
         type: DataTypes.UUID,
         allowNull: false,
         references: { model: 'apps', key: 'id' },  // Changed from 'tenants' to 'apps'
@@ -129,8 +129,8 @@ export const createCICDIntegrationModel = (sequelize: Sequelize) => {
       timestamps: true,
       indexes: [
         // Unique constraint: one integration type per tenant (also serves as composite index)
-        { name: 'uniq_tenant_provider', fields: ['tenantId', 'providerType'], unique: true }
-        // Note: Single-column indexes on tenantId/providerType/verificationStatus omitted
+        { name: 'uniq_tenant_provider', fields: ['appId', 'providerType'], unique: true }
+        // Note: Single-column indexes on appId/providerType/verificationStatus omitted
         // because they are low-cardinality and the unique constraint covers tenant+provider queries
       ]
     }

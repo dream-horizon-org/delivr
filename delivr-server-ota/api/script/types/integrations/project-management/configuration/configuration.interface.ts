@@ -21,7 +21,7 @@ export type PlatformConfiguration = {
  */
 export type ProjectManagementConfig = {
   id: string;
-  tenantId: string;
+  appId: string;
   integrationId: string;
   name: string;
   description: string | null;
@@ -36,7 +36,7 @@ export type ProjectManagementConfig = {
  * DTOs
  */
 export type CreateProjectManagementConfigDto = {
-  tenantId: string;
+  appId: string;
   integrationId: string;
   name: string;
   description?: string;

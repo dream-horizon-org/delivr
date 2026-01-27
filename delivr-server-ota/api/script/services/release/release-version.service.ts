@@ -27,18 +27,18 @@ export class ReleaseVersionService {
    * Get the latest version for a tenant + platform + target combination
    * Excludes ARCHIVED releases
    * 
-   * @param tenantId - Tenant ID
+   * @param appId - app id
    * @param platform - Platform (ANDROID, IOS, WEB)
    * @param target - Target (WEB, PLAY_STORE, APP_STORE)
    * @returns Latest version string, or null if no releases exist
    */
   getLatestVersion = async (
-    tenantId: string,
+    appId: string,
     platform: Platform,
     target: Target
   ): Promise<string | null> => {
     return this.platformTargetMappingRepo.getLatestVersionForTenant(
-      tenantId,
+      appId,
       platform,
       target
     );
@@ -47,7 +47,7 @@ export class ReleaseVersionService {
   /**
    * Validate a user-provided version for a manual release
    * 
-   * @param tenantId - Tenant ID
+   * @param appId - app id
    * @param platform - Platform
    * @param target - Target
    * @param version - User-provided version to validate
@@ -55,13 +55,13 @@ export class ReleaseVersionService {
    * @returns Validation result with valid flag and optional error message
    */
   validateVersion = async (
-    tenantId: string,
+    appId: string,
     platform: Platform,
     target: Target,
     version: string,
     releaseType: ReleaseType
   ): Promise<VersionValidationResult> => {
-    const latestVersion = await this.getLatestVersion(tenantId, platform, target);
+    const latestVersion = await this.getLatestVersion(appId, platform, target);
     return isVersionValidForReleaseType(version, latestVersion, releaseType);
   };
 
@@ -69,17 +69,17 @@ export class ReleaseVersionService {
    * Get suggested next versions for all release types
    * Used by future API to show available version options
    * 
-   * @param tenantId - Tenant ID
+   * @param appId - app id
    * @param platform - Platform
    * @param target - Target
    * @returns Current version and suggested next versions for MAJOR, MINOR, HOTFIX
    */
   getNextVersions = async (
-    tenantId: string,
+    appId: string,
     platform: Platform,
     target: Target
   ): Promise<NextVersionsResult> => {
-    const latestVersion = await this.getLatestVersion(tenantId, platform, target);
+    const latestVersion = await this.getLatestVersion(appId, platform, target);
     
     // No previous version - can't suggest next versions
     const noPreviousVersion = latestVersion === null;

@@ -16,10 +16,7 @@ import type {
   ServiceResult,
   VerboseReleaseConfiguration
 } from '~types/release-configs';
-import type {
-  ReleaseSchedule,
-  CreateReleaseScheduleDto
-} from '~types/release-schedules';
+import type { ReleaseSchedule } from '~types/release-schedules';
 import { validateScheduling, validateSchedulingForUpdate } from './release-config.validation';
 import { IntegrationConfigMapper } from './integration-config.mapper';
 import {
@@ -34,7 +31,7 @@ import type { ProjectManagementConfigService } from '~services/integrations/proj
 import type { ReleaseConfigActivityLogService } from './release-config-activity-log.service';
 import type { ReleaseScheduleService } from '~services/release-schedules';
 import type { StoreIntegrationController } from '~storage/integrations/store/store-controller';
-import { StoreType, IntegrationStatus } from '~storage/integrations/store/store-types';
+import { IntegrationStatus } from '~storage/integrations/store/store-types';
 import type { FieldValidationError } from '~types/release-configs';
 
 shortid.characters('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-');
@@ -81,7 +78,7 @@ export class ReleaseConfigService {
     // Validate CI configuration
     if (integrationConfigs.ci && this.cicdConfigService?.validateConfig) {
       const ciValidation = await this.cicdConfigService.validateConfig({
-        tenantId: requestData.tenantId,
+        appId: requestData.appId,
         workflows: integrationConfigs.ci.workflows || [],
         createdByAccountId: currentUserId
       });
@@ -91,7 +88,7 @@ export class ReleaseConfigService {
     // Validate Test Management configuration
     if (integrationConfigs.testManagement && this.testManagementConfigService?.validateConfig) {
       const testMgmtValidation = this.testManagementConfigService.validateConfig({
-        tenantId: requestData.tenantId,
+        appId: requestData.appId,
         integrationId: integrationConfigs.testManagement.integrationId || '',
         name: `Test Config for ${requestData.name}`,
         passThresholdPercent: integrationConfigs.testManagement.passThresholdPercent || 100,
@@ -104,7 +101,7 @@ export class ReleaseConfigService {
     // Validate Communication configuration
     if (integrationConfigs.communication && this.commConfigService?.validateConfig) {
       const commValidation = this.commConfigService.validateConfig({
-        tenantId: requestData.tenantId,
+        appId: requestData.appId,
         channelData: integrationConfigs.communication.channelData || {}
       });
       validationResults.push(commValidation);
@@ -131,7 +128,7 @@ export class ReleaseConfigService {
     // Validate store integrations for platform-targets
     if (this.storeIntegrationController && requestData.platformTargets) {
       const storeValidation = await this.validateStoreIntegrations(
-        requestData.tenantId,
+        requestData.appId,
         requestData.platformTargets
       );
       if (!storeValidation.isValid) {
@@ -158,14 +155,14 @@ export class ReleaseConfigService {
    * WEB targets don't require store integrations.
    */
   private async validateStoreIntegrations(
-    tenantId: string,
+    appId: string,
     platformTargets: Array<{ platform: string; target: string }>
   ): Promise<{ isValid: boolean; errors: FieldValidationError[] }> {
     const errors: FieldValidationError[] = [];
 
     // Get all VERIFIED store integrations for this tenant
     const allStoreIntegrations = await this.storeIntegrationController!.findAll({
-      tenantId,
+      appId,
       status: IntegrationStatus.VERIFIED
     });
 
@@ -222,7 +219,7 @@ export class ReleaseConfigService {
     currentUserId: string
   ): Promise<ValidationResult> {
     const validationResults: IntegrationValidationResult[] = [];
-    const tenantId = existingConfig.tenantId;
+    const appId = existingConfig.appId;
 
     // Helper to check if object has meaningful data (not just 'id')
     const hasDataBeyondId = (obj: any): boolean => {
@@ -243,7 +240,7 @@ export class ReleaseConfigService {
       
       if (shouldValidate) {
         const ciValidation = await this.cicdConfigService!.validateConfig({
-          tenantId,
+          appId,
           workflows: ciConfig.workflows || [],
           createdByAccountId: currentUserId
         });
@@ -261,7 +258,7 @@ export class ReleaseConfigService {
       
       if (shouldValidate) {
         const testMgmtValidation = this.testManagementConfigService!.validateConfig({
-          tenantId,
+          appId,
           integrationId: testMgmtConfig.integrationId || '',
           name: testMgmtConfig.name || `Test Config for ${existingConfig.name}`,
           passThresholdPercent: testMgmtConfig.passThresholdPercent ?? 100,
@@ -282,7 +279,7 @@ export class ReleaseConfigService {
       
       if (shouldValidate) {
         const commValidation = this.commConfigService!.validateConfig({
-          tenantId,
+          appId,
           channelData: commConfig.channelData || {}
         });
         validationResults.push(commValidation);
@@ -324,7 +321,7 @@ export class ReleaseConfigService {
     // Validate store integrations if platformTargets are being updated
     if (this.storeIntegrationController && 'platformTargets' in updateData && updateData.platformTargets) {
       const storeValidation = await this.validateStoreIntegrations(
-        tenantId,
+        appId,
         updateData.platformTargets
       );
       if (!storeValidation.isValid) {
@@ -343,7 +340,7 @@ export class ReleaseConfigService {
     if (invalidIntegrations.length > 0) {
       console.error('[validateIntegrationsForUpdate] Validation failed:', JSON.stringify({
         configId: existingConfig.id,
-        tenantId,
+        appId,
         invalidIntegrations: invalidIntegrations.map(inv => ({
           integration: inv.integration,
           errors: inv.errors
@@ -376,7 +373,7 @@ export class ReleaseConfigService {
         console.log('Reusing existing CI config:', integrationConfigIds.ciConfigId);
       } else {
         const ciResult = await this.cicdConfigService.createConfig({
-          tenantId: requestData.tenantId,
+          appId: requestData.appId,
           workflows: integrationConfigs.ci.workflows || [],
           createdByAccountId: currentUserId
         });
@@ -392,7 +389,7 @@ export class ReleaseConfigService {
         console.log('Reusing existing TCM config:', integrationConfigIds.testManagementConfigId);
       } else {
         const tcmConfigDto: CreateTestManagementConfigDto = {
-          tenantId: requestData.tenantId,
+          appId: requestData.appId,
           name: requestData.testManagementConfig?.name || `TCM Config for ${requestData.name}`,
           ...integrationConfigs.testManagement
         };
@@ -409,7 +406,7 @@ export class ReleaseConfigService {
         console.log('Reusing existing Communication config:', integrationConfigIds.commsConfigId);
       } else {
         const commConfig = await this.commConfigService.createConfig({
-          tenantId: requestData.tenantId,
+          appId: requestData.appId,
           channelData: integrationConfigs.communication.channelData || {}
         });
         integrationConfigIds.commsConfigId = commConfig.id;
@@ -424,7 +421,7 @@ export class ReleaseConfigService {
         console.log('Reusing existing Project Management config:', integrationConfigIds.projectManagementConfigId);
       } else {
         const pmConfig = await this.projectManagementConfigService.createConfig({
-          tenantId: requestData.tenantId,
+          appId: requestData.appId,
           integrationId: integrationConfigs.projectManagement.integrationId || '',
           name: requestData.projectManagementConfig?.name || `PM Config for ${requestData.name}`,
           description: requestData.projectManagementConfig?.description || '',
@@ -456,7 +453,7 @@ export class ReleaseConfigService {
     if (!validationResult.isValid) {
       // Log detailed validation errors for debugging
       console.error('[createConfig] Validation failed:', JSON.stringify({
-        tenantId: requestData.tenantId,
+        appId: requestData.appId,
         configName: requestData.name,
         invalidIntegrations: validationResult.invalidIntegrations.map(inv => ({
           integration: inv.integration,
@@ -480,7 +477,7 @@ export class ReleaseConfigService {
 
     // Step 2: Check if configuration name already exists for this tenant
     // (Must happen BEFORE creating integration configs to avoid orphan records)
-    const existing = await this.configRepo.findByTenantIdAndName(requestData.tenantId, requestData.name);
+    const existing = await this.configRepo.findByAppIdAndName(requestData.appId, requestData.name);
     if (existing) {
       return {
         success: false,
@@ -497,14 +494,14 @@ export class ReleaseConfigService {
 
     // Step 5: If this is marked as default, unset any existing default
     if (requestData.isDefault) {
-      await this.configRepo.unsetDefaultForTenant(requestData.tenantId);
+      await this.configRepo.unsetDefaultForApp(requestData.appId);
     }
 
     // Step 6: Create release config in database
     const id = shortid.generate();
     
     const createDto: CreateReleaseConfigDto = {
-      tenantId: requestData.tenantId,
+      appId: requestData.appId,
       name: requestData.name,
       description: requestData.description ?? null,
       releaseType: requestData.releaseType,
@@ -532,7 +529,7 @@ export class ReleaseConfigService {
           releaseConfig.id,           // releaseConfigId - required FK
           releaseConfig.name,         // For Cronicle job title
           requestData.releaseSchedule, // Schedule data
-          releaseConfig.tenantId,     // tenantId (denormalized)
+          releaseConfig.appId,     // appId (denormalized)
           currentUserId               // createdByAccountId
         );
         console.log('[createConfig] Release Schedule created successfully');
@@ -604,7 +601,7 @@ export class ReleaseConfigService {
     // IMPORTANT: Omit config IDs from root, they're in nested objects
     return {
       id: config.id,
-      tenantId: config.tenantId,
+      appId: config.appId,
       name: config.name,
       description: config.description,
       releaseType: config.releaseType,
@@ -628,7 +625,7 @@ export class ReleaseConfigService {
 
   /**
    * Map ReleaseScheduleRecord to ReleaseSchedule
-   * Strips DB-only fields (tenantId, createdAt, updatedAt, etc.)
+   * Strips DB-only fields (appId, createdAt, updatedAt, etc.)
    * Keeps scheduling configuration fields + runtime state
    */
   private mapScheduleRecordToSchedule(record: any): (ReleaseSchedule & { id: string }) | null {
@@ -657,19 +654,25 @@ export class ReleaseConfigService {
   }
 
   /**
-   * List configs by tenant ID (basic format with config IDs)
-   * @deprecated Use listConfigsByTenantVerbose for API responses
+   * List configs by app id (basic format with config IDs)
+   * @deprecated Use listConfigsByAppVerbose for API responses
    */
-  async listConfigsByTenant(tenantId: string, includeArchived = false): Promise<ReleaseConfiguration[]> {
-    return this.configRepo.findByTenantId(tenantId, includeArchived);
+  async listConfigsByApp(appId: string, includeArchived = false): Promise<ReleaseConfiguration[]> {
+    return this.configRepo.findByAppId(appId, includeArchived);
   }
 
   /**
-   * List configs by tenant ID with verbose integration details
+   * @deprecated Use listConfigsByApp instead
+   * Kept for backward compatibility
+   */
+  listConfigsByTenant = this.listConfigsByApp;
+
+  /**
+   * List configs by app id with verbose integration details
    * Returns array of VerboseReleaseConfiguration
    */
-  async listConfigsByTenantVerbose(tenantId: string, includeArchived = false): Promise<VerboseReleaseConfiguration[]> {
-    const configs = await this.configRepo.findByTenantId(tenantId, includeArchived);
+  async listConfigsByAppVerbose(appId: string, includeArchived = false): Promise<VerboseReleaseConfiguration[]> {
+    const configs = await this.configRepo.findByAppId(appId, includeArchived);
     
     // Fetch verbose details for each config in parallel
     const verboseConfigs = await Promise.all(
@@ -682,8 +685,8 @@ export class ReleaseConfigService {
   /**
    * Get default config for tenant
    */
-  async getDefaultConfig(tenantId: string): Promise<ReleaseConfiguration | null> {
-    return this.configRepo.findDefaultByTenantId(tenantId);
+  async getDefaultConfig(appId: string): Promise<ReleaseConfiguration | null> {
+    return this.configRepo.findDefaultByTenantId(appId);
   }
 
   /**
@@ -719,7 +722,7 @@ export class ReleaseConfigService {
       // Log detailed validation errors for debugging
       console.error('[updateConfig] Validation failed for config:', JSON.stringify({
         configId: id,
-        tenantId: existingConfig.tenantId,
+        appId: existingConfig.appId,
         invalidIntegrations: validationResult.invalidIntegrations.map(inv => ({
           integration: inv.integration,
           errorCount: inv.errors?.length || 0,
@@ -890,7 +893,7 @@ export class ReleaseConfigService {
 
     // If setting as default, unset other defaults
     if (data.isDefault === true) {
-      await this.configRepo.unsetDefaultForTenant(existingConfig.tenantId, id);
+      await this.configRepo.unsetDefaultForTenant(existingConfig.appId, id);
     }
 
     const updatedConfig = await this.configRepo.update(id, configUpdate);
@@ -947,7 +950,7 @@ export class ReleaseConfigService {
       // Delete the actual integration config from its table if it exists
       if (existingConfig.ciConfigId && this.cicdConfigService) {
         console.log('[handleCiConfigId] Deleting config from DB:', existingConfig.ciConfigId);
-        await this.cicdConfigService.deleteConfig(existingConfig.ciConfigId, existingConfig.tenantId);
+        await this.cicdConfigService.deleteConfig(existingConfig.ciConfigId, existingConfig.appId);
         console.log('[handleCiConfigId] Config deleted successfully');
       }
       
@@ -987,7 +990,7 @@ export class ReleaseConfigService {
         previousCiConfig = await this.cicdConfigService.findById(providedConfigId);
       }
       
-      await this.updateCiConfig(providedConfigId, existingConfig.tenantId, ciConfig, currentUserId);
+      await this.updateCiConfig(providedConfigId, existingConfig.appId, ciConfig, currentUserId);
       
       // Log CI config update
       if (this.activityLogService && previousCiConfig) {
@@ -1012,7 +1015,7 @@ export class ReleaseConfigService {
 
     // No existing config and no ID provided - CREATE new
     console.log('[handleCiConfigId] Creating new config');
-    const newConfigId = await this.createCiConfig(existingConfig.tenantId, ciConfig, currentUserId);
+    const newConfigId = await this.createCiConfig(existingConfig.appId, ciConfig, currentUserId);
     
     // Log CI config creation
     if (this.activityLogService && newConfigId) {
@@ -1031,11 +1034,11 @@ export class ReleaseConfigService {
 
   /**
    * Update existing CI config
-   * Uses UpdateCICDConfigDto: { tenantId, configId, createdByAccountId, workflows }
+   * Uses UpdateCICDConfigDto: { appId, configId, createdByAccountId, workflows }
    */
   private async updateCiConfig(
     configId: string,
-    tenantId: string,
+    appId: string,
     ciConfig: any,
     currentUserId: string
   ): Promise<void> {
@@ -1043,7 +1046,7 @@ export class ReleaseConfigService {
 
     await this.cicdConfigService.updateConfig({
       configId,
-      tenantId,
+      appId,
       createdByAccountId: currentUserId,
       workflows: ciConfig.workflows || []
     });
@@ -1053,14 +1056,14 @@ export class ReleaseConfigService {
    * Create new CI config
    */
   private async createCiConfig(
-    tenantId: string,
+    appId: string,
     ciConfig: any,
     currentUserId: string
   ): Promise<string | null> {
     if (!this.cicdConfigService) return null;
 
     const ciResult = await this.cicdConfigService.createConfig({
-      tenantId,
+      appId,
       workflows: ciConfig.workflows || [],
       createdByAccountId: currentUserId
     });
@@ -1160,7 +1163,7 @@ export class ReleaseConfigService {
       
       await this.updateTestManagementConfig(
         providedConfigId,
-        existingConfig.tenantId,
+        existingConfig.appId,
         testMgmtData,
         currentUserId
       );
@@ -1245,7 +1248,7 @@ export class ReleaseConfigService {
     // No existing config and no ID provided - CREATE new
     console.log('[handleTestManagementConfigId] Creating new config');
     const newConfigId = await this.createTestManagementConfig(
-      existingConfig.tenantId,
+      existingConfig.appId,
       existingConfig.name,
       testMgmtData,  // Pass extracted config object, not full updateData
       currentUserId
@@ -1275,17 +1278,17 @@ export class ReleaseConfigService {
    */
   private async updateTestManagementConfig(
     configId: string,
-    tenantId: string,
+    appId: string,
     updateData: any,
     currentUserId: string
   ): Promise<void> {
     if (!this.testManagementConfigService) return;
 
 
-    // Prepare data for mapper: mapper expects { tenantId, testManagementConfig: {...} }
+    // Prepare data for mapper: mapper expects { appId, testManagementConfig: {...} }
     // updateData is already the testManagementConfig object from the request
     const normalizedData = {
-      tenantId,
+      appId,
       testManagementConfig: updateData  // Pass the updateData as testManagementConfig
     };
 
@@ -1317,7 +1320,7 @@ export class ReleaseConfigService {
    * Create new Test Management config
    */
   private async createTestManagementConfig(
-    tenantId: string,
+    appId: string,
     releaseConfigName: string,
     testManagementConfigData: any,
     currentUserId: string
@@ -1325,7 +1328,7 @@ export class ReleaseConfigService {
     if (!this.testManagementConfigService) return null;
 
     const normalizedData = {
-      tenantId,
+      appId,
       testManagementConfig: testManagementConfigData
     };
 
@@ -1342,7 +1345,7 @@ export class ReleaseConfigService {
     }
 
     const tcmConfigDto: CreateTestManagementConfigDto = {
-      tenantId,
+      appId,
       name: testManagementConfigData.name || `TCM Config for ${releaseConfigName}`,
       ...integrationConfigs.testManagement
     };
@@ -1446,7 +1449,7 @@ export class ReleaseConfigService {
       
       await this.updateProjectManagementConfig(
         providedConfigId,
-        existingConfig.tenantId,
+        existingConfig.appId,
         projectMgmtData,
         currentUserId
       );
@@ -1535,7 +1538,7 @@ export class ReleaseConfigService {
     // No existing config and no ID provided - CREATE new
     console.log('[handleProjectManagementConfigId] Creating new config');
     const newConfigId = await this.createProjectManagementConfig(
-      existingConfig.tenantId,
+      existingConfig.appId,
       existingConfig.name,
       projectMgmtData,  // Pass the extracted projectManagementConfig object, not full updateData
       currentUserId
@@ -1566,16 +1569,16 @@ export class ReleaseConfigService {
    */
   private async updateProjectManagementConfig(
     configId: string,
-    tenantId: string,
+    appId: string,
     updateData: any,
     currentUserId: string
   ): Promise<void> {
     if (!this.projectManagementConfigService) return;
 
-    // Prepare data for mapper: mapper expects { tenantId, projectManagementConfig: {...} }
+    // Prepare data for mapper: mapper expects { appId, projectManagementConfig: {...} }
     // updateData is already the projectManagementConfig object from the request
     const normalizedData = {
-      tenantId,
+      appId,
       projectManagementConfig: updateData  // Pass the updateData as projectManagementConfig
     };
 
@@ -1609,7 +1612,7 @@ export class ReleaseConfigService {
    * Create new Project Management config
    */
   private async createProjectManagementConfig(
-    tenantId: string,
+    appId: string,
     releaseConfigName: string,
     projectManagementConfigData: any,
     currentUserId: string
@@ -1617,7 +1620,7 @@ export class ReleaseConfigService {
     if (!this.projectManagementConfigService) return null;
 
     const normalizedData = {
-      tenantId,
+      appId,
       projectManagementConfig: projectManagementConfigData
     };
 
@@ -1634,7 +1637,7 @@ export class ReleaseConfigService {
     }
 
     const pmResult = await this.projectManagementConfigService.createConfig({
-      tenantId,
+      appId,
       name: projectManagementConfigData.name || `PM Config for ${releaseConfigName}`,
       ...integrationConfigs.projectManagement,
       createdByAccountId: currentUserId
@@ -1732,7 +1735,7 @@ export class ReleaseConfigService {
       
       await this.updateCommsConfig(
         providedConfigId,
-        existingConfig.tenantId,
+        existingConfig.appId,
         commsData,
         currentUserId
       );
@@ -1761,7 +1764,7 @@ export class ReleaseConfigService {
     // No existing config and no ID provided - CREATE new
     console.log('[handleCommsConfigId] Creating new config');
     const newConfigId = await this.createCommsConfig(
-      existingConfig.tenantId,
+      existingConfig.appId,
       commsData,  // Pass the extracted communicationConfig object, not full updateData
       currentUserId
     );
@@ -1786,16 +1789,16 @@ export class ReleaseConfigService {
    */
   private async updateCommsConfig(
     configId: string,
-    tenantId: string,
+    appId: string,
     updateData: any,
     currentUserId: string
   ): Promise<void> {
     if (!this.commConfigService) return;
 
-    // Prepare data for mapper: mapper expects { tenantId, communicationConfig: {...} }
+    // Prepare data for mapper: mapper expects { appId, communicationConfig: {...} }
     // updateData is already the communicationConfig object from the request
     const normalizedData = {
-      tenantId,
+      appId,
       communicationConfig: updateData  // Pass the updateData as communicationConfig
     };
 
@@ -1817,7 +1820,7 @@ export class ReleaseConfigService {
    * Create new Communication config
    */
   private async createCommsConfig(
-    tenantId: string,
+    appId: string,
     communicationConfigData: any,
     currentUserId: string
   ): Promise<string | null> {
@@ -1826,7 +1829,7 @@ export class ReleaseConfigService {
     // communicationConfigData IS the communicationConfig object
     // Wrap it in the structure expected by the mapper
     const normalizedData = {
-      tenantId,
+      appId,
       communicationConfig: communicationConfigData
     };
 
@@ -1845,7 +1848,7 @@ export class ReleaseConfigService {
     }
 
     const createDto = {
-      tenantId,
+      appId,
       channelData: integrationConfigs.communication.channelData
     };
 
@@ -1994,7 +1997,7 @@ export class ReleaseConfigService {
       config.id,           // releaseConfigId (FK)
       config.name,         // For Cronicle job title
       scheduleData,        // Schedule configuration
-      config.tenantId,     // tenantId (denormalized)
+      config.appId,     // appId (denormalized)
       currentUserId        // createdByAccountId
     );
 
@@ -2050,7 +2053,7 @@ export class ReleaseConfigService {
     if (config.ciConfigId && this.cicdConfigService) {
       console.log('[cascadeDeleteIntegrationConfigs] Deleting CI config:', config.ciConfigId);
       try {
-        await this.cicdConfigService.deleteConfig(config.ciConfigId, config.tenantId);
+        await this.cicdConfigService.deleteConfig(config.ciConfigId, config.appId);
         console.log('[cascadeDeleteIntegrationConfigs] CI config deleted successfully');
       } catch (error) {
         console.error('[cascadeDeleteIntegrationConfigs] Failed to delete CI config:', error);

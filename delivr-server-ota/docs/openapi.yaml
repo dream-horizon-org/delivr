@@ -463,19 +463,19 @@ paths:
                     items:
                       $ref: '#/components/schemas/Organization'
 
-  /tenants/{tenantId}:
+  /tenants/{appId}:
     delete:
       tags:
         - Tenants
       summary: Remove organization
       description: Removes an organization/tenant from the account
       parameters:
-        - name: tenantId
+        - name: appId
           in: path
           required: true
           schema:
             type: string
-          description: Organization/tenant ID
+          description: Organization/app id
       responses:
         '201':
           description: Organization deleted
@@ -1323,7 +1323,7 @@ components:
       in: header
       schema:
         type: string
-      description: Organization/tenant ID filter
+      description: Organization/app id filter
 
     OAuthProvider:
       name: provider

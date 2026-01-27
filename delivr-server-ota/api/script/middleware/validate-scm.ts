@@ -22,13 +22,13 @@ const isNonEmptyString = (value: unknown): value is string => {
 // ============================================================================
 
 export const validateTenantId = (req: Request, res: Response, next: NextFunction): void => {
-  const tenantId = req.params.tenantId;
-  const isTenantIdInvalid = !isNonEmptyString(tenantId);
+  const appId = req.params.appId;
+  const isTenantIdInvalid = !isNonEmptyString(appId);
   
   if (isTenantIdInvalid) {
     res.status(HTTP_STATUS.BAD_REQUEST).json({ 
       success: false, 
-      error: 'tenantId is required' 
+      error: 'appId is required' 
     });
     return;
   }

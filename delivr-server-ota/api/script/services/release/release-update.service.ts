@@ -787,7 +787,7 @@ export class ReleaseUpdateService {
     try {
       await this.releaseNotificationService.notify({
         type: NotificationType.TARGET_DATE_CHANGED,
-        tenantId: release.tenantId,
+        appId: release.appId,
         releaseId: releaseId,
         previousDate: auditInfo.oldDate.toISOString(),
         newDate: auditInfo.newDate.toISOString(),

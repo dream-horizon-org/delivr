@@ -1,7 +1,7 @@
 /**
  * TestFlight Verification Controller
  * 
- * POST /tenants/:tenantId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight
+ * POST /apps/:appId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight
  * Body: { testflightBuildNumber }
  * 
  * Verifies an iOS build exists in TestFlight and stages it in release_uploads table.
@@ -41,14 +41,14 @@ import {
 export const verifyTestFlightBuild = async (req: Request, res: Response): Promise<void> => {
   try {
     // Extract path parameters
-    const { tenantId, releaseId, stage } = req.params;
+    const { appId, releaseId, stage } = req.params;
     const { testflightBuildNumber } = req.body;
 
-    // Validate tenantId
-    const tenantIdInvalid = !isNonEmptyString(tenantId);
+    // Validate appId
+    const tenantIdInvalid = !isNonEmptyString(appId);
     if (tenantIdInvalid) {
       res.status(HTTP_STATUS.BAD_REQUEST).json(
-        validationErrorResponse('tenantId', 'tenantId is required')
+        validationErrorResponse('appId', 'appId is required')
       );
       return;
     }
@@ -117,7 +117,7 @@ export const verifyTestFlightBuild = async (req: Request, res: Response): Promis
     
     const verificationResult = await verificationService.verifyBuild({
       releaseId,
-      tenantId,
+      appId,
       testflightBuildNumber,
     });
 
@@ -156,12 +156,12 @@ export const verifyTestFlightBuild = async (req: Request, res: Response): Promis
     }
 
     // Step 2: Create entry in release_uploads staging table (NOT builds table)
-    // Note: tenantId from path is already validated by verificationService.verifyBuild()
+    // Note: appId from path is already validated by verificationService.verifyBuild()
     const uploadStage = upperStage as UploadStage;
     const platform = PlatformName.IOS;
 
     const upload = await releaseUploadsRepository.upsert({
-      tenantId,
+      appId,
       releaseId,
       platform,
       stage: uploadStage,

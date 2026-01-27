@@ -28,7 +28,7 @@ export class IntegrationConfigMapper {
     }
 
     return {
-      tenantId: requestData.tenantId,
+      appId: requestData.appId,
       integrationId: requestData.testManagementConfig.integrationId,
       passThresholdPercent: requestData.testManagementConfig.passThresholdPercent ?? 100,
       platformConfigurations: requestData.testManagementConfig.platformConfigurations ?? [],
@@ -49,7 +49,7 @@ export class IntegrationConfigMapper {
     }
 
     return {
-      tenantId: requestData.tenantId,
+      appId: requestData.appId,
       workflows: requestData.ciConfig.workflows,
       createdByAccountId: currentUserId
     };
@@ -66,7 +66,7 @@ export class IntegrationConfigMapper {
     }
 
     return {
-      tenantId: requestData.tenantId,
+      appId: requestData.appId,
       channelData: requestData.communicationConfig.channelData
     };
   }
@@ -86,7 +86,7 @@ export class IntegrationConfigMapper {
     }
 
     return {
-      tenantId: requestData.tenantId,
+      appId: requestData.appId,
       integrationId: requestData.projectManagementConfig.integrationId,
       name: requestData.projectManagementConfig.name,
       description: requestData.projectManagementConfig.description,

@@ -12,7 +12,7 @@ export const createCommConfigModel = (sequelize: Sequelize) => {
   {
     declare id: string;
     declare integrationId: string;
-    declare tenantId: string;
+    declare appId: string;
     declare channelData: StageChannelMapping;
     declare createdAt: Date;
     declare updatedAt: Date;
@@ -37,7 +37,7 @@ export const createCommConfigModel = (sequelize: Sequelize) => {
         onUpdate: 'CASCADE',
         comment: 'Reference to tenant_comm_integrations table'
       },
-      tenantId: {
+      appId: {
         type: DataTypes.UUID,
         allowNull: false,
         references: {
@@ -76,7 +76,7 @@ export const createCommConfigModel = (sequelize: Sequelize) => {
         },
         {
           name: 'idx_channels_tenant',
-          fields: ['tenantId']
+          fields: ['appId']
         }
       ]
     }

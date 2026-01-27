@@ -3,7 +3,7 @@
  */
 export const WORKFLOW_POLLING_ERROR_MESSAGES = {
   RELEASE_ID_REQUIRED: 'releaseId is required for workflow polling',
-  TENANT_ID_REQUIRED: 'tenantId is required for workflow polling',
+  APP_ID_REQUIRED: 'appId is required for workflow polling',
   MISSING_QUEUE_LOCATION: 'Build is missing queueLocation - cannot check status',
   MISSING_CI_RUN_ID: 'Build is missing ciRunId - cannot check running status',
   MISSING_CI_RUN_TYPE: 'Build is missing ciRunType - cannot determine provider',

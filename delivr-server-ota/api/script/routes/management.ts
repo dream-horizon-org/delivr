@@ -360,8 +360,8 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
   // Get tenant info with release setup status and integrations
   // IMPORTANT: No caching - always returns fresh data for release management
-  router.get("/tenants/:tenantId", tenantPermissions.requireTenantMembership({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
-    const tenantId: string = req.params.tenantId;
+  router.get("/apps/:appId", tenantPermissions.requireAppMembership({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
+    const appId: string = req.params.appId;
     
     // Set no-cache headers to prevent stale data issues
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -372,7 +372,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       // Get tenant details
       const accountId: string = req.user.id;
       const tenants = await storage.getOrgApps(accountId);
-      const tenant = tenants.find((t: storageTypes.Organization) => t.id === tenantId);
+      const tenant = tenants.find((t: storageTypes.Organization) => t.id === appId);
       
       if (!tenant) {
         return res.status(404).send({ error: "Tenant not found" });
@@ -385,21 +385,21 @@ export function getManagementRouter(config: ManagementConfig): Router {
       const projectManagementIntegrationRepository = (storage as any).projectManagementIntegrationRepository;
       
       // SCM integrations (GitHub, GitLab, Bitbucket)
-      const scmIntegrations = await scmController.findAll({ tenantId, isActive: true });
+      const scmIntegrations = await scmController.findAll({ appId, isActive: true });
       
       // Comm/Slack integrations
-      const slackIntegration = await commIntegrationRepository.findByTenant(tenantId, 'SLACK');
+      const slackIntegration = await commIntegrationRepository.findByTenant(appId, 'SLACK');
 
       // CI CD integrations (Jenkins, Github Actions, Circle CI, GitLab CI, etc.)
-      const cicdIntegrations = await cicdIntegrationRepository.findAll({ tenantId });
+      const cicdIntegrations = await cicdIntegrationRepository.findAll({ appId });
       
       // Test Management integrations (Checkmate, TestRail, etc.) - tenant-level
-      // Note: Using tenantId as tenantId (tenant = project in our system)
+      // Note: Using appId as appId (tenant = project in our system)
       let testManagementIntegrations: any[] = [];
       if ((storage as any).testManagementIntegrationService) {
         try {
-          testManagementIntegrations = await (storage as any).testManagementIntegrationService.listTenantIntegrations(tenantId);
-          console.log(`[TenantInfo] ===================================  Found ${testManagementIntegrations.length} test management integrations for tenant ${tenantId}`);
+          testManagementIntegrations = await (storage as any).testManagementIntegrationService.listTenantIntegrations(appId);
+          console.log(`[TenantInfo] ===================================  Found ${testManagementIntegrations.length} test management integrations for tenant ${appId}`);
         } catch (error) {
           console.error('[TenantInfo] Error fetching test management integrations:', error);
         }
@@ -410,9 +410,9 @@ export function getManagementRouter(config: ManagementConfig): Router {
       if (projectManagementIntegrationRepository) {
         try {
           projectManagementIntegrations = await projectManagementIntegrationRepository.findAll({ 
-            tenantId: tenantId
+            appId: appId
           });
-          console.log(`[TenantInfo] Found ${projectManagementIntegrations.length} project management integrations for tenant ${tenantId}`);
+          console.log(`[TenantInfo] Found ${projectManagementIntegrations.length} project management integrations for tenant ${appId}`);
         } catch (error) {
           console.error('[TenantInfo] Error fetching project management integrations:', error);
         }
@@ -423,10 +423,10 @@ export function getManagementRouter(config: ManagementConfig): Router {
       if ((storage as any).storeIntegrationController) {
         try {
           storeIntegrations = await (storage as any).storeIntegrationController.findAll({ 
-            tenantId, 
+            appId, 
             status: 'VERIFIED' // Only show verified integrations
           });
-          console.log(`[TenantInfo] Found ${storeIntegrations.length} store integrations for tenant ${tenantId}`);
+          console.log(`[TenantInfo] Found ${storeIntegrations.length} store integrations for tenant ${appId}`);
         } catch (error) {
           console.error('[TenantInfo] Error fetching store integrations:', error);
         }
@@ -458,12 +458,12 @@ export function getManagementRouter(config: ManagementConfig): Router {
   });
 
   // Get tenant collaborators (Owner only)
-  router.get("/tenants/:tenantId/collaborators", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
-    console.log("Getting collaborators for tenant:", req.params.tenantId);
-    const tenantId: string = req.params.tenantId;
+  router.get("/apps/:appId/collaborators", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
+    console.log("Getting collaborators for tenant:", req.params.appId);
+    const appId: string = req.params.appId;
     
     try {
-      const collaborators = await storage.getOrgAppCollaborators(tenantId);
+      const collaborators = await storage.getOrgAppCollaborators(appId);
       return res.status(200).send({ collaborators });
     } catch (error: any) {
       console.error("Error fetching tenant collaborators:", error);
@@ -472,8 +472,8 @@ export function getManagementRouter(config: ManagementConfig): Router {
   });
 
   // Add tenant collaborator (Owner only)
-  router.post("/tenants/:tenantId/collaborators", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
-    const tenantId: string = req.params.tenantId;
+  router.post("/apps/:appId/collaborators", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
+    const appId: string = req.params.appId;
     const { email, permission } = req.body;
 
     if (!email) {
@@ -485,7 +485,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     }
 
     try {
-      await storage.addOrgAppCollaborator(tenantId, email, permission);
+      await storage.addOrgAppCollaborator(appId, email, permission);
       return res.status(201).send({ message: "Collaborator added successfully" });
     } catch (error: any) {
       console.error("Error adding tenant collaborator:", error);
@@ -494,8 +494,8 @@ export function getManagementRouter(config: ManagementConfig): Router {
   });
 
   // Update tenant collaborator permission (Owner only)
-  router.patch("/tenants/:tenantId/collaborators/:email", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
-    const tenantId: string = req.params.tenantId;
+  router.patch("/apps/:appId/collaborators/:email", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
+    const appId: string = req.params.appId;
     const email: string = req.params.email;
     const { permission } = req.body;
 
@@ -504,7 +504,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     }
 
     try {
-      await storage.updateOrgAppCollaborator(tenantId, email, permission);
+      await storage.updateOrgAppCollaborator(appId, email, permission);
       return res.status(200).send({ message: "Collaborator updated successfully" });
     } catch (error: any) {
       console.error("Error updating tenant collaborator:", error);
@@ -513,12 +513,12 @@ export function getManagementRouter(config: ManagementConfig): Router {
   });
 
   // Remove tenant collaborator (Owner only)
-  router.delete("/tenants/:tenantId/collaborators/:email", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
-    const tenantId: string = req.params.tenantId;
+  router.delete("/apps/:appId/collaborators/:email", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
+    const appId: string = req.params.appId;
     const email: string = req.params.email;
 
     try {
-      await storage.removeOrgAppCollaborator(tenantId, email);
+      await storage.removeOrgAppCollaborator(appId, email);
       return res.status(200).send({ message: "Collaborator removed successfully" });
     } catch (error: any) {
       console.error("Error removing tenant collaborator:", error);
@@ -526,12 +526,12 @@ export function getManagementRouter(config: ManagementConfig): Router {
     }
   });
 
-  router.delete("/tenants/:tenantId", (req: Request, res: Response, next: (err?: any) => void): any => {
+  router.delete("/apps/:appId", (req: Request, res: Response, next: (err?: any) => void): any => {
     const accountId: string = req.user.id;
-    const tenantId: string = req.params.tenantId;
+    const appId: string = req.params.appId;
 
     storage
-      .removeOrgApp(accountId, tenantId) // Calls the storage method we'll define next
+      .removeOrgApp(accountId, appId) // Calls the storage method we'll define next
       .then(() => {
         res.status(200).send("Org deleted successfully");
       })
@@ -547,7 +547,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .getApps(accountId)
       .then((apps: storageTypes.App[]) => {
         const restAppPromises: Promise<restTypes.App>[] = apps
-          .filter((app) => !tenant || app.tenantId === tenant)
+          .filter((app) => !tenant || app.appId === tenant)
           .map((app: storageTypes.App) => {
             return storage.getDeployments(accountId, app.id).then((deployments: storageTypes.Deployment[]) => {
               const deploymentNames: string[] = deployments.map((deployment: storageTypes.Deployment) => deployment.name);
@@ -614,10 +614,10 @@ export function getManagementRouter(config: ManagementConfig): Router {
   router.get("/apps/:appName", (req: Request, res: Response, next: (err?: any) => void): any => {
     const accountId: string = req.user.id;
     const appName: string = req.params.appName;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
+    const appId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
     let storageApp: storageTypes.App;
     nameResolver
-      .resolveApp(accountId, appName, tenantId)
+      .resolveApp(accountId, appName, appId)
       .then((app: storageTypes.App) => {
         storageApp = app;
         return storage.getDeployments(accountId, app.id);
@@ -721,13 +721,13 @@ export function getManagementRouter(config: ManagementConfig): Router {
     const accountId: string = req.user.id;
     const appName: string = req.params.appName;
     const email: string = req.params.email;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
+    const appId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
     if (isPrototypePollutionKey(email)) {
       return res.status(400).send("Invalid email parameter");
     }
 
     nameResolver
-      .resolveApp(accountId, appName, tenantId)
+      .resolveApp(accountId, appName, appId)
       .then((app: storageTypes.App) => {
         throwIfInvalidPermissions(app, storageTypes.Permissions.Owner);
         return storage.addCollaborator(accountId, app.id, email);
@@ -741,10 +741,10 @@ export function getManagementRouter(config: ManagementConfig): Router {
   router.get("/apps/:appName/collaborators", (req: Request, res: Response, next: (err?: any) => void): any => {
     const accountId: string = req.user.id;
     const appName: string = req.params.appName;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    console.log("Getting collaborators for app:", appName, "tenantId:", tenantId);
+    const appId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
+    console.log("Getting collaborators for app:", appName, "appId:", appId);
     nameResolver
-      .resolveApp(accountId, appName, tenantId)
+      .resolveApp(accountId, appName, appId)
       .then((app: storageTypes.App) => {
         throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
         return storage.getCollaborators(accountId, app.id);
@@ -759,13 +759,13 @@ export function getManagementRouter(config: ManagementConfig): Router {
     const accountId: string = req.user.id;
     const appName: string = req.params.appName;
     const email: string = req.params.email;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
+    const appId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
     if (isPrototypePollutionKey(email)) {
       return res.status(400).send("Invalid email parameter");
     }
 
     nameResolver
-      .resolveApp(accountId, appName, tenantId)
+      .resolveApp(accountId, appName, appId)
       .then((app: storageTypes.App) => {
         const isAttemptingToRemoveSelf: boolean =
           app.collaborators && email && app.collaborators[email] && app.collaborators[email].isCurrentAccount;
@@ -785,7 +785,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     const accountId: string = req.user.id;
     const appName: string = req.params.appName;
     const email: string = req.params.email;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
+    const appId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
     let role: string = "Viewer";
     if(req.body.role !== undefined) {
       role = req.body.role;
@@ -796,7 +796,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     }
 
     nameResolver
-      .resolveApp(accountId, appName, tenantId)
+      .resolveApp(accountId, appName, appId)
       .then((app: storageTypes.App) => {
           throwIfInvalidPermissions(app, storageTypes.Permissions.Owner);
         

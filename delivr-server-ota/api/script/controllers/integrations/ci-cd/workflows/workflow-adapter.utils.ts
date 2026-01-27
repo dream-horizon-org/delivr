@@ -14,10 +14,10 @@ export type ParametersResult = {
 export type WorkflowStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 export type WorkflowAdapter = {
-  fetchParameters: (tenantId: string, body: { workflowUrl?: string }) => Promise<ParametersResult>;
-  trigger?: (tenantId: string, input: { workflowId?: string; workflowType?: string; platform?: string; jobParameters?: Record<string, unknown> }) => Promise<{ queueLocation: string }>;
-  queueStatus?: (tenantId: string, body: { queueUrl: string }) => Promise<WorkflowStatus>;
-  runStatus?: (tenantId: string, body: { runUrl?: string; owner?: string; repo?: string; runId?: string }) => Promise<WorkflowStatus>;
+  fetchParameters: (appId: string, body: { workflowUrl?: string }) => Promise<ParametersResult>;
+  trigger?: (appId: string, input: { workflowId?: string; workflowType?: string; platform?: string; jobParameters?: Record<string, unknown> }) => Promise<{ queueLocation: string }>;
+  queueStatus?: (appId: string, body: { queueUrl: string }) => Promise<WorkflowStatus>;
+  runStatus?: (appId: string, body: { runUrl?: string; owner?: string; repo?: string; runId?: string }) => Promise<WorkflowStatus>;
 };
 
 export const getWorkflowAdapter = (provider: CICDProviderType): WorkflowAdapter => {
@@ -28,11 +28,11 @@ export const getWorkflowAdapter = (provider: CICDProviderType): WorkflowAdapter 
   throw new Error(ERROR_MESSAGES.OPERATION_NOT_SUPPORTED);
 };
 
-export const getIntegrationForTenant = async (tenantId: string, integrationId: string) => {
+export const getIntegrationForTenant = async (appId: string, integrationId: string) => {
   const storage = getStorage();
   const repo = (storage as any).cicdIntegrationRepository as CICDIntegrationRepository;
   const integration = await repo.findById(integrationId);
-  const invalid = !integration || integration.tenantId !== tenantId;
+  const invalid = !integration || integration.appId !== appId;
   if (invalid) {
     return null;
   }

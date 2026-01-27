@@ -33,7 +33,7 @@ export abstract class WorkflowService {
    * Trigger a workflow.
    * Must be implemented by concrete workflow service classes.
    */
-  abstract trigger(tenantId: string, input: {
+  abstract trigger(appId: string, input: {
     workflowId?: string;
     workflowType?: string;
     platform?: string;

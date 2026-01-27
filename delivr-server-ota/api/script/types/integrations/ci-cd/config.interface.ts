@@ -1,8 +1,8 @@
-import type { CreateWorkflowDto, TenantCICDWorkflow } from '~types/integrations/ci-cd/workflow.interface';
+import type { CreateWorkflowDto, AppCICDWorkflow } from '~types/integrations/ci-cd/workflow.interface';
 
-export interface TenantCICDConfig {
+export interface AppCICDConfig {
   id: string;
-  tenantId: string;
+  appId: string;
   workflowIds: string[];
   createdByAccountId: string;
   createdAt: Date;
@@ -10,27 +10,39 @@ export interface TenantCICDConfig {
 }
 
 /**
- * TenantCICDConfig with hydrated workflows array
+ * AppCICDConfig with hydrated workflows array
  * Used when full workflow details are needed (e.g., for validation)
  */
-export interface TenantCICDConfigWithWorkflows extends TenantCICDConfig {
-  workflows: TenantCICDWorkflow[];
+export interface AppCICDConfigWithWorkflows extends AppCICDConfig {
+  workflows: AppCICDWorkflow[];
 }
 
+/**
+ * @deprecated Use AppCICDConfig instead
+ * Kept for backward compatibility
+ */
+export type TenantCICDConfig = AppCICDConfig;
+
+/**
+ * @deprecated Use AppCICDConfigWithWorkflows instead
+ * Kept for backward compatibility
+ */
+export type TenantCICDConfigWithWorkflows = AppCICDConfigWithWorkflows;
+
 export interface CreateCICDConfigDto {
-  tenantId: string;
+  appId: string;
   workflows: Array<CreateWorkflowDto>;
   createdByAccountId: string;
 }
 
 export interface CICDConfigFilters {
-  tenantId?: string;
+  appId?: string;
 }
 
 export type FieldError = { field: string; message: string };
 
 export type UpdateCICDConfigDto = {
-  tenantId: string;
+  appId: string;
   configId: string;
   createdByAccountId: string;
   workflows: Array<CreateWorkflowDto>;

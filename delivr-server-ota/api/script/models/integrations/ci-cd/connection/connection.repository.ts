@@ -38,7 +38,7 @@ export class CICDIntegrationRepository {
   create = async (data: CreateCICDIntegrationDto & { id: string }): Promise<TenantCICDIntegration> => {
     const record = await this.model.create({
       id: data.id,
-      tenantId: data.tenantId,
+      appId: data.appId,
       providerType: data.providerType,
       displayName: data.displayName,
       hostUrl: data.hostUrl,
@@ -63,7 +63,7 @@ export class CICDIntegrationRepository {
 
   findAll = async (filters: CICDIntegrationFilters = {}): Promise<TenantCICDIntegration[]> => {
     const where: Record<string, unknown> = {};
-    if (filters.tenantId !== undefined) where.tenantId = filters.tenantId;
+    if (filters.appId !== undefined) where.appId = filters.appId;
     if (filters.providerType !== undefined) where.providerType = filters.providerType;
     if (filters.verificationStatus !== undefined) where.verificationStatus = filters.verificationStatus;
     if (filters.hostUrl !== undefined) where.hostUrl = filters.hostUrl;
@@ -97,11 +97,11 @@ export class CICDIntegrationRepository {
   };
 
   findByTenantAndProvider = async (
-    tenantId: string,
+    appId: string,
     providerType: CreateCICDIntegrationDto['providerType']
   ): Promise<TenantCICDIntegration | null> => {
     const record = await this.model.findOne({
-      where: { tenantId, providerType },
+      where: { appId, providerType },
       order: [['createdAt', 'DESC']]
     });
     return record ? this.toPlainObject(record) : null;

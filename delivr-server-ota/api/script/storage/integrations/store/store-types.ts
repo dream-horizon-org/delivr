@@ -39,7 +39,7 @@ export enum DefaultTrack {
  */
 export interface StoreIntegration {
   id: string;
-  tenantId: string;
+  appId: string;
   storeType: StoreType;
   platform: 'ANDROID' | 'IOS';
   displayName: string;
@@ -80,7 +80,7 @@ export interface SafeStoreIntegration extends StoreIntegration {
  * Create Store Integration DTO
  */
 export interface CreateStoreIntegrationDto {
-  tenantId: string;
+  appId: string;
   storeType: StoreType;
   platform: 'ANDROID' | 'IOS';
   displayName: string;
@@ -120,7 +120,7 @@ export interface CreateStoreCredentialDto {
  * Store Integration Filters
  */
 export interface StoreIntegrationFilters {
-  tenantId?: string;
+  appId?: string;
   storeType?: StoreType;
   platform?: 'ANDROID' | 'IOS';
   status?: IntegrationStatus;
@@ -169,7 +169,7 @@ export interface GooglePlayStorePayload {
 export interface ConnectStoreRequestBody {
   storeType: StoreType;
   platform: 'ANDROID' | 'IOS' | 'android' | 'ios';
-  tenantId: string;
+  appId: string;
   payload: AppStoreConnectPayload | GooglePlayStorePayload;
 }
 
@@ -233,7 +233,7 @@ export const mapStoreTypeFromApi = (storeType: string): StoreType => {
  * Upload AAB to Play Store Request
  */
 export interface UploadAabToPlayStoreRequest {
-  tenantId: string;
+  appId: string;
   storeType: string; // 'play_store'
   platform: string; // 'ANDROID'
   versionName: string;

@@ -21,44 +21,44 @@ export const createIntegrationRoutes = (
 
   // Verify credentials without saving (stateless)
   router.post(
-    '/tenants/:tenantId/integrations/project-management/verify',
+    '/apps/:appId/integrations/project-management/verify',
     tenantPermissions.requireOwner({ storage }),
     controller.verifyCredentials
   );
 
   // CRUD operations for integrations
   router.post(
-    '/tenants/:tenantId/integrations/project-management',
+    '/apps/:appId/integrations/project-management',
     tenantPermissions.requireOwner({ storage }),
     controller.createIntegration
   );
 
   router.get(
-    '/tenants/:tenantId/integrations/project-management',
+    '/apps/:appId/integrations/project-management',
     tenantPermissions.requireEditor({ storage }),
     controller.listIntegrations
   );
 
   router.get(
-    '/tenants/:tenantId/integrations/project-management/:integrationId',
+    '/apps/:appId/integrations/project-management/:integrationId',
     tenantPermissions.requireEditor({ storage }),
     controller.getIntegration
   );
 
   router.put(
-    '/tenants/:tenantId/integrations/project-management/:integrationId',
+    '/apps/:appId/integrations/project-management/:integrationId',
     tenantPermissions.requireOwner({ storage }),
     controller.updateIntegration
   );
 
   router.delete(
-    '/tenants/:tenantId/integrations/project-management/:integrationId',
+    '/apps/:appId/integrations/project-management/:integrationId',
     tenantPermissions.requireOwner({ storage }),
     controller.deleteIntegration
   );
 
   router.post(
-    '/tenants/:tenantId/integrations/project-management/:integrationId/verify',
+    '/apps/:appId/integrations/project-management/:integrationId/verify',
     tenantPermissions.requireOwner({ storage }),
     controller.verifyIntegration
   );

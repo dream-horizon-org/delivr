@@ -21,7 +21,7 @@ const log = createScopedLogger('WorkflowPollingJobs');
 
 type CreateJobsParams = {
   releaseId: string;
-  tenantId: string;
+  appId: string;
   cronicleService: CronicleService;
 };
 
@@ -96,7 +96,7 @@ const buildMinutesArray = (intervalMinutes: number): number[] => {
 export const createWorkflowPollingJobs = async (
   params: CreateJobsParams
 ): Promise<CreateJobsResult> => {
-  const { releaseId, tenantId, cronicleService } = params;
+  const { releaseId, appId, cronicleService } = params;
 
   const pendingJobId = CRONICLE_JOB_ID_PATTERNS.PENDING_POLLER(releaseId);
   const runningJobId = CRONICLE_JOB_ID_PATTERNS.RUNNING_POLLER(releaseId);
@@ -119,7 +119,7 @@ export const createWorkflowPollingJobs = async (
       params: {
         method: 'POST',
         url: cronicleService.buildDirectUrl('/internal/cron/builds/poll-pending-workflows'),
-        body: { releaseId, tenantId }
+        body: { releaseId, appId }
       },
       retries: 0,
       notes: `Polls PENDING CI/CD builds for release ${releaseId}`
@@ -142,7 +142,7 @@ export const createWorkflowPollingJobs = async (
       params: {
         method: 'POST',
         url: cronicleService.buildDirectUrl('/internal/cron/builds/poll-running-workflows'),
-        body: { releaseId, tenantId }
+        body: { releaseId, appId }
       },
       retries: 0,
       notes: `Polls RUNNING CI/CD builds for release ${releaseId}`

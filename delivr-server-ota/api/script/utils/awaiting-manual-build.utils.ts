@@ -292,7 +292,7 @@ export const checkAndConsumeManualBuilds = async (
 
       const buildData: CreateBuildDto = {
         id: buildId,
-        tenantId: upload.tenantId,
+        appId: upload.appId,
         releaseId: upload.releaseId,
         platform: upload.platform,
         buildType: 'MANUAL',

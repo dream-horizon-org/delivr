@@ -1,4 +1,5 @@
 import type {
+  AppCommChannel,
   TenantCommChannel,
   StageChannelMapping,
   SlackChannel
@@ -19,7 +20,7 @@ export class CommConfigRepository {
   /**
    * Convert Sequelize model instance to plain object
    */
-  private toPlainObject = (instance: InstanceType<CommConfigModelType>): TenantCommChannel => {
+  private toPlainObject = (instance: InstanceType<CommConfigModelType>): AppCommChannel => {
     const json = instance.toJSON();
     return json;
   };
@@ -30,13 +31,13 @@ export class CommConfigRepository {
   create = async (
     id: string,
     integrationId: string,
-    tenantId: string,
+    appId: string,
     channelData: StageChannelMapping
-  ): Promise<TenantCommChannel> => {
+  ): Promise<AppCommChannel> => {
     const channelConfig = await this.model.create({
       id,
       integrationId,
-      tenantId,
+      appId,
       channelData
     });
 
@@ -46,7 +47,7 @@ export class CommConfigRepository {
   /**
    * Find channel configuration by ID
    */
-  findById = async (id: string): Promise<TenantCommChannel | null> => {
+  findById = async (id: string): Promise<AppCommChannel | null> => {
     const channelConfig = await this.model.findByPk(id);
 
     if (!channelConfig) {
@@ -57,11 +58,11 @@ export class CommConfigRepository {
   };
 
   /**
-   * Find channel configuration by tenant
+   * Find channel configuration by app
    */
-  findByTenant = async (tenantId: string): Promise<TenantCommChannel | null> => {
+  findByApp = async (appId: string): Promise<AppCommChannel | null> => {
     const channelConfig = await this.model.findOne({
-      where: { tenantId },
+      where: { appId },
       order: [['createdAt', 'DESC']]
     });
 
@@ -73,12 +74,18 @@ export class CommConfigRepository {
   };
 
   /**
+   * @deprecated Use findByApp instead
+   * Kept for backward compatibility
+   */
+  findByTenant = this.findByApp;
+
+  /**
    * Update channel configuration (general update)
    */
   update = async (
     id: string,
     data: Partial<{ channelData: StageChannelMapping }>
-  ): Promise<TenantCommChannel | null> => {
+  ): Promise<AppCommChannel | null> => {
     const channelConfig = await this.model.findByPk(id);
 
     if (!channelConfig) {
@@ -98,7 +105,7 @@ export class CommConfigRepository {
     stage: string,
     action: 'add' | 'remove',
     channels: SlackChannel[]
-  ): Promise<TenantCommChannel | null> => {
+  ): Promise<AppCommChannel | null> => {
     const channelConfig = await this.model.findByPk(id);
 
     if (!channelConfig) {

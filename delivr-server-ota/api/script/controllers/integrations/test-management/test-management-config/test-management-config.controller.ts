@@ -25,18 +25,18 @@ type AuthenticatedRequest = Request & {
 
 /**
  * Handler: Create test management config
- * POST /test-management/tenants/:tenantId/configs
+ * POST /test-management/apps/:appId/configs
  */
 const createConfigHandler = (service: TestManagementConfigService) =>
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const { tenantId } = req.params;
+      const { appId } = req.params;
       const { integrationId, name, passThresholdPercent, platformConfigurations } = req.body;
 
-      const tenantIdError = validateTenantId(tenantId);
+      const tenantIdError = validateTenantId(appId);
       if (tenantIdError) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('tenantId', tenantIdError)
+          validationErrorResponse('appId', tenantIdError)
         );
         return;
       }
@@ -74,7 +74,7 @@ const createConfigHandler = (service: TestManagementConfigService) =>
       }
 
       const data: CreateTestManagementConfigDto = {
-        tenantId,
+        appId,
         integrationId,
         name,
         passThresholdPercent,
@@ -120,23 +120,23 @@ const getConfigByIdHandler = (service: TestManagementConfigService) =>
   };
 
 /**
- * Handler: List configs by tenant
- * GET /test-management/tenants/:tenantId/configs
+ * Handler: List configs by app
+ * GET /test-management/apps/:appId/configs
  */
-const listConfigsByTenantHandler = (service: TestManagementConfigService) =>
+const listConfigsByAppHandler = (service: TestManagementConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId } = req.params;
+      const { appId } = req.params;
 
-      const tenantIdError = validateTenantId(tenantId);
+      const tenantIdError = validateTenantId(appId);
       if (tenantIdError) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('tenantId', tenantIdError)
+          validationErrorResponse('appId', tenantIdError)
         );
         return;
       }
 
-      const configs = await service.listConfigsByTenant(tenantId);
+      const configs = await service.listConfigsByApp(appId);
 
       res.status(HTTP_STATUS.OK).json(successResponse(configs));
     } catch (error) {
@@ -242,7 +242,7 @@ const deleteConfigHandler = (service: TestManagementConfigService) =>
 export const createTestManagementConfigController = (service: TestManagementConfigService) => ({
   createConfig: createConfigHandler(service),
   getConfigById: getConfigByIdHandler(service),
-  listConfigsByTenant: listConfigsByTenantHandler(service),
+  listConfigsByApp: listConfigsByAppHandler(service),
   updateConfig: updateConfigHandler(service),
   deleteConfig: deleteConfigHandler(service)
 });

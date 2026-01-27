@@ -8,7 +8,7 @@ import type { PlatformConfiguration } from '~types/integrations/project-manageme
 
 export type ProjectManagementConfigAttributes = {
   id: string;
-  tenantId: string;
+  appId: string;
   integrationId: string;
   name: string;
   description: string | null;
@@ -36,10 +36,10 @@ export const createProjectManagementConfigModel = (
         primaryKey: true,
         allowNull: false
       },
-      tenantId: {
+      appId: {
         type: DataTypes.UUID,
         allowNull: false,
-        field: 'tenantId',
+        field: 'appId',
         references: {
           model: 'apps',  // Added FK reference to apps table
           key: 'id'

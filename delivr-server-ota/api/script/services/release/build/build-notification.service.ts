@@ -110,7 +110,7 @@ export class BuildNotificationService {
 
       const payload: any = {
         type: notificationType,
-        tenantId: releaseData.tenantId,
+        appId: releaseData.appId,
         releaseId: releaseData.id,
         taskId: task.id,
         version,

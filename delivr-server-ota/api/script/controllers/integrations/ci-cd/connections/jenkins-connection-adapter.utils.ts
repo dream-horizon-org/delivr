@@ -31,7 +31,7 @@ export const createJenkinsConnectionAdapter = (): ConnectionAdapter => {
 
   // prepareVerifyOnUpdate removed; update handled via service.update
 
-  const create: ConnectionAdapter["create"] = async (tenantId, accountId, body) => {
+  const create: ConnectionAdapter["create"] = async (appId, accountId, body) => {
     const displayName = body.displayName as string | undefined;
     const hostUrl = body.hostUrl as string | undefined;
     const username = body.username as string | undefined;
@@ -50,11 +50,11 @@ export const createJenkinsConnectionAdapter = (): ConnectionAdapter => {
     
     // Encrypt with backend storage key for database storage
     const backendEncryptedApiToken = encryptForStorage(decryptedToken);
-    const created = await service.create(tenantId, accountId, { displayName, hostUrl, username, apiToken: backendEncryptedApiToken, providerConfig });
+    const created = await service.create(appId, accountId, { displayName, hostUrl, username, apiToken: backendEncryptedApiToken, providerConfig });
     return created;
   };
 
-  const update = async (tenantId: string, updateData: UpdateCICDIntegrationDto): Promise<SafeCICDIntegration> => {
+  const update = async (appId: string, updateData: UpdateCICDIntegrationDto): Promise<SafeCICDIntegration> => {
     // Decrypt frontend-encrypted apiToken if provided, then encrypt with backend storage key
     // For partial updates, if apiToken is not provided, let the service use the stored token from database
     const processedUpdateData = { ...updateData };
@@ -78,7 +78,7 @@ export const createJenkinsConnectionAdapter = (): ConnectionAdapter => {
       delete processedUpdateData.apiToken;
     }
     
-    const safe = await service.update(tenantId, processedUpdateData);
+    const safe = await service.update(appId, processedUpdateData);
     return safe;
   };
 

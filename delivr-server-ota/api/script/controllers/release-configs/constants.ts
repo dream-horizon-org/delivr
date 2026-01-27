@@ -25,7 +25,7 @@ export const RELEASE_CONFIG_ERROR_MESSAGES = {
   CONFIG_NOT_FOUND: 'Release configuration not found',
   CONFIG_ALREADY_EXISTS: 'Configuration profile already exists',
   NO_INTEGRATIONS: 'At least one integration must be configured',
-  INVALID_TENANT_ID: 'Invalid tenant ID',
+  INVALID_TENANT_ID: 'Invalid app id',
   INVALID_NAME: 'Invalid configuration name',
   INVALID_RELEASE_TYPE: 'Invalid release type',
   INVALID_TARGETS: 'Invalid targets',

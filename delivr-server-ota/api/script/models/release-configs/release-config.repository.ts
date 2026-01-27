@@ -26,7 +26,7 @@ export class ReleaseConfigRepository {
   ): Promise<ReleaseConfiguration> => {
     const config = await this.model.create({
       id: data.id,
-      tenantId: data.tenantId,
+      appId: data.appId,
       name: data.name,
       description: data.description ?? null,
       releaseType: data.releaseType,
@@ -56,8 +56,8 @@ export class ReleaseConfigRepository {
     return this.toPlainObject(config);
   };
 
-  findByTenantId = async (tenantId: string, includeArchived = false): Promise<ReleaseConfiguration[]> => {
-    const where: any = { tenantId };
+  findByAppId = async (appId: string, includeArchived = false): Promise<ReleaseConfiguration[]> => {
+    const where: any = { appId };
     
     // Only filter by isActive if not including archived
     if (!includeArchived) {
@@ -72,12 +72,18 @@ export class ReleaseConfigRepository {
     return configs.map((config) => this.toPlainObject(config));
   };
 
-  findByTenantIdAndName = async (
-    tenantId: string,
+  /**
+   * @deprecated Use findByAppId instead
+   * Kept for backward compatibility
+   */
+  findByTenantId = this.findByAppId;
+
+  findByAppIdAndName = async (
+    appId: string,
     name: string
   ): Promise<ReleaseConfiguration | null> => {
     const config = await this.model.findOne({
-      where: { tenantId, name, isActive: true }
+      where: { appId, name, isActive: true }
     });
 
     if (!config) {
@@ -87,11 +93,17 @@ export class ReleaseConfigRepository {
     return this.toPlainObject(config);
   };
 
-  findDefaultByTenantId = async (
-    tenantId: string
+  /**
+   * @deprecated Use findByAppIdAndName instead
+   * Kept for backward compatibility
+   */
+  findByTenantIdAndName = this.findByAppIdAndName;
+
+  findDefaultByAppId = async (
+    appId: string
   ): Promise<ReleaseConfiguration | null> => {
     const config = await this.model.findOne({
-      where: { tenantId, isDefault: true, isActive: true }
+      where: { appId, isDefault: true, isActive: true }
     });
 
     if (!config) {
@@ -100,6 +112,12 @@ export class ReleaseConfigRepository {
 
     return this.toPlainObject(config);
   };
+
+  /**
+   * @deprecated Use findDefaultByAppId instead
+   * Kept for backward compatibility
+   */
+  findDefaultByTenantId = this.findDefaultByAppId;
 
   update = async (
     id: string,
@@ -142,9 +160,9 @@ export class ReleaseConfigRepository {
     return rowsUpdated[0] > 0;
   };
 
-  unsetDefaultForTenant = async (tenantId: string, excludeId?: string): Promise<void> => {
+  unsetDefaultForApp = async (appId: string, excludeId?: string): Promise<void> => {
     const where: any = {
-      tenantId,
+      appId,
       isDefault: true
     };
 
@@ -157,5 +175,11 @@ export class ReleaseConfigRepository {
       { where }
     );
   };
+
+  /**
+   * @deprecated Use unsetDefaultForApp instead
+   * Kept for backward compatibility
+   */
+  unsetDefaultForTenant = this.unsetDefaultForApp;
 }
 

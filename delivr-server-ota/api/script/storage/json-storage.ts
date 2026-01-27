@@ -167,18 +167,18 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(clone(this.accounts[accountId]));
   }
 
-  public removeTenant(accountId: string, tenantId: string): Promise<void> {
-    if (!this.accounts[accountId] || !this.tenants[tenantId]) {
+  public removeTenant(accountId: string, appId: string): Promise<void> {
+    if (!this.accounts[accountId] || !this.tenants[appId]) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
 
-    const _tenant = this.tenants[tenantId];
+    const _tenant = this.tenants[appId];
     const tenantAccounts = this.accountToTenantsMap[accountId];
-    if (tenantAccounts.indexOf(tenantId) !== -1) {
-      tenantAccounts.splice(tenantAccounts.indexOf(tenantId), 1);
+    if (tenantAccounts.indexOf(appId) !== -1) {
+      tenantAccounts.splice(tenantAccounts.indexOf(appId), 1);
     }
 
-    delete this.tenants[tenantId];
+    delete this.tenants[appId];
     this.saveStateAsync();
 
     return Promise.resolve(<void>null);

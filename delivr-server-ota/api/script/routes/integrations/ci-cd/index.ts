@@ -20,7 +20,7 @@ export function createCICDIntegrationRoutes(storage: Storage): Router {
   // Get available CI/CD providers
   router.get(
     "/integrations/ci-cd/providers",
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     getAvailableCICDProviders
   );
 
@@ -31,7 +31,7 @@ export function createCICDIntegrationRoutes(storage: Storage): Router {
 
   // Provider-agnostic workflows CRUD stays here
   router.post(
-    "/tenants/:tenantId/integrations/ci-cd/workflows",
+    "/apps/:appId/integrations/ci-cd/workflows",
     validateCICD.validateTenantId,
     tenantPermissions.requireEditor({ storage }),
     validateCICD.validateCreateWorkflowBody,
@@ -39,28 +39,28 @@ export function createCICDIntegrationRoutes(storage: Storage): Router {
   );
 
   router.get(
-    "/tenants/:tenantId/integrations/ci-cd/workflows",
+    "/apps/:appId/integrations/ci-cd/workflows",
     validateCICD.validateTenantId,
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     listWorkflows
   );
 
   router.get(
-    "/tenants/:tenantId/integrations/ci-cd/workflows/:workflowId",
+    "/apps/:appId/integrations/ci-cd/workflows/:workflowId",
     validateCICD.validateTenantId,
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     getWorkflowById
   );
 
   router.patch(
-    "/tenants/:tenantId/integrations/ci-cd/workflows/:workflowId",
+    "/apps/:appId/integrations/ci-cd/workflows/:workflowId",
     validateCICD.validateTenantId,
     tenantPermissions.requireEditor({ storage }),
     updateWorkflow
   );
 
   router.delete(
-    "/tenants/:tenantId/integrations/ci-cd/workflows/:workflowId",
+    "/apps/:appId/integrations/ci-cd/workflows/:workflowId",
     validateCICD.validateTenantId,
     tenantPermissions.requireEditor({ storage }),
     deleteWorkflow

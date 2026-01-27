@@ -164,13 +164,13 @@ export class CronJobService {
    * - Stage 1 must be COMPLETED
    * - Stage 2 must be PENDING
    */
-  async triggerStage2(releaseId: string, tenantId: string): Promise<TriggerStageResult> {
+  async triggerStage2(releaseId: string, appId: string): Promise<TriggerStageResult> {
     // Verify release exists and belongs to tenant
     const release = await this.releaseRepo.findById(releaseId);
     if (!release) {
       return { success: false, error: `Release not found: ${releaseId}`, statusCode: 404 };
     }
-    if (release.tenantId !== tenantId) {
+    if (release.appId !== appId) {
       return { success: false, error: 'Release does not belong to this tenant', statusCode: 403 };
     }
 
@@ -228,7 +228,7 @@ export class CronJobService {
 
   async triggerStage3(
     releaseId: string, 
-    tenantId: string,
+    appId: string,
     approvedBy: string,
     comments?: string,
     forceApprove?: boolean
@@ -239,7 +239,7 @@ export class CronJobService {
     if (!release) {
       return { success: false, error: `Release not found: ${releaseId}`, statusCode: 404 };
     }
-    if (release.tenantId !== tenantId) {
+    if (release.appId !== appId) {
       return { success: false, error: 'Release does not belong to this tenant', statusCode: 403 };
     }
 
@@ -252,7 +252,7 @@ export class CronJobService {
     // Validate approval requirements (unless forceApprove is true)
     if (!forceApprove && this.releaseStatusService) {
       // Check cherry pick status (must be OK - no pending cherry picks)
-      const hasCherryPicks = await this.releaseStatusService.cherryPickAvailable(tenantId, releaseId);
+      const hasCherryPicks = await this.releaseStatusService.cherryPickAvailable(appId, releaseId);
       const cherryPickStatusOk = !hasCherryPicks;
       
       if (!cherryPickStatusOk) {
@@ -344,7 +344,7 @@ export class CronJobService {
    */
   async triggerStage4(
     releaseId: string, 
-    tenantId: string,
+    appId: string,
     approvedBy: string,
     comments?: string,
     forceApprove?: boolean
@@ -355,7 +355,7 @@ export class CronJobService {
     if (!release) {
       return { success: false, error: `Release not found: ${releaseId}`, statusCode: 404 };
     }
-    if (release.tenantId !== tenantId) {
+    if (release.appId !== appId) {
       return { success: false, error: 'Release does not belong to this tenant', statusCode: 403 };
     }
 
@@ -427,7 +427,7 @@ export class CronJobService {
       try {
         const distributionResult = await this.distributionService.createDistributionFromRelease(
           releaseId,
-          tenantId
+          appId
         );
 
         if (distributionResult.distributionId) {
@@ -678,13 +678,13 @@ export class CronJobService {
    * - Active releases (not ARCHIVED or COMPLETED)
    * - Releases owned by the tenant
    */
-  async pauseRelease(releaseId: string, tenantId: string, accountId: string): Promise<PauseReleaseResult> {
+  async pauseRelease(releaseId: string, appId: string, accountId: string): Promise<PauseReleaseResult> {
     // Verify release exists and belongs to tenant
     const release = await this.releaseRepo.findById(releaseId);
     if (!release) {
       return { success: false, error: `Release not found: ${releaseId}`, statusCode: 404 };
     }
-    if (release.tenantId !== tenantId) {
+    if (release.appId !== appId) {
       return { success: false, error: 'Release does not belong to this tenant', statusCode: 403 };
     }
 
@@ -793,13 +793,13 @@ export class CronJobService {
    * - TASK_FAILURE paused releases (requires retry/fix)
    * - AWAITING_STAGE_TRIGGER paused releases (requires stage trigger API - "awaiting stage approval")
    */
-  async resumeRelease(releaseId: string, tenantId: string, accountId: string): Promise<ResumeReleaseResult> {
+  async resumeRelease(releaseId: string, appId: string, accountId: string): Promise<ResumeReleaseResult> {
     // Verify release exists and belongs to tenant
     const release = await this.releaseRepo.findById(releaseId);
     if (!release) {
       return { success: false, error: `Release not found: ${releaseId}`, statusCode: 404 };
     }
-    if (release.tenantId !== tenantId) {
+    if (release.appId !== appId) {
       return { success: false, error: 'Release does not belong to this tenant', statusCode: 403 };
     }
 
@@ -884,7 +884,7 @@ export class CronJobService {
       return;
     }
 
-    // Get release to get tenantId
+    // Get release to get appId
     const release = await this.releaseRepo.findById(releaseId);
     const releaseNotFound = !release;
     if (releaseNotFound) {
@@ -895,7 +895,7 @@ export class CronJobService {
     try {
       const result = await createWorkflowPollingJobs({
         releaseId,
-        tenantId: release.tenantId,
+        appId: release.appId,
         cronicleService: this.cronicleService
       });
 

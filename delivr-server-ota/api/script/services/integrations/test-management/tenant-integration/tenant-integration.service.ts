@@ -1,12 +1,12 @@
 import { TEST_MANAGEMENT_ERROR_MESSAGES } from '~controllers/integrations/test-management/constants';
 import type { TenantTestManagementIntegrationRepository } from '~models/integrations/test-management/tenant-integration/tenant-integration.repository';
 import type {
-  CreateTenantTestManagementIntegrationDto,
-  TenantTestManagementIntegration,
-  TenantTestManagementIntegrationConfig,
+  CreateAppTestManagementIntegrationDto,
+  AppTestManagementIntegration,
+  AppTestManagementIntegrationConfig,
   TestManagementProviderType,
-  UpdateTenantTestManagementIntegrationDto,
-  VerifyTenantTestManagementIntegrationResult
+  UpdateAppTestManagementIntegrationDto,
+  VerifyAppTestManagementIntegrationResult
 } from '~types/integrations/test-management/tenant-integration';
 import { VerificationStatus } from '~types/integrations/test-management/tenant-integration';
 import { ProviderFactory } from '../providers/provider.factory';
@@ -27,11 +27,11 @@ export class TestManagementIntegrationService {
   ) {}
 
   /**
-   * Create a new tenant integration
+   * Create a new app integration
    */
-  async createTenantIntegration(
-    data: CreateTenantTestManagementIntegrationDto
-  ): Promise<TenantTestManagementIntegration> {
+  async createAppIntegration(
+    data: CreateAppTestManagementIntegrationDto
+  ): Promise<AppTestManagementIntegration> {
     // Validate credentials before creating - prevents saving broken integrations
     const provider = ProviderFactory.getProvider(data.providerType);
     const isValidConfig = await provider.validateConfig(data.config);
@@ -46,26 +46,44 @@ export class TestManagementIntegrationService {
   }
 
   /**
-   * List all integrations for a tenant
+   * @deprecated Use createAppIntegration instead
+   * Kept for backward compatibility
    */
-  async listTenantIntegrations(tenantId: string): Promise<TenantTestManagementIntegration[]> {
-    return await this.repository.findAll({ tenantId });
+  createTenantIntegration = this.createAppIntegration;
+
+  /**
+   * List all integrations for an app
+   */
+  async listAppIntegrations(appId: string): Promise<AppTestManagementIntegration[]> {
+    return await this.repository.findAll({ appId });
   }
+
+  /**
+   * @deprecated Use listAppIntegrations instead
+   * Kept for backward compatibility
+   */
+  listTenantIntegrations = this.listAppIntegrations;
 
   /**
    * Get a specific integration by ID
    */
-  async getTenantIntegration(integrationId: string): Promise<TenantTestManagementIntegration | null> {
+  async getAppIntegration(integrationId: string): Promise<AppTestManagementIntegration | null> {
     return await this.repository.findById(integrationId);
   }
 
   /**
+   * @deprecated Use getAppIntegration instead
+   * Kept for backward compatibility
+   */
+  getTenantIntegration = this.getAppIntegration;
+
+  /**
    * Update an existing integration
    */
-  async updateTenantIntegration(
+  async updateAppIntegration(
     integrationId: string,
-    data: UpdateTenantTestManagementIntegrationDto
-  ): Promise<TenantTestManagementIntegration | null> {
+    data: UpdateAppTestManagementIntegrationDto
+  ): Promise<AppTestManagementIntegration | null> {
     // If config is being updated, validate it
     const configIsBeingUpdated = data.config !== undefined;
     
@@ -97,18 +115,30 @@ export class TestManagementIntegrationService {
   }
 
   /**
+   * @deprecated Use updateAppIntegration instead
+   * Kept for backward compatibility
+   */
+  updateTenantIntegration = this.updateAppIntegration;
+
+  /**
    * Delete an integration
    */
-  async deleteTenantIntegration(integrationId: string): Promise<boolean> {
+  async deleteAppIntegration(integrationId: string): Promise<boolean> {
     return await this.repository.delete(integrationId);
   }
 
   /**
+   * @deprecated Use deleteAppIntegration instead
+   * Kept for backward compatibility
+   */
+  deleteTenantIntegration = this.deleteAppIntegration;
+
+  /**
    * Verify an integration by testing connectivity
    */
-  async verifyTenantIntegration(
+  async verifyAppIntegration(
     integrationId: string
-  ): Promise<VerifyTenantTestManagementIntegrationResult> {
+  ): Promise<VerifyAppTestManagementIntegrationResult> {
     const integration = await this.repository.findById(integrationId);
     
     if (!integration) {
@@ -140,13 +170,19 @@ export class TestManagementIntegrationService {
   }
 
   /**
+   * @deprecated Use verifyAppIntegration instead
+   * Kept for backward compatibility
+   */
+  verifyTenantIntegration = this.verifyAppIntegration;
+
+  /**
    * Verify credentials without saving (stateless verification)
    * Used before creating an integration to test credentials
    */
   async verifyCredentials(
     providerType: TestManagementProviderType,
-    config:TenantTestManagementIntegrationConfig
-  ): Promise<VerifyTenantTestManagementIntegrationResult> {
+    config: AppTestManagementIntegrationConfig
+  ): Promise<VerifyAppTestManagementIntegrationResult> {
     try {
       const provider = ProviderFactory.getProvider(providerType);
       const isValid = await provider.validateConfig(config);

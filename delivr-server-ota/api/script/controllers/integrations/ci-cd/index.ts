@@ -2,6 +2,7 @@ export { getAvailableCICDProviders } from './providers.controller';
 
 export {
   createConfig,
+  listConfigsByApp,
   listConfigsByTenant,
   getConfigById,
   updateConfigById,

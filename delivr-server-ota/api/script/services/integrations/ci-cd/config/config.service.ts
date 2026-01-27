@@ -1,6 +1,6 @@
 import type { CICDConfigRepository, CICDWorkflowRepository, CICDIntegrationRepository } from '~models/integrations/ci-cd';
-import type { CreateCICDConfigDto, FieldError, TenantCICDConfig, TenantCICDConfigWithWorkflows, UpdateCICDConfigDto } from '~types/integrations/ci-cd/config.interface';
-import type { TenantCICDWorkflow } from '~types/integrations/ci-cd/workflow.interface';
+import type { CreateCICDConfigDto, FieldError, AppCICDConfig, AppCICDConfigWithWorkflows, UpdateCICDConfigDto } from '~types/integrations/ci-cd/config.interface';
+import type { AppCICDWorkflow } from '~types/integrations/ci-cd/workflow.interface';
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 import { CICD_CONFIG_ERROR_MESSAGES } from './config.constants';
 import * as shortid from 'shortid';
@@ -16,7 +16,7 @@ import { normalizePlatform, normalizeWorkflowType } from '../utils/cicd.utils';
  */
 export type TriggerWorkflowByConfigInput = {
   configId: string;
-  tenantId: string;
+  appId: string;
   platform: string;
   workflowType: string;
   jobParameters?: Record<string, unknown>;
@@ -48,13 +48,13 @@ export class CICDConfigService {
   }
 
   async validateConfig(dto: CreateCICDConfigDto): Promise<{ isValid: boolean; errors: FieldError[]; integration: 'ci' }> {
-    const tenantId = dto.tenantId;
+    const appId = dto.appId;
     const workflows = Array.isArray(dto.workflows) ? dto.workflows : [];
     const noWorkflowsProvided = workflows.length === 0;
     if (noWorkflowsProvided) {
       return { "isValid": false, "errors": [{ field: 'workflows', message: CICD_CONFIG_ERROR_MESSAGES.WORKFLOWS_REQUIRED }], "integration": "ci" };
     }
-    const validation = await validateWorkflowsForCreateConfig(workflows, tenantId);
+    const validation = await validateWorkflowsForCreateConfig(workflows, appId);
     const hasValidationErrors = validation.errors.length > 0;
     if (hasValidationErrors) {
       return { "isValid": false, "errors": validation.errors, "integration": "ci" };
@@ -63,7 +63,7 @@ export class CICDConfigService {
   }
 
   async createConfig(dto: CreateCICDConfigDto): Promise<{ configId: string; workflowIds: string[] }> {
-    const tenantId = dto.tenantId;
+    const appId = dto.appId;
     const createdByAccountId = dto.createdByAccountId;
 
     const inputWorkflows = Array.isArray(dto.workflows) ? dto.workflows : [];
@@ -74,16 +74,16 @@ export class CICDConfigService {
     let finalWorkflowIds: string[] = dedupeIds([...existingIds]);
 
     if (workflowsToCreate.length > 0) {
-      const validation = await validateWorkflowsForCreateConfig(workflowsToCreate, tenantId);
+      const validation = await validateWorkflowsForCreateConfig(workflowsToCreate, appId);
       const hasValidationErrors = validation.errors.length > 0;
       if (hasValidationErrors) {
         throw new CICDConfigValidationError(validation.errors);
       }
 
       // Validate and normalize all workflows before creating any
-      const validatedWorkflows = validateAndNormalizeWorkflowsForConfig(workflowsToCreate, tenantId, createdByAccountId);
+      const validatedWorkflows = validateAndNormalizeWorkflowsForConfig(workflowsToCreate, appId, createdByAccountId);
 
-      const createdWorkflows: TenantCICDWorkflow[] = [];
+      const createdWorkflows: AppCICDWorkflow[] = [];
       for (const wf of validatedWorkflows) {
         const created = await this.workflowRepository.create(wf);
         createdWorkflows.push(created);
@@ -98,26 +98,26 @@ export class CICDConfigService {
 
     const createdConfig = await this.configRepository.create({
       id: configId,
-      tenantId,
+      appId,
       workflowIds: finalWorkflowIds,
       createdByAccountId
-    } as unknown as TenantCICDConfig);
+    } as unknown as AppCICDConfig);
 
     return { configId: createdConfig.id, workflowIds: createdConfig.workflowIds };
   }
 
-  async findById(id: string): Promise<TenantCICDConfig | null> {
+  async findById(id: string): Promise<AppCICDConfig | null> {
     return this.configRepository.findById(id);
   }
 
   /**
    * Get config by ID with hydrated workflows
-   * Returns TenantCICDConfigWithWorkflows with full workflow objects populated
+   * Returns AppCICDConfigWithWorkflows with full workflow objects populated
    * 
    * @param id - Config ID
    * @returns Config with workflows array populated, or null if not found
    */
-  async getByIdVerbose(id: string): Promise<TenantCICDConfigWithWorkflows | null> {
+  async getByIdVerbose(id: string): Promise<AppCICDConfigWithWorkflows | null> {
     const config = await this.configRepository.findById(id);
     
     if (!config) {
@@ -131,7 +131,7 @@ export class CICDConfigService {
     );
     
     // Filter out any null results (workflows that may have been deleted)
-    const workflows = loadedWorkflows.filter((w): w is TenantCICDWorkflow => w !== null);
+    const workflows = loadedWorkflows.filter((w): w is AppCICDWorkflow => w !== null);
 
     return {
       ...config,
@@ -139,17 +139,23 @@ export class CICDConfigService {
     };
   }
 
-  async listByTenant(tenantId: string): Promise<TenantCICDConfig[]> {
-    return this.configRepository.findByTenant(tenantId);
+  async listByApp(appId: string): Promise<AppCICDConfig[]> {
+    return this.configRepository.findByApp(appId);
   }
 
-  async updateConfig(dto: UpdateCICDConfigDto): Promise<TenantCICDConfig | null> {
+  /**
+   * @deprecated Use listByApp instead
+   * Kept for backward compatibility
+   */
+  listByTenant = this.listByApp;
+
+  async updateConfig(dto: UpdateCICDConfigDto): Promise<AppCICDConfig | null> {
     const configId = dto.configId;
-    const tenantId = dto.tenantId;
+    const appId = dto.appId;
     const createdByAccountId = dto.createdByAccountId;
 
     const existing = await this.configRepository.findById(configId);
-    const notFoundOrMismatch = !existing || existing.tenantId !== tenantId;
+    const notFoundOrMismatch = !existing || existing.appId !== appId;
     if (notFoundOrMismatch) {
       return null;
     }
@@ -161,15 +167,15 @@ export class CICDConfigService {
 
     if (workflowsToCreate.length > 0) {
       // Validate incoming workflows first; throw structured validation error if any
-      const validation = await validateWorkflowsForCreateConfig(workflowsToCreate, tenantId);
+      const validation = await validateWorkflowsForCreateConfig(workflowsToCreate, appId);
       const hasValidationErrors = validation.errors.length > 0;
       if (hasValidationErrors) {
         throw new CICDConfigValidationError(validation.errors);
       }
 
-      const normalizedWorkflows = validateAndNormalizeWorkflowsForConfig(workflowsToCreate as unknown[], tenantId, createdByAccountId);
+      const normalizedWorkflows = validateAndNormalizeWorkflowsForConfig(workflowsToCreate as unknown[], appId, createdByAccountId);
 
-      const createdWorkflows: TenantCICDWorkflow[] = [];
+      const createdWorkflows: AppCICDWorkflow[] = [];
       for (const workflow of normalizedWorkflows) {
         const created = await this.workflowRepository.create(workflow);
         createdWorkflows.push(created);
@@ -193,9 +199,9 @@ export class CICDConfigService {
     return updated;
   }
 
-  async deleteConfig(id: string, tenantId: string): Promise<boolean> {
+  async deleteConfig(id: string, appId: string): Promise<boolean> {
     const existing = await this.configRepository.findById(id);
-    const notFoundOrMismatch = !existing || existing.tenantId !== tenantId;
+    const notFoundOrMismatch = !existing || existing.appId !== appId;
     if (notFoundOrMismatch) {
       return false;
     }
@@ -213,7 +219,7 @@ export class CICDConfigService {
    * @returns Trigger result with queueLocation and workflow details
    */
   async triggerWorkflowByConfig(input: TriggerWorkflowByConfigInput): Promise<TriggerWorkflowResult> {
-    const { configId, tenantId, jobParameters } = input;
+    const { configId, appId, jobParameters } = input;
     const platform = normalizePlatform(input.platform);
     const workflowType = normalizeWorkflowType(input.workflowType);
 
@@ -224,7 +230,7 @@ export class CICDConfigService {
       throw new Error(CICD_CONFIG_ERROR_MESSAGES.CONFIG_NOT_FOUND);
     }
 
-    const configTenantMismatch = config.tenantId !== tenantId;
+    const configTenantMismatch = config.appId !== appId;
     if (configTenantMismatch) {
       throw new Error(CICD_CONFIG_ERROR_MESSAGES.CONFIG_NOT_FOUND);
     }
@@ -234,11 +240,11 @@ export class CICDConfigService {
     const loadedWorkflows = await Promise.all(
       workflowIds.map((id) => this.workflowRepository.findById(id))
     );
-    const workflows = loadedWorkflows.filter((w): w is TenantCICDWorkflow => w !== null);
+    const workflows = loadedWorkflows.filter((w): w is AppCICDWorkflow => w !== null);
 
     // 3. Filter to matching platform and workflowType
     const matches = workflows.filter((w) => {
-      const tenantMatches = w.tenantId === tenantId;
+      const tenantMatches = w.appId === appId;
       const platformMatches = normalizePlatform(w.platform) === platform;
       const typeMatches = normalizeWorkflowType(w.workflowType) === workflowType;
       return tenantMatches && platformMatches && typeMatches;
@@ -259,7 +265,7 @@ export class CICDConfigService {
     const workflowService = this.createWorkflowService(selectedWorkflow.providerType);
 
     // 5. Trigger the workflow
-    const result = await workflowService.trigger(tenantId, {
+    const result = await workflowService.trigger(appId, {
       workflowId: selectedWorkflow.id,
       workflowType: selectedWorkflow.workflowType,
       platform: platform ?? undefined,

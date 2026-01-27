@@ -8,7 +8,7 @@ import { CICD_CONFIG_ERROR_MESSAGES } from "../../../../services/integrations/ci
 
 export const triggerWorkflowByConfig = async (req: Request, res: Response): Promise<any> => {
   const configId = req.params.configId;
-  const tenantId = req.params.tenantId;
+  const appId = req.params.appId;
   const body = req.body ?? {};
   const platform = typeof body.platform === 'string' ? body.platform : (typeof body.platformType === 'string' ? body.platformType : undefined);
   const workflowType = typeof body.workflowType === 'string' ? body.workflowType : undefined;
@@ -22,11 +22,11 @@ export const triggerWorkflowByConfig = async (req: Request, res: Response): Prom
     });
   }
 
-  const missingTenantId = !tenantId;
+  const missingTenantId = !appId;
   if (missingTenantId) {
     return res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: RESPONSE_STATUS.FAILURE,
-      error: ERROR_MESSAGES.TENANT_ID_REQUIRED
+      error: ERROR_MESSAGES.APP_ID_REQUIRED
     });
   }
 
@@ -36,7 +36,7 @@ export const triggerWorkflowByConfig = async (req: Request, res: Response): Prom
 
     const result = await configService.triggerWorkflowByConfig({
       configId,
-      tenantId,
+      appId,
       platform,
       workflowType,
       jobParameters

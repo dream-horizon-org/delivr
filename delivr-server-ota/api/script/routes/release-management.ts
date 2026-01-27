@@ -230,17 +230,17 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   
   // Mark setup as complete
   router.post(
-    "/tenants/:tenantId/release-management/complete-setup",
+    "/apps/:appId/release-management/complete-setup",
     tenantPermissions.requireOwner({ storage }),
     async (req: Request, res: Response): Promise<any> => {
-      const tenantId: string = req.params.tenantId;
+      const appId: string = req.params.appId;
       
       try {
         // The setup completion is actually determined automatically by the backend
         // based on whether required integrations (SCM) are configured
         // This endpoint is just for optimistic UI updates
         
-        console.log(`[Setup] Marking setup as complete for tenant: ${tenantId}`);
+        console.log(`[Setup] Marking setup as complete for tenant: ${appId}`);
         
         // You could optionally store a flag in the database if needed
         // For now, we just return success as the backend already handles this logic
@@ -249,10 +249,10 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
           success: true,
           message: "Setup marked as complete",
           setupComplete: true,
-          tenantId
+          appId
         });
       } catch (error: any) {
-        console.error(`[Setup] Error marking setup as complete for tenant ${tenantId}:`, error);
+        console.error(`[Setup] Error marking setup as complete for tenant ${appId}:`, error);
         return res.status(500).json({
           error: "Failed to mark setup as complete",
           message: error.message
@@ -270,22 +270,22 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   
   // Check if release management is set up for tenant
   router.get(
-    "/tenants/:tenantId/releases/setup-status",
-    tenantPermissions.requireTenantMembership({ storage }),
+    "/apps/:appId/releases/setup-status",
+    tenantPermissions.requireAppMembership({ storage }),
     async (req: Request, res: Response): Promise<any> => {
-      const tenantId: string = req.params.tenantId;
+      const appId: string = req.params.appId;
 
       try {
         const scmController = (storage as any).scmController;
-        const scmIntegration = await scmController.findActiveByTenant(tenantId);
+        const scmIntegration = await scmController.findActiveByTenant(appId);
 
         // Check Comm/Slack integration
         const commIntegrationRepository = (storage as any).commIntegrationRepository;
-        const slackIntegration = await commIntegrationRepository.findByTenant(tenantId, 'SLACK');
+        const slackIntegration = await commIntegrationRepository.findByTenant(appId, 'SLACK');
 
         // TODO: Check other required integrations (targets, pipelines, etc.)
-        // const targetPlatforms = await storage.getTenantTargetPlatforms(tenantId);
-        // const pipelines = await storage.getTenantPipelines(tenantId);
+        // const targetPlatforms = await storage.getTenantTargetPlatforms(appId);
+        // const pipelines = await storage.getTenantPipelines(appId);
         
         const setupSteps = {
           scm: {

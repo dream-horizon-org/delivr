@@ -413,7 +413,7 @@ export class SubmissionService {
    * 2. iOS submission exists
    * 3. Submission is in PENDING state
    * 4. Distribution exists
-   * 5. Tenant ownership validation (distribution.tenantId === tenantId)
+   * 5. Tenant ownership validation (distribution.appId === appId)
    * 6. Store integration exists for the tenant
    * 7. Integration status is VERIFIED
    * 8. Integration has targetAppId configured
@@ -421,7 +421,7 @@ export class SubmissionService {
   async validateIosSubmission(
     submissionId: string,
     data: SubmitIosRequest,
-    tenantId: string
+    appId: string
   ): Promise<{ valid: boolean; statusCode: number; error?: string; field?: string }> {
     // Step 1: Validate request body fields
     if (typeof data.phasedRelease !== 'boolean') {
@@ -492,7 +492,7 @@ export class SubmissionService {
     }
 
     // Step 5: Security validation - submission must belong to the claimed tenant
-    if (distribution.tenantId !== tenantId) {
+    if (distribution.appId !== appId) {
       return {
         valid: false,
         statusCode: 403,
@@ -505,7 +505,7 @@ export class SubmissionService {
     const mappedStoreType = StoreType.APP_STORE;
 
     const integrations = await storeIntegrationController.findAll({
-      tenantId,
+      appId,
       platform: 'IOS',
       storeType: mappedStoreType
     });
@@ -514,7 +514,7 @@ export class SubmissionService {
       return {
         valid: false,
         statusCode: 400,
-        error: `No iOS store integration found for tenant ${tenantId}. Please configure App Store Connect credentials first.`
+        error: `No iOS store integration found for tenant ${appId}. Please configure App Store Connect credentials first.`
       };
     }
 
@@ -551,14 +551,14 @@ export class SubmissionService {
    * 2. Android submission exists
    * 3. Submission is in PENDING state
    * 4. Distribution exists
-   * 5. Tenant ownership validation (distribution.tenantId === tenantId)
+   * 5. Tenant ownership validation (distribution.appId === appId)
    * 6. Store integration exists for the tenant
    * 7. Integration status is VERIFIED
    */
   async validateAndroidSubmission(
     submissionId: string,
     data: SubmitAndroidRequest,
-    tenantId: string
+    appId: string
   ): Promise<{ valid: boolean; statusCode: number; error?: string; field?: string }> {
     // Step 1: Validate request body fields
     if (typeof data.rolloutPercent !== 'number') {
@@ -647,7 +647,7 @@ export class SubmissionService {
     }
 
     // Step 5: Security validation - submission must belong to the claimed tenant
-    if (distribution.tenantId !== tenantId) {
+    if (distribution.appId !== appId) {
       return {
         valid: false,
         statusCode: 403,
@@ -660,7 +660,7 @@ export class SubmissionService {
     const mappedStoreType = StoreType.PLAY_STORE;
 
     const integrations = await storeIntegrationController.findAll({
-      tenantId,
+      appId,
       platform: BUILD_PLATFORM.ANDROID,
       storeType: mappedStoreType
     });
@@ -669,7 +669,7 @@ export class SubmissionService {
       return {
         valid: false,
         statusCode: 400,
-        error: `No Android store integration found for tenant ${tenantId}. Please configure Google Play Store credentials first.`
+        error: `No Android store integration found for tenant ${appId}. Please configure Google Play Store credentials first.`
       };
     }
 
@@ -695,7 +695,7 @@ export class SubmissionService {
    * Validates ALL prerequisites before creating a new submission:
    * 1. Request body fields (version, testflightNumber, phasedRelease, resetRating, releaseNotes)
    * 2. Distribution exists
-   * 3. Tenant ownership validation (distribution.tenantId === tenantId)
+   * 3. Tenant ownership validation (distribution.appId === appId)
    * 4. Existing submission exists with REJECTED or CANCELLED status
    * 5. Version matches the last submission version (resubmissions must use same version)
    * 6. TestFlight build exists and matches version (via TestFlightBuildVerificationService)
@@ -706,7 +706,7 @@ export class SubmissionService {
   async validateCreateIosSubmission(
     distributionId: string,
     data: CreateNewIosSubmissionRequest,
-    tenantId: string
+    appId: string
   ): Promise<{ valid: boolean; statusCode: number; error?: string; field?: string }> {
     // Step 1: Validate request body fields
     if (!data.version || typeof data.version !== 'string') {
@@ -793,7 +793,7 @@ export class SubmissionService {
     }
 
     // Step 3: Security validation - distribution must belong to the claimed tenant
-    if (distribution.tenantId !== tenantId) {
+    if (distribution.appId !== appId) {
       return {
         valid: false,
         statusCode: 403,
@@ -842,7 +842,7 @@ export class SubmissionService {
       try {
         const buildVerificationResult = await this.testflightBuildVerificationService.verifyBuild({
           releaseId: distribution.releaseId ?? '',
-          tenantId,
+          appId,
           testflightBuildNumber: String(data.testflightNumber)
         });
 
@@ -896,7 +896,7 @@ export class SubmissionService {
     const mappedStoreType = StoreType.APP_STORE;
 
     const integrations = await storeIntegrationController.findAll({
-      tenantId,
+      appId,
       platform: 'IOS',
       storeType: mappedStoreType
     });
@@ -905,7 +905,7 @@ export class SubmissionService {
       return {
         valid: false,
         statusCode: 400,
-        error: `No iOS store integration found for tenant ${tenantId}. Please configure App Store Connect credentials first.`
+        error: `No iOS store integration found for tenant ${appId}. Please configure App Store Connect credentials first.`
       };
     }
 
@@ -940,7 +940,7 @@ export class SubmissionService {
    * Validates ALL prerequisites before creating a new submission:
    * 1. Request body fields (version, versionCode, aabFile, rolloutPercent, inAppPriority, releaseNotes)
    * 2. Distribution exists
-   * 3. Tenant ownership validation (distribution.tenantId === tenantId)
+   * 3. Tenant ownership validation (distribution.appId === appId)
    * 4. Existing submission exists with SUSPENDED or HALTED status
    * 5. Store integration exists for the tenant
    * 6. Integration status is VERIFIED
@@ -948,7 +948,7 @@ export class SubmissionService {
   async validateCreateAndroidSubmission(
     distributionId: string,
     data: CreateNewAndroidSubmissionRequest,
-    tenantId: string
+    appId: string
   ): Promise<{ valid: boolean; statusCode: number; error?: string; field?: string }> {
     // Step 1: Validate request body fields
     if (!data.version || typeof data.version !== 'string') {
@@ -1072,7 +1072,7 @@ export class SubmissionService {
     }
 
     // Step 3: Security validation - distribution must belong to the claimed tenant
-    if (distribution.tenantId !== tenantId) {
+    if (distribution.appId !== appId) {
       return {
         valid: false,
         statusCode: 403,
@@ -1120,7 +1120,7 @@ export class SubmissionService {
     const mappedStoreType = StoreType.PLAY_STORE;
 
     const integrations = await storeIntegrationController.findAll({
-      tenantId,
+      appId,
       platform: BUILD_PLATFORM.ANDROID,
       storeType: mappedStoreType
     });
@@ -1129,7 +1129,7 @@ export class SubmissionService {
       return {
         valid: false,
         statusCode: 400,
-        error: `No Android store integration found for tenant ${tenantId}. Please configure Google Play Store credentials first.`
+        error: `No Android store integration found for tenant ${appId}. Please configure Google Play Store credentials first.`
       };
     }
 
@@ -1179,7 +1179,7 @@ export class SubmissionService {
     submissionId: string,
     data: SubmitIosRequest,
     submittedBy: string,
-    tenantId: string
+    appId: string
   ): Promise<SubmissionDetailsResponse | null> {
     // NOTE: All validations are done in controller via validateIosSubmissionPrerequisites()
     // This method assumes all prerequisites are valid
@@ -1206,7 +1206,7 @@ export class SubmissionService {
       throw new Error('Failed to update submission');
     }
 
-    // Step 2: Get distribution to retrieve tenantId (guaranteed to exist by validation)
+    // Step 2: Get distribution to retrieve appId (guaranteed to exist by validation)
     const distribution = await this.distributionRepository.findById(iosSubmission.distributionId);
     
     if (!distribution) {
@@ -1214,7 +1214,7 @@ export class SubmissionService {
     }
 
     // Step 3: Security validation - submission must belong to the claimed tenant
-    if (distribution.tenantId !== tenantId) {
+    if (distribution.appId !== appId) {
       throw new Error('Submission does not belong to this tenant');
     }
 
@@ -1223,13 +1223,13 @@ export class SubmissionService {
     const mappedStoreType = StoreType.APP_STORE;
 
     const integrations = await storeIntegrationController.findAll({
-      tenantId,
+      appId,
       platform: BUILD_PLATFORM.IOS,
       storeType: mappedStoreType
     });
 
     if (integrations.length === 0) {
-      throw new Error(`No iOS store integration found for tenant ${tenantId}. Please configure App Store Connect credentials first.`);
+      throw new Error(`No iOS store integration found for tenant ${appId}. Please configure App Store Connect credentials first.`);
     }
 
     const integration = integrations[0];
@@ -1451,7 +1451,7 @@ export class SubmissionService {
         if (submitterEmail) {
           await this.releaseNotificationService.notify({
             type: NotificationType.IOS_APPSTORE_BUILD_SUBMITTED,
-            tenantId: distribution.tenantId,
+            appId: distribution.appId,
             releaseId: distribution.releaseId,
             version: finalSubmission.version,
             testflightBuild: finalSubmission.testflightNumber,
@@ -1601,7 +1601,7 @@ export class SubmissionService {
     submissionId: string,
     data: SubmitAndroidRequest,
     submittedBy: string,
-    tenantId: string
+    appId: string
   ): Promise<SubmissionDetailsResponse | null> {
     // NOTE: All validations are done in controller via validateAndroidSubmission()
     // This method assumes all prerequisites are valid
@@ -1626,7 +1626,7 @@ export class SubmissionService {
       throw new Error('Failed to update submission');
     }
 
-    // Step 2: Get distribution to retrieve tenantId
+    // Step 2: Get distribution to retrieve appId
     const distribution = await this.distributionRepository.findById(updatedSubmission.distributionId);
     
     if (!distribution) {
@@ -1634,14 +1634,14 @@ export class SubmissionService {
     }
 
     // Step 3: Security validation - submission must belong to the claimed tenant
-    if (distribution.tenantId !== tenantId) {
+    if (distribution.appId !== appId) {
       throw new Error('Submission does not belong to this tenant');
     }
 
     // Step 4: Get store integration and credentials
     const storeIntegrationController = getStoreIntegrationController();
     const integrations = await storeIntegrationController.findAll({
-      tenantId,
+      appId,
       storeType: StoreType.PLAY_STORE,
       platform: BUILD_PLATFORM.ANDROID,
     });
@@ -1761,7 +1761,7 @@ export class SubmissionService {
           if (submitterEmail) {
             await this.releaseNotificationService.notify({
               type: NotificationType.ANDROID_PLAYSTORE_BUILD_SUBMITTED,
-              tenantId: distribution.tenantId,
+              appId: distribution.appId,
               releaseId: distribution.releaseId,
               version: finalSubmission.version,
               versionCode: String(finalSubmission.versionCode),
@@ -1905,7 +1905,7 @@ export class SubmissionService {
    * Note: This creates a NEW submission record with a new UUID
    * 
    * Complete flow:
-   * 1. Validate distribution exists and get tenantId
+   * 1. Validate distribution exists and get appId
    * 2. Validate existing submission is in REJECTED or CANCELLED status (Database)
    * 3. Mark old submission as inactive (isActive = false)
    * 4. Create new submission record in database
@@ -1926,7 +1926,7 @@ export class SubmissionService {
     distributionId: string,
     data: CreateNewIosSubmissionRequest,
     submittedBy: string,
-    tenantId: string
+    appId: string
   ): Promise<SubmissionDetailsResponse> {
     // NOTE: All validations are done in controller via validateCreateIosSubmission()
     // This method assumes all prerequisites are valid
@@ -1939,7 +1939,7 @@ export class SubmissionService {
     }
 
     // Security validation - distribution must belong to the claimed tenant
-    if (distribution.tenantId !== tenantId) {
+    if (distribution.appId !== appId) {
       throw new Error('Distribution does not belong to this tenant');
     }
 
@@ -1963,7 +1963,7 @@ export class SubmissionService {
     const mappedStoreType = StoreType.APP_STORE;
 
     const integrations = await storeIntegrationController.findAll({
-      tenantId,
+      appId,
       platform: BUILD_PLATFORM.IOS,
       storeType: mappedStoreType
     });
@@ -2206,7 +2206,7 @@ export class SubmissionService {
         if (submitterEmail) {
           await this.releaseNotificationService.notify({
             type: NotificationType.IOS_APPSTORE_BUILD_RESUBMITTED,
-            tenantId: distribution.tenantId,
+            appId: distribution.appId,
             releaseId: distribution.releaseId,
             version: finalSubmission.version,
             testflightBuild: finalSubmission.testflightNumber,
@@ -2261,7 +2261,7 @@ export class SubmissionService {
    * Creates a completely new submission with new artifact
    * 
    * Complete flow:
-   * 1. Validate distribution exists and get tenantId
+   * 1. Validate distribution exists and get appId
    * 2. Check for active submission (any status) - mark as inactive if found
    * 3. Check for active releases in production track - mark as SUSPENDED if found
    * 4. Upload AAB to S3
@@ -2278,7 +2278,7 @@ export class SubmissionService {
     distributionId: string,
     data: CreateNewAndroidSubmissionRequest,
     submittedBy: string,
-    tenantId: string
+    appId: string
   ): Promise<SubmissionDetailsResponse> {
     let editId: string | null = null;
     let packageName: string | null = null;
@@ -2288,7 +2288,7 @@ export class SubmissionService {
     let productionTrackState: any = null;
 
     try {
-      // Step 1: Validate distribution exists and get tenantId
+      // Step 1: Validate distribution exists and get appId
     const distribution = await this.distributionRepository.findById(distributionId);
     
     if (!distribution) {
@@ -2296,11 +2296,11 @@ export class SubmissionService {
     }
 
       // Security validation - distribution must belong to the claimed tenant
-      if (distribution.tenantId !== tenantId) {
+      if (distribution.appId !== appId) {
         throw new Error('Distribution does not belong to this tenant');
       }
 
-      console.log(`[SubmissionService] Step 1 completed: Distribution found for ${distributionId}, tenantId: ${tenantId}`);
+      console.log(`[SubmissionService] Step 1 completed: Distribution found for ${distributionId}, appId: ${appId}`);
 
       // Step 2: Validate existing submission exists and check for active submission with USER_ACTION_PENDING or SUSPENDED status
     const existingSubmissions = await this.androidSubmissionRepository.findByDistributionId(distributionId);
@@ -2348,13 +2348,13 @@ export class SubmissionService {
       // Step 3: Get store integration to get packageName and credentials
       const storeIntegrationController = getStoreIntegrationController();
       const integrations = await storeIntegrationController.findAll({
-        tenantId,
+        appId,
         storeType: StoreType.PLAY_STORE,
         platform: BUILD_PLATFORM.ANDROID,
       });
 
       if (integrations.length === 0) {
-        throw new Error(`No Play Store integration found for tenant ${tenantId}. Please configure Play Store credentials first.`);
+        throw new Error(`No Play Store integration found for tenant ${appId}. Please configure Play Store credentials first.`);
       }
 
       const verifiedIntegration = integrations.find(i => i.status === IntegrationStatus.VERIFIED);
@@ -2467,7 +2467,7 @@ export class SubmissionService {
       // Generate S3 key from metadata
       const fileName = deriveStandardArtifactFilename(originalFilename, tempBuildId);
       const s3Key = buildArtifactS3Key(
-        { tenantId, releaseId: distribution.releaseId, platform: BUILD_PLATFORM.ANDROID, artifactVersionName: data.version },
+        { appId, releaseId: distribution.releaseId, platform: BUILD_PLATFORM.ANDROID, artifactVersionName: data.version },
         fileName
       );
       const contentType = inferContentType(fileName);
@@ -2810,7 +2810,7 @@ export class SubmissionService {
     submissionId: string, 
     reason: string, 
     createdBy: string,
-    tenantId: string
+    appId: string
   ): Promise<{ id: string; status: string; statusUpdatedAt: Date } | null> {
     // Step 1: Find iOS submission (pause only applies to iOS)
     const iosSubmission = await this.iosSubmissionRepository.findById(submissionId);
@@ -2829,7 +2829,7 @@ export class SubmissionService {
       throw new Error('Only phased releases can be paused.');
     }
 
-    // Step 4: Get distribution to retrieve tenantId
+    // Step 4: Get distribution to retrieve appId
     const distribution = await this.distributionRepository.findById(iosSubmission.distributionId);
     
     if (!distribution) {
@@ -2837,11 +2837,11 @@ export class SubmissionService {
     }
 
     // Security validation - submission must belong to the claimed tenant
-    if (distribution.tenantId !== tenantId) {
+    if (distribution.appId !== appId) {
       throw new Error('Submission does not belong to this tenant');
     }
 
-    // Step 5: Find iOS store integration by tenantId + platform + storeType
+    // Step 5: Find iOS store integration by appId + platform + storeType
     const storeIntegrationController = getStoreIntegrationController();
     
     // Validate storeType is APP_STORE (only supported type for iOS)
@@ -2851,13 +2851,13 @@ export class SubmissionService {
     const mappedStoreType = StoreType.APP_STORE;
 
     const integrations = await storeIntegrationController.findAll({
-      tenantId,
+      appId,
       platform: BUILD_PLATFORM.IOS,
       storeType: mappedStoreType
     });
 
     if (integrations.length === 0) {
-      throw new Error(`No iOS store integration found for tenant ${tenantId}. Please configure App Store Connect credentials first.`);
+      throw new Error(`No iOS store integration found for tenant ${appId}. Please configure App Store Connect credentials first.`);
     }
 
     // Use first integration found (should typically be only one per tenant + platform + storeType)
@@ -2965,7 +2965,7 @@ export class SubmissionService {
     submissionId: string, 
     reason: string, 
     createdBy: string,
-    tenantId: string
+    appId: string
   ): Promise<{ id: string; status: string; statusUpdatedAt: Date }> {
     // Step 1: Find Android submission (halt only applies to Android)
     const androidSubmission = await this.androidSubmissionRepository.findById(submissionId);
@@ -2985,7 +2985,7 @@ export class SubmissionService {
       );
     }
 
-    // Step 3: Get distribution to retrieve tenantId
+    // Step 3: Get distribution to retrieve appId
     const distribution = await this.distributionRepository.findById(androidSubmission.distributionId);
     
     if (!distribution) {
@@ -2993,14 +2993,14 @@ export class SubmissionService {
     }
 
     // Security validation - submission must belong to the claimed tenant
-    if (distribution.tenantId !== tenantId) {
+    if (distribution.appId !== appId) {
       throw new Error('Submission does not belong to this tenant');
     }
 
     // Step 4: Get store integration and verify status is VERIFIED
     const storeIntegrationController = getStoreIntegrationController();
     const integrations = await storeIntegrationController.findAll({
-      tenantId,
+      appId,
       storeType: StoreType.PLAY_STORE,
       platform: BUILD_PLATFORM.ANDROID,
     });
@@ -3159,15 +3159,15 @@ export class SubmissionService {
     submissionId: string,
     createdBy: string,
     platform: string,
-    tenantId: string
+    appId: string
   ): Promise<{ id: string; status: string; statusUpdatedAt: Date } | null> {
     // If platform is specified and it's Android, use Android resume
     if (platform && platform.toUpperCase() === 'ANDROID') {
-      return this.resumeAndroidRollout(submissionId, createdBy, tenantId);
+      return this.resumeAndroidRollout(submissionId, createdBy, appId);
     }
 
     // Default to iOS resume (backward compatibility)
-    return this.resumeRolloutIOS(submissionId, createdBy, tenantId);
+    return this.resumeRolloutIOS(submissionId, createdBy, appId);
   }
 
   /**
@@ -3177,7 +3177,7 @@ export class SubmissionService {
   async resumeAndroidRollout(
     submissionId: string,
     createdBy: string,
-    tenantId: string
+    appId: string
   ): Promise<{ id: string; status: string; statusUpdatedAt: Date }> {
     // Step 1: Find Android submission (resume only applies to Android)
     const androidSubmission = await this.androidSubmissionRepository.findById(submissionId);
@@ -3194,7 +3194,7 @@ export class SubmissionService {
       );
     }
 
-    // Step 3: Get distribution to retrieve tenantId
+    // Step 3: Get distribution to retrieve appId
     const distribution = await this.distributionRepository.findById(androidSubmission.distributionId);
     
     if (!distribution) {
@@ -3202,14 +3202,14 @@ export class SubmissionService {
     }
 
     // Security validation - submission must belong to the claimed tenant
-    if (distribution.tenantId !== tenantId) {
+    if (distribution.appId !== appId) {
       throw new Error('Submission does not belong to this tenant');
     }
 
     // Step 4: Get store integration and verify status is VERIFIED
     const storeIntegrationController = getStoreIntegrationController();
     const integrations = await storeIntegrationController.findAll({
-      tenantId,
+      appId,
       storeType: StoreType.PLAY_STORE,
       platform: BUILD_PLATFORM.ANDROID,
     });
@@ -3400,7 +3400,7 @@ export class SubmissionService {
   async resumeRolloutIOS(
     submissionId: string,
     createdBy: string,
-    tenantId: string
+    appId: string
   ): Promise<{ id: string; status: string; statusUpdatedAt: Date } | null> {
     // Step 1: Find iOS submission (resume only applies to iOS)
     const iosSubmission = await this.iosSubmissionRepository.findById(submissionId);
@@ -3414,7 +3414,7 @@ export class SubmissionService {
       throw new Error(`Cannot resume submission with status: ${iosSubmission.status}. Must be PAUSED.`);
     }
 
-    // Step 3: Get distribution to retrieve tenantId
+    // Step 3: Get distribution to retrieve appId
     const distribution = await this.distributionRepository.findById(iosSubmission.distributionId);
     
     if (!distribution) {
@@ -3422,7 +3422,7 @@ export class SubmissionService {
     }
 
     // Security validation - submission must belong to the claimed tenant
-    if (distribution.tenantId !== tenantId) {
+    if (distribution.appId !== appId) {
       throw new Error('Submission does not belong to this tenant');
     }
 
@@ -3439,13 +3439,13 @@ export class SubmissionService {
     const mappedStoreType = StoreType.APP_STORE;
 
     const integrations = await storeIntegrationController.findAll({
-      tenantId,
+      appId,
       platform: BUILD_PLATFORM.IOS,
       storeType: mappedStoreType
     });
 
     if (integrations.length === 0) {
-      throw new Error(`No iOS store integration found for tenant ${tenantId}. Please configure App Store Connect credentials first.`);
+      throw new Error(`No iOS store integration found for tenant ${appId}. Please configure App Store Connect credentials first.`);
     }
 
     const integration = integrations[0];
@@ -3551,7 +3551,7 @@ export class SubmissionService {
   async updateIosRolloutPercentage(
     submissionId: string,
     rolloutPercent: number,
-    tenantId: string
+    appId: string
   ): Promise<{ id: string; rolloutPercentage: number; statusUpdatedAt: Date } | null> {
     // Step 1: Find iOS submission
     const iosSubmission = await this.iosSubmissionRepository.findById(submissionId);
@@ -3585,7 +3585,7 @@ export class SubmissionService {
       );
     }
 
-    // Step 5: Get distribution to retrieve tenantId
+    // Step 5: Get distribution to retrieve appId
     const distribution = await this.distributionRepository.findById(iosSubmission.distributionId);
     
     if (!distribution) {
@@ -3593,7 +3593,7 @@ export class SubmissionService {
     }
 
     // Security validation - submission must belong to the claimed tenant
-    if (distribution.tenantId !== tenantId) {
+    if (distribution.appId !== appId) {
       throw new Error('Submission does not belong to this tenant');
     }
 
@@ -3610,13 +3610,13 @@ export class SubmissionService {
     const mappedStoreType = StoreType.APP_STORE;
 
     const integrations = await storeIntegrationController.findAll({
-      tenantId,
+      appId,
       platform: BUILD_PLATFORM.IOS,
       storeType: mappedStoreType
     });
 
     if (integrations.length === 0) {
-      throw new Error(`No iOS store integration found for tenant ${tenantId}. Please configure App Store Connect credentials first.`);
+      throw new Error(`No iOS store integration found for tenant ${appId}. Please configure App Store Connect credentials first.`);
     }
 
     const integration = integrations[0];
@@ -3715,7 +3715,7 @@ export class SubmissionService {
   async updateAndroidRolloutPercentage(
     submissionId: string,
     rolloutPercent: number,
-    tenantId: string
+    appId: string
   ): Promise<{ id: string; rolloutPercentage: number; statusUpdatedAt: Date }> {
     // Find Android submission
     const androidSubmission = await this.androidSubmissionRepository.findById(submissionId);
@@ -3735,7 +3735,7 @@ export class SubmissionService {
     throw new Error('Rollout percentage must be between 0 and 100 (supports decimals like 0.01)');
   }
 
-  // Step 1: Get distribution to retrieve tenantId
+  // Step 1: Get distribution to retrieve appId
   const distribution = await this.distributionRepository.findById(androidSubmission.distributionId);
   
   if (!distribution) {
@@ -3743,14 +3743,14 @@ export class SubmissionService {
   }
 
   // Security validation - submission must belong to the claimed tenant
-  if (distribution.tenantId !== tenantId) {
+  if (distribution.appId !== appId) {
     throw new Error('Submission does not belong to this tenant');
   }
 
   // Step 2: Get store integration and verify status is VERIFIED
   const storeIntegrationController = getStoreIntegrationController();
   const integrations = await storeIntegrationController.findAll({
-    tenantId,
+    appId,
     storeType: StoreType.PLAY_STORE,
     platform: BUILD_PLATFORM.ANDROID,
   });
@@ -3938,14 +3938,14 @@ export class SubmissionService {
    * 
    * @param submissionId - The submission ID
    * @param platform - Platform (must be ANDROID)
-   * @param tenantId - Tenant ID for ownership validation
+   * @param appId - app id for ownership validation
    * @returns The S3 artifact path
    * @throws Error if submission not found, doesn't belong to tenant, or artifact unavailable
    */
   async getSubmissionArtifactPath(
     submissionId: string,
     platform: 'ANDROID' | 'IOS',
-    tenantId: string
+    appId: string
   ): Promise<string> {
     // Step 1: Validate platform is ANDROID
     // iOS submissions don't have downloadable artifacts (only TestFlight reference)
@@ -3971,7 +3971,7 @@ export class SubmissionService {
     }
 
     // Security: Don't leak submission existence if tenant mismatch
-    const tenantMismatch = distribution.tenantId !== tenantId;
+    const tenantMismatch = distribution.appId !== appId;
     if (tenantMismatch) {
       throw new Error(SUBMISSION_ERROR_MESSAGES.SUBMISSION_NOT_FOUND);
     }
@@ -3992,20 +3992,20 @@ export class SubmissionService {
    * 
    * @param submissionId - The submission ID
    * @param platform - Platform (ANDROID or IOS)
-   * @param tenantId - Tenant ID for ownership validation
+   * @param appId - app id for ownership validation
    * @returns Object with presigned URL and expiry timestamp
    * @throws Error if submission not found, doesn't belong to tenant, or artifact unavailable
    */
   async getSubmissionArtifactDownloadUrl(
     submissionId: string,
     platform: 'ANDROID' | 'IOS',
-    tenantId: string
+    appId: string
   ): Promise<{ url: string; expiresAt: string }> {
     // Step 1: Get artifact path (validates tenant ownership and platform)
     const artifactPath = await this.getSubmissionArtifactPath(
       submissionId,
       platform,
-      tenantId
+      appId
     );
 
     // Step 2: Generate presigned URL
@@ -4031,7 +4031,7 @@ export class SubmissionService {
     submissionId: string,
     reason: string,
     createdBy: string,
-    tenantId: string
+    appId: string
   ): Promise<{ id: string; status: string; statusUpdatedAt: Date } | null> {
     // Step 1: Find iOS submission (cancel only applies to iOS for now)
     const iosSubmission = await this.iosSubmissionRepository.findById(submissionId);
@@ -4056,7 +4056,7 @@ export class SubmissionService {
       throw new Error('Cannot cancel inactive submission. Only active submissions can be cancelled.');
     }
 
-    // Step 4: Get distribution to retrieve tenantId
+    // Step 4: Get distribution to retrieve appId
     const distribution = await this.distributionRepository.findById(iosSubmission.distributionId);
     
     if (!distribution) {
@@ -4064,7 +4064,7 @@ export class SubmissionService {
     }
 
     // Security validation - submission must belong to the claimed tenant
-    if (distribution.tenantId !== tenantId) {
+    if (distribution.appId !== appId) {
       throw new Error('Submission does not belong to this tenant');
     }
 
@@ -4074,13 +4074,13 @@ export class SubmissionService {
     const mappedStoreType = StoreType.APP_STORE;
 
     const integrations = await storeIntegrationController.findAll({
-      tenantId,
+      appId,
       platform: BUILD_PLATFORM.IOS,
       storeType: mappedStoreType
     });
 
     if (integrations.length === 0) {
-      throw new Error(`No iOS store integration found for tenant ${tenantId}. Please configure App Store Connect credentials first.`);
+      throw new Error(`No iOS store integration found for tenant ${appId}. Please configure App Store Connect credentials first.`);
     }
 
     const integration = integrations[0];
@@ -4152,7 +4152,7 @@ export class SubmissionService {
         if (cancellerEmail) {
           await this.releaseNotificationService.notify({
             type: NotificationType.IOS_APPSTORE_BUILD_CANCELLED,
-            tenantId: distribution.tenantId,
+            appId: distribution.appId,
             releaseId: distribution.releaseId,
             version: updatedSubmission.version,
             testflightBuild: updatedSubmission.testflightNumber,
@@ -4221,7 +4221,7 @@ export class SubmissionService {
     }
 
     // Get Apple App Store Connect service
-    const appleService = await createAppleServiceFromIntegration(distribution.tenantId);
+    const appleService = await createAppleServiceFromIntegration(distribution.appId);
 
     // Get store integration to find targetAppId
     const storage = getStorage();
@@ -4233,12 +4233,12 @@ export class SubmissionService {
 
     const storeIntegrationController = (storage as any).storeIntegrationController as StoreIntegrationController;
     const integrations = await storeIntegrationController.findByTenantAndStoreType(
-      distribution.tenantId,
+      distribution.appId,
       StoreType.APP_STORE
     );
 
     if (!integrations || integrations.length === 0) {
-      throw new Error(`No Apple App Store integration found for tenant ${distribution.tenantId}`);
+      throw new Error(`No Apple App Store integration found for tenant ${distribution.appId}`);
     }
 
     const integration = integrations[0];
@@ -4381,7 +4381,7 @@ export class SubmissionService {
               
               await this.releaseNotificationService.notify({
                 type: NotificationType.IOS_APPSTORE_LIVE,
-                tenantId: distribution.tenantId,
+                appId: distribution.appId,
                 releaseId: distribution.releaseId,
                 version: submission.version,
                 testflightBuild: submission.testflightNumber
@@ -4519,7 +4519,7 @@ export class SubmissionService {
           
           await this.releaseNotificationService.notify({
             type: NotificationType.IOS_APPSTORE_BUILD_REJECTED,
-            tenantId: distribution.tenantId,
+            appId: distribution.appId,
             releaseId: distribution.releaseId,
             version: submission.version,
             testflightBuild: submission.testflightNumber,
@@ -4778,7 +4778,7 @@ export class SubmissionService {
             
             await this.releaseNotificationService.notify({
               type: NotificationType.ANDROID_PLAYSTORE_LIVE,
-              tenantId: distribution.tenantId,
+              appId: distribution.appId,
               releaseId: distribution.releaseId,
               version: submission.version,
               versionCode: String(submission.versionCode)
@@ -4793,7 +4793,7 @@ export class SubmissionService {
             
             await this.releaseNotificationService.notify({
               type: NotificationType.ANDROID_PLAYSTORE_LIVE,
-              tenantId: distribution.tenantId,
+              appId: distribution.appId,
               releaseId: distribution.releaseId,
               version: submission.version,
               versionCode: String(submission.versionCode)
@@ -4815,7 +4815,7 @@ export class SubmissionService {
             } else {
               await this.releaseNotificationService.notify({
                 type: NotificationType.ANDROID_PLAYSTORE_USER_ACTION_PENDING,
-                tenantId: distribution.tenantId,
+                appId: distribution.appId,
                 releaseId: distribution.releaseId,
                 version: submission.version,
                 versionCode: String(submission.versionCode),
@@ -4839,7 +4839,7 @@ export class SubmissionService {
             } else {
               await this.releaseNotificationService.notify({
                 type: NotificationType.ANDROID_PLAYSTORE_SUSPENDED,
-                tenantId: distribution.tenantId,
+                appId: distribution.appId,
                 releaseId: distribution.releaseId,
                 version: submission.version,
                 versionCode: String(submission.versionCode),

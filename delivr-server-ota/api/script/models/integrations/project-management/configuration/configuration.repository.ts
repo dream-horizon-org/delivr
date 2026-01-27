@@ -24,7 +24,7 @@ export class ProjectManagementConfigRepository {
     try {
       const config = await this.model.create({
         id: this.generateId(),
-        tenantId: data.tenantId,
+        appId: data.appId,
         integrationId: data.integrationId,
         name: data.name,
         description: data.description ?? null,
@@ -57,9 +57,9 @@ export class ProjectManagementConfigRepository {
     return this.toPlainObject(config);
   };
 
-  findByTenantId = async (tenantId: string): Promise<ProjectManagementConfig[]> => {
+  findByAppId = async (appId: string): Promise<ProjectManagementConfig[]> => {
     const configs = await this.model.findAll({
-      where: { tenantId, isActive: true },
+      where: { appId, isActive: true },
       order: [['createdAt', 'DESC']]
     });
 

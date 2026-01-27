@@ -114,16 +114,16 @@ const createScheduledReleaseHandler = (service: ReleaseScheduleService) =>
 /**
  * Handler: List release schedules by tenant
  * 
- * GET /tenants/:tenantId/release-schedules
+ * GET /apps/:appId/release-schedules
  */
 const listSchedulesByTenantHandler = (service: ReleaseScheduleService) =>
   async (req: Request, res: Response): Promise<void> => {
-    const { tenantId } = req.params;
+    const { appId } = req.params;
 
-    console.log('[listSchedulesByTenant] Fetching schedules for tenant:', tenantId);
+    console.log('[listSchedulesByTenant] Fetching schedules for tenant:', appId);
 
     try {
-      const schedules = await service.getByTenantId(tenantId);
+      const schedules = await service.getByTenantId(appId);
 
       res.status(HTTP_STATUS.OK).json(
         successResponse(schedules)

@@ -9,7 +9,7 @@ import type {
   CreateSlackIntegrationDto,
   UpdateSlackIntegrationDto,
   SafeSlackIntegration,
-  TenantCommunicationIntegration
+  AppCommunicationIntegration
 } from '~types/integrations/comm/comm-integration';
 
 /**
@@ -69,7 +69,7 @@ export class CommIntegrationService {
    * Create a new integration
    */
   async createIntegration(
-    tenantId: string,
+    appId: string,
     providerType: CommunicationType,
     data: {
       botToken: string;
@@ -80,7 +80,7 @@ export class CommIntegrationService {
     }
   ): Promise<SafeSlackIntegration> {
     const createData: CreateSlackIntegrationDto = {
-      tenantId,
+      appId,
       communicationType: providerType,
       slackBotToken: data.botToken,
       slackBotUserId: data.botUserId,
@@ -97,8 +97,8 @@ export class CommIntegrationService {
       VerificationStatus.VALID
     );
 
-    const integration = await this.repository.findByTenant(
-      tenantId,
+    const integration = await this.repository.findByApp(
+      appId,
       providerType
     );
 
@@ -108,10 +108,10 @@ export class CommIntegrationService {
   /**
    * List all integrations for a tenant
    */
-  async listIntegrations(tenantId: string): Promise<SafeSlackIntegration[]> {
-    // TODO: Update repository to support findAll by tenantId
-    const integration = await this.repository.findByTenant(
-      tenantId,
+  async listIntegrations(appId: string): Promise<SafeSlackIntegration[]> {
+    // TODO: Update repository to support findAll by appId
+    const integration = await this.repository.findByApp(
+      appId,
       CommunicationType.SLACK
     );
     return integration ? [integration] : [];
@@ -120,16 +120,16 @@ export class CommIntegrationService {
   /**
    * Get integration by ID
    */
-  async getIntegrationById(integrationId: string): Promise<TenantCommunicationIntegration | null> {
+  async getIntegrationById(integrationId: string): Promise<AppCommunicationIntegration | null> {
     return await this.repository.findById(integrationId, true);
   }
 
   /**
    * Get integration by tenant
    */
-  async getIntegrationByTenant(tenantId: string): Promise<SafeSlackIntegration | null> {
+  async getIntegrationByTenant(appId: string): Promise<SafeSlackIntegration | null> {
     return await this.repository.findByTenant(
-      tenantId,
+      appId,
       CommunicationType.SLACK
     );
   }
@@ -137,9 +137,9 @@ export class CommIntegrationService {
   /**
    * Get integration with token (for internal use)
    */
-  async getIntegrationWithToken(tenantId: string): Promise<TenantCommunicationIntegration | null> {
+  async getIntegrationWithToken(appId: string): Promise<AppCommunicationIntegration | null> {
     return await this.repository.findByTenant(
-      tenantId,
+      appId,
       CommunicationType.SLACK,
       true // include token
     );
@@ -162,14 +162,14 @@ export class CommIntegrationService {
   }
 
   /**
-   * Update integration by tenantId (legacy method)
+   * Update integration by appId (legacy method)
    */
   async updateIntegrationByTenant(
-    tenantId: string,
+    appId: string,
     updateData: UpdateSlackIntegrationDto
   ): Promise<SafeSlackIntegration | null> {
     const existing = await this.repository.findByTenant(
-      tenantId,
+      appId,
       CommunicationType.SLACK
     );
 
@@ -195,11 +195,11 @@ export class CommIntegrationService {
   }
 
   /**
-   * Delete integration by tenantId (legacy method)
+   * Delete integration by appId (legacy method)
    */
-  async deleteIntegrationByTenant(tenantId: string): Promise<boolean> {
+  async deleteIntegrationByTenant(appId: string): Promise<boolean> {
     const existing = await this.repository.findByTenant(
-      tenantId,
+      appId,
       CommunicationType.SLACK
     );
 

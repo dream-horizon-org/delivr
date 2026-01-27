@@ -18,7 +18,7 @@ export class DistributionRepository {
   async create(data: CreateDistributionDto): Promise<Distribution> {
     const distribution = await this.model.create({
       id: data.id,
-      tenantId: data.tenantId,
+      appId: data.appId,
       releaseId: data.releaseId,
       branch: data.branch,
       configuredListOfPlatforms: data.configuredListOfPlatforms,
@@ -55,8 +55,8 @@ export class DistributionRepository {
   async findAll(filters: DistributionFilters = {}): Promise<Distribution[]> {
     const where: Record<string, unknown> = {};
 
-    if (filters.tenantId) {
-      where.tenantId = filters.tenantId;
+    if (filters.appId) {
+      where.appId = filters.appId;
     }
     if (filters.releaseId) {
       where.releaseId = filters.releaseId;
@@ -86,8 +86,8 @@ export class DistributionRepository {
   ): Promise<{ distributions: Distribution[]; total: number }> {
     const where: Record<string, unknown> = {};
 
-    if (filters.tenantId) {
-      where.tenantId = filters.tenantId;
+    if (filters.appId) {
+      where.appId = filters.appId;
     }
     if (filters.releaseId) {
       where.releaseId = filters.releaseId;
@@ -116,11 +116,11 @@ export class DistributionRepository {
   }
 
   /**
-   * Find all distributions by tenant ID
+   * Find all distributions by app id
    */
-  async findByTenantId(tenantId: string): Promise<Distribution[]> {
+  async findByAppId(appId: string): Promise<Distribution[]> {
     const distributions = await this.model.findAll({
-      where: { tenantId },
+      where: { appId },
       order: [['createdAt', 'DESC']]
     });
 
@@ -161,8 +161,8 @@ export class DistributionRepository {
   async count(filters: DistributionFilters = {}): Promise<number> {
     const where: Record<string, unknown> = {};
 
-    if (filters.tenantId) {
-      where.tenantId = filters.tenantId;
+    if (filters.appId) {
+      where.appId = filters.appId;
     }
     if (filters.releaseId) {
       where.releaseId = filters.releaseId;

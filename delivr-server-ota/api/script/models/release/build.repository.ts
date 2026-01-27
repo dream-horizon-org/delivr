@@ -23,7 +23,7 @@ export type Build = BuildAttributes;
  */
 export type CreateBuildDto = {
   id: string;
-  tenantId: string;
+  appId: string;
   releaseId: string;
   platform: BuildPlatform;
   buildType: BuildType;
@@ -75,7 +75,7 @@ export class BuildRepository {
   async create(data: CreateBuildDto): Promise<Build> {
     const build = await this.model.create({
       id: data.id,
-      tenantId: data.tenantId,
+      appId: data.appId,
       releaseId: data.releaseId,
       platform: data.platform,
       buildType: data.buildType,
@@ -352,7 +352,7 @@ export class BuildRepository {
     const builds = await this.model.bulkCreate(
       data.map(d => ({
         id: d.id,
-        tenantId: d.tenantId,
+        appId: d.appId,
         releaseId: d.releaseId,
         platform: d.platform,
         buildType: d.buildType,
@@ -502,11 +502,11 @@ export class BuildRepository {
 
   /**
    * Find builds with complex filtering.
-   * All filters except tenantId and releaseId are optional.
+   * All filters except appId and releaseId are optional.
    * Used by BuildArtifactService to list builds with various filter combinations.
    */
   async findBuilds(params: {
-    tenantId: string;
+    appId: string;
     releaseId: string;
     platform?: string | null;
     buildStage?: string | null;
@@ -518,7 +518,7 @@ export class BuildRepository {
     buildUploadStatus?: string | null;
   }): Promise<Build[]> {
     const {
-      tenantId,
+      appId,
       releaseId,
       platform,
       buildStage,
@@ -532,7 +532,7 @@ export class BuildRepository {
 
     // Build where clause with required and optional filters
     const where: WhereOptions<BuildAttributes> = {
-      tenantId,
+      appId,
       releaseId
     };
 

@@ -12,37 +12,37 @@ export const createConfigurationRoutes = (
   const controller = createProjectManagementConfigController(service);
 
   router.post(
-    '/tenants/:tenantId/project-management/configs',
+    '/apps/:appId/project-management/configs',
     tenantPermissions.requireEditor({ storage }),
     controller.createConfig
   );
 
   router.get(
-    '/tenants/:tenantId/project-management/configs',
-    tenantPermissions.requireTenantMembership({ storage }),
+    '/apps/:appId/project-management/configs',
+    tenantPermissions.requireAppMembership({ storage }),
     controller.listConfigs
   );
 
   router.get(
-    '/tenants/:tenantId/project-management/configs/:configId',
-    tenantPermissions.requireTenantMembership({ storage }),
+    '/apps/:appId/project-management/configs/:configId',
+    tenantPermissions.requireAppMembership({ storage }),
     controller.getConfig
   );
 
   router.put(
-    '/tenants/:tenantId/project-management/configs/:configId',
+    '/apps/:appId/project-management/configs/:configId',
     tenantPermissions.requireEditor({ storage }),
     controller.updateConfig
   );
 
   router.delete(
-    '/tenants/:tenantId/project-management/configs/:configId',
+    '/apps/:appId/project-management/configs/:configId',
     tenantPermissions.requireEditor({ storage }),
     controller.deleteConfig
   );
 
   router.post(
-    '/tenants/:tenantId/project-management/configs/:configId/verify',
+    '/apps/:appId/project-management/configs/:configId/verify',
     tenantPermissions.requireEditor({ storage }),
     controller.verifyConfig
   );

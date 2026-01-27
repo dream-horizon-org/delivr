@@ -1,6 +1,6 @@
 import type { CICDIntegrationRepository } from '~models/integrations/ci-cd';
 import { getStorage } from '../../../../storage/storage-instance';
-import type { SafeCICDIntegration, UpdateCICDIntegrationDto, TenantCICDIntegration } from '~types/integrations/ci-cd/connection.interface';
+import type { SafeCICDIntegration, UpdateCICDIntegrationDto, AppCICDIntegration } from '~types/integrations/ci-cd/connection.interface';
 
 export abstract class ConnectionService<TCreateInput> {
   private readonly repositoryInstance?: CICDIntegrationRepository;
@@ -17,15 +17,15 @@ export abstract class ConnectionService<TCreateInput> {
     return (storage as any).cicdIntegrationRepository as CICDIntegrationRepository;
   }
 
-  protected toSafe = (integration: TenantCICDIntegration): SafeCICDIntegration => {
+  protected toSafe = (integration: AppCICDIntegration): SafeCICDIntegration => {
     const { apiToken, headerValue, ...rest } = integration;
     return { ...rest };
   };
 
-  abstract create(tenantId: string, accountId: string, input: TCreateInput): Promise<SafeCICDIntegration>;
-  abstract get(tenantId: string): Promise<SafeCICDIntegration | null>;
-  abstract update(tenantId: string, updateData: UpdateCICDIntegrationDto): Promise<SafeCICDIntegration>;
-  abstract delete(tenantId: string): Promise<void>;
+  abstract create(appId: string, accountId: string, input: TCreateInput): Promise<SafeCICDIntegration>;
+  abstract get(appId: string): Promise<SafeCICDIntegration | null>;
+  abstract update(appId: string, updateData: UpdateCICDIntegrationDto): Promise<SafeCICDIntegration>;
+  abstract delete(appId: string): Promise<void>;
   abstract verifyConnection(params: unknown): Promise<{ isValid: boolean; message: string }>;
 }
 

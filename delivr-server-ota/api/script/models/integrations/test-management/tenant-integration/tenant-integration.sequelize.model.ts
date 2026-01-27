@@ -12,7 +12,7 @@ export const createTenantTestManagementIntegrationModel = (sequelize: Sequelize)
     implements TenantTestManagementIntegration
   {
     declare id: string;
-    declare tenantId: string;
+    declare appId: string;
     declare name: string;
     declare providerType: TestManagementProviderType;
     declare config: TenantTestManagementIntegrationConfig;
@@ -29,7 +29,7 @@ export const createTenantTestManagementIntegrationModel = (sequelize: Sequelize)
         primaryKey: true,
         comment: 'Primary key'
       },
-      tenantId: {
+      appId: {
         type: DataTypes.UUID,
         allowNull: false,
         field: 'tenant_id',

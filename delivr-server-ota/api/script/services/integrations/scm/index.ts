@@ -17,25 +17,25 @@
  *     this.scmService = new SCMService();
  *   }
  * 
- *   async kickoffRelease(releaseId: string, tenantId: string) {
+ *   async kickoffRelease(releaseId: string, appId: string) {
  *     // Check if branch exists
- *     const exists = await this.scmService.checkBranchExists(tenantId, 'main');
+ *     const exists = await this.scmService.checkBranchExists(appId, 'main');
  *     
  *     if (exists) {
  *       // Fork out release branch
- *       await this.scmService.forkOutBranch(tenantId, 'release/v1.0.0', 'main');
+ *       await this.scmService.forkOutBranch(appId, 'release/v1.0.0', 'main');
  *     }
  *   }
  * 
- *   async createRCTag(releaseId: string, tenantId: string, rcNumber: number) {
+ *   async createRCTag(releaseId: string, appId: string, rcNumber: number) {
  *     const tagName = `v1.0.0_rc_${rcNumber}`;
- *     await this.scmService.createReleaseTag(tenantId, 'release/v1.0.0', tagName);
+ *     await this.scmService.createReleaseTag(appId, 'release/v1.0.0', tagName);
  *   }
  * 
- *   async finalizeRelease(releaseId: string, tenantId: string) {
+ *   async finalizeRelease(releaseId: string, appId: string) {
  *     // Create final tag
  *     const tag = await this.scmService.createReleaseTag(
- *       tenantId,
+ *       appId,
  *       'release/v1.0.0',
  *       undefined, // no explicit tag
  *       ['WEB', 'PLAY_STORE', 'APP_STORE'], // targets
@@ -44,7 +44,7 @@
  *     
  *     // Create GitHub release
  *     const releaseUrl = await this.scmService.createGitHubRelease(
- *       tenantId,
+ *       appId,
  *       tag,
  *       'v0.9.0_final', // previous tag
  *       undefined, // baseVersion (not needed if previousTag provided)

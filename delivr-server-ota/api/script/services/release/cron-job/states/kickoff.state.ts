@@ -236,7 +236,7 @@ export class KickoffState implements ICronJobState {
           
           await taskExecutor.executeTask({
             releaseId,
-            tenantId: release.tenantId,
+            appId: release.appId,
             release,
             task,
             platformTargetMappings
@@ -379,7 +379,7 @@ export class KickoffState implements ICronJobState {
 
       console.log(
         `[KickoffState] ⏸️ Stage 1 complete. Paused (AWAITING_STAGE_TRIGGER). ` +
-        `Use POST /tenants/:tenantId/releases/${releaseId}/trigger-regression-testing to start Stage 2.`
+        `Use POST /apps/:appId/releases/${releaseId}/trigger-regression-testing to start Stage 2.`
       );
 
       // DON'T call setState() - user must manually trigger Stage 2 via API

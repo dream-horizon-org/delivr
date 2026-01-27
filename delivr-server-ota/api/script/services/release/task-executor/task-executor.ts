@@ -78,7 +78,7 @@ interface PlatformTargetMapping {
 
 export interface TaskExecutionContext {
   releaseId: string;
-  tenantId: string;
+  appId: string;
   release: Release;
   task: ReleaseTask;
   platformTargetMappings: PlatformTargetMapping[];
@@ -185,14 +185,14 @@ export class TaskExecutor {
    */
   private async triggerWorkflowByConfigId(
     configId: string,
-    tenantId: string,
+    appId: string,
     platform: string,
     workflowType: WorkflowType,
     jobParameters: Record<string, unknown>
   ): Promise<{ queueLocation: string; workflowId: string; workflowType: string; providerType: CICDProviderType }> {
     const result = await this.cicdConfigService.triggerWorkflowByConfig({
       configId,
-      tenantId,
+      appId,
       platform,
       workflowType,
       jobParameters
@@ -334,12 +334,12 @@ export class TaskExecutor {
       return;
     }
 
-    const { tenantId, releaseId, release, platformTargetMappings } = context;
+    const { appId, releaseId, release, platformTargetMappings } = context;
     const branchName = String(externalData.branchName);
 
     await this.releaseNotificationService!.notify({
       type: NotificationType.BRANCH_FORKOUT,
-      tenantId,
+      appId,
       releaseId,
       branch: branchName,
       isSystemGenerated: true
@@ -360,7 +360,7 @@ export class TaskExecutor {
     _externalData: Record<string, unknown> | null,
     _externalId: string | null
   ): Promise<void> {
-    const { tenantId, releaseId, release } = context;
+    const { appId, releaseId, release } = context;
 
     // Get release config
     const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
@@ -408,7 +408,7 @@ export class TaskExecutor {
 
     await this.releaseNotificationService!.notify({
       type: NotificationType.PROJECT_MANAGEMENT_LINKS,
-      tenantId,
+      appId,
       releaseId,
       links,
       isSystemGenerated: true
@@ -429,7 +429,7 @@ export class TaskExecutor {
     _externalData: Record<string, unknown> | null,
     _externalId: string | null
   ): Promise<void> {
-    const { tenantId, releaseId, release } = context;
+    const { appId, releaseId, release } = context;
 
     // Get release config
     const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
@@ -477,7 +477,7 @@ export class TaskExecutor {
 
     await this.releaseNotificationService!.notify({
       type: NotificationType.TEST_MANAGEMENT_LINKS,
-      tenantId,
+      appId,
       releaseId,
       links,
       isSystemGenerated: true
@@ -499,14 +499,14 @@ export class TaskExecutor {
       return;
     }
 
-    const { tenantId, releaseId } = context;
+    const { appId, releaseId } = context;
     const notes = String(externalData.notes);
     const currentTag = String(externalData.currentTag);
     const previousTag = externalData.previousTag ? String(externalData.previousTag) : currentTag;
 
     await this.releaseNotificationService!.notify({
       type: NotificationType.RELEASE_NOTES,
-      tenantId,
+      appId,
       releaseId,
       startTag: previousTag,
       endTag: currentTag,
@@ -530,13 +530,13 @@ export class TaskExecutor {
       return;
     }
 
-    const { tenantId, releaseId } = context;
+    const { appId, releaseId } = context;
     const releaseUrl = String(externalData.releaseUrl);
     const releaseTag = String(externalData.currentTag);
 
     await this.releaseNotificationService!.notify({
       type: NotificationType.FINAL_RELEASE_NOTES,
-      tenantId,
+      appId,
       releaseId,
       releaseTag,
       releaseUrl,
@@ -563,12 +563,12 @@ export class TaskExecutor {
       const taskName = getTaskNameWithStage(task.taskType);
       
       // Build Delivr URL
-      const delivrUrl = buildDelivrUrl(context.tenantId, context.releaseId);
+      const delivrUrl = buildDelivrUrl(context.appId, context.releaseId);
 
       // Send notification
       await this.releaseNotificationService.notify({
         type: NotificationType.TASK_FAILED,
-        tenantId: context.tenantId,
+        appId: context.appId,
         releaseId: context.releaseId,
         taskName: taskName,
         delivrUrl: delivrUrl,
@@ -808,7 +808,7 @@ export class TaskExecutor {
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
-    const { release, tenantId, platformTargetMappings } = context;
+    const { release, appId, platformTargetMappings } = context;
 
     if (!this.scmService) {
       throw new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
@@ -822,7 +822,7 @@ export class TaskExecutor {
 
     // Call SCM integration
     await this.scmService.forkOutBranch(
-      tenantId,
+      appId,
       releaseBranch,
       baseBranch
     );
@@ -1051,7 +1051,7 @@ export class TaskExecutor {
   private async executeTriggerPreRegressionBuilds(
     context: TaskExecutionContext
   ): Promise<string> {
-    const { release, tenantId, task } = context;
+    const { release, appId, task } = context;
 
     // Get platforms from platformTargetMappings (new schema uses ENUMs)
     const platformMappings = context.platformTargetMappings;
@@ -1085,11 +1085,11 @@ export class TaskExecutor {
         if (isNotAlreadyAwaiting && this.releaseNotificationService) {
           try {
             const buildType = TASK_TYPE_TO_NAME[task.taskType];
-            const delivrUrl = buildDelivrUrl(context.tenantId, context.releaseId);
+            const delivrUrl = buildDelivrUrl(context.appId, context.releaseId);
             
             await this.releaseNotificationService.notify({
               type: NotificationType.MANUAL_BUILD_UPLOAD_REMINDER,
-              tenantId: context.tenantId,
+              appId: context.appId,
               releaseId: context.releaseId,
               buildType: buildType,
               delivrUrl: delivrUrl,
@@ -1132,7 +1132,7 @@ export class TaskExecutor {
           if (BuildModel) {
             await BuildModel.create({
               id: buildId,
-              tenantId: tenantId,
+              appId: appId,
               buildNumber: null,
               artifactVersionName: versionName,
               artifactPath: upload.artifactPath,
@@ -1217,7 +1217,7 @@ export class TaskExecutor {
       try {
         const result = await this.triggerWorkflowByConfigId(
           ciConfigId,
-          tenantId,
+          appId,
           platformName,
           WorkflowType.PRE_REGRESSION_BUILD,
           {
@@ -1231,7 +1231,7 @@ export class TaskExecutor {
 
         await BuildModel.create({
           id: buildId,
-          tenantId: tenantId,
+          appId: appId,
           buildNumber: null,
           artifactVersionName: versionName,
           artifactPath: null,
@@ -1282,7 +1282,7 @@ export class TaskExecutor {
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
-    const { release, tenantId: _tenantId, task } = context;
+    const { release, appId: _tenantId, task } = context;
 
     if (!this.testRunService) {
       throw new Error(RELEASE_ERROR_MESSAGES.TEST_PLATFORM_NOT_AVAILABLE);
@@ -1340,7 +1340,7 @@ export class TaskExecutor {
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
-    const { release, tenantId, task, platformTargetMappings } = context;
+    const { release, appId, task, platformTargetMappings } = context;
 
     if (!this.scmService) {
       throw new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
@@ -1374,7 +1374,7 @@ export class TaskExecutor {
 
     // Create RC tag - integration returns tag name
     await this.scmService.createReleaseTag(
-      tenantId,
+      appId,
       releaseBranch,
       cycleTag,
       undefined, // targets (not needed for RC tags)
@@ -1406,7 +1406,7 @@ export class TaskExecutor {
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
-    const { release, tenantId, task, platformTargetMappings } = context;
+    const { release, appId, task, platformTargetMappings } = context;
 
     if (!this.scmService) {
       throw new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
@@ -1443,7 +1443,7 @@ export class TaskExecutor {
 
     // Create release notes - integration returns notes content (string)
     const notes = await this.scmService.createReleaseNotes(
-      tenantId,
+      appId,
       currentTag,
       previousTag,
       generatePlatformVersionString
@@ -1480,7 +1480,7 @@ export class TaskExecutor {
   private async executeTriggerRegressionBuilds(
     context: TaskExecutionContext
   ): Promise<string> {
-    const { release, tenantId, task } = context;
+    const { release, appId, task } = context;
 
     if (!task.regressionId) {
       throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_ID_NOT_FOUND);
@@ -1517,11 +1517,11 @@ export class TaskExecutor {
         if (isNotAlreadyAwaiting && this.releaseNotificationService) {
           try {
             const buildType = TASK_TYPE_TO_NAME[task.taskType];
-            const delivrUrl = buildDelivrUrl(context.tenantId, context.releaseId);
+            const delivrUrl = buildDelivrUrl(context.appId, context.releaseId);
             
             await this.releaseNotificationService.notify({
               type: NotificationType.MANUAL_BUILD_UPLOAD_REMINDER,
-              tenantId: context.tenantId,
+              appId: context.appId,
               releaseId: context.releaseId,
               buildType: buildType,
               delivrUrl: delivrUrl,
@@ -1564,7 +1564,7 @@ export class TaskExecutor {
           if (BuildModel) {
             await BuildModel.create({
               id: buildId,
-              tenantId: tenantId,
+              appId: appId,
               buildNumber: null,
               artifactVersionName: versionName,
               artifactPath: upload.artifactPath,
@@ -1649,7 +1649,7 @@ export class TaskExecutor {
       try {
         const result = await this.triggerWorkflowByConfigId(
           ciConfigId,
-          tenantId,
+          appId,
           platformName,
           WorkflowType.REGRESSION_BUILD,
           {
@@ -1663,7 +1663,7 @@ export class TaskExecutor {
 
         await BuildModel.create({
           id: buildId,
-          tenantId: tenantId,
+          appId: appId,
           buildNumber: null,
           artifactVersionName: versionName,
           artifactPath: null,
@@ -1713,7 +1713,7 @@ export class TaskExecutor {
   private async executeTriggerAutomationRuns(
     context: TaskExecutionContext
   ): Promise<string> {
-    const { release, tenantId, task } = context;
+    const { release, appId, task } = context;
 
     if (!task.regressionId) {
       throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_ID_NOT_FOUND);
@@ -1744,7 +1744,7 @@ export class TaskExecutor {
       try {
         const result = await this.triggerWorkflowByConfigId(
           ciConfigId,
-          tenantId,
+          appId,
           platformName,
           WorkflowType.AUTOMATION_BUILD,
           {
@@ -1786,7 +1786,7 @@ export class TaskExecutor {
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
-    const { release, tenantId: _tenantId, task, platformTargetMappings } = context;
+    const { release, appId: _tenantId, task, platformTargetMappings } = context;
 
     if (!this.testRunService) {
       throw new Error(RELEASE_ERROR_MESSAGES.TEST_PLATFORM_NOT_AVAILABLE);
@@ -1865,7 +1865,7 @@ export class TaskExecutor {
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
-    const { release, tenantId } = context;
+    const { release, appId } = context;
 
     if (!this.scmService) {
       throw new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
@@ -1879,7 +1879,7 @@ export class TaskExecutor {
     const version = generatePlatformVersionString
 (platformMappings);
     const tagName = await this.scmService.createReleaseTag(
-      tenantId,
+      appId,
       release.branch || `release/v${version}`,
       undefined, // No explicit tagName - let integration generate from targets + version
       targets,
@@ -1919,7 +1919,7 @@ export class TaskExecutor {
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
-    const { release, tenantId, platformTargetMappings } = context;
+    const { release, appId, platformTargetMappings } = context;
 
     if (!this.scmService) {
       throw new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
@@ -1950,7 +1950,7 @@ export class TaskExecutor {
       ? (typeof release.targetReleaseDate === 'string' ? new Date(release.targetReleaseDate) : release.targetReleaseDate)
       : new Date();
     const releaseUrl = await this.scmService.createFinalReleaseNotes(
-      tenantId,
+      appId,
       currentTag,
       previousTag,
       targetDate
@@ -1980,7 +1980,7 @@ export class TaskExecutor {
   private async executeTestFlightBuild(
     context: TaskExecutionContext
   ): Promise<string> {
-    const { release, tenantId, task } = context;
+    const { release, appId, task } = context;
 
     // Verify iOS platform exists using platformTargetMappings
     const platformMappings = context.platformTargetMappings;
@@ -2017,11 +2017,11 @@ export class TaskExecutor {
         if (isNotAlreadyAwaiting && this.releaseNotificationService) {
           try {
             const buildType = TASK_TYPE_TO_NAME[task.taskType];
-            const delivrUrl = buildDelivrUrl(context.tenantId, context.releaseId);
+            const delivrUrl = buildDelivrUrl(context.appId, context.releaseId);
             
             await this.releaseNotificationService.notify({
               type: NotificationType.MANUAL_BUILD_UPLOAD_REMINDER,
-              tenantId: context.tenantId,
+              appId: context.appId,
               releaseId: context.releaseId,
               buildType: buildType,
               delivrUrl: delivrUrl,
@@ -2068,7 +2068,7 @@ export class TaskExecutor {
         const versionName = iosMapping?.version;
         await BuildModel.create({
           id: buildId,
-          tenantId: tenantId,
+          appId: appId,
           buildNumber: buildNumber,
           artifactVersionName: versionName,
           artifactPath: iosUpload.artifactPath,
@@ -2126,7 +2126,7 @@ export class TaskExecutor {
     try {
       const result = await this.triggerWorkflowByConfigId(
         ciConfigId,
-        tenantId,
+        appId,
         BUILD_PLATFORM.IOS,
         WorkflowType.TEST_FLIGHT_BUILD,
         {
@@ -2140,7 +2140,7 @@ export class TaskExecutor {
 
       await BuildModel.create({
         id: buildId,
-        tenantId: tenantId,
+        appId: appId,
         buildNumber: null,
         artifactVersionName: versionName,
         artifactPath: null,
@@ -2189,7 +2189,7 @@ export class TaskExecutor {
   private async executeCreateAABBuild(
     context: TaskExecutionContext
   ): Promise<string> {
-    const { release, tenantId, task } = context;
+    const { release, appId, task } = context;
 
     // Verify ANDROID platform exists using platformTargetMappings
     const platformMappings = context.platformTargetMappings;
@@ -2226,11 +2226,11 @@ export class TaskExecutor {
         if (isNotAlreadyAwaiting && this.releaseNotificationService) {
           try {
             const buildType = TASK_TYPE_TO_NAME[task.taskType];
-            const delivrUrl = buildDelivrUrl(context.tenantId, context.releaseId);
+            const delivrUrl = buildDelivrUrl(context.appId, context.releaseId);
             
             await this.releaseNotificationService.notify({
               type: NotificationType.MANUAL_BUILD_UPLOAD_REMINDER,
-              tenantId: context.tenantId,
+              appId: context.appId,
               releaseId: context.releaseId,
               buildType: buildType,
               delivrUrl: delivrUrl,
@@ -2278,7 +2278,7 @@ export class TaskExecutor {
         const versionName = androidMapping?.version;
         await BuildModel.create({
           id: buildId,
-          tenantId: tenantId,
+          appId: appId,
           buildNumber: buildNumber,
           artifactVersionName: versionName,
           artifactPath: androidUpload.artifactPath,
@@ -2337,7 +2337,7 @@ export class TaskExecutor {
     try {
       const result = await this.triggerWorkflowByConfigId(
         ciConfigId,
-        tenantId,
+        appId,
         BUILD_PLATFORM.ANDROID,
         WorkflowType.AAB_BUILD,
         {
@@ -2351,7 +2351,7 @@ export class TaskExecutor {
 
       await BuildModel.create({
         id: buildId,
-        tenantId: tenantId,
+        appId: appId,
         buildNumber: null,
         artifactVersionName: versionName,
         artifactPath: null,

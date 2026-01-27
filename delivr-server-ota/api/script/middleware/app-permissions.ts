@@ -47,7 +47,7 @@ async function resolveApp(
   // Try appName first (most common pattern)
   if (req.params.appName) {
     const appName = req.params.appName;
-    const tenantId = Array.isArray(req.headers.tenant) 
+    const appId = Array.isArray(req.headers.tenant) 
       ? req.headers.tenant[0] 
       : req.headers.tenant;
     
@@ -57,7 +57,7 @@ async function resolveApp(
     const cliVersionIsValid = cliVersionExists && semver.valid(cliVersion) !== null;
     const cliVersionRequiresTenant = cliVersionIsValid && 
       semver.gte(cliVersion, MIN_CLI_VERSION_REQUIRING_TENANT);
-    const tenantIdMissing = !tenantId;
+    const tenantIdMissing = !appId;
     const shouldRequireTenantHeader = tenantIdMissing && cliVersionRequiresTenant;
     
     if (shouldRequireTenantHeader) {
@@ -70,7 +70,7 @@ async function resolveApp(
       const NameResolver = storageModule.NameResolver;
       const nameResolver = new NameResolver(config.storage);
       
-      const app = await nameResolver.resolveApp(userId, appName, tenantId);
+      const app = await nameResolver.resolveApp(userId, appName, appId);
       
       if (!app) {
         return null;
@@ -128,7 +128,7 @@ export async function getUserAppPermission(
     }
     
     // Get app-level permission (appId field references the new App entity)
-    // DOTA apps have appId (FK to new apps table), not tenantId
+    // DOTA apps have appId (FK to new apps table), not appId
     const appEntityId = app.dataValues.appId;
     
     if (!appEntityId) {
@@ -140,7 +140,7 @@ export async function getUserAppPermission(
     const tenantPermission = await getUserAppPermissionFromTenant(
       storage,
       userId,
-      appEntityId  // This is the App entity ID (not tenantId)
+      appEntityId  // This is the App entity ID (not appId)
     );
     
     if (!tenantPermission) {

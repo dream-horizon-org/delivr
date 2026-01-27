@@ -4,11 +4,11 @@ import { ERROR_MESSAGES } from "../constants";
 import { formatErrorMessage } from "~utils/error.utils";
 import { getStorage } from "../../../../storage/storage-instance";
 import type { CICDIntegrationRepository } from "~models/integrations/ci-cd/connection/connection.repository";
-import type { TenantCICDIntegration, UpdateCICDIntegrationDto, SafeCICDIntegration } from "~types/integrations/ci-cd/connection.interface";
+import type { AppCICDIntegration, UpdateCICDIntegrationDto, SafeCICDIntegration } from "~types/integrations/ci-cd/connection.interface";
 import { CICDProviderType } from "~types/integrations/ci-cd/connection.interface";
 import { getConnectionAdapter } from "./connection-adapter.utils";
 
-const toSafe = (integration: TenantCICDIntegration): SafeCICDIntegration => {
+const toSafe = (integration: AppCICDIntegration): SafeCICDIntegration => {
   const { apiToken, headerValue, ...rest } = integration;
   return { ...rest };
 };
@@ -16,18 +16,18 @@ const toSafe = (integration: TenantCICDIntegration): SafeCICDIntegration => {
 /**
  * Get a CI/CD integration by id for a tenant.
  *
- * @param req Express request (expects params.tenantId, params.integrationId)
+ * @param req Express request (expects params.appId, params.integrationId)
  * @param res Express response
  * @returns 200 with safe integration data or 404 if not found/mismatched tenant
  */
 export const getIntegrationById = async (req: Request, res: Response): Promise<any> => {
-  const tenantId = req.params.tenantId;
+  const appId = req.params.appId;
   const integrationId = req.params.integrationId;
   try {
     const storage = getStorage();
     const repo = (storage as any).cicdIntegrationRepository as CICDIntegrationRepository;
     const integration = await repo.findById(integrationId);
-    const notFoundOrMismatch = !integration || integration.tenantId !== tenantId;
+    const notFoundOrMismatch = !integration || integration.appId !== appId;
     if (notFoundOrMismatch) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND });
     }
@@ -41,19 +41,19 @@ export const getIntegrationById = async (req: Request, res: Response): Promise<a
 /**
  * Update a CI/CD integration by id via provider adapter.
  *
- * @param req Express request (expects params.tenantId, params.integrationId; body partial update)
+ * @param req Express request (expects params.appId, params.integrationId; body partial update)
  * @param res Express response
  * @returns 200 with updated safe integration or 404 if not found/mismatched tenant
  */
 export const updateIntegrationById = async (req: Request, res: Response): Promise<any> => {
-  const tenantId = req.params.tenantId;
+  const appId = req.params.appId;
   const integrationId = req.params.integrationId;
   const updateData = (req.body || {}) as UpdateCICDIntegrationDto;
   try {
     const storage = getStorage();
     const repo = (storage as any).cicdIntegrationRepository as CICDIntegrationRepository;
     const existing = await repo.findById(integrationId);
-    const notFoundOrMismatch = !existing || existing.tenantId !== tenantId;
+    const notFoundOrMismatch = !existing || existing.appId !== appId;
     if (notFoundOrMismatch) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND });
     }
@@ -63,7 +63,7 @@ export const updateIntegrationById = async (req: Request, res: Response): Promis
     if (!adapter.update) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED });
     }
-    const safe = await adapter.update(tenantId, updateData);
+    const safe = await adapter.update(appId, updateData);
     return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, data: safe });
   } catch (e: unknown) {
     const message = formatErrorMessage(e, ERROR_MESSAGES.INTEGRATION_UPDATE_FAILED);
@@ -77,12 +77,12 @@ export const updateIntegrationById = async (req: Request, res: Response): Promis
  * Validates that no workflows reference this integration before deletion.
  * If workflows exist, returns 400 with INTEGRATION_HAS_WORKFLOWS error.
  *
- * @param req Express request (expects params.tenantId, params.integrationId)
+ * @param req Express request (expects params.appId, params.integrationId)
  * @param res Express response
  * @returns 200 on success, 400 if workflows exist, or 404 if not found/mismatched tenant
  */
 export const deleteIntegrationById = async (req: Request, res: Response): Promise<any> => {
-  const tenantId = req.params.tenantId;
+  const appId = req.params.appId;
   const integrationId = req.params.integrationId;
   try {
     const storage = getStorage();
@@ -90,7 +90,7 @@ export const deleteIntegrationById = async (req: Request, res: Response): Promis
     const workflowRepo = (storage as any).cicdWorkflowRepository;
 
     const existing = await repo.findById(integrationId);
-    const notFoundOrMismatch = !existing || existing.tenantId !== tenantId;
+    const notFoundOrMismatch = !existing || existing.appId !== appId;
     if (notFoundOrMismatch) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND });
     }
@@ -140,13 +140,13 @@ export const verifyConnectionByProvider = async (req: Request, res: Response): P
 /**
  * Create a CI/CD integration for a providerType.
  *
- * @param req Express request (expects params.tenantId, params.providerType; body varies per provider)
+ * @param req Express request (expects params.appId, params.providerType; body varies per provider)
  * @param res Express response
  * @returns 201 with created integration shape or 400/500 on error
  */
 export const createConnectionByProvider = async (req: Request, res: Response): Promise<any> => {
   try {
-    const tenantId = req.params.tenantId;
+    const appId = req.params.appId;
     const accountId: string = req.user?.id;
     const providerType = String(req.params.providerType || '').toUpperCase().replace('-', '_') as keyof typeof CICDProviderType;
     const provider = CICDProviderType[providerType] as CICDProviderType | undefined;
@@ -154,7 +154,7 @@ export const createConnectionByProvider = async (req: Request, res: Response): P
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED });
     }
     const adapter = getConnectionAdapter(provider);
-    const created = await adapter.create(tenantId, accountId, req.body || {});
+    const created = await adapter.create(appId, accountId, req.body || {});
     return res.status(HTTP_STATUS.CREATED).json({ success: RESPONSE_STATUS.SUCCESS, integration: created });
   } catch (e: unknown) {
     const message = formatErrorMessage(e, ERROR_MESSAGES.FAILED_SAVE_GHA);

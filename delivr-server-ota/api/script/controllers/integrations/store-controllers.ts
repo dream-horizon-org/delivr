@@ -631,7 +631,7 @@ export const verifyStore = async (req: Request, res: Response): Promise<void> =>
 export const connectStore = async (req: Request, res: Response): Promise<void> => {
   try {
     const body = req.body as ConnectStoreRequestBody;
-    const { storeType, platform, tenantId, payload } = body;
+    const { storeType, platform, appId, payload } = body;
     
     // Get userId from authenticated user (set by auth middleware) or header (for local dev)
     // Authentication is handled by middleware layer, not business logic
@@ -678,9 +678,9 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    // Check if integration already exists by tenantId + storeType + platform
+    // Check if integration already exists by appId + storeType + platform
     const integrations = await integrationController.findAll({
-      tenantId,
+      appId,
       storeType: mappedStoreType,
       platform: platformUpper,
     });
@@ -766,7 +766,7 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
         : null;
       
       const newIntegration = await integrationController.create({
-        tenantId,
+        appId,
         storeType: mappedStoreType,
         platform: platformUpper,
         displayName: payload.displayName,
@@ -1236,7 +1236,7 @@ export const getPlatformStoreTypes = async (
 
 interface StoreIntegrationMetadata {
   integrationId: string;
-  tenantId: string;
+  appId: string;
   storeType: StoreType;
   platform: 'ANDROID' | 'IOS';
   status: IntegrationStatus;
@@ -1263,13 +1263,13 @@ export const getStoreIntegrationsByTenant = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { tenantId } = req.params;
+    const { appId } = req.params;
     
-    const isTenantIdMissing = !tenantId || typeof tenantId !== 'string';
+    const isTenantIdMissing = !appId || typeof appId !== 'string';
     if (isTenantIdMissing) {
       res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: RESPONSE_STATUS.FAILURE,
-        error: ERROR_MESSAGES.TENANT_ID_REQUIRED,
+        error: ERROR_MESSAGES.APP_ID_REQUIRED,
       });
       return;
     }
@@ -1278,7 +1278,7 @@ export const getStoreIntegrationsByTenant = async (
     
     // Fetch all integrations for this tenant
     const integrations = await integrationController.findAll({
-      tenantId,
+      appId,
     });
 
     // Group integrations by platform
@@ -1293,7 +1293,7 @@ export const getStoreIntegrationsByTenant = async (
     integrations.forEach(integration => {
       const metadata: StoreIntegrationMetadata = {
         integrationId: integration.id,
-        tenantId: integration.tenantId,
+        appId: integration.appId,
         storeType: integration.storeType,
         platform: integration.platform,
         status: integration.status,
@@ -1365,7 +1365,7 @@ interface _RevokeStoreIntegrationsResponse {
     deletedCount: number;
     integrations: Array<{
       integrationId: string;
-      tenantId: string;
+      appId: string;
       storeType: StoreType;
       platform: 'ANDROID' | 'IOS';
     }>;
@@ -1378,14 +1378,14 @@ export const revokeStoreIntegrations = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { tenantId } = req.params;
+    const { appId } = req.params;
     const { storeType, platform } = req.query;
     
-    const isTenantIdMissing = !tenantId || typeof tenantId !== 'string';
+    const isTenantIdMissing = !appId || typeof appId !== 'string';
     if (isTenantIdMissing) {
       res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: RESPONSE_STATUS.FAILURE,
-        error: ERROR_MESSAGES.TENANT_ID_REQUIRED,
+        error: ERROR_MESSAGES.APP_ID_REQUIRED,
       });
       return;
     }
@@ -1424,9 +1424,9 @@ export const revokeStoreIntegrations = async (
     const integrationController = getStoreController();
     const credentialController = getCredentialController();
     
-    // Find all integrations matching tenantId, storeType, and platform
+    // Find all integrations matching appId, storeType, and platform
     const integrations = await integrationController.findAll({
-      tenantId,
+      appId,
       storeType: mappedStoreType,
       platform: platformUpper,
     });
@@ -1435,7 +1435,7 @@ export const revokeStoreIntegrations = async (
     if (noIntegrationsFound) {
       res.status(HTTP_STATUS.NOT_FOUND).json({
         success: RESPONSE_STATUS.FAILURE,
-        error: `No store integrations found for tenantId: ${tenantId}, storeType: ${mappedStoreType}, platform: ${platformUpper}`,
+        error: `No store integrations found for appId: ${appId}, storeType: ${mappedStoreType}, platform: ${platformUpper}`,
       });
       return;
     }
@@ -1452,7 +1452,7 @@ export const revokeStoreIntegrations = async (
       if (deleted) {
         deletedIntegrations.push({
           integrationId: integration.id,
-          tenantId: integration.tenantId,
+          appId: integration.appId,
           storeType: integration.storeType,
           platform: integration.platform,
         });
@@ -1495,7 +1495,7 @@ interface _GetStoreIntegrationResponse {
   success: boolean;
   data?: {
     integrationId: string;
-    tenantId: string;
+    appId: string;
     storeType: StoreType;
     platform: 'ANDROID' | 'IOS';
     status: IntegrationStatus;
@@ -1545,7 +1545,7 @@ export const getStoreIntegrationById = async (
     // Build response with status and metadata
     const responseData = {
       integrationId: integration.id,
-      tenantId: integration.tenantId,
+      appId: integration.appId,
       storeType: integration.storeType,
       platform: integration.platform,
       status: integration.status,
@@ -1688,7 +1688,7 @@ const getGoogleAuthClientFromIntegration = async (
 export const uploadAabToPlayStoreInternal = async (
   aabBuffer: Buffer,
   versionName: string,
-  tenantId: string,
+  appId: string,
   storeType: string,
   platform: string,
   releaseId: string,
@@ -1739,7 +1739,7 @@ export const uploadAabToPlayStoreInternal = async (
   }
 
   // Verify the release belongs to the specified tenant
-    const tenantMismatch = release.tenantId !== tenantId;
+    const tenantMismatch = release.appId !== appId;
     if (tenantMismatch) {
       throw new Error(PLAY_STORE_UPLOAD_ERROR_MESSAGES.RELEASE_NOT_FOUND);
     }
@@ -1763,10 +1763,10 @@ export const uploadAabToPlayStoreInternal = async (
     throw new Error(`${PLAY_STORE_UPLOAD_ERROR_MESSAGES.VERSION_MISMATCH} Release version: ${releaseVersion}, Artifact version: ${versionName}`);
   }
 
-  // Find integration by tenantId, storeType, and platform
+  // Find integration by appId, storeType, and platform
   const integrationController = getStoreController();
   const integrations = await integrationController.findAll({
-    tenantId,
+    appId,
     storeType: mappedStoreType,
     platform: platformUpper,
   });
@@ -1961,7 +1961,7 @@ export const uploadAabToPlayStore = async (req: Request, res: Response): Promise
     }
 
     // Extract form fields
-    const tenantId = req.body.tenantId as string;
+    const appId = req.body.appId as string;
     const storeType = req.body.storeType as string;
     const platform = req.body.platform as string;
     const versionName = req.body.versionName as string;
@@ -1972,7 +1972,7 @@ export const uploadAabToPlayStore = async (req: Request, res: Response): Promise
     const result = await uploadAabToPlayStoreInternal(
       aabFile.buffer,
       versionName,
-      tenantId,
+      appId,
       storeType,
       platform,
       releaseId,
@@ -1999,7 +1999,7 @@ export const uploadAabToPlayStore = async (req: Request, res: Response): Promise
 
 export const getPlayStoreListings = async (req: Request, res: Response): Promise<void> => {
   try {
-    const tenantId = req.query.tenantId as string;
+    const appId = req.query.appId as string;
     const storeType = req.query.storeType as string;
     const platform = req.query.platform as string;
 
@@ -2021,7 +2021,7 @@ export const getPlayStoreListings = async (req: Request, res: Response): Promise
     // Find Play Store integration for tenant
     const integrationController = getStoreController();
     const integrations = await integrationController.findAll({
-      tenantId,
+      appId,
       storeType: mappedStoreType,
       platform: platformUpper,
     });
@@ -2183,7 +2183,7 @@ export const getPlayStoreProductionState = async (req: Request, res: Response): 
     // Get distributionId from submission
     const distributionId = submission.distributionId;
 
-    // Get distribution to get tenantId
+    // Get distribution to get appId
     const DistributionModel = sequelize.models.Distribution;
     const distributionRepo = new DistributionRepository(DistributionModel);
     
@@ -2196,12 +2196,12 @@ export const getPlayStoreProductionState = async (req: Request, res: Response): 
       return;
     }
 
-    const tenantId = distribution.tenantId;
+    const appId = distribution.appId;
 
     // Find Play Store integration for tenant with VERIFIED status
     const integrationController = getStoreController();
     const integrations = await integrationController.findAll({
-      tenantId,
+      appId,
       storeType: mappedStoreType,
       platform: platformUpper,
     });

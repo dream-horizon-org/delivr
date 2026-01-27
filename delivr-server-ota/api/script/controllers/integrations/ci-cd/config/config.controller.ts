@@ -8,11 +8,11 @@ import type { CICDConfigService } from "../../../../services/integrations/ci-cd/
 import { CICDConfigValidationError } from "../../../../services/integrations/ci-cd/config/config.validation";
 
 export const createConfig = async (req: Request, res: Response): Promise<any> => {
-  const tenantId = req.params.tenantId;
+  const appId = req.params.appId;
   const accountId = req.user?.id;
   const missingUser = !accountId || typeof accountId !== 'string';
   if (missingUser) {
-    // Route: POST /tenants/:tenantId/integrations/ci-cd/configs
+    // Route: POST /apps/:appId/integrations/ci-cd/configs
     return res.status(HTTP_STATUS.UNAUTHORIZED).json({
       integration: 'ci',
       errors: [{ field: 'auth', message: 'Unauthorized' }]
@@ -25,7 +25,7 @@ export const createConfig = async (req: Request, res: Response): Promise<any> =>
     const isArrayWorkflows = Array.isArray(body.workflows);
     const workflows = isArrayWorkflows ? body.workflows : [];
     const result = await service.createConfig({
-      tenantId,
+      appId,
       createdByAccountId: accountId,
       workflows
     });
@@ -51,14 +51,14 @@ export const createConfig = async (req: Request, res: Response): Promise<any> =>
 };
 
 /**
- * List all CI/CD configs for a tenant.
+ * List all CI/CD configs for an app.
  */
-export const listConfigsByTenant = async (req: Request, res: Response): Promise<any> => {
-  const tenantId = req.params.tenantId;
+export const listConfigsByApp = async (req: Request, res: Response): Promise<any> => {
+  const appId = req.params.appId;
   try {
     const storage = getStorage();
     const service = (storage as any).cicdConfigService as CICDConfigService;
-    const items = await service.listByTenant(tenantId);
+    const items = await service.listByApp(appId);
     return res.status(HTTP_STATUS.OK).json({
       success: RESPONSE_STATUS.SUCCESS,
       configs: items
@@ -73,16 +73,22 @@ export const listConfigsByTenant = async (req: Request, res: Response): Promise<
 };
 
 /**
+ * @deprecated Use listConfigsByApp instead
+ * Kept for backward compatibility
+ */
+export const listConfigsByTenant = listConfigsByApp;
+
+/**
  * Fetch a CI/CD config by id (tenant-scoped).
  */
 export const getConfigById = async (req: Request, res: Response): Promise<any> => {
-  const tenantId = req.params.tenantId;
+  const appId = req.params.appId;
   const configId = req.params.configId;
   try {
     const storage = getStorage();
     const service = (storage as any).cicdConfigService as CICDConfigService;
     const config = await service.findById(configId);
-    const notFound = !config || config.tenantId !== tenantId;
+    const notFound = !config || config.appId !== appId;
     if (notFound) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({
         success: RESPONSE_STATUS.FAILURE,
@@ -106,7 +112,7 @@ export const getConfigById = async (req: Request, res: Response): Promise<any> =
  * Update a CI/CD config by id. Supports updating workflowIds.
  */
 export const updateConfigById = async (req: Request, res: Response): Promise<any> => {
-  const tenantId = req.params.tenantId;
+  const appId = req.params.appId;
   const configId = req.params.configId;
   const body = req.body || {};
   const accountId = req.user?.id;
@@ -117,7 +123,7 @@ export const updateConfigById = async (req: Request, res: Response): Promise<any
     const storage = getStorage();
     const service = (storage as any).cicdConfigService as CICDConfigService;
     const updated = await service.updateConfig({
-      tenantId,
+      appId,
       configId,
       createdByAccountId: accountId,
       workflows
@@ -153,12 +159,12 @@ export const updateConfigById = async (req: Request, res: Response): Promise<any
  * Delete a CI/CD config by id.
  */
 export const deleteConfigById = async (req: Request, res: Response): Promise<any> => {
-  const tenantId = req.params.tenantId;
+  const appId = req.params.appId;
   const configId = req.params.configId;
   try {
     const storage = getStorage();
     const service = (storage as any).cicdConfigService as CICDConfigService;
-    const deleted = await service.deleteConfig(configId, tenantId);
+    const deleted = await service.deleteConfig(configId, appId);
     const notFound = !deleted;
     if (notFound) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({

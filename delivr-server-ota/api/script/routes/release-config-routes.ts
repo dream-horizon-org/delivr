@@ -22,43 +22,43 @@ export const createReleaseConfigRoutes = (
 
   // Create release config
   router.post(
-    '/tenants/:tenantId/release-configs',
+    '/apps/:appId/release-configs',
     tenantPermissions.requireEditor({ storage }),
     controller.createConfig
   );
 
-  // List configs by tenant
+  // List configs by app
   router.get(
-    '/tenants/:tenantId/release-configs',
-    tenantPermissions.requireTenantMembership({ storage }),
-    controller.listConfigsByTenant
+    '/apps/:appId/release-configs',
+    tenantPermissions.requireAppMembership({ storage }),
+    controller.listConfigsByApp
   );
 
   // Get config by ID
   router.get(
-    '/tenants/:tenantId/release-configs/:configId',
-    tenantPermissions.requireTenantMembership({ storage }),
+    '/apps/:appId/release-configs/:configId',
+    tenantPermissions.requireAppMembership({ storage }),
     controller.getConfigById
   );
 
   // Update config
   router.put(
-    '/tenants/:tenantId/release-configs/:configId',
+    '/apps/:appId/release-configs/:configId',
     tenantPermissions.requireEditor({ storage }),
     controller.updateConfig
   );
 
   // Delete config
   router.delete(
-    '/tenants/:tenantId/release-configs/:configId',
+    '/apps/:appId/release-configs/:configId',
     tenantPermissions.requireEditor({ storage }),
     controller.deleteConfig
   );
 
   // Get activity logs for a release config
   router.get(
-    '/tenants/:tenantId/release-configs/:configId/activity-logs',
-    tenantPermissions.requireTenantMembership({ storage }),
+    '/apps/:appId/release-configs/:configId/activity-logs',
+    tenantPermissions.requireAppMembership({ storage }),
     controller.getActivityLogs
   );
 

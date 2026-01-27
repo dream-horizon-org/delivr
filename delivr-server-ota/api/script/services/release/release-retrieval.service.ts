@@ -332,9 +332,9 @@ export class ReleaseRetrievalService {
    * Get all releases for a tenant with complete details
    * @param includeTasks - Optional flag to include tasks (default: false for performance)
    */
-  async getAllReleases(tenantId: string, includeTasks: boolean = false): Promise<ReleaseResponseBody[]> {
+  async getAllReleases(appId: string, includeTasks: boolean = false): Promise<ReleaseResponseBody[]> {
     // Fetch all releases for tenant
-    const releases = await this.releaseRepo.findAllByTenantId(tenantId);
+    const releases = await this.releaseRepo.findAllByTenantId(appId);
 
     // Fetch platform-target mappings for all releases
     const releaseResponses: ReleaseResponseBody[] = [];
@@ -380,7 +380,7 @@ export class ReleaseRetrievalService {
         id: release.id,
         releaseId: release.releaseId,
         releaseConfigId: release.releaseConfigId,
-        tenantId: release.tenantId,
+        appId: release.appId,
         type: release.type,
         status: release.status,
         currentActiveStage: currentActiveStage,
@@ -502,7 +502,7 @@ export class ReleaseRetrievalService {
       id: release.id,
       releaseId: release.releaseId,
       releaseConfigId: release.releaseConfigId,
-      tenantId: release.tenantId,
+      appId: release.appId,
       type: release.type,
       status: release.status,
       currentActiveStage: currentActiveStage,
@@ -576,7 +576,7 @@ export class ReleaseRetrievalService {
     tasks: ReleaseTask[],
     allBuilds: Build[],
     allReleaseUploads: ReleaseUpload[],
-    tenantId: string,
+    appId: string,
     releaseConfig: ReleaseConfiguration | null,
     platformMappings: ReleasePlatformTargetMapping[]
   ): Promise<{
@@ -591,7 +591,7 @@ export class ReleaseRetrievalService {
         taskBuilds.push({
           // Mandatory fields (in both builds and uploads)
           id: build.id,
-          tenantId: build.tenantId,
+          appId: build.appId,
           releaseId: build.releaseId,
           platform: build.platform,
           buildStage: build.buildStage,
@@ -630,7 +630,7 @@ export class ReleaseRetrievalService {
         topLevelUploadedBuilds.push({
           // Mandatory fields (in both builds and uploads)
           id: upload.id,
-          tenantId: upload.tenantId,
+          appId: upload.appId,
           releaseId: upload.releaseId,
           platform: upload.platform,
           buildStage: upload.stage,  // Map stage → buildStage
@@ -663,7 +663,7 @@ export class ReleaseRetrievalService {
       isRegressionSubTasks: t.isRegressionSubTasks,
       identifier: t.identifier,
       externalId: t.externalId,
-      output: await this.deriveTaskOutput(t, tenantId, releaseConfig, platformMappings, allBuilds),
+      output: await this.deriveTaskOutput(t, appId, releaseConfig, platformMappings, allBuilds),
       branch: t.branch,
       builds: buildsByTaskId.get(t.id) || [],
       createdAt: t.createdAt.toISOString(),
@@ -675,13 +675,13 @@ export class ReleaseRetrievalService {
 
   /**
    * Get tasks for a release with tenant ownership verification
-   * API #2: GET /tenants/:tenantId/releases/:releaseId/tasks?stage={stage}
+   * API #2: GET /apps/:appId/releases/:releaseId/tasks?stage={stage}
    * 
    * @param releaseId - The release ID
-   * @param tenantId - The tenant ID for ownership verification
+   * @param appId - The app id for ownership verification
    * @param stage - Required stage filter (KICKOFF, REGRESSION, or PRE_RELEASE)
    */
-  async getTasksForRelease(releaseId: string, tenantId: string, stage?: string): Promise<GetTasksResult> {
+  async getTasksForRelease(releaseId: string, appId: string, stage?: string): Promise<GetTasksResult> {
     // Verify release exists (releaseId is the primary key - releases.id)
     const release = await this.releaseRepo.findById(releaseId);
 
@@ -738,7 +738,7 @@ export class ReleaseRetrievalService {
       tasks,
       allBuilds,
       allReleaseUploads,
-      tenantId,
+      appId,
       releaseConfig,
       platformMappings
     );
@@ -779,7 +779,7 @@ export class ReleaseRetrievalService {
       let approvalStatus;
       if (this.releaseStatusService) {
         // Check cherry pick status (inverted - OK means NO cherry picks, use internal id)
-        const hasCherryPicks = await this.releaseStatusService.cherryPickAvailable(tenantId, release.id);
+        const hasCherryPicks = await this.releaseStatusService.cherryPickAvailable(appId, release.id);
         const cherryPickStatusOk = !hasCherryPicks;
 
         // Check if cycles are completed (no active cycles and no upcoming slots)
@@ -882,9 +882,9 @@ export class ReleaseRetrievalService {
    * Get a specific task by ID with tenant and release ownership verification
    * @param taskId - The task ID
    * @param releaseId - The release ID for ownership verification
-   * @param tenantId - The tenant ID for ownership verification
+   * @param appId - The app id for ownership verification
    */
-  async getTaskById(taskId: string, releaseId: string, tenantId: string): Promise<GetTaskByIdResult> {
+  async getTaskById(taskId: string, releaseId: string, appId: string): Promise<GetTaskByIdResult> {
     // Verify release exists and belongs to tenant
     const release = await this.releaseRepo.findById(releaseId);
 
@@ -896,7 +896,7 @@ export class ReleaseRetrievalService {
       };
     }
 
-    if (release.tenantId !== tenantId) {
+    if (release.appId !== appId) {
       return {
         success: false,
         error: 'Release does not belong to this tenant',
@@ -934,7 +934,7 @@ export class ReleaseRetrievalService {
    * Derive structured output for a task based on its type and externalData
    * 
    * @param task - Task with externalData
-   * @param tenantId - Tenant ID for service calls
+   * @param appId - app id for service calls
    * @param releaseConfig - Release configuration (for PM/TM config IDs)
    * @param platformMappings - Platform mappings (for PM/TM ticket/run IDs)
    * @param allBuilds - All builds for this release/stage (for build tasks)
@@ -942,7 +942,7 @@ export class ReleaseRetrievalService {
    */
   private async deriveTaskOutput(
     task: ReleaseTask,
-    tenantId: string,
+    appId: string,
     releaseConfig: ReleaseConfiguration | null,
     platformMappings?: ReleasePlatformTargetMapping[],
     allBuilds?: Build[]
@@ -968,25 +968,25 @@ export class ReleaseRetrievalService {
     try {
       switch (task.taskType) {
         case 'FORK_BRANCH':
-          return await this.deriveForkBranchOutput(task, tenantId);
+          return await this.deriveForkBranchOutput(task, appId);
         
         case 'CREATE_PROJECT_MANAGEMENT_TICKET':
-          return await this.deriveProjectManagementOutput(task, tenantId, releaseConfig, platformMappings);
+          return await this.deriveProjectManagementOutput(task, appId, releaseConfig, platformMappings);
         
         case 'CREATE_TEST_SUITE':
-          return await this.deriveTestManagementOutput(task, tenantId, releaseConfig, platformMappings);
+          return await this.deriveTestManagementOutput(task, appId, releaseConfig, platformMappings);
         
         case 'CREATE_RC_TAG':
-          return await this.deriveCreateRcTagOutput(task, tenantId);
+          return await this.deriveCreateRcTagOutput(task, appId);
         
         case 'CREATE_RELEASE_NOTES':
-          return await this.deriveReleaseNotesOutput(task, tenantId);
+          return await this.deriveReleaseNotesOutput(task, appId);
         
         case 'CREATE_RELEASE_TAG':
-          return await this.deriveCreateReleaseTagOutput(task, tenantId);
+          return await this.deriveCreateReleaseTagOutput(task, appId);
         
         case 'CREATE_FINAL_RELEASE_NOTES':
-          return await this.deriveFinalReleaseNotesOutput(task, tenantId);
+          return await this.deriveFinalReleaseNotesOutput(task, appId);
         
         // Multi-platform build tasks
         case 'TRIGGER_PRE_REGRESSION_BUILDS':
@@ -1012,7 +1012,7 @@ export class ReleaseRetrievalService {
    */
   private async deriveForkBranchOutput(
     task: ReleaseTask,
-    tenantId: string
+    appId: string
   ): Promise<ForkBranchTaskOutput | null> {
     const externalData = task.externalData as { branchName?: string } | null;
     if (!externalData?.branchName) {
@@ -1020,7 +1020,7 @@ export class ReleaseRetrievalService {
     }
 
     try {
-      const branchUrl = await this.scmService.getBranchUrl(tenantId, externalData.branchName);
+      const branchUrl = await this.scmService.getBranchUrl(appId, externalData.branchName);
       
       return {
         branchName: externalData.branchName,
@@ -1037,7 +1037,7 @@ export class ReleaseRetrievalService {
    */
   private async deriveProjectManagementOutput(
     task: ReleaseTask,
-    tenantId: string,
+    appId: string,
     releaseConfig: ReleaseConfiguration | null,
     platformMappings?: ReleasePlatformTargetMapping[]
   ): Promise<ProjectManagementTaskOutput | null> {
@@ -1079,7 +1079,7 @@ export class ReleaseRetrievalService {
    */
   private async deriveTestManagementOutput(
     task: ReleaseTask,
-    tenantId: string,
+    appId: string,
     releaseConfig: ReleaseConfiguration | null,
     platformMappings?: ReleasePlatformTargetMapping[]
   ): Promise<TestManagementTaskOutput | null> {
@@ -1122,7 +1122,7 @@ export class ReleaseRetrievalService {
    */
   private async deriveCreateRcTagOutput(
     task: ReleaseTask,
-    tenantId: string
+    appId: string
   ): Promise<CreateRcTagTaskOutput | null> {
     const externalData = task.externalData as { tag?: string } | null;
     if (!externalData?.tag) {
@@ -1130,7 +1130,7 @@ export class ReleaseRetrievalService {
     }
 
     try {
-      const tagUrl = await this.scmService.getTagUrl(tenantId, externalData.tag);
+      const tagUrl = await this.scmService.getTagUrl(appId, externalData.tag);
       
       return {
         tagName: externalData.tag,
@@ -1147,7 +1147,7 @@ export class ReleaseRetrievalService {
    */
   private async deriveReleaseNotesOutput(
     task: ReleaseTask,
-    tenantId: string
+    appId: string
   ): Promise<ReleaseNotesTaskOutput | null> {
     const externalData = task.externalData as { currentTag?: string } | null;
     if (!externalData?.currentTag) {
@@ -1155,7 +1155,7 @@ export class ReleaseRetrievalService {
     }
 
     try {
-      const tagUrl = await this.scmService.getTagUrl(tenantId, externalData.currentTag);
+      const tagUrl = await this.scmService.getTagUrl(appId, externalData.currentTag);
       
       return {
         tagUrl
@@ -1171,7 +1171,7 @@ export class ReleaseRetrievalService {
    */
   private async deriveCreateReleaseTagOutput(
     task: ReleaseTask,
-    tenantId: string
+    appId: string
   ): Promise<CreateReleaseTagTaskOutput | null> {
     const externalData = task.externalData as { tagName?: string } | null;
     if (!externalData?.tagName) {
@@ -1179,7 +1179,7 @@ export class ReleaseRetrievalService {
     }
 
     try {
-      const tagUrl = await this.scmService.getTagUrl(tenantId, externalData.tagName);
+      const tagUrl = await this.scmService.getTagUrl(appId, externalData.tagName);
       
       return {
         tagName: externalData.tagName,
@@ -1196,7 +1196,7 @@ export class ReleaseRetrievalService {
    */
   private async deriveFinalReleaseNotesOutput(
     task: ReleaseTask,
-    tenantId: string
+    appId: string
   ): Promise<FinalReleaseNotesTaskOutput | null> {
     const externalData = task.externalData as { currentTag?: string } | null;
     if (!externalData?.currentTag) {
@@ -1204,7 +1204,7 @@ export class ReleaseRetrievalService {
     }
 
     try {
-      const tagUrl = await this.scmService.getTagUrl(tenantId, externalData.currentTag);
+      const tagUrl = await this.scmService.getTagUrl(appId, externalData.currentTag);
       
       return {
         tagUrl

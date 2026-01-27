@@ -256,7 +256,7 @@ export function toStorageApp(restApp: App, createdTime: number): Storage.App {
     createdTime: createdTime,
     name: restApp.name,
     collaborators: toStorageCollaboratorMap(restApp.collaborators),
-    tenantId: restApp.organisation?.orgId,
+    appId: restApp.organisation?.orgId,
     tenantName: restApp.organisation?.orgName,
   };
   return storageApp;

@@ -892,7 +892,7 @@ export class S3Storage implements storage.Storage {
     public appPlatformTargetService!: AppPlatformTargetService;
     
     // Test Management Integration - Repositories and Services
-    public tenantIntegrationRepository!: TenantTestManagementIntegrationRepository;
+    public appTestManagementIntegrationRepository!: TenantTestManagementIntegrationRepository;
     public testManagementConfigRepository!: TestManagementConfigRepository;
     public testManagementIntegrationService!: TestManagementIntegrationService;
     public testManagementConfigService!: TestManagementConfigService;
@@ -1107,31 +1107,31 @@ export class S3Storage implements storage.Storage {
           
           // Initialize Test Management Integration
           const tenantIntegrationModel = createTenantTestManagementIntegrationModel(this.sequelize);
-          this.tenantIntegrationRepository = new TenantTestManagementIntegrationRepository(tenantIntegrationModel);
+          this.appTestManagementIntegrationRepository = new TenantTestManagementIntegrationRepository(tenantIntegrationModel);
           
           const testManagementConfigModel = createTestManagementConfigModel(this.sequelize);
           this.testManagementConfigRepository = new TestManagementConfigRepository(testManagementConfigModel);
           
           // Service 1: Tenant Integration Service (manages credentials)
           this.testManagementIntegrationService = new TestManagementIntegrationService(
-            this.tenantIntegrationRepository
+            this.appTestManagementIntegrationRepository
           );
           
           // Service 2: Config Service (manages test management configs)
           this.testManagementConfigService = new TestManagementConfigService(
             this.testManagementConfigRepository,
-            this.tenantIntegrationRepository
+            this.appTestManagementIntegrationRepository
           );
           
           // Service 3: Run Service (stateless test operations)
           this.testManagementRunService = new TestManagementRunService(
             this.testManagementConfigRepository,
-            this.tenantIntegrationRepository
+            this.appTestManagementIntegrationRepository
           );
           
           // Service 4: Metadata Service (fetches metadata from providers)
           this.checkmateMetadataService = new CheckmateMetadataService(
-            this.tenantIntegrationRepository
+            this.appTestManagementIntegrationRepository
           );
           
           console.log("Test Management Integration initialized");

@@ -1,6 +1,7 @@
 import { customAlphabet } from 'nanoid';
 import { CommunicationType } from '~types/integrations/comm/comm-integration';
 import type {
+  AppCommChannel,
   TenantCommChannel,
   StageChannelMapping,
   SlackChannel
@@ -205,12 +206,12 @@ export class CommConfigService {
   /**
    * Create channel configuration
    */
-  async createConfig(data: CreateChannelConfigDto): Promise<TenantCommChannel> {
-    const { tenantId, channelData } = data;
+  async createConfig(data: CreateChannelConfigDto): Promise<AppCommChannel> {
+    const { appId, channelData } = data;
 
     // Validate: Check if integration exists
-    const integration = await this.integrationRepository.findByTenant(
-      tenantId,
+    const integration = await this.integrationRepository.findByApp(
+      appId,
       CommunicationType.SLACK
     );
 
@@ -235,7 +236,7 @@ export class CommConfigService {
     return await this.configRepository.create(
       id,
       integration.id,
-      tenantId,
+      appId,
       channelData
     );
   }
@@ -243,17 +244,23 @@ export class CommConfigService {
   /**
    * Get config by ID
    */
-  async getConfigById(id: string): Promise<TenantCommChannel | null> {
+  async getConfigById(id: string): Promise<AppCommChannel | null> {
     return await this.configRepository.findById(id);
   }
 
   /**
-   * List configs by tenant ID
+   * List configs by app id
    */
-  async listConfigsByTenant(tenantId: string): Promise<TenantCommChannel[]> {
-    const config = await this.configRepository.findByTenant(tenantId);
+  async listConfigsByApp(appId: string): Promise<AppCommChannel[]> {
+    const config = await this.configRepository.findByApp(appId);
     return config ? [config] : [];
   }
+
+  /**
+   * @deprecated Use listConfigsByApp instead
+   * Kept for backward compatibility
+   */
+  listConfigsByTenant = this.listConfigsByApp;
 
   /**
    * Update config
@@ -261,7 +268,7 @@ export class CommConfigService {
   async updateConfig(
     id: string,
     data: Partial<{ channelData: any }>
-  ): Promise<TenantCommChannel | null> {
+  ): Promise<AppCommChannel | null> {
     const config = await this.configRepository.findById(id);
 
     if (!config) {
@@ -271,7 +278,7 @@ export class CommConfigService {
     // If updating channelData, validate it
     if (data.channelData) {
       const validationResult = this.validateConfig({
-        tenantId: config.tenantId,
+        appId: config.appId,
         channelData: data.channelData
       });
 

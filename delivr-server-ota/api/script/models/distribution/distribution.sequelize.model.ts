@@ -9,7 +9,7 @@ import { DISTRIBUTION_STATUSES } from '~types/distribution/distribution.constant
 
 export type DistributionAttributes = {
   id: string;
-  tenantId: string;
+  appId: string;
   releaseId: string;
   branch: string;
   configuredListOfPlatforms: string[];
@@ -36,10 +36,10 @@ export const createDistributionModel = (
         allowNull: false,
         comment: 'Unique distribution identifier'
       },
-      tenantId: {
+      appId: {
         type: DataTypes.UUID,
         allowNull: false,
-        field: 'tenantId',
+        field: 'appId',
         references: {
           model: 'apps',  // Changed from 'tenants' to 'apps'
           key: 'id'

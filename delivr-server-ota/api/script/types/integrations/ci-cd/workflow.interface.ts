@@ -39,9 +39,9 @@ export type WorkflowParameter = {
 
 export type WorkflowParameters = WorkflowParameter[] | null;
 
-export interface TenantCICDWorkflow {
+export interface AppCICDWorkflow {
   id: string;
-  tenantId: string;
+  appId: string;
   providerType: CICDProviderType;
   integrationId: string;
   displayName: string;
@@ -55,9 +55,15 @@ export interface TenantCICDWorkflow {
   updatedAt: Date;
 }
 
+/**
+ * @deprecated Use AppCICDWorkflow instead
+ * Kept for backward compatibility
+ */
+export type TenantCICDWorkflow = AppCICDWorkflow;
+
 export interface CreateWorkflowDto {
   id?: string;
-  tenantId: string;
+  appId: string;
   providerType: CICDProviderType;
   integrationId: string;
   displayName: string;
@@ -79,7 +85,7 @@ export interface UpdateWorkflowDto {
 }
 
 export interface WorkflowFilters {
-  tenantId?: string;
+  appId?: string;
   providerType?: CICDProviderType;
   integrationId?: string;
   platform?: Platform;

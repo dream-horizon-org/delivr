@@ -104,7 +104,7 @@ export type ReleaseSchedule = {
  */
 export type ReleaseScheduleRecord = {
   id: string;
-  tenantId: string;
+  appId: string;
   releaseConfigId: string; // FK to release_configurations (the config this schedule belongs to)
 
   // Scheduling Configuration
@@ -138,7 +138,7 @@ export type ReleaseScheduleRecord = {
  */
 export type CreateReleaseScheduleDto = {
   releaseConfigId: string; // FK to release_configurations (required)
-  tenantId: string;        // Denormalized for query performance
+  appId: string;        // Denormalized for query performance
   releaseFrequency: ReleaseFrequency;
   firstReleaseKickoffDate: string;
   initialVersions: InitialVersion[];
@@ -157,7 +157,7 @@ export type CreateReleaseScheduleDto = {
 /**
  * DTO for updating a release schedule
  */
-export type UpdateReleaseScheduleDto = Partial<Omit<CreateReleaseScheduleDto, 'tenantId' | 'createdByAccountId'>> & {
+export type UpdateReleaseScheduleDto = Partial<Omit<CreateReleaseScheduleDto, 'appId' | 'createdByAccountId'>> & {
   isEnabled?: boolean;
   lastCreatedReleaseId?: string | null;
   cronicleJobId?: string | null;

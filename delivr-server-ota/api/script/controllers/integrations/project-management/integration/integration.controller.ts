@@ -67,12 +67,12 @@ const getAvailableProvidersHandler = () =>
 
 /**
  * Create new project management integration for a tenant
- * POST /tenants/:tenantId/integrations/project-management
+ * POST /apps/:appId/integrations/project-management
  */
 const createIntegrationHandler = (service: ProjectManagementIntegrationService) =>
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const { tenantId } = req.params;
+      const { appId } = req.params;
       const { name, providerType, config } = req.body;
 
       // Validate name
@@ -99,7 +99,7 @@ const createIntegrationHandler = (service: ProjectManagementIntegrationService) 
       }
 
       const data: CreateProjectManagementIntegrationDto = {
-        tenantId,
+        appId,
         name,
         providerType,
         config,
@@ -119,14 +119,14 @@ const createIntegrationHandler = (service: ProjectManagementIntegrationService) 
 
 /**
  * List all integrations for a tenant
- * GET /tenants/:tenantId/integrations/project-management
+ * GET /apps/:appId/integrations/project-management
  */
 const listIntegrationsHandler = (service: ProjectManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId } = req.params;
+      const { appId } = req.params;
 
-      const integrations = await service.listIntegrations(tenantId);
+      const integrations = await service.listIntegrations(appId);
 
       // Mask sensitive data in all integrations
       const maskedIntegrations = integrations.map(maskSensitiveConfig);
@@ -141,7 +141,7 @@ const listIntegrationsHandler = (service: ProjectManagementIntegrationService) =
 
 /**
  * Get single integration by ID
- * GET /tenants/:tenantId/integrations/project-management/:integrationId
+ * GET /apps/:appId/integrations/project-management/:integrationId
  */
 const getIntegrationHandler = (service: ProjectManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -170,7 +170,7 @@ const getIntegrationHandler = (service: ProjectManagementIntegrationService) =>
 
 /**
  * Update integration
- * PUT /tenants/:tenantId/integrations/project-management/:integrationId
+ * PUT /apps/:appId/integrations/project-management/:integrationId
  */
 const updateIntegrationHandler = (service: ProjectManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -231,7 +231,7 @@ const updateIntegrationHandler = (service: ProjectManagementIntegrationService) 
 
 /**
  * Delete integration
- * DELETE /tenants/:tenantId/integrations/project-management/:integrationId
+ * DELETE /apps/:appId/integrations/project-management/:integrationId
  */
 const deleteIntegrationHandler = (service: ProjectManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -261,7 +261,7 @@ const deleteIntegrationHandler = (service: ProjectManagementIntegrationService) 
 
 /**
  * Verify credentials without saving (stateless verification)
- * POST /tenants/:tenantId/integrations/project-management/verify
+ * POST /apps/:appId/integrations/project-management/verify
  */
 const verifyCredentialsHandler = (_service: ProjectManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -306,7 +306,7 @@ const verifyCredentialsHandler = (_service: ProjectManagementIntegrationService)
 
 /**
  * Verify integration
- * POST /tenants/:tenantId/integrations/project-management/:integrationId/verify
+ * POST /apps/:appId/integrations/project-management/:integrationId/verify
  */
 const verifyIntegrationHandler = (service: ProjectManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {

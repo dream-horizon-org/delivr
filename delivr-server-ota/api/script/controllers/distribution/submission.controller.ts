@@ -17,7 +17,7 @@ import {
 
 /**
  * Get submission details by ID
- * GET /tenants/:tenantId/submissions/:submissionId
+ * GET /apps/:appId/submissions/:submissionId
  * 
  * Fetches submission details from either Android or iOS table
  * Returns complete submission info with artifact and action history
@@ -25,13 +25,13 @@ import {
 const getSubmissionDetailsHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId, submissionId } = req.params;
+      const { appId, submissionId } = req.params;
 
-      if (!tenantId || typeof tenantId !== 'string') {
+      if (!appId || typeof appId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           errorResponse(
-            new Error('tenantId is required'),
-            'Invalid tenant ID'
+            new Error('appId is required'),
+            'Invalid app id'
           )
         );
         return;
@@ -69,7 +69,7 @@ const getSubmissionDetailsHandler = (service: SubmissionService) =>
 
 /**
  * Submit existing submission to store
- * PUT /tenants/:tenantId/submissions/:submissionId/submit?platform=<ANDROID|IOS>
+ * PUT /apps/:appId/submissions/:submissionId/submit?platform=<ANDROID|IOS>
  * 
  * Submits an existing PENDING submission to the store for review
  * Query params: platform (ANDROID or IOS)
@@ -87,7 +87,7 @@ const getSubmissionDetailsHandler = (service: SubmissionService) =>
 const submitExistingSubmissionHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId, submissionId } = req.params;
+      const { appId, submissionId } = req.params;
       const { platform } = req.query;
       
       // Get user ID from authentication - required
@@ -102,11 +102,11 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
         return;
       }
 
-      if (!tenantId || typeof tenantId !== 'string') {
+      if (!appId || typeof appId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           errorResponse(
-            new Error('tenantId is required'),
-            'Invalid tenant ID'
+            new Error('appId is required'),
+            'Invalid app id'
           )
         );
         return;
@@ -138,7 +138,7 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
         return;
       }
 
-      // Check if credentials for submissionId -> distributionId -> tenantId -> platform & Store_type -> store_credentials status is VERIFIED
+      // Check if credentials for submissionId -> distributionId -> appId -> platform & Store_type -> store_credentials status is VERIFIED
 
       let result;
 
@@ -150,7 +150,7 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
         const validationResult = await service.validateIosSubmission(
           submissionId,
           { phasedRelease, resetRating, releaseNotes },
-          tenantId
+          appId
         );
         
         if (!validationResult.valid) {
@@ -174,7 +174,7 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
           submissionId,
           { phasedRelease, resetRating, releaseNotes },
           submittedBy,
-          tenantId
+          appId
         );
       } else {
         // Android submission
@@ -184,7 +184,7 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
         const validationResult = await service.validateAndroidSubmission(
           submissionId,
           { rolloutPercent, inAppPriority, releaseNotes },
-          tenantId
+          appId
         );
         
         if (!validationResult.valid) {
@@ -208,7 +208,7 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
           submissionId,
           { rolloutPercent, inAppPriority, releaseNotes },
           submittedBy,
-          tenantId
+          appId
         );
       }
 
@@ -244,7 +244,7 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
 
 /**
  * Create new submission (resubmission)
- * POST /tenants/:tenantId/distributions/:distributionId/submissions
+ * POST /apps/:appId/distributions/:distributionId/submissions
  * 
  * Creates a completely new submission after rejection/cancellation
  * User provides new artifact and can update any fields
@@ -269,7 +269,7 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
 const createNewSubmissionHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId, distributionId } = req.params;
+      const { appId, distributionId } = req.params;
       const { platform } = req.body;
       
       // Get user ID from authentication - required
@@ -284,11 +284,11 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
         return;
       }
 
-      if (!tenantId || typeof tenantId !== 'string') {
+      if (!appId || typeof appId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           errorResponse(
-            new Error('tenantId is required'),
-            'Invalid tenant ID'
+            new Error('appId is required'),
+            'Invalid app id'
           )
         );
         return;
@@ -336,7 +336,7 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
             resetRating,
             releaseNotes
           },
-          tenantId
+          appId
         );
         
         if (!validationResult.valid) {
@@ -366,7 +366,7 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
             releaseNotes
           },
           submittedBy,
-          tenantId
+          appId
         );
       } else {
         // Android resubmission
@@ -420,7 +420,7 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
             inAppPriority,
             releaseNotes
           },
-          tenantId
+          appId
         );
         
         if (!validationResult.valid) {
@@ -451,7 +451,7 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
             releaseNotes
           },
           submittedBy,
-          tenantId
+          appId
         );
       }
 
@@ -468,7 +468,7 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
 
 /**
  * Pause iOS rollout / Halt Android rollout
- * PATCH /tenants/:tenantId/submissions/:submissionId/rollout/pause?platform=<IOS|ANDROID>
+ * PATCH /apps/:appId/submissions/:submissionId/rollout/pause?platform=<IOS|ANDROID>
  * 
  * - iOS: Pauses an active iOS phased release rollout
  * - Android: Halts an active Android release rollout
@@ -479,7 +479,7 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
 const pauseRolloutHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId, submissionId } = req.params;
+      const { appId, submissionId } = req.params;
       const { platform } = req.query;
       const { reason } = req.body;
       
@@ -495,11 +495,11 @@ const pauseRolloutHandler = (service: SubmissionService) =>
         return;
       }
 
-      if (!tenantId || typeof tenantId !== 'string') {
+      if (!appId || typeof appId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           errorResponse(
-            new Error('tenantId is required'),
-            'Invalid tenant ID'
+            new Error('appId is required'),
+            'Invalid app id'
           )
         );
         return;
@@ -542,10 +542,10 @@ const pauseRolloutHandler = (service: SubmissionService) =>
 
       if (platformUpper === 'IOS') {
         // iOS: Pause rollout
-        result = await service.pauseRollout(submissionId, reason, createdBy, tenantId);
+        result = await service.pauseRollout(submissionId, reason, createdBy, appId);
       } else {
         // Android: Halt rollout
-        result = await service.haltAndroidRollout(submissionId, reason, createdBy, tenantId);
+        result = await service.haltAndroidRollout(submissionId, reason, createdBy, appId);
       }
 
       if (!result) {
@@ -570,7 +570,7 @@ const pauseRolloutHandler = (service: SubmissionService) =>
 
 /**
  * Resume rollout (iOS or Android)
- * PATCH /tenants/:tenantId/submissions/:submissionId/rollout/resume?platform=<IOS|ANDROID>
+ * PATCH /apps/:appId/submissions/:submissionId/rollout/resume?platform=<IOS|ANDROID>
  * 
  * - iOS: Resumes a paused iOS phased release rollout
  * - Android: Resumes a halted Android release rollout
@@ -580,7 +580,7 @@ const pauseRolloutHandler = (service: SubmissionService) =>
 const resumeRolloutHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId, submissionId } = req.params;
+      const { appId, submissionId } = req.params;
       const { platform } = req.query;
       
       // Get user ID from authentication - required
@@ -595,11 +595,11 @@ const resumeRolloutHandler = (service: SubmissionService) =>
         return;
       }
 
-      if (!tenantId || typeof tenantId !== 'string') {
+      if (!appId || typeof appId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           errorResponse(
-            new Error('tenantId is required'),
-            'Invalid tenant ID'
+            new Error('appId is required'),
+            'Invalid app id'
           )
         );
         return;
@@ -631,7 +631,7 @@ const resumeRolloutHandler = (service: SubmissionService) =>
         return;
       }
 
-      const result = await service.resumeRollout(submissionId, createdBy, platformUpper, tenantId);
+      const result = await service.resumeRollout(submissionId, createdBy, platformUpper, appId);
 
       if (!result) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
@@ -653,7 +653,7 @@ const resumeRolloutHandler = (service: SubmissionService) =>
 
 /**
  * Update rollout percentage
- * PATCH /tenants/:tenantId/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
+ * PATCH /apps/:appId/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
  * 
  * Updates rollout percentage for a submission (platform-specific rules)
  * Query params: platform (ANDROID or IOS)
@@ -662,15 +662,15 @@ const resumeRolloutHandler = (service: SubmissionService) =>
 const updateRolloutPercentageHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId, submissionId } = req.params;
+      const { appId, submissionId } = req.params;
       const { platform } = req.query;
       const { rolloutPercent } = req.body;
 
-      if (!tenantId || typeof tenantId !== 'string') {
+      if (!appId || typeof appId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           errorResponse(
-            new Error('tenantId is required'),
-            'Invalid tenant ID'
+            new Error('appId is required'),
+            'Invalid app id'
           )
         );
         return;
@@ -720,10 +720,10 @@ const updateRolloutPercentageHandler = (service: SubmissionService) =>
       let result;
 
       if (platformUpper === 'IOS') {
-        result = await service.updateIosRolloutPercentage(submissionId, rolloutPercent, tenantId);
+        result = await service.updateIosRolloutPercentage(submissionId, rolloutPercent, appId);
       } else {
         // Android
-        result = await service.updateAndroidRolloutPercentage(submissionId, rolloutPercent, tenantId);
+        result = await service.updateAndroidRolloutPercentage(submissionId, rolloutPercent, appId);
       }
 
       if (!result) {
@@ -757,14 +757,14 @@ const updateRolloutPercentageHandler = (service: SubmissionService) =>
 
 /**
  * Cancel iOS submission (iOS only)
- * PATCH /tenants/:tenantId/submissions/:submissionId/cancel
+ * PATCH /apps/:appId/submissions/:submissionId/cancel
  * Query params: platform (IOS only)
  * Request body: { reason: string }
  */
 const cancelSubmissionHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId, submissionId } = req.params;
+      const { appId, submissionId } = req.params;
       const { platform } = req.query;
       const { reason } = req.body;
       
@@ -780,11 +780,11 @@ const cancelSubmissionHandler = (service: SubmissionService) =>
         return;
       }
 
-      if (!tenantId || typeof tenantId !== 'string') {
+      if (!appId || typeof appId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           errorResponse(
-            new Error('tenantId is required'),
-            'Invalid tenant ID'
+            new Error('appId is required'),
+            'Invalid app id'
           )
         );
         return;
@@ -833,7 +833,7 @@ const cancelSubmissionHandler = (service: SubmissionService) =>
         return;
       }
 
-      const result = await service.cancelSubmission(submissionId, reason, createdBy, tenantId);
+      const result = await service.cancelSubmission(submissionId, reason, createdBy, appId);
 
       if (!result) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
@@ -855,7 +855,7 @@ const cancelSubmissionHandler = (service: SubmissionService) =>
 
   /**
  * Submission status handler (Cronicle webhook handler)
- * POST /tenants/:tenantId/submissions/:submissionId/status?platform=<IOS|ANDROID>
+ * POST /apps/:appId/submissions/:submissionId/status?platform=<IOS|ANDROID>
  * 
  * Routes to platform-specific service method:
  * - iOS: service.IosSubmissionStatus()
@@ -867,14 +867,14 @@ const cancelSubmissionHandler = (service: SubmissionService) =>
 const SubmissionStatusHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId, submissionId } = req.params;
+      const { appId, submissionId } = req.params;
       const { platform, storeType } = req.query;
 
-      if (!tenantId || typeof tenantId !== 'string') {
+      if (!appId || typeof appId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           errorResponse(
-            new Error('tenantId is required'),
-            'Invalid tenant ID'
+            new Error('appId is required'),
+            'Invalid app id'
           )
         );
         return;
@@ -946,7 +946,7 @@ const SubmissionStatusHandler = (service: SubmissionService) =>
 
 /**
  * Get submission artifact download URL
- * GET /tenants/:tenantId/submissions/:submissionId/artifact?platform={android|ios}
+ * GET /apps/:appId/submissions/:submissionId/artifact?platform={android|ios}
  * 
  * Generates presigned download URL for a submission artifact
  * Returns: { url: string, expiresAt: string }
@@ -954,7 +954,7 @@ const SubmissionStatusHandler = (service: SubmissionService) =>
 const getSubmissionArtifactDownloadHandler = (service: SubmissionService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { submissionId, tenantId } = req.params;
+      const { submissionId, appId } = req.params;
       const { platform } = req.query;
 
       // Validate submissionId
@@ -968,10 +968,10 @@ const getSubmissionArtifactDownloadHandler = (service: SubmissionService) =>
         return;
       }
 
-      // Validate tenantId
-      if (!tenantId || typeof tenantId !== 'string') {
+      // Validate appId
+      if (!appId || typeof appId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('tenantId', 'Tenant ID is required')
+          validationErrorResponse('appId', 'app id is required')
         );
         return;
       }
@@ -1002,7 +1002,7 @@ const getSubmissionArtifactDownloadHandler = (service: SubmissionService) =>
       const result = await service.getSubmissionArtifactDownloadUrl(
         submissionId,
         platformUpper as 'ANDROID' | 'IOS',
-        tenantId
+        appId
       );
 
       res.status(HTTP_STATUS.OK).json(successResponse(result));

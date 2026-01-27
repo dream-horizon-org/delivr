@@ -8,7 +8,7 @@ export const createCICDWorkflowModel = (sequelize: Sequelize) => {
     implements TenantCICDWorkflow
   {
     declare id: string;
-    declare tenantId: string;
+    declare appId: string;
     declare providerType: CICDProviderType;
     declare integrationId: string;
     declare displayName: string;
@@ -30,7 +30,7 @@ export const createCICDWorkflowModel = (sequelize: Sequelize) => {
         allowNull: false,
         comment: 'Unique identifier (nanoid)'
       },
-      tenantId: {
+      appId: {
         type: DataTypes.UUID,
         allowNull: false,
         references: { model: 'apps', key: 'id' },  // Changed from 'tenants' to 'apps'
@@ -100,8 +100,8 @@ export const createCICDWorkflowModel = (sequelize: Sequelize) => {
       timestamps: true,
       indexes: [
         // Based on actual repository query patterns (verified from workflow.repository.ts):
-        // - findAll with tenantId filter (list workflows for tenant)
-        { name: 'idx_wf_tenant', fields: ['tenantId'] },
+        // - findAll with appId filter (list workflows for tenant)
+        { name: 'idx_wf_tenant', fields: ['appId'] },
         // - findAll with integrationId filter (list workflows for integration, delete check)
         { name: 'idx_wf_integration', fields: ['integrationId'] }
         // Note: providerType, platform, workflowType are low-cardinality enums - no index needed

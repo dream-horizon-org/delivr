@@ -93,7 +93,7 @@ export const createWorkflowPollingRoutes = (storage: Storage): Router => {
    * Poll PENDING workflows
    * Called by Cronicle job: workflow-poll-pending-{releaseId}
    * 
-   * Body: { releaseId: string, tenantId: string }
+   * Body: { releaseId: string, appId: string }
    */
   router.post(
     '/internal/cron/builds/poll-pending-workflows',
@@ -105,7 +105,7 @@ export const createWorkflowPollingRoutes = (storage: Storage): Router => {
    * Poll RUNNING workflows
    * Called by Cronicle job: workflow-poll-running-{releaseId}
    * 
-   * Body: { releaseId: string, tenantId: string }
+   * Body: { releaseId: string, appId: string }
    */
   router.post(
     '/internal/cron/builds/poll-running-workflows',

@@ -137,7 +137,7 @@ export class BuildCallbackService {
    */
   private async notifyTaskFailure(task: ReleaseTask): Promise<void> {
     try {
-      // Fetch release to get tenantId
+      // Fetch release to get appId
       const release = await this.releaseRepo.findById(task.releaseId);
       if (!release) {
         console.log(`[BuildCallbackService] Release ${task.releaseId} not found, skipping notification`);
@@ -148,12 +148,12 @@ export class BuildCallbackService {
       const taskName = getTaskNameWithStage(task.taskType);
       
       // Build Delivr URL
-      const delivrUrl = buildDelivrUrl(release.tenantId, task.releaseId);
+      const delivrUrl = buildDelivrUrl(release.appId, task.releaseId);
 
       // Send notification
       await this.releaseNotificationService.notify({
         type: NotificationType.TASK_FAILED,
-        tenantId: release.tenantId,
+        appId: release.appId,
         releaseId: task.releaseId,
         taskName: taskName,
         delivrUrl: delivrUrl,

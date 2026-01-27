@@ -1,8 +1,8 @@
 import type {
-  CreateTenantTestManagementIntegrationDto,
-  FindTenantIntegrationsFilter,
-  TenantTestManagementIntegration,
-  UpdateTenantTestManagementIntegrationDto
+  CreateAppTestManagementIntegrationDto,
+  FindAppIntegrationsFilter,
+  AppTestManagementIntegration,
+  UpdateAppTestManagementIntegrationDto
 } from '~types/integrations/test-management/tenant-integration';
 import { decryptConfigFields, decryptFields, encryptConfigFields } from '~utils/encryption';
 import type { TenantTestManagementIntegrationModelType } from './tenant-integration.sequelize.model';
@@ -19,7 +19,7 @@ export class TenantTestManagementIntegrationRepository {
    * Automatically decrypts sensitive fields (authToken) from backend storage
    * Adds _encrypted flag to indicate sensitive fields are encrypted
    */
-  private toPlainObject = (instance: InstanceType<TenantTestManagementIntegrationModelType>): TenantTestManagementIntegration => {
+  private toPlainObject = (instance: InstanceType<TenantTestManagementIntegrationModelType>): AppTestManagementIntegration => {
     const json = instance.toJSON();
     
     // Decrypt sensitive fields before returning (from backend storage)
@@ -39,8 +39,8 @@ export class TenantTestManagementIntegrationRepository {
    * Double-layer encryption: Decrypt frontend-encrypted values, then encrypt with backend storage key
    */
   create = async (
-    data: CreateTenantTestManagementIntegrationDto
-  ): Promise<TenantTestManagementIntegration> => {
+    data: CreateAppTestManagementIntegrationDto
+  ): Promise<AppTestManagementIntegration> => {
     const createdByAccountIdValue = data.createdByAccountId ?? null;
     
     // Step 1: Decrypt any frontend-encrypted values (using ENCRYPTION_KEY)
@@ -50,7 +50,7 @@ export class TenantTestManagementIntegrationRepository {
     const encryptedConfig = encryptConfigFields(decryptedConfig, ['authToken', 'apiToken']);
     
     const integration = await this.model.create({
-      tenantId: data.tenantId,
+      appId: data.appId,
       name: data.name,
       providerType: data.providerType,
       config: encryptedConfig,
@@ -61,7 +61,7 @@ export class TenantTestManagementIntegrationRepository {
   };
 
   // Find by ID
-  findById = async (id: string): Promise<TenantTestManagementIntegration | null> => {
+  findById = async (id: string): Promise<AppTestManagementIntegration | null> => {
     const integration = await this.model.findByPk(id);
     
     if (!integration) {
@@ -71,12 +71,12 @@ export class TenantTestManagementIntegrationRepository {
     return this.toPlainObject(integration);
   };
 
-  // Find all by tenant
-  findByTenant = async (
-    filter: FindTenantIntegrationsFilter
-  ): Promise<TenantTestManagementIntegration[]> => {
+  // Find all by app
+  findByApp = async (
+    filter: FindAppIntegrationsFilter
+  ): Promise<AppTestManagementIntegration[]> => {
     const where: Record<string, unknown> = {
-      tenantId: filter.tenantId
+      appId: filter.appId
     };
 
     if (filter.providerType !== undefined) {
@@ -91,25 +91,31 @@ export class TenantTestManagementIntegrationRepository {
     return integrations.map((integration) => this.toPlainObject(integration));
   };
 
-  // Alias for findByTenant (used by service)
+  /**
+   * @deprecated Use findByApp instead
+   * Kept for backward compatibility
+   */
+  findByTenant = this.findByApp;
+
+  // Alias for findByApp (used by service)
   findAll = async (
-    filter: FindTenantIntegrationsFilter
-  ): Promise<TenantTestManagementIntegration[]> => {
-    return this.findByTenant(filter);
+    filter: FindAppIntegrationsFilter
+  ): Promise<AppTestManagementIntegration[]> => {
+    return this.findByApp(filter);
   };
 
   // Update integration
   update = async (
     id: string,
-    data: UpdateTenantTestManagementIntegrationDto
-  ): Promise<TenantTestManagementIntegration | null> => {
+    data: UpdateAppTestManagementIntegrationDto
+  ): Promise<AppTestManagementIntegration | null> => {
     const integration = await this.model.findByPk(id);
     
     if (!integration) {
       return null;
     }
 
-    const updateData: Partial<TenantTestManagementIntegration> = {
+    const updateData: Partial<AppTestManagementIntegration> = {
       updatedAt: new Date()
     };
 

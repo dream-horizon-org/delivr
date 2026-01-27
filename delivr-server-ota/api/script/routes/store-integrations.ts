@@ -36,22 +36,22 @@ import type { Storage } from '../storage/storage';
   // Get platform store type mappings
   router.get(
     '/integrations/store/platform-store-types',
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     validateStore.validateGetPlatformStoreTypesQuery,
     storeControllers.getPlatformStoreTypes
   );
 
   // Get store integrations by tenant (grouped by platform)
   router.get(
-    '/integrations/store/tenant/:tenantId',
-    tenantPermissions.requireTenantMembership({ storage }),
+    '/integrations/store/tenant/:appId',
+    tenantPermissions.requireAppMembership({ storage }),
     validateStore.validateTenantId,
     storeControllers.getStoreIntegrationsByTenant
   );
 
   // Revoke store integrations by tenant, storeType, and platform
   router.patch(
-    '/integrations/store/tenant/:tenantId/revoke',
+    '/integrations/store/tenant/:appId/revoke',
     tenantPermissions.requireOwner({ storage }),
     validateStore.validateTenantId,
     validateStore.validateRevokeStoreIntegrationsQuery,
@@ -61,7 +61,7 @@ import type { Storage } from '../storage/storage';
   // Get store integration by ID
   router.get(
     '/integrations/store/:integrationId',
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     validateStore.validateIntegrationId,
     storeControllers.getStoreIntegrationById
   );
@@ -78,7 +78,7 @@ import type { Storage } from '../storage/storage';
   // Get Play Store supported languages/listings
   router.get(
     '/integrations/store/play-store/listings',
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     validateStore.validatePlayStoreListingsQuery,
     storeControllers.getPlayStoreListings
   );

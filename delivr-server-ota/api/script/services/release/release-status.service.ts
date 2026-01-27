@@ -472,11 +472,11 @@ export class ReleaseStatusService {
    * Check if cherry picks are available (branch HEAD differs from latest regression cycle tag)
    * Used for regression approval logic
    * 
-   * @param tenantId - Tenant ID
+   * @param appId - app id
    * @param releaseId - Release ID (internal UUID)
    * @returns true if cherry picks EXIST (branch diverged), false otherwise
    */
-  async cherryPickAvailable(tenantId: string, releaseId: string): Promise<boolean> {
+  async cherryPickAvailable(appId: string, releaseId: string): Promise<boolean> {
     try {
       // 1. Fetch release (for branch)
       const release = await this.releaseRepo.findById(releaseId);
@@ -499,7 +499,7 @@ export class ReleaseStatusService {
       // - true  → cherry picks EXIST (branch HEAD !== tag SHA)
       // - false → NO cherry picks (branch HEAD === tag SHA)
       const hasCherryPicks = await this.scmService.checkCherryPickStatus(
-        tenantId,
+        appId,
         release.branch,
         latestCycle.cycleTag
       );
@@ -517,12 +517,12 @@ export class ReleaseStatusService {
    * Get cherry pick status for a release (for API response)
    * 
    * @param releaseId - Release ID (user-facing)
-   * @param tenantId - Tenant ID
+   * @param appId - app id
    * @returns Cherry pick status with releaseId and availability
    */
   async getCherryPickStatus(
     releaseId: string,
-    tenantId: string
+    appId: string
   ): Promise<{
     releaseId: string;
     cherryPickAvailable: boolean;
@@ -535,7 +535,7 @@ export class ReleaseStatusService {
     }
     
     // Check cherry pick availability
-    const cherryPickAvailable = await this.cherryPickAvailable(tenantId, releaseId);
+    const cherryPickAvailable = await this.cherryPickAvailable(appId, releaseId);
     
     return {
       releaseId: release.id,  // Primary key (releases.id)

@@ -35,16 +35,16 @@ export class JiraMetadataService {
   /**
    * Get all projects from Jira
    */
-  async getProjects(integrationId: string, tenantId?: string): Promise<JiraProject[]> {
+  async getProjects(integrationId: string, appId?: string): Promise<JiraProject[]> {
     const integration = await this.integrationRepo.findById(integrationId);
     
     if (!integration) {
       throw new Error(`Integration not found: ${integrationId}`);
     }
 
-    // Validate tenant ownership if tenantId provided
-    if (tenantId && integration.tenantId !== tenantId) {
-      throw new Error(`Integration ${integrationId} does not belong to tenant ${tenantId}`);
+    // Validate tenant ownership if appId provided
+    if (appId && integration.appId !== appId) {
+      throw new Error(`Integration ${integrationId} does not belong to tenant ${appId}`);
     }
 
     this.validateJiraIntegration(integration.providerType, integrationId);

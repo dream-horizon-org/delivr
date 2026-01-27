@@ -37,9 +37,9 @@ export interface SlackChannel {
 // Main Interface (matches DB schema)
 // ============================================================================
 
-export interface TenantCommunicationIntegration {
+export interface AppCommunicationIntegration {
   id: string;
-  tenantId: string;
+  appId: string;
   
   // Communication platform type
   communicationType: CommunicationType;
@@ -59,8 +59,20 @@ export interface TenantCommunicationIntegration {
   updatedAt: Date;
 }
 
+/**
+ * @deprecated Use AppCommunicationIntegration instead
+ * Kept for backward compatibility
+ */
+export type TenantCommunicationIntegration = AppCommunicationIntegration;
+
 // Alias for convenience (Slack-specific)
-export type TenantSlackIntegration = TenantCommunicationIntegration;
+export type AppSlackIntegration = AppCommunicationIntegration;
+
+/**
+ * @deprecated Use AppSlackIntegration instead
+ * Kept for backward compatibility
+ */
+export type TenantSlackIntegration = AppSlackIntegration;
 
 // ============================================================================
 // DTOs (Data Transfer Objects)
@@ -70,7 +82,7 @@ export type TenantSlackIntegration = TenantCommunicationIntegration;
  * DTO for creating a new Slack integration
  */
 export interface CreateSlackIntegrationDto {
-  tenantId: string;
+  appId: string;
   communicationType?: CommunicationType;  // Defaults to SLACK
   createdByAccountId?: string | null;
   
@@ -113,7 +125,7 @@ export interface VerificationResult {
  * This is what gets returned from API endpoints - tokens removed!
  */
 export type SafeSlackIntegration = Omit<
-  TenantCommunicationIntegration,
+  AppCommunicationIntegration,
   'slackBotToken'
 >;
 
@@ -122,7 +134,7 @@ export type SafeSlackIntegration = Omit<
 // ============================================================================
 
 export interface SlackIntegrationFilters {
-  tenantId?: string;
+  appId?: string;
   communicationType?: CommunicationType;
   verificationStatus?: VerificationStatus;
   workspaceId?: string;
@@ -169,14 +181,19 @@ export interface StageChannelMapping {
 }
 
 /**
- * Tenant Communication Channels (matches slack_configuration table)
+ * App Communication Channels (matches slack_configuration table)
  */
-export interface TenantCommChannel {
+export interface AppCommChannel {
   id: string;                         // nanoid (21 chars)
   integrationId: string;              // FK to tenant_comm_integrations
-  tenantId: string;                   // FK to tenants (denormalized)
+  appId: string;                   // FK to apps (renamed from tenants)
   channelData: StageChannelMapping;   // Stage-based channel mapping
   createdAt: Date;
   updatedAt: Date;
 }
 
+/**
+ * @deprecated Use AppCommChannel instead
+ * Kept for backward compatibility
+ */
+export type TenantCommChannel = AppCommChannel;

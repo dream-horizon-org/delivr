@@ -17,7 +17,7 @@ export class ReleaseRepository {
       id: data.id,
       releaseId: data.releaseId,
       releaseConfigId: data.releaseConfigId || null,
-      tenantId: data.tenantId,
+      appId: data.appId,
       type: data.type,
       status: data.status,
       branch: data.branch || null,
@@ -43,17 +43,17 @@ export class ReleaseRepository {
     return this.toPlainObject(release);
   }
 
-  async findByBaseReleaseId(baseReleaseId: string, tenantId: string): Promise<Release | null> {
+  async findByBaseReleaseId(baseReleaseId: string, appId: string): Promise<Release | null> {
     const release = await this.model.findOne({
-      where: { baseReleaseId, tenantId }
+      where: { baseReleaseId, appId }
     });
     if (!release) return null;
     return this.toPlainObject(release);
   }
 
-  async findAllByTenantId(tenantId: string): Promise<Release[]> {
+  async findAllByTenantId(appId: string): Promise<Release[]> {
     const releases = await this.model.findAll({
-      where: { tenantId },
+      where: { appId },
       order: [['createdAt', 'DESC']]
     });
     return releases.map(this.toPlainObject.bind(this));

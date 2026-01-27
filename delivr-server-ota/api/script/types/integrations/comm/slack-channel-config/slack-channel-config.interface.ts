@@ -9,7 +9,7 @@ import type { StageChannelMapping, SlackChannel } from '../comm-integration';
  * DTO for creating channel configuration
  */
 export type CreateChannelConfigDto = {
-  tenantId: string;
+  appId: string;
   channelData: StageChannelMapping;
 };
 

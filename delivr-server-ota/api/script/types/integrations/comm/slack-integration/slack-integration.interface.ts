@@ -7,7 +7,7 @@
  * DTO for creating or updating Slack integration
  */
 export type CreateOrUpdateIntegrationDto = {
-  tenantId: string;
+  appId: string;
   data: {
     botToken: string;
     botUserId?: string;

@@ -103,7 +103,7 @@ export type CiRunType = typeof CI_RUN_TYPE[keyof typeof CI_RUN_TYPE];
 
 export const BUILD_ERROR_MESSAGES = {
   ARTIFACT_REQUIRED: 'Build upload failed: artifact file is required',
-  INVALID_TENANT_ID: 'Build upload failed: tenantId is required',
+  INVALID_TENANT_ID: 'Build upload failed: appId is required',
   INVALID_RELEASE_ID: 'Build upload failed: releaseId is required',
   INVALID_VERSION_NAME: 'Build upload failed: artifact_version_name is required',
   INVALID_VERSION_CODE: 'Build upload failed: artifact_version_code is required',

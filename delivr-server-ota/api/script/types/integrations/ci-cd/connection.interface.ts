@@ -18,9 +18,9 @@ export enum VerificationStatus {
   EXPIRED = 'EXPIRED',
 }
 
-export interface TenantCICDIntegration {
+export interface AppCICDIntegration {
   id: string;
-  tenantId: string;
+  appId: string;
   providerType: CICDProviderType;
   displayName: string;
   hostUrl: string;
@@ -38,11 +38,17 @@ export interface TenantCICDIntegration {
   updatedAt: Date;
 }
 
-export interface SafeCICDIntegration extends Omit<TenantCICDIntegration, 'apiToken' | 'headerValue'> {
+/**
+ * @deprecated Use AppCICDIntegration instead
+ * Kept for backward compatibility
+ */
+export type TenantCICDIntegration = AppCICDIntegration;
+
+export interface SafeCICDIntegration extends Omit<AppCICDIntegration, 'apiToken' | 'headerValue'> {
 }
 
 export interface CreateCICDIntegrationDto {
-  tenantId: string;
+  appId: string;
   providerType: CICDProviderType;
   displayName: string;
   hostUrl: string;
@@ -73,7 +79,7 @@ export interface UpdateCICDIntegrationDto {
 }
 
 export interface CICDIntegrationFilters {
-  tenantId?: string;
+  appId?: string;
   providerType?: CICDProviderType;
   verificationStatus?: VerificationStatus;
   hostUrl?: string;

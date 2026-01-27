@@ -41,7 +41,7 @@ export async function getUserAppPermission(
     const appCollab = await sequelize.models[MODELS.COLLABORATOR].findOne({
       where: { 
         accountId: userId,
-        appId: appId  // Query by appId (the collaborators table uses appId, not tenantId)
+        appId: appId  // Query by appId (the collaborators table uses appId, not appId)
       }
     });
     
@@ -76,7 +76,7 @@ function hasPermission(userPermission: string, requiredPermission: string): bool
 }
 
 /**
- * Middleware: Require authentication only (no app/tenant ID required)
+ * Middleware: Require authentication only (no app/app id required)
  * Use for routes like GET /apps that list all resources for a user
  */
 export function requireAuth(_config: TenantPermissionConfig) {
@@ -94,14 +94,14 @@ export function requireAuth(_config: TenantPermissionConfig) {
 /**
  * Middleware: Require app membership
  * User must be a member of the app (any permission level)
- * Supports both appId (new) and tenantId (backward compatibility)
+ * Supports both appId (new) and appId (backward compatibility)
  */
 export function requireAppMembership(config: TenantPermissionConfig) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.id;
-    // Check for appId first (new), then tenantId (backward compatibility)
+    // Check for appId first (new), then appId (backward compatibility)
     const appId = req.params.appId || req.body.appId || req.query.appId as string || 
-                  req.params.tenantId || req.body.tenantId || req.query.tenantId as string;
+                  req.params.appId || req.body.appId || req.query.appId as string;
     
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -136,14 +136,14 @@ export const requireTenantMembership = requireAppMembership;
 /**
  * Middleware: Require Editor or Owner permission
  * User must have at least 'Editor' permissions
- * Supports both appId (new) and tenantId (backward compatibility)
+ * Supports both appId (new) and appId (backward compatibility)
  */
 export function requireEditor(config: TenantPermissionConfig) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.id;
-    // Check for appId first (new), then tenantId (backward compatibility)
+    // Check for appId first (new), then appId (backward compatibility)
     const appId = req.params.appId || req.body.appId || req.query.appId as string ||
-                  req.params.tenantId || req.body.tenantId || req.query.tenantId as string ||
+                  req.params.appId || req.body.appId || req.query.appId as string ||
                   req.headers.tenant as string;
     
     if (!userId) {
@@ -187,14 +187,14 @@ export const allowAll = (_config: TenantPermissionConfig) => {
 /**
  * Middleware: Require Owner permission
  * User must be app owner
- * Supports both appId (new) and tenantId (backward compatibility)
+ * Supports both appId (new) and appId (backward compatibility)
  */
 export function requireOwner(config: TenantPermissionConfig) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.id;
-    // Check for appId first (new), then tenantId (backward compatibility)
+    // Check for appId first (new), then appId (backward compatibility)
     const appId = req.params.appId || req.body.appId || req.query.appId as string ||
-                  req.params.tenantId || req.body.tenantId || req.query.tenantId as string ||
+                  req.params.appId || req.body.appId || req.query.appId as string ||
                   req.headers.tenant as string;
     
     if (!userId) {
@@ -232,13 +232,13 @@ export function requireOwner(config: TenantPermissionConfig) {
 export const requireOrgAdmin = requireOwner;
 
 /**
- * Helper: Extract tenant ID from request
+ * Helper: Extract app id from request
  * Checks params, body, and query in order
  */
 export function extractTenantId(req: Request): string | null {
-  return req.params.tenantId || 
-         req.body.tenantId || 
-         req.query.tenantId as string || 
+  return req.params.appId || 
+         req.body.appId || 
+         req.query.appId as string || 
          null;
 }
 

@@ -16,15 +16,15 @@ import type { Storage } from '~storage/storage';
 export const createDistributionController = (service: DistributionService, storage?: Storage) => {
   /**
    * Get distribution by release ID with all submissions and action history
-   * GET /api/v1/tenants/:tenantId/releases/:releaseId/distribution
+   * GET /api/v1/apps/:appId/releases/:releaseId/distribution
    */
   const getDistributionByReleaseId = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const { tenantId, releaseId } = req.params;
+      const { appId, releaseId } = req.params;
 
-      if (!tenantId) {
+      if (!appId) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json(
-          errorResponse(new Error('Tenant ID is required'), 'Get Distribution')
+          errorResponse(new Error('app id is required'), 'Get Distribution')
         );
       }
 
@@ -42,7 +42,6 @@ export const createDistributionController = (service: DistributionService, stora
       );
     } catch (error: unknown) {
       console.error('[Get Distribution by Release ID] Error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
         errorResponse(error, 'Failed to get distribution')
       );
@@ -51,15 +50,15 @@ export const createDistributionController = (service: DistributionService, stora
 
   /**
    * Get distribution by ID with all submissions and action history
-   * GET /api/v1/tenants/:tenantId/distributions/:distributionId
+   * GET /api/v1/apps/:appId/distributions/:distributionId
    */
   const getDistributionById = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const { tenantId, distributionId } = req.params;
+      const { appId, distributionId } = req.params;
 
-      if (!tenantId) {
+      if (!appId) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json(
-          errorResponse(new Error('Tenant ID is required'), 'Get Distribution')
+          errorResponse(new Error('app id is required'), 'Get Distribution')
         );
       }
 
@@ -82,7 +81,6 @@ export const createDistributionController = (service: DistributionService, stora
       );
     } catch (error: unknown) {
       console.error('[Get Distribution by ID] Error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
         errorResponse(error, 'Failed to get distribution')
       );
@@ -100,7 +98,7 @@ export const createDistributionController = (service: DistributionService, stora
       const pageSize = req.query.pageSize ? parseInt(req.query.pageSize as string, 10) : 10;
       const status = req.query.status as string | undefined;
       const platform = req.query.platform as string | undefined;
-      const tenantId = req.query.tenantId as string | undefined;
+      const appId = req.query.appId as string | undefined;
 
       // Validate pagination
       if (page < 1) {
@@ -115,8 +113,8 @@ export const createDistributionController = (service: DistributionService, stora
         );
       }
 
-      // If tenantId is provided, check permissions
-      if (tenantId) {
+      // If appId is provided, check permissions
+      if (appId) {
         const userId = (req as any).user?.id;
         if (!userId) {
           return res.status(HTTP_STATUS.UNAUTHORIZED).json(
@@ -130,7 +128,7 @@ export const createDistributionController = (service: DistributionService, stora
           );
         }
 
-        const userPermission = await getUserAppPermission(storage, userId, tenantId);  // tenantId is actually appId
+        const userPermission = await getUserAppPermission(storage, userId, appId);  // appId is actually appId
         if (!userPermission) {
           return res.status(HTTP_STATUS.FORBIDDEN).json(
             errorResponse(new Error('You are not a member of this organization'), 'List Distributions')
@@ -139,7 +137,7 @@ export const createDistributionController = (service: DistributionService, stora
       }
 
       const result = await service.listDistributions(
-        { status, platform, tenantId },
+        { status, platform, appId },
         page,
         pageSize
       );
@@ -150,7 +148,6 @@ export const createDistributionController = (service: DistributionService, stora
       );
     } catch (error: unknown) {
       console.error('[List Distributions] Error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
         errorResponse(error, 'Failed to list distributions')
       );

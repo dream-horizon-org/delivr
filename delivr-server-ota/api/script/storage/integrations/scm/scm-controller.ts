@@ -87,7 +87,7 @@ export class SCMIntegrationController {
   async findAll(filters: SCMIntegrationFilters = {}): Promise<SafeSCMIntegration[]> {
     const where: any = {};
     
-    if (filters.tenantId) where.tenantId = filters.tenantId;
+    if (filters.appId) where.appId = filters.appId;
     if (filters.scmType) where.scmType = filters.scmType;
     if (typeof filters.isActive === 'boolean') where.isActive = filters.isActive;
     if (filters.verificationStatus) where.verificationStatus = filters.verificationStatus;
@@ -105,18 +105,18 @@ export class SCMIntegrationController {
   /**
    * Find integration by repository
    * 
-   * @param tenantId - Tenant ID
+   * @param appId - app id
    * @param owner - GitHub org/username
    * @param repo - Repository name
    * @returns Integration or null
    */
   async findByRepository(
-    tenantId: string, 
+    appId: string, 
     owner: string,
     repo: string
   ): Promise<SafeSCMIntegration | null> {
     const integration = await this.model.findOne({
-      where: { tenantId, owner, repo }
+      where: { appId, owner, repo }
     });
 
     if (!integration) return null;
@@ -126,13 +126,13 @@ export class SCMIntegrationController {
   /**
    * Find active integration for tenant (most common query)
    * 
-   * @param tenantId - Tenant ID
+   * @param appId - app id
    * @returns First active integration or null
    */
-  async findActiveByTenant(tenantId: string): Promise<SafeSCMIntegration | null> {
+  async findActiveByTenant(appId: string): Promise<SafeSCMIntegration | null> {
     const integration = await this.model.findOne({
       where: { 
-        tenantId, 
+        appId, 
         isActive: true 
       },
       order: [['createdAt', 'DESC']]
@@ -147,13 +147,13 @@ export class SCMIntegrationController {
    * ⚠️ WARNING: Returns full integration including accessToken (decrypted from backend storage)
    * Only use this for server-side operations that need to make API calls
    * 
-   * @param tenantId - Tenant ID
+   * @param appId - app id
    * @returns First active integration with decrypted tokens or null
    */
-  async findActiveByTenantWithTokens(tenantId: string): Promise<TenantSCMIntegration | null> {
+  async findActiveByTenantWithTokens(appId: string): Promise<TenantSCMIntegration | null> {
     const integration = await this.model.findOne({
       where: { 
-        tenantId, 
+        appId, 
         isActive: true 
       },
       order: [['createdAt', 'DESC']]
@@ -282,12 +282,12 @@ export class SCMIntegrationController {
   /**
    * Count integrations for a tenant
    * 
-   * @param tenantId - Tenant ID
+   * @param appId - app id
    * @param activeOnly - Only count active integrations (default: true)
    * @returns Count
    */
-  async count(tenantId: string, activeOnly: boolean = true): Promise<number> {
-    const where: any = { tenantId };
+  async count(appId: string, activeOnly: boolean = true): Promise<number> {
+    const where: any = { appId };
     if (activeOnly) where.isActive = true;
     
     return await this.model.count({ where });
