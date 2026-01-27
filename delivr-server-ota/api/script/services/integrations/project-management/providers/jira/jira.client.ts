@@ -3,7 +3,8 @@ import type {
   JiraIssueResponse,
   JiraProjectResponse,
   JiraCreateIssueRequest,
-  JiraStatusResponse
+  JiraStatusResponse,
+  JiraCreateMetaResponse
 } from './jira.interface';
 import { JIRA_API_VERSION, JIRA_ERROR_MESSAGES } from './jira.constants';
 
@@ -134,6 +135,23 @@ export class JiraClient {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : JIRA_ERROR_MESSAGES.GET_STATUSES_FAILED;
+      throw new Error(errorMessage);
+    }
+  }
+
+  /**
+   * Get all issue types for a project
+   * Uses the create meta endpoint which returns issue types available for creation
+   */
+  async getProjectIssueTypes(projectKey: string): Promise<JiraCreateMetaResponse> {
+    try {
+      return await this.makeRequest<JiraCreateMetaResponse>(
+        `/issue/createmeta?projectKeys=${projectKey}&expand=projects.issuetypes`, 
+        { method: 'GET' }
+      );
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : JIRA_ERROR_MESSAGES.GET_ISSUE_TYPES_FAILED;
       throw new Error(errorMessage);
     }
   }

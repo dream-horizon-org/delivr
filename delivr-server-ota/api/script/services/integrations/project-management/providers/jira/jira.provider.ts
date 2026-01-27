@@ -179,5 +179,33 @@ export class JiraProvider implements IProjectManagementProvider {
 
     return Array.from(statusMap.values());
   }
+
+  /**
+   * Get available JIRA issue types for a project
+   * Returns all issue types that can be created in the project
+   */
+  async getProjectIssueTypes(
+    config: ProjectManagementIntegrationConfig,
+    projectKey: string
+  ): Promise<Array<{ id: string; name: string; subtask: boolean; description?: string }>> {
+    const jiraConfig = this.getJiraConfig(config);
+    const client = new JiraClient(jiraConfig);
+
+    const response = await client.getProjectIssueTypes(projectKey);
+    
+    // Extract issue types from the first project in response
+    const projectData = response.projects[0];
+    
+    if (!projectData) {
+      throw new Error(`No issue types found for project ${projectKey}`);
+    }
+
+    return projectData.issuetypes.map((issueType) => ({
+      id: issueType.id,
+      name: issueType.name,
+      subtask: issueType.subtask,
+      description: issueType.description
+    }));
+  }
 }
 

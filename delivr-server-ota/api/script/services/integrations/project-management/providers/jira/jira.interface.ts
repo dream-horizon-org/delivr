@@ -56,3 +56,20 @@ export type JiraStatusResponse = {
   name: string;
   statuses: JiraStatus[];
 };
+
+export type JiraIssueType = {
+  id: string;
+  name: string;
+  description?: string;
+  subtask: boolean;
+  avatarId?: number;
+};
+
+export type JiraCreateMetaResponse = {
+  projects: Array<{
+    id: string;
+    key: string;
+    name: string;
+    issuetypes: JiraIssueType[];
+  }>;
+};
