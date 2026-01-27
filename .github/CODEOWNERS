@@ -1,0 +1,16 @@
+# CLI
+/delivr-cli/ @devanshsaini11
+
+# SDK
+/delivr-sdk-ota/ @devanshsaini11
+
+# Server
+/delivr-server-ota/ @prathameshy7
+
+# Web Panel
+/delivr-web-panel/ @JatinDream11
+
+# Global Owners
+# These users will be requested for review when anyone opens a pull request.
+* @mohithemnani11 @princektripathi
+
