@@ -37,10 +37,10 @@ export const createCICDIntegrationModel = (sequelize: Sequelize) => {
       tenantId: {
         type: DataTypes.UUID,
         allowNull: false,
-        references: { model: 'tenants', key: 'id' },
+        references: { model: 'apps', key: 'id' },  // Changed from 'tenants' to 'apps'
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
-        comment: 'Reference to tenants table'
+        comment: 'Reference to apps table (renamed from tenants)'
       },
       providerType: {
         type: DataTypes.ENUM('JENKINS','GITHUB_ACTIONS','CIRCLE_CI','GITLAB_CI'),

@@ -12,6 +12,11 @@ import {
   TenantTestManagementIntegrationRepository,
   TestManagementConfigRepository
 } from "../models/integrations/test-management";
+import { createAppPlatformTargetModel } from "./app-platform-target.model";
+import { AppRepository } from "../models/app";
+import { AppPlatformTargetRepository } from "../models/app-platform-target";
+import { AppService } from "../services/app";
+import { AppPlatformTargetService } from "../services/app-platform-target";
 import {
   TestManagementConfigService,
   TestManagementIntegrationService,
@@ -233,8 +238,9 @@ export function createAccountChannel(sequelize: Sequelize) {
 
 //Creating App
 
-export function createApp(sequelize: Sequelize) {
-    return sequelize.define("apps", {
+// Old apps model - renamed to dota_apps (temporary, will be handled in Part 3)
+export function createDotaApp(sequelize: Sequelize) {
+    return sequelize.define("dota_apps", {
         createdTime: { type: DataTypes.FLOAT, allowNull: false },
         name: { type: DataTypes.STRING, allowNull: false },
         id: { type: DataTypes.STRING, allowNull: false, primaryKey: true},
@@ -246,31 +252,50 @@ export function createApp(sequelize: Sequelize) {
             key: 'id',
           },
         },
-        tenantId: {
+        appId: {
           type: DataTypes.UUID,
-          allowNull: true,  // Optional for backward compatibility (v1 apps might not have it)
+          allowNull: true,  // FK to new apps table (renamed from tenantId)
           references: {
-            model: 'tenants',
+            model: 'apps',  // References new apps table (renamed from tenants)
             key: 'id',
           },
         },
+    }, {
+        tableName: 'dota_apps'  // Explicit table name
     })
 }
 
 
-//Creating Tenants/Orgs
-
-export function createTenant(sequelize: Sequelize) {
-  return sequelize.define("tenant", {
+// Creating Apps (renamed from Tenants - new central App entity)
+export function createApp(sequelize: Sequelize) {
+  return sequelize.define("app", {
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
       allowNull: false,
     },
-    displayName: {
+    name: {
       type: DataTypes.STRING,
       allowNull: false,
+    },
+    displayName: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    organizationId: {
+      type: DataTypes.UUID,
+      allowNull: true,  // Nullable initially for migration
+      // Temporarily removed FK constraint - organizations table doesn't exist yet
+      // Will be added back when Part 1 (Organization management) is implemented
+      // references: {
+      //   model: 'organizations',
+      //   key: 'id',
+      // },
     },
     createdBy: {
       type: DataTypes.STRING,
@@ -292,14 +317,13 @@ export function createTenant(sequelize: Sequelize) {
     },
   }, {
     timestamps: true,
-    tableName: 'tenants'
+    tableName: 'apps'  // Table renamed from 'tenants' to 'apps'
   });
 }
 
 
-//Create Collabarorators
-
-// Unified collaborators table - supports BOTH app-level AND tenant-level collaboration
+// Create Collaborators
+// Updated: tenantId renamed to appId (since tenants are now apps)
 export function createCollaborators(sequelize: Sequelize) {
     return sequelize.define("collaborator", {
         email: {type: DataTypes.STRING, allowNull: false},
@@ -312,27 +336,23 @@ export function createCollaborators(sequelize: Sequelize) {
           }
         },
         appId: { 
-          type: DataTypes.STRING, 
-          allowNull: true  // Null for tenant-level collaborators (NO FK constraint)
-        },
-        tenantId: {
           type: DataTypes.UUID,
-          allowNull: true,  // Null for app-level-only collaborators
+          allowNull: true,  // Null for organization-level collaborators (future use)
           references: {
-            model: 'tenants',
+            model: 'apps',  // References new apps table (renamed from tenants)
             key: 'id',
           },
         },
         permission: {
             type: DataTypes.ENUM({
-                values: ["Owner", "Editor", "Viewer"]  // Tenant-level roles
+                values: ["Owner", "Editor", "Viewer"]  // App-level roles
             }),
             allowNull:true
         },
         isCreator: {
           type: DataTypes.BOOLEAN,
           allowNull: false,
-          defaultValue: false  // True for tenant creators
+          defaultValue: false  // True for app creators
         },
     }, {
       tableName: 'collaborators',
@@ -430,7 +450,7 @@ export function createAppPointer(sequelize: Sequelize) {
           },
         },
         appId: {
-          type: DataTypes.STRING,
+          type: DataTypes.UUID,  // Changed from STRING to match App.id (UUID)
           allowNull: false,
           references: {
             model: 'apps', // References App model
@@ -453,13 +473,14 @@ export function createModelss(sequelize: Sequelize) {
   // Create models and register them
   const Account = createAccount(sequelize);
   const AccountChannel = createAccountChannel(sequelize);
-  const Tenant = createTenant(sequelize);
+  const App = createApp(sequelize);  // New App model (renamed from Tenant)
+  const DotaApp = createDotaApp(sequelize);  // Old apps model (renamed to dota_apps)
   const Package = createPackage(sequelize);
   const Deployment = createDeployment(sequelize);
   const AccessKey = createAccessKey(sequelize);
   const AppPointer = createAppPointer(sequelize);
-  const Collaborator = createCollaborators(sequelize);  // UNIFIED: supports BOTH app-level AND tenant-level
-  const App = createApp(sequelize);
+  const Collaborator = createCollaborators(sequelize);  // Updated: uses appId instead of tenantId
+  const AppPlatformTarget = createAppPlatformTargetModel(sequelize);  // New: App platform-target configuration
   const SCMIntegrations = createSCMIntegrationModel(sequelize);  // SCM integrations (GitHub, GitLab, etc.)
   const CICDIntegrations = createCICDIntegrationModel(sequelize);  // CI/CD integrations (Jenkins, etc.)
   const CICDWorkflows = createCICDWorkflowModel(sequelize);  // CI/CD workflows/jobs across providers
@@ -514,14 +535,18 @@ export function createModelss(sequelize: Sequelize) {
   Account.hasMany(AccountChannel, { foreignKey: 'accountId', as: 'channels' });
   AccountChannel.belongsTo(Account, { foreignKey: 'accountId', onDelete: 'CASCADE' });
 
-  // Account and Tenant (Creator relationship)
-  Account.hasMany(Tenant, { foreignKey: 'createdBy' });
-  Tenant.belongsTo(Account, { foreignKey: 'createdBy' });
+  // Account and App (Creator relationship) - Updated: Tenant renamed to App
+  Account.hasMany(App, { foreignKey: 'createdBy' });
+  App.belongsTo(Account, { foreignKey: 'createdBy' });
+  
+  // App and AppPlatformTarget (One App has many Platform-Target configurations)
+  App.hasMany(AppPlatformTarget, { foreignKey: 'appId', as: 'platformTargets' });
+  AppPlatformTarget.belongsTo(App, { foreignKey: 'appId' });
   
   // NEW: Release Management Associations (standardized schema)
-  // Tenant and Release (One Tenant can have many Releases)
-  Tenant.hasMany(Release, { foreignKey: 'tenantId' });
-  Release.belongsTo(Tenant, { foreignKey: 'tenantId' });
+  // App and Release (One App can have many Releases) - Updated: tenantId → appId
+  App.hasMany(Release, { foreignKey: 'appId' });  // Note: Release model will need tenantId → appId update
+  Release.belongsTo(App, { foreignKey: 'appId' });
   
   // Account and Release (Creator relationship)
   Account.hasMany(Release, { foreignKey: 'createdByAccountId', as: 'createdReleases' });
@@ -559,9 +584,9 @@ export function createModelss(sequelize: Sequelize) {
   Release.hasMany(ReleaseNotification, { foreignKey: 'releaseId', as: 'notifications' });
   ReleaseNotification.belongsTo(Release, { foreignKey: 'releaseId' });
 
-  // Tenant and Notifications (One Tenant has many Notifications)
-  Tenant.hasMany(ReleaseNotification, { foreignKey: 'tenantId', as: 'notifications' });
-  ReleaseNotification.belongsTo(Tenant, { foreignKey: 'tenantId' });
+  // App and Notifications (One App has many Notifications) - Updated: tenantId → appId
+  App.hasMany(ReleaseNotification, { foreignKey: 'appId', as: 'notifications' });  // Note: ReleaseNotification model will need tenantId → appId update
+  ReleaseNotification.belongsTo(App, { foreignKey: 'appId' });
 
   // Account and Notifications (Creator relationship for ad-hoc notifications)
   Account.hasMany(ReleaseNotification, { foreignKey: 'createdByUserId', as: 'createdNotifications' });
@@ -579,21 +604,21 @@ export function createModelss(sequelize: Sequelize) {
   RegressionCycle.hasMany(Build, { foreignKey: 'regressionId', as: 'builds' });
   Build.belongsTo(RegressionCycle, { foreignKey: 'regressionId', as: 'regressionCycle' });
 
-  // Tenant and App (One Tenant can have many Apps) - NEW FLOW
-  Tenant.hasMany(App, { foreignKey: 'tenantId' });
-  App.belongsTo(Tenant, { foreignKey: 'tenantId' });
+  // DotaApp and App (One App can have many DotaApps) - DOTA entities reference new App
+  App.hasMany(DotaApp, { foreignKey: 'appId', as: 'dotaApps' });
+  DotaApp.belongsTo(App, { foreignKey: 'appId' });
 
-  // Account and App (One Account can have many Apps) - OLD FLOW (backward compatibility)
-  Account.hasMany(App, { foreignKey: 'accountId' });
-  App.belongsTo(Account, { foreignKey: 'accountId' });
-  
-  // Tenant and Collaborator (One Tenant can have many Collaborators) - NEW FLOW
-  Tenant.hasMany(Collaborator, { foreignKey: 'tenantId' });
-  Collaborator.belongsTo(Tenant, { foreignKey: 'tenantId' });
+  // Account and DotaApp (One Account can have many DotaApps) - OLD FLOW (backward compatibility)
+  Account.hasMany(DotaApp, { foreignKey: 'accountId' });
+  DotaApp.belongsTo(Account, { foreignKey: 'accountId' });
 
-  // App and Deployment (One App can have many Deployments)
-  App.hasMany(Deployment, { foreignKey: 'appId' });
-  Deployment.belongsTo(App, { foreignKey: 'appId' });
+  // App and Collaborator (One App can have many Collaborators) - Updated: tenantId → appId
+  App.hasMany(Collaborator, { foreignKey: 'appId' });
+  Collaborator.belongsTo(App, { foreignKey: 'appId' });
+
+  // DotaApp and Deployment (One DotaApp can have many Deployments) - DOTA entities use old apps
+  DotaApp.hasMany(Deployment, { foreignKey: 'appId' });
+  Deployment.belongsTo(DotaApp, { foreignKey: 'appId' });
 
   // Deployment and Package (One Package can be linked to many Deployments)
   Deployment.hasMany(Package, { foreignKey: 'deploymentId', as: 'packageHistory' });
@@ -604,24 +629,23 @@ export function createModelss(sequelize: Sequelize) {
   // Note: accountId FK is defined in model, Account association is for querying only
   Collaborator.belongsTo(Account, { foreignKey: 'accountId' });
   
-  // appId association WITHOUT FK constraint (collaborators can be tenant-level without app)
+  // appId association - Updated: appId is now the primary FK (tenantId removed)
   Collaborator.belongsTo(App, { 
-    foreignKey: 'appId',
-    constraints: false  // Don't create FK constraint - appId can be NULL for tenant-level collaborators
+    foreignKey: 'appId'
   });
 
   // SCM Integration associations
-  // Tenant has ONE SCM integration (set up during onboarding)
-  Tenant.hasOne(SCMIntegrations, { foreignKey: 'tenantId', as: 'scmIntegration' });
-  SCMIntegrations.belongsTo(Tenant, { foreignKey: 'tenantId' });
+  // App has ONE SCM integration (set up during onboarding) - Updated: Tenant → App
+  App.hasOne(SCMIntegrations, { foreignKey: 'appId', as: 'scmIntegration' });  // Note: Integration models will need tenantId → appId update
+  SCMIntegrations.belongsTo(App, { foreignKey: 'appId' });
   
   // Account (creator) reference for SCM
   SCMIntegrations.belongsTo(Account, { foreignKey: 'createdByAccountId', as: 'creator' });
 
   // Slack Integration associations
-  // Tenant has ONE communication integration (set up during onboarding)
-  Tenant.hasOne(CommIntegrations, { foreignKey: 'tenantId', as: 'slackIntegration' });
-  CommIntegrations.belongsTo(Tenant, { foreignKey: 'tenantId' });
+  // App has ONE communication integration (set up during onboarding) - Updated: Tenant → App
+  App.hasOne(CommIntegrations, { foreignKey: 'appId', as: 'slackIntegration' });  // Note: Integration models will need tenantId → appId update
+  CommIntegrations.belongsTo(App, { foreignKey: 'appId' });
 
   // Channel Configuration associations
   // Communication integration has ONE channel configuration
@@ -629,45 +653,45 @@ export function createModelss(sequelize: Sequelize) {
   CommConfig.belongsTo(CommIntegrations, { foreignKey: 'integrationId' });
 
   // Test Management associations
-  // Tenant has many Test Management Integrations
-  Tenant.hasMany(TenantTestManagementIntegration, { 
-    foreignKey: 'tenantId',
+  // App has many Test Management Integrations - Updated: Tenant → App
+  App.hasMany(TenantTestManagementIntegration, { 
+    foreignKey: 'appId',  // Note: Integration models will need tenantId → appId update
     as: 'testManagementIntegrations' 
   });
-  TenantTestManagementIntegration.belongsTo(Tenant, { 
-    foreignKey: 'tenantId',
-    as: 'tenant'
+  TenantTestManagementIntegration.belongsTo(App, { 
+    foreignKey: 'appId',
+    as: 'app'
   });
   
-  // Tenant has many Test Management Configs
-  Tenant.hasMany(TestManagementConfig, { 
-    foreignKey: 'tenantId',
+  // App has many Test Management Configs - Updated: Tenant → App
+  App.hasMany(TestManagementConfig, { 
+    foreignKey: 'appId',  // Note: Config models will need tenantId → appId update
     as: 'testManagementConfigs' 
   });
-  TestManagementConfig.belongsTo(Tenant, { 
-    foreignKey: 'tenantId',
-    as: 'tenant'
+  TestManagementConfig.belongsTo(App, { 
+    foreignKey: 'appId',
+    as: 'app'
   });
   
   // Project Management associations
-  // Tenant has many Project Management Integrations
-  Tenant.hasMany(ProjectManagementIntegration, { 
-    foreignKey: 'tenantId',
+  // App has many Project Management Integrations - Updated: Tenant → App
+  App.hasMany(ProjectManagementIntegration, { 
+    foreignKey: 'appId',  // Note: Integration models will need tenantId → appId update
     as: 'projectManagementIntegrations' 
   });
-  ProjectManagementIntegration.belongsTo(Tenant, { 
-    foreignKey: 'tenantId',
-    as: 'tenant'
+  ProjectManagementIntegration.belongsTo(App, { 
+    foreignKey: 'appId',
+    as: 'app'
   });
   
-  // Tenant has many Project Management Configs
-  Tenant.hasMany(ProjectManagementConfig, { 
-    foreignKey: 'tenantId',
+  // App has many Project Management Configs - Updated: Tenant → App
+  App.hasMany(ProjectManagementConfig, { 
+    foreignKey: 'appId',  // Note: Config models will need tenantId → appId update
     as: 'projectManagementConfigs' 
   });
-  ProjectManagementConfig.belongsTo(Tenant, { 
-    foreignKey: 'tenantId',
-    as: 'tenant'
+  ProjectManagementConfig.belongsTo(App, { 
+    foreignKey: 'appId',
+    as: 'app'
   });
   
   // Project Management Config belongs to Integration
@@ -681,14 +705,14 @@ export function createModelss(sequelize: Sequelize) {
   });
   
   // Release Config associations
-  // Tenant has many Release Configs
-  Tenant.hasMany(ReleaseConfig, { 
-    foreignKey: 'tenantId',
+  // App has many Release Configs - Updated: Tenant → App
+  App.hasMany(ReleaseConfig, { 
+    foreignKey: 'appId',  // Note: ReleaseConfig model will need tenantId → appId update
     as: 'releaseConfigs' 
   });
-  ReleaseConfig.belongsTo(Tenant, { 
-    foreignKey: 'tenantId',
-    as: 'tenant'
+  ReleaseConfig.belongsTo(App, { 
+    foreignKey: 'appId',
+    as: 'app'
   });
   
   // Release Config belongs to Account (creator)
@@ -698,14 +722,14 @@ export function createModelss(sequelize: Sequelize) {
   });
   
   // Release Schedule associations
-  // Tenant has many Release Schedules
-  Tenant.hasMany(ReleaseSchedule, { 
-    foreignKey: 'tenantId',
+  // App has many Release Schedules - Updated: Tenant → App
+  App.hasMany(ReleaseSchedule, { 
+    foreignKey: 'appId',  // Note: ReleaseSchedule model will need tenantId → appId update
     as: 'releaseSchedules' 
   });
-  ReleaseSchedule.belongsTo(Tenant, { 
-    foreignKey: 'tenantId',
-    as: 'tenant'
+  ReleaseSchedule.belongsTo(App, { 
+    foreignKey: 'appId',
+    as: 'app'
   });
   
   // Release Schedule belongs to Release Config (one-to-one)
@@ -725,14 +749,14 @@ export function createModelss(sequelize: Sequelize) {
   });
   
   // Distribution associations
-  // Tenant has many Distributions
-  Tenant.hasMany(Distribution, { 
-    foreignKey: 'tenantId',
+  // App has many Distributions - Updated: Tenant → App
+  App.hasMany(Distribution, { 
+    foreignKey: 'appId',  // Note: Distribution model will need tenantId → appId update
     as: 'distributions' 
   });
-  Distribution.belongsTo(Tenant, { 
-    foreignKey: 'tenantId',
-    as: 'tenant',
+  Distribution.belongsTo(App, { 
+    foreignKey: 'appId',
+    as: 'app',
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE'
   });
@@ -776,13 +800,14 @@ export function createModelss(sequelize: Sequelize) {
   return {
     Account,
     AccountChannel,
-    Tenant,
+    App,  // New App model (renamed from Tenant)
+    DotaApp,  // Old apps model (temporary, for DOTA)
+    AppPlatformTarget,  // App platform-target configuration
     Package,
     Deployment,
     AccessKey,
     AppPointer,
-    Collaborator,  // UNIFIED: supports both app-level AND tenant-level
-    App,
+    Collaborator,  // Updated: uses appId instead of tenantId
     SCMIntegrations,       // SCM integrations (GitHub, GitLab, Bitbucket)
     CICDIntegrations,      // CI/CD connections (Jenkins, etc.)
     CICDWorkflows,         // CI/CD workflows/jobs across providers
@@ -837,14 +862,15 @@ export function defer<T>() {
 
 
 export const MODELS = {
-  COLLABORATOR : "collaborator",  // UNIFIED: supports both app-level AND tenant-level collaboration
+  COLLABORATOR : "collaborator",  // Updated: uses appId instead of tenantId
+  APP : "app",  // New App model (renamed from Tenant)
+  DOTA_APP : "dota_apps",  // Old apps model (temporary, for DOTA)
+  APP_PLATFORM_TARGET : "app_platform_target",  // App platform-target configuration
   DEPLOYMENT : "deployment",
-  APPS : "apps",
   PACKAGE : "package",
   ACCESSKEY : "accessKey",
   ACCOUNT : "account",
   APPPOINTER: "AppPointer",
-  TENANT : "tenant",
 }
 
 const DB_NAME = "codepushdb"
@@ -858,6 +884,12 @@ export class S3Storage implements storage.Storage {
     private sequelize:Sequelize;
     public readonly setupPromise: Promise<void>;  // Public so it can be awaited before using services
     public scmController!: SCMIntegrationController;  // SCM integration controller
+    
+    // App Management - Repositories and Services
+    public appRepository!: AppRepository;
+    public appPlatformTargetRepository!: AppPlatformTargetRepository;
+    public appService!: AppService;
+    public appPlatformTargetService!: AppPlatformTargetService;
     
     // Test Management Integration - Repositories and Services
     public tenantIntegrationRepository!: TenantTestManagementIntegrationRepository;
@@ -1028,6 +1060,27 @@ export class S3Storage implements storage.Storage {
         .then(() => {
           const models = createModelss(this.sequelize);
           console.log("Models registered");
+          
+          // Initialize App Repositories
+          this.appRepository = new AppRepository(this.sequelize);
+          console.log("App Repository initialized");
+          
+          this.appPlatformTargetRepository = new AppPlatformTargetRepository(this.sequelize);
+          console.log("App Platform Target Repository initialized");
+          
+          // Initialize App Services
+          this.appService = new AppService(
+            this.appRepository,
+            this.appPlatformTargetRepository,
+            this.sequelize
+          );
+          console.log("App Service initialized");
+          
+          this.appPlatformTargetService = new AppPlatformTargetService(
+            this.appPlatformTargetRepository,
+            this.appRepository
+          );
+          console.log("App Platform Target Service initialized");
           
           // Initialize SCM Integration Controller
           this.scmController = new SCMIntegrationController(models.SCMIntegrations);
@@ -1493,7 +1546,7 @@ export class S3Storage implements storage.Storage {
           );
           console.log("Release Update Service initialized");
           
-          // return this.sequelize.sync();
+          return this.sequelize.sync();
         })
         .then(() => {
           console.log("Sequelize models synced");
@@ -1653,89 +1706,76 @@ export class S3Storage implements storage.Storage {
       return this.setupPromise
         .then(() => this.getAccount(accountId)) // Fetch account details to check permissions
         .then(async (account: storage.Account) => {
-          const tenantId = app.tenantId;
+          // Updated: app.tenantId is now appId (new App entity ID)
+          const appId = (app as any).tenantId || (app as any).appId; // Support both for transition
           
-          // V2 Flow: Tenant-based (NEW)
-          if (tenantId) {
-            // Verify tenant exists
-            const tenant = await this.sequelize.models[MODELS.TENANT].findOne({
-              where: { id: tenantId },
+          // V2 Flow: App-based (NEW) - App belongs to an organization
+          if (appId) {
+            // Verify app (organization) exists
+            const appEntity = await this.sequelize.models[MODELS.APP].findOne({
+              where: { id: appId },
             });
             
-            if (!tenant) {
+            if (!appEntity) {
               throw storage.storageError(
                 storage.ErrorCode.NotFound, 
-                "Specified organization does not exist."
+                "Specified opp does not exist."
               );
             }
             
-            // Check Account has permission (editor or admin) in the tenant
-            // Query tenant-level collaborators (where appId is null)
-            const tenantCollab = await this.sequelize.models[MODELS.COLLABORATOR].findOne({
+            // Check Account has permission (editor or admin) in the app
+            // Query app-level collaborators
+            const appCollab = await this.sequelize.models[MODELS.COLLABORATOR].findOne({
               where: { 
                 accountId: accountId, 
-                tenantId,
-                appId: null  // Tenant-level collaborator
+                appId: appId  // App-level collaborator
               },
             });
             
-            if (!tenantCollab) {
+            if (!appCollab) {
               throw storage.storageError(
                 storage.ErrorCode.Invalid, 
-                "You are not a member of this organization."
+                "You are not a member of this app/organization."
               );
             }
             
-            const accountPermission = tenantCollab.dataValues.permission;
+            const accountPermission = appCollab.dataValues.permission;
             if (accountPermission === 'Viewer') {
               throw storage.storageError(
                 storage.ErrorCode.Invalid, 
-                "You need Owner or Editor permissions to create apps."
+                "You need Owner or Editor permissions to create DOTA apps."
               );
             }
       
-            // Set the tenantId and tenantName on the app object
-            app.tenantId = tenantId;
-            app.tenantName = tenant.dataValues.displayName;
+            // Set the appId and appName on the app object
+            (app as any).tenantId = appId; // Keep for backward compatibility
+            (app as any).tenantName = appEntity.dataValues.displayName || appEntity.dataValues.name;
       
-            // Add the App (tenant is the owner, accountId also set for backward compat)
-            const addedApp = await this.sequelize.models[MODELS.APPS].create({
+            // Add the DotaApp (old apps table) - references new App via appId
+            const addedApp = await this.sequelize.models[MODELS.DOTA_APP].create({
               ...app,
               accountId, // Set both for dual compatibility
+              appId: appId, // FK to new apps table
             });
       
-            // Add tenant-level collaborator entry (unified collaborators table)
-            const tenantCollabMap = {
+            // Add app-level collaborator entry (for the DOTA app)
+            const dotaAppCollabMap = {
               email: account.email,
               accountId: accountId,
-              tenantId,  // Tenant-level collaborator
-              appId: null,  // No specific app
+              appId: app.id,  // DOTA app-level collaborator
               permission: storage.Permissions.Owner,
             };
             await this.sequelize.models[MODELS.COLLABORATOR].findOrCreate({
-              where: { tenantId, accountId: accountId },
-              defaults: tenantCollabMap,
-            });
-            
-            // Also add app-level collaborator entry for backward compatibility
-            const appCollabMap = {
-              email: account.email,
-              accountId: accountId,
-              appId: app.id,  // App-level collaborator
-              tenantId: null,  // No tenant association for app-level
-              permission: storage.Permissions.Owner,
-            };
-            await this.sequelize.models[MODELS.COLLABORATOR].findOrCreate({
-              where: { appId: app.id, email: account.email },
-              defaults: appCollabMap,
+              where: { appId: app.id, accountId: accountId },
+              defaults: dotaAppCollabMap,
             });
       
             return addedApp;
           } 
           // V1 Flow: Account-based (OLD - backward compatibility)
           else {
-            // Add the App with accountId as owner (old flow)
-            const addedApp = await this.sequelize.models[MODELS.APPS].create({
+            // Add the App with accountId as owner (old flow - dota_apps)
+            const addedApp = await this.sequelize.models[MODELS.DOTA_APP].create({
               ...app,
               accountId, // Direct account ownership
             });
@@ -1765,43 +1805,43 @@ export class S3Storage implements storage.Storage {
 
     public getApps(accountId: string): Promise<storage.App[]> {
       // Get apps from BOTH flows:
-      // V2: Account → Tenant (via collaborators) → Apps (NEW)
-      // V1: Account → Apps (directly via accountId) (OLD - backward compatibility)
+      // V2: Account → App (via collaborators) → DotaApps (NEW)
+      // V1: Account → DotaApps (directly via accountId) (OLD - backward compatibility)
       return this.setupPromise
         .then(async () => {
-          // V2 Flow: Get all tenants Account is a member of
-          // Query tenant-level collaborators (where appId is null)
-          const tenantCollabRecords = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
+          // V2 Flow: Get all apps Account is a member of (via collaborators)
+          // Query app-level collaborators
+          const appCollabRecords = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
             where: { 
               accountId: accountId,
-              appId: null  // Tenant-level collaborators only
+              appId: { [require('sequelize').Op.ne]: null }  // App-level collaborators only
             },
           });
           
-          // Extract tenant IDs
-          const tenantIds = tenantCollabRecords.map((record: any) => 
-            record.dataValues.tenantId
-          ).filter(id => id !== null);  // Filter out any nulls
+          // Extract app IDs
+          const appIds = appCollabRecords.map((record: any) => 
+            record.dataValues.appId
+          ).filter((id: string | null) => id !== null);  // Filter out any nulls
           
-          // V2: Get all apps from these tenants
-          const tenantApps = tenantIds.length > 0 
-            ? await this.sequelize.models[MODELS.APPS].findAll({
+          // V2: Get all dota apps from these apps (old apps table - dota_apps)
+          const appDotaApps = appIds.length > 0 
+            ? await this.sequelize.models[MODELS.DOTA_APP].findAll({
                 where: {
-                  tenantId: tenantIds
+                  appId: appIds  // FK to new apps table
                 }
               })
             : [];
           
-          // V1 Flow: Get all apps directly owned by accountId (old flow)
-          const accountApps = await this.sequelize.models[MODELS.APPS].findAll({
+          // V1 Flow: Get all apps directly owned by accountId (old flow - dota_apps)
+          const accountApps = await this.sequelize.models[MODELS.DOTA_APP].findAll({
             where: {
               accountId: accountId,
-              tenantId: null  // Only get old-style apps (no tenant)
+              appId: null  // Only get old-style apps (no app association)
             }
           });
           
           // Merge both lists, avoiding duplicates
-          const allAppsModel = [...tenantApps, ...accountApps];
+          const allAppsModel = [...appDotaApps, ...accountApps];
           const uniqueAppsMap = new Map();
           allAppsModel.forEach((app: any) => {
             const appData = app.dataValues;
@@ -1819,63 +1859,66 @@ export class S3Storage implements storage.Storage {
         .catch(S3Storage.storageErrorHandler);
     }
     
-    public getTenants(accountId: string): Promise<storage.Organization[]> {
+    public getOrgApps(accountId: string): Promise<storage.Organization[]> {
       // Fetch all tenants where the account is a member (via collaborators)
       // Account → Tenant (parent entity) → Apps
       return this.setupPromise
         .then(async () => {
           // Get account's tenant-level collaborations (where appId is null)
-          const tenantCollabs = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
+          // Updated: Get all app-level collaborators (apps are now the organizations)
+          const appCollabs = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
             where: { 
               accountId: accountId,
-              appId: null  // Tenant-level collaborators only
+              appId: { [require('sequelize').Op.ne]: null }  // App-level collaborators (apps are organizations)
             }
           });
           
-          // Fetch full tenant details for each
-          const tenants = await Promise.all(
-            tenantCollabs.map(async (collab: any) => {
-              const tenantId = collab.dataValues.tenantId;
+          // Fetch full app details for each (apps are now organizations)
+          const apps = await Promise.all(
+            appCollabs.map(async (collab: any) => {
+              const appId = collab.dataValues.appId;
               const permission = collab.dataValues.permission;
               
-              const tenant = await this.sequelize.models[MODELS.TENANT].findOne({
-                where: { id: tenantId }
+              const app = await this.sequelize.models[MODELS.APP].findOne({
+                where: { id: appId }
               });
               
-              if (!tenant) return null;
+              if (!app) return null;
               
               return {
-                id: tenant.dataValues.id,
-                displayName: tenant.dataValues.displayName,
+                id: app.dataValues.id,
+                displayName: app.dataValues.displayName || app.dataValues.name,
                 role: permission,  // Already in correct format: Owner/Editor/Viewer
-                createdBy: tenant.dataValues.createdBy,
-                createdTime: tenant.dataValues.createdTime
+                createdBy: app.dataValues.createdBy,
+                createdTime: app.dataValues.createdAt?.getTime() || new Date().getTime()
               };
             })
           );
           
           // Filter out any nulls
-          return tenants.filter(t => t !== null);
+          return apps.filter((t: storage.Organization | null) => t !== null) as storage.Organization[];
         })
         .catch(S3Storage.storageErrorHandler);
     }
     
-    public addTenant(accountId: string, tenant: storage.Organization): Promise<storage.Organization> {
+    public addOrgApp(accountId: string, orgApp: storage.Organization): Promise<storage.Organization> {
       return this.setupPromise
         .then(async () => {
-          const tenantId = tenant.id || shortid.generate();
+          const appId = orgApp.id || shortid.generate();
           const now = new Date().getTime();
           
-          // Create the tenant
-          await this.sequelize.models[MODELS.TENANT].create({
-            id: tenantId,
-            displayName: tenant.displayName,
+          // Create the app (new App entity, renamed from Tenant)
+          await this.sequelize.models[MODELS.APP].create({
+            id: appId,
+            displayName: orgApp.displayName,
+            name: orgApp.displayName,  // Use displayName as name
             createdBy: accountId,
+            organizationId: null,  // Will be set when Organization entity is implemented
             createdAt: new Date(),
             updatedAt: new Date()
           });
           
-          // Add creator as tenant-level collaborator with Owner permission
+          // Add creator as app-level collaborator with Owner permission
           const account = await this.sequelize.models[MODELS.ACCOUNT].findOne({
             where: { id: accountId }
           });
@@ -1883,8 +1926,7 @@ export class S3Storage implements storage.Storage {
           await this.sequelize.models[MODELS.COLLABORATOR].create({
             email: account.dataValues.email,
             accountId: accountId,
-            appId: null,  // Tenant-level (no specific app)
-            tenantId: tenantId,
+            appId: appId,  // FK to new apps table
             permission: 'Owner',  // Creator gets Owner permission
             isCreator: true,
             createdAt: new Date(),
@@ -1892,8 +1934,8 @@ export class S3Storage implements storage.Storage {
           });
           
           return {
-            id: tenantId,
-            displayName: tenant.displayName,
+            id: appId,
+            displayName: orgApp.displayName,
             role: 'Owner',
             createdBy: accountId,
             createdTime: now
@@ -1902,26 +1944,26 @@ export class S3Storage implements storage.Storage {
         .catch(S3Storage.storageErrorHandler);
     }
     
-    public removeTenant(accountId: string, tenantId: string): Promise<void> {
+    public removeOrgApp(accountId: string, appId: string): Promise<void> {
       return this.setupPromise
         .then( async () => {
-          // Remove all apps under the tenant
-          //Remove all collaborators from that apps
-          //check permission whether Account is owner or not
-          const tenant = await this.sequelize.models[MODELS.TENANT].findOne({
-            where: { id: tenantId },
+          // Remove all DOTA apps under the app (new App entity)
+          // Remove all collaborators from those apps
+          // Check permission whether Account is owner or not
+          const orgApp = await this.sequelize.models[MODELS.APP].findOne({
+            where: { id: appId },
           });
 
-          if(!tenant) {
-            throw storage.storageError(storage.ErrorCode.NotFound, "Specified Organisation does not exist.");
+          if(!orgApp) {
+            throw storage.storageError(storage.ErrorCode.NotFound, "Specified app does not exist.");
           }
 
-          if(tenant.dataValues.createdBy !== accountId) {
-            throw storage.storageError(storage.ErrorCode.Invalid, "Account does not have admin permissions for the specified tenant.");
+          if(orgApp.dataValues.createdBy !== accountId) {
+            throw storage.storageError(storage.ErrorCode.Invalid, "Account does not have admin permissions for the specified app.");
           }
 
-          const apps = await this.sequelize.models[MODELS.APPS].findAll({
-            where: { tenantId },
+          const apps = await this.sequelize.models[MODELS.DOTA_APP].findAll({
+            where: { appId: appId }, // FK to new apps table
           });
     
           // Iterate over each app and take appropriate action
@@ -1932,9 +1974,9 @@ export class S3Storage implements storage.Storage {
               // If the app is owned by the Account, remove it
               await this.removeApp(accountId, app.dataValues.id);
             } else {
-              // If the app is not owned by the Account, set tenantId to null
-              await this.sequelize.models[MODELS.APPS].update(
-                { tenantId: null },
+              // If the app is not owned by the Account, set appId to null
+              await this.sequelize.models[MODELS.DOTA_APP].update(
+                { appId: null },
                 { where: { id: app.dataValues.id } }
               );
             }
@@ -1942,24 +1984,23 @@ export class S3Storage implements storage.Storage {
         
         })
         .then(() => {
-          // Remove the tenant entry
-          return this.sequelize.models[MODELS.TENANT].destroy({
-            where: { id: tenantId, createdBy: accountId },
+          // Remove the app entry (new App entity)
+          return this.sequelize.models[MODELS.APP].destroy({
+            where: { id: appId, createdBy: accountId },
           });
         })
         .catch(S3Storage.storageErrorHandler);
     }
 
-    // Tenant Collaborator Methods
+    // App Collaborator Methods (Updated: Tenant → App)
     
-    public getTenantCollaborators(tenantId: string): Promise<storage.CollaboratorMap> {
+    public getOrgAppCollaborators(appId: string): Promise<storage.CollaboratorMap> {
       return this.setupPromise
         .then(async () => {
-          // Get all tenant-level collaborators (where appId is NULL)
+          // Get all app-level collaborators (new App entity)
           const collaborators = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
             where: {
-              tenantId: tenantId,
-              appId: null
+              appId: appId  // FK to new apps table
             }
           });
 
@@ -1978,7 +2019,7 @@ export class S3Storage implements storage.Storage {
         .catch(S3Storage.storageErrorHandler);
     }
 
-    public addTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void> {
+    public addOrgAppCollaborator(appId: string, email: string, permission: string): Promise<void> {
       return this.setupPromise
         .then(async () => {
           // Find the account by email
@@ -1995,9 +2036,8 @@ export class S3Storage implements storage.Storage {
           // Check if collaborator already exists
           const existing = await this.sequelize.models[MODELS.COLLABORATOR].findOne({
             where: {
-              tenantId: tenantId,
-              accountId: accountId,
-              appId: null
+              appId: appId,  // FK to new apps table
+              accountId: accountId
             }
           });
 
@@ -2009,8 +2049,7 @@ export class S3Storage implements storage.Storage {
           await this.sequelize.models[MODELS.COLLABORATOR].create({
             email: email,
             accountId: accountId,
-            tenantId: tenantId,
-            appId: null,
+            appId: appId,  // FK to new apps table
             permission: permission,
             isCreator: false,
             createdAt: new Date(),
@@ -2020,16 +2059,15 @@ export class S3Storage implements storage.Storage {
         .catch(S3Storage.storageErrorHandler);
     }
 
-    public updateTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void> {
+    public updateOrgAppCollaborator(appId: string, email: string, permission: string): Promise<void> {
       return this.setupPromise
         .then(async () => {
           const result = await this.sequelize.models[MODELS.COLLABORATOR].update(
             { permission: permission, updatedAt: new Date() },
             {
               where: {
-                tenantId: tenantId,
-                email: email,
-                appId: null
+                appId: appId,  // FK to new apps table
+                email: email
               }
             }
           );
@@ -2041,14 +2079,13 @@ export class S3Storage implements storage.Storage {
         .catch(S3Storage.storageErrorHandler);
     }
 
-    public removeTenantCollaborator(tenantId: string, email: string): Promise<void> {
+    public removeOrgAppCollaborator(appId: string, email: string): Promise<void> {
       return this.setupPromise
         .then(async () => {
           const result = await this.sequelize.models[MODELS.COLLABORATOR].destroy({
             where: {
-              tenantId: tenantId,
-              email: email,
-              appId: null
+              appId: appId,  // FK to new apps table
+              email: email
             }
           });
 
@@ -2062,8 +2099,8 @@ export class S3Storage implements storage.Storage {
     public getApp(accountId: string, appId: string): Promise<storage.App> {
       return this.setupPromise
         .then(() => {
-          return this.sequelize.models[MODELS.APPS].findByPk(appId, {
-            include: [{ model: this.sequelize.models[MODELS.TENANT], as: 'tenant' }], // Include tenant details if available
+          return this.sequelize.models[MODELS.DOTA_APP].findByPk(appId, {
+            include: [{ model: this.sequelize.models[MODELS.APP], as: 'app' }], // Include app details if available (renamed from tenant)
           });
         })
         .then((flatAppModel) => {
@@ -2086,7 +2123,7 @@ export class S3Storage implements storage.Storage {
         })
         .then(() => {
           // Remove the app entry
-          return this.sequelize.models[MODELS.APPS].destroy({
+          return this.sequelize.models[MODELS.DOTA_APP].destroy({
             where: { id: appId, accountId: accountId },
           });
         })
@@ -3020,68 +3057,31 @@ export class S3Storage implements storage.Storage {
     }
   
 
-    private async getCollabrators(app:storage.App, accountId) {
-      // BACKWARDS COMPATIBLE: Support both old app-level AND new tenant-level collaborators
-      // Query: (tenantId = X AND appId IS NULL) OR (appId = Y)
-      const { Op } = require('sequelize');
+    private async getCollabrators(app:storage.App, accountId: string) {
+      // Updated: Query app-level collaborators (appId is now the primary FK)
+      // For DOTA apps: Query by appId (which references the new App entity) or by DOTA app id
+      const appIdForQuery = (app as any).appId || app.tenantId; // Support both for transition
       
       const collabModel = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
         where: { 
-          [Op.or]: [
-            { tenantId: app.tenantId, appId: null },  // NEW: Tenant-level
-            { appId: app.id }                         // OLD: App-level (backwards compat)
-          ]
+          appId: appIdForQuery || app.id  // Query by appId (new App entity) or DOTA app id
         }
       });
       
-      const collabMap = {}
-      let foundOldFormat = false;
+      const collabMap: storage.CollaboratorMap = {};
       
       collabModel.forEach((collab) => {
         const email = collab.dataValues["email"];
-        const isAppLevel = collab.dataValues.appId !== null;
-        const isTenantLevel = collab.dataValues.appId === null;
+        const accountIdValue = collab.dataValues.accountId;
+        const permission = collab.dataValues.permission || 'Viewer';
         
-        // Log warning if old app-level collaborator found
-        if (isAppLevel) {
-          foundOldFormat = true;
-          console.warn('⚠️ OLD APP-LEVEL COLLABORATOR FOUND:', {
-            email: email,
-            appId: collab.dataValues.appId,
-            appName: app.name,
-            message: 'Run migration: migrations/009_migrate_app_level_to_tenant_level.sql'
-          });
-        }
-        
-        // If Account exists in BOTH app-level and tenant-level, tenant-level wins
-        if (collabMap[email]) {
-          if (isTenantLevel) {
-            // Override with tenant-level
-            collabMap[email] = {
-              accountId: collab.dataValues.accountId,  // Map DB column accountId to interface property accountId
-              email: collab.dataValues.email,
-              permission: collab.dataValues.permission,
-              isCurrentAccount: false,
-              source: 'tenant_level'
-            };
-          }
-          // If app-level and already exists, skip (tenant-level already set)
-        } else {
-          // First time seeing this Account
-          collabMap[email] = {
-            accountId: collab.dataValues.accountId,  // Map DB column accountId to interface property accountId
-            email: collab.dataValues.email,
-            permission: collab.dataValues.permission,
-            isCurrentAccount: false,
-            source: isAppLevel ? 'app_level_legacy' : 'tenant_level'
-          };
-        }
+        // Store collaborator info (email is the key in CollaboratorMap)
+        collabMap[email] = {
+          accountId: accountIdValue,
+          permission: permission,
+          isCurrentAccount: false,
+        };
       });
-      
-      // Log summary if old format found
-      if (foundOldFormat) {
-        console.warn(`⚠️ App "${app.name}" (${app.id}) has old app-level collaborators. Migration recommended.`);
-      }
       
       // Mark current Account
       const currentAccountEmail: string = S3Storage.getEmailForAccountId(collabMap, accountId);
@@ -3089,11 +3089,11 @@ export class S3Storage implements storage.Storage {
         collabMap[currentAccountEmail].isCurrentAccount = true;
       }
       
-      // NEW: Check if current Account is app creator (automatic Owner)
+      // Check if current Account is app creator (automatic Owner)
       const appCreatorId = (app as any).accountId || (app as any).createdBy;
       if (appCreatorId === accountId) {
         // Get Account's email
-        const account = await this.sequelize.models["account"].findByPk(accountId);
+        const account = await this.sequelize.models[MODELS.ACCOUNT].findByPk(accountId);
         if (account) {
           const accountEmail = account.dataValues.email;
           
@@ -3101,21 +3101,18 @@ export class S3Storage implements storage.Storage {
           if (collabMap[accountEmail]) {
             collabMap[accountEmail].permission = 'Owner';
             collabMap[accountEmail].isCurrentAccount = true;
-            collabMap[accountEmail].source = 'app_creator';
           } else {
             // Add creator to collabMap as Owner
             collabMap[accountEmail] = {
-              accountId: accountId,  // This is for CollaboratorMap interface (returned to client)
-              email: accountEmail,
+              accountId: accountId,
               permission: 'Owner',
               isCurrentAccount: true,
-              source: 'app_creator'
             };
           }
         }
       }
       
-      app["collaborators"] = collabMap
+      app["collaborators"] = collabMap;
       return app;
     }
 
@@ -3132,7 +3129,7 @@ export class S3Storage implements storage.Storage {
             .then(() => {
                 return this.sequelize.transaction((t) => {
                     // Update the App in the database
-                    return this.sequelize.models[MODELS.APPS].update(flatApp, {
+                    return this.sequelize.models[MODELS.DOTA_APP].update(flatApp, {
                         where: { id: appId },
                         transaction: t,
                     }).then(() => {

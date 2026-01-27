@@ -41,12 +41,12 @@ export const createCommConfigModel = (sequelize: Sequelize) => {
         type: DataTypes.UUID,
         allowNull: false,
         references: {
-          model: 'tenants',
+          model: 'apps',  // Changed from 'tenants' to 'apps'
           key: 'id'
         },
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
-        comment: 'Reference to tenants table (denormalized for easier queries)'
+        comment: 'Reference to apps table (renamed from tenants, denormalized for easier queries)'
       },
       channelData: {
         type: DataTypes.JSON,

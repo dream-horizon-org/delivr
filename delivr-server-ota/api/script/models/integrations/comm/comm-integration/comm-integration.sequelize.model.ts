@@ -36,12 +36,12 @@ export const createCommIntegrationModel = (sequelize: Sequelize) => {
         type: DataTypes.UUID,
         allowNull: false,
         references: {
-          model: 'tenants',
+          model: 'apps',  // Changed from 'tenants' to 'apps'
           key: 'id'
         },
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
-        comment: 'Reference to tenants table'
+        comment: 'Reference to apps table (renamed from tenants)'
       },
       communicationType: {
         type: DataTypes.STRING(50),

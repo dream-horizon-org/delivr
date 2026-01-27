@@ -35,7 +35,13 @@ export const createProjectManagementIntegrationModel = (sequelize: Sequelize) =>
       tenantId: {
         type: DataTypes.UUID,
         allowNull: false,
-        comment: 'Tenant identifier'
+        references: {
+          model: 'apps',  // Added FK reference to apps table
+          key: 'id'
+        },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+        comment: 'App identifier (references apps.id, renamed from tenants)'
       },
       name: {
         type: DataTypes.STRING(255),

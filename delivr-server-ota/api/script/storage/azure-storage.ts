@@ -386,6 +386,35 @@ export class AzureStorage implements storage.Storage {
     return Promise.resolve(<void>null);
   }
 
+  // OrgApp methods (stubs - not implemented, use S3Storage instead)
+  public getOrgApps(_accountId: string): Promise<storage.Organization[]> {
+    return Promise.reject(new Error('AzureStorage: getOrgApps not implemented - use S3Storage'));
+  }
+
+  public addOrgApp(_accountId: string, _orgApp: storage.Organization): Promise<storage.Organization> {
+    return Promise.reject(new Error('AzureStorage: addOrgApp not implemented - use S3Storage'));
+  }
+
+  public removeOrgApp(_accountId: string, _appId: string): Promise<void> {
+    return Promise.reject(new Error('AzureStorage: removeOrgApp not implemented - use S3Storage'));
+  }
+
+  public getOrgAppCollaborators(_appId: string): Promise<storage.CollaboratorMap> {
+    return Promise.reject(new Error('AzureStorage: getOrgAppCollaborators not implemented - use S3Storage'));
+  }
+
+  public addOrgAppCollaborator(_appId: string, _email: string, _permission: string): Promise<void> {
+    return Promise.reject(new Error('AzureStorage: addOrgAppCollaborator not implemented - use S3Storage'));
+  }
+
+  public updateOrgAppCollaborator(_appId: string, _email: string, _permission: string): Promise<void> {
+    return Promise.reject(new Error('AzureStorage: updateOrgAppCollaborator not implemented - use S3Storage'));
+  }
+
+  public removeOrgAppCollaborator(_appId: string, _email: string): Promise<void> {
+    return Promise.reject(new Error('AzureStorage: removeOrgAppCollaborator not implemented - use S3Storage'));
+  }
+
   public addApp(accountId: string, app: storage.App): Promise<storage.App> {
     app = storage.clone(app); // pass by value
     app.id = shortid.generate();

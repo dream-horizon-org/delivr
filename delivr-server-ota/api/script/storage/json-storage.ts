@@ -231,6 +231,35 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(<void>null);
   }
 
+  // OrgApp methods (stubs - not implemented, use S3Storage instead)
+  public getOrgApps(_accountId: string): Promise<storage.Organization[]> {
+    return Promise.reject(new Error('JsonStorage: getOrgApps not implemented - use S3Storage'));
+  }
+
+  public addOrgApp(_accountId: string, _orgApp: storage.Organization): Promise<storage.Organization> {
+    return Promise.reject(new Error('JsonStorage: addOrgApp not implemented - use S3Storage'));
+  }
+
+  public removeOrgApp(_accountId: string, _appId: string): Promise<void> {
+    return Promise.reject(new Error('JsonStorage: removeOrgApp not implemented - use S3Storage'));
+  }
+
+  public getOrgAppCollaborators(_appId: string): Promise<storage.CollaboratorMap> {
+    return Promise.reject(new Error('JsonStorage: getOrgAppCollaborators not implemented - use S3Storage'));
+  }
+
+  public addOrgAppCollaborator(_appId: string, _email: string, _permission: string): Promise<void> {
+    return Promise.reject(new Error('JsonStorage: addOrgAppCollaborator not implemented - use S3Storage'));
+  }
+
+  public updateOrgAppCollaborator(_appId: string, _email: string, _permission: string): Promise<void> {
+    return Promise.reject(new Error('JsonStorage: updateOrgAppCollaborator not implemented - use S3Storage'));
+  }
+
+  public removeOrgAppCollaborator(_appId: string, _email: string): Promise<void> {
+    return Promise.reject(new Error('JsonStorage: removeOrgAppCollaborator not implemented - use S3Storage'));
+  }
+
   public getAccountByEmail(email: string): Promise<storage.Account> {
     for (const id in this.accounts) {
       if (this.accounts[id].email === email) {

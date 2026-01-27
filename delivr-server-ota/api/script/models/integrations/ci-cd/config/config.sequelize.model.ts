@@ -26,9 +26,10 @@ export const createCICDConfigModel = (sequelize: Sequelize) => {
       tenantId: {
         type: DataTypes.UUID,
         allowNull: false,
-        references: { model: 'tenants', key: 'id' },
+        references: { model: 'apps', key: 'id' },  // Changed from 'tenants' to 'apps'
         onDelete: 'CASCADE',
-        onUpdate: 'CASCADE'
+        onUpdate: 'CASCADE',
+        comment: 'Reference to apps table (renamed from tenants)'
       },
       workflowIds: {
         type: DataTypes.JSON,

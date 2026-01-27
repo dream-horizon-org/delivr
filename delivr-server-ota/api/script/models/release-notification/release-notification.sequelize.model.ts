@@ -39,10 +39,12 @@ export const createReleaseNotificationModel = (
         allowNull: false,
         field: 'tenantId',
         references: {
-          model: 'tenants',
+          model: 'apps',  // Changed from 'tenants' to 'apps'
           key: 'id'
         },
-        comment: 'Tenant identifier'
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+        comment: 'App identifier (references apps.id, renamed from tenants)'
       },
       releaseId: {
         type: DataTypes.STRING(255),

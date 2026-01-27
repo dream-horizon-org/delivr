@@ -166,28 +166,30 @@ export interface Storage {
   getAppOwnershipCount(accountId: string): Promise<number>;
 
 
-  getTenants(accountId: string): Promise<Organization[]>;
-  addTenant(accountId: string, tenant: Organization): Promise<Organization>;
-  removeTenant(accountId: string, tenantId: string): Promise<void>;
+  // OrgApp methods (new App entities - renamed from Tenant)
+  // Note: These work with the new App entity (renamed from Tenant)
+  // The organizationId FK exists but Organization entity not implemented yet
+  getOrgApps(accountId: string): Promise<Organization[]>;  // Returns apps (new App entities, renamed from Tenant)
+  addOrgApp(accountId: string, orgApp: Organization): Promise<Organization>;  // Creates app (new App entity)
+  removeOrgApp(accountId: string, appId: string): Promise<void>;  // Removes app (new App entity)
   
+  // OrgApp collaborator methods (for new App entities)
+  getOrgAppCollaborators(appId: string): Promise<CollaboratorMap>;
+  addOrgAppCollaborator(appId: string, email: string, permission: string): Promise<void>;
+  updateOrgAppCollaborator(appId: string, email: string, permission: string): Promise<void>;
+  removeOrgAppCollaborator(appId: string, email: string): Promise<void>;
   
-  addApp(accountId: string, app: App): Promise<App>;
-  getApps(accountId: string): Promise<App[]>;
-  getApp(accountId: string, appId: string): Promise<App>;
-  removeApp(accountId: string, appId: string): Promise<void>;
-  transferApp(accountId: string, appId: string, email: string): Promise<void>;
-  updateApp(accountId: string, app: App): Promise<void>;
+  addApp(accountId: string, app: App): Promise<App>;  // Creates DOTA app (old apps table)
+  getApps(accountId: string): Promise<App[]>;  // Returns DOTA apps (old apps table)
+  getApp(accountId: string, appId: string): Promise<App>;  // Gets DOTA app (old apps table)
+  removeApp(accountId: string, appId: string): Promise<void>;  // Removes DOTA app (old apps table)
+  transferApp(accountId: string, appId: string, email: string): Promise<void>;  // Transfers DOTA app
+  updateApp(accountId: string, app: App): Promise<void>;  // Updates DOTA app
 
   addCollaborator(accountId: string, appId: string, email: string): Promise<void>;
   getCollaborators(accountId: string, appId: string): Promise<CollaboratorMap>;
   updateCollaborators(accountId: string, appId: string, email: string, role: string): Promise<void>;
   removeCollaborator(accountId: string, appId: string, email: string): Promise<void>;
-  
-  // Tenant collaborator methods
-  getTenantCollaborators(tenantId: string): Promise<CollaboratorMap>;
-  addTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void>;
-  updateTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void>;
-  removeTenantCollaborator(tenantId: string, email: string): Promise<void>;
 
   addDeployment(accountId: string, appId: string, deployment: Deployment): Promise<string>;
   getDeployment(accountId: string, appId: string, deploymentId: string): Promise<Deployment>;

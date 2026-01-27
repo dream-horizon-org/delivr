@@ -73,12 +73,12 @@ export function createSCMIntegrationModel(sequelize: Sequelize) {
         type: DataTypes.UUID,
         allowNull: false,
         references: {
-          model: 'tenants',
+          model: 'apps',  // Changed from 'tenants' to 'apps' (renamed table)
           key: 'id',
         },
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
-        comment: 'Reference to tenants table',
+        comment: 'Reference to apps table (renamed from tenants)',
       },
       
       // ========================================================================

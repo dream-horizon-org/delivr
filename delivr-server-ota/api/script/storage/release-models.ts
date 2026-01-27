@@ -41,12 +41,12 @@ export function createRelease(sequelize: Sequelize) {
       allowNull: false,
       field: 'tenant_id',
       references: {
-        model: 'tenants',
+        model: 'apps',  // Changed from 'tenants' to 'apps' (renamed table)
         key: 'id',
       },
     },
     appId: {
-      type: DataTypes.STRING,
+      type: DataTypes.UUID,  // Changed from STRING to UUID to match App.id
       allowNull: true,
       field: 'app_id',
       references: {

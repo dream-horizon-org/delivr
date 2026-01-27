@@ -34,12 +34,12 @@ export const createTenantTestManagementIntegrationModel = (sequelize: Sequelize)
         allowNull: false,
         field: 'tenant_id',
         references: {
-          model: 'tenants',
+          model: 'apps',  // Changed from 'tenants' to 'apps'
           key: 'id'
         },
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
-        comment: 'Tenant identifier (references tenants.id)'
+        comment: 'App identifier (references apps.id, renamed from tenants)'
       },
       name: {
         type: DataTypes.STRING(255),

@@ -41,10 +41,12 @@ export const createDistributionModel = (
         allowNull: false,
         field: 'tenantId',
         references: {
-          model: 'tenants',
+          model: 'apps',  // Changed from 'tenants' to 'apps'
           key: 'id'
         },
-        comment: 'Reference to tenants table'
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+        comment: 'Reference to apps table (renamed from tenants)'
       },
       releaseId: {
         type: DataTypes.STRING(255),

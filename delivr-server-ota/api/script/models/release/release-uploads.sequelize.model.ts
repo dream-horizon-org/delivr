@@ -90,9 +90,12 @@ export const createReleaseUploadModel = (sequelize: Sequelize): typeof ReleaseUp
         allowNull: false,
         field: 'tenantId',
         references: {
-          model: 'tenants',
+          model: 'apps',  // Changed from 'tenants' to 'apps'
           key: 'id'
-        }
+        },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+        comment: 'Reference to apps table (renamed from tenants)'
       },
       releaseId: {
         type: DataTypes.STRING(255),

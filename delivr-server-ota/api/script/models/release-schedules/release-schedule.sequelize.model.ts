@@ -69,10 +69,12 @@ export const createReleaseScheduleModel = (
         allowNull: false,
         field: 'tenantId',
         references: {
-          model: 'tenants',
+          model: 'apps',  // Changed from 'tenants' to 'apps'
           key: 'id'
         },
-        comment: 'Tenant identifier (denormalized for query performance)'
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+        comment: 'App identifier (references apps.id, renamed from tenants, denormalized for query performance)'
       },
       releaseConfigId: {
         type: DataTypes.STRING(255),

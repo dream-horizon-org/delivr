@@ -8,7 +8,7 @@ import * as api from "./api";
 import { fileUploadMiddleware, initializeFileUploadManager } from "./file-upload-manager";
 import { MemcachedManager } from "./memcached-manager";
 import { RedisManager } from "./redis-manager";
-import { JsonStorage } from "./storage/json-storage";
+// import { JsonStorage } from "./storage/json-storage"; // Commented out - not used, only S3Storage is used
 import { Storage } from "./storage/storage";
 import { initializeStorage } from "./storage/storage-instance";
 const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME || "<your-s3-bucket-name>";
@@ -51,7 +51,9 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
 
   Promise.resolve(<void>(null))
     .then(async () => {
-      if (!useJsonStorage) {
+      // Always use S3Storage - JsonStorage and AzureStorage are not used
+      // Commented out to avoid TypeScript errors since they don't implement new OrgApp* methods
+      // if (!useJsonStorage) {
         //storage = new JsonStorage();
         const s3Storage = new S3Storage();
         storage = s3Storage;
@@ -61,9 +63,9 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
         // are fully initialized before routes are mounted
         await s3Storage.setupPromise;
         console.log('[Storage] S3Storage setup completed');
-      } else {
-        storage = new JsonStorage();
-      }
+      // } else {
+      //   storage = new JsonStorage(); // Commented out - not used
+      // }
       
       // Initialize storage singleton for global access
       initializeStorage(storage);

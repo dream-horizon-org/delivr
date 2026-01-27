@@ -49,9 +49,13 @@ export function createStoreIntegrationModel(sequelize: Sequelize) {
         comment: 'Unique identifier (nanoid)',
       },
       tenantId: {
-        type: 'CHAR(36) CHARACTER SET latin1 COLLATE latin1_bin',
+        type: DataTypes.UUID,  // Changed from CHAR(36) to UUID to match App.id
         allowNull: false,
-        comment: 'Reference to tenants table',
+        references: {
+          model: 'apps',  // Changed from 'tenants' to 'apps' (renamed table)
+          key: 'id',
+        },
+        comment: 'Reference to apps table (renamed from tenants)',
       },
       storeType: {
         type: DataTypes.ENUM(...Object.values(StoreType)),

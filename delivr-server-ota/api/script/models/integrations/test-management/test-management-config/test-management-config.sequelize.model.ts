@@ -39,12 +39,12 @@ export const createTestManagementConfigModel = (
         allowNull: false,
         field: 'tenant_id',
         references: {
-          model: 'tenants',
+          model: 'apps',  // Changed from 'tenants' to 'apps'
           key: 'id'
         },
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
-        comment: 'Tenant identifier (references tenants.id)'
+        comment: 'App identifier (references apps.id, renamed from tenants)'
       },
       integrationId: {
         type: DataTypes.UUID,

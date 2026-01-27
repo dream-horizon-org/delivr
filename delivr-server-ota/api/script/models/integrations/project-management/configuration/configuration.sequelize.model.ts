@@ -40,7 +40,13 @@ export const createProjectManagementConfigModel = (
         type: DataTypes.UUID,
         allowNull: false,
         field: 'tenantId',
-        comment: 'Tenant identifier'
+        references: {
+          model: 'apps',  // Added FK reference to apps table
+          key: 'id'
+        },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+        comment: 'App identifier (references apps.id, renamed from tenants)'
       },
       integrationId: {
         type: DataTypes.STRING(255),

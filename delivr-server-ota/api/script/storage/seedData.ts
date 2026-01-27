@@ -183,8 +183,8 @@ const seedData = {
   ],
 };
 
-// Seed function
-async function seed() {
+// Seed function (currently unused - can be called manually if needed)
+async function _seed() {
   try {
     // Initialize models
     const models = createModelss(sequelize);
@@ -214,7 +214,7 @@ async function seed() {
     await models.Deployment.destroy({ where: {} });
     await models.Collaborator.destroy({ where: {} });
     await models.App.destroy({ where: {} });
-    await models.Tenant.destroy({ where: {} });
+    await models.App.destroy({ where: {} }); // Updated: Tenant → App (new App entity)
     await models.AccountChannel.destroy({ where: {} });
     await models.Account.destroy({ where: {} });
 
@@ -224,7 +224,7 @@ async function seed() {
     // Insert seed data in order
     await models.Account.bulkCreate(seedData.accounts);
     await models.AccountChannel.bulkCreate(seedData.accountChannels);
-    await models.Tenant.bulkCreate(seedData.tenants);
+    await models.App.bulkCreate(seedData.tenants); // Updated: Tenant → App (new App entity)
     await models.App.bulkCreate(seedData.apps);
     await models.Collaborator.bulkCreate(seedData.collaborators);
     
@@ -272,7 +272,7 @@ async function seed() {
 }
 
 if (process.env.NODE_ENV !== "production") {
-  seed();
+  // _seed(); // Uncomment to run seed data
 } else {
   // Do nothing
 }

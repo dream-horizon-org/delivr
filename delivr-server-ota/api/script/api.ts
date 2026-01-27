@@ -14,6 +14,8 @@ import { AppInsights } from "./routes/app-insights";
 import { InputSanitizer } from "./routes/input-sanitizer";
 import { RequestTimeoutHandler } from "./routes/request-timeout";
 import { createCronicleRoutes } from "./routes/cronicle.routes";
+import { createAppRoutes } from "./routes/app.routes";
+import type { Storage } from "./storage/storage";
 
 export function headers(config: HeadersConfig): RequestHandler {
   return getHeadersMiddleware(config);
@@ -67,4 +69,8 @@ export function requestTimeoutHandler(): RequestHandler {
 
 export function cronicle(storage: any): Router {
   return createCronicleRoutes(storage);
+}
+
+export function apps(storage: Storage): Router {
+  return createAppRoutes(storage);
 }

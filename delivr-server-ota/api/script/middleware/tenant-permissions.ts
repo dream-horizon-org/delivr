@@ -70,58 +70,91 @@ function hasPermission(userPermission: string, requiredPermission: string): bool
 }
 
 /**
- * Middleware: Require tenant membership
- * User must be a member of the tenant (any permission level)
+ * Middleware: Require authentication only (no app/tenant ID required)
+ * Use for routes like GET /apps that list all resources for a user
  */
-export function requireTenantMembership(config: TenantPermissionConfig) {
+export function requireAuth(_config: TenantPermissionConfig) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.id;
-    const tenantId = req.params.tenantId || req.body.tenantId|| req.query.tenantId as string;
     
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
-    if (!tenantId) {
-      return res.status(400).json({ error: 'Tenant ID required' });
-    }
-    
-    const userPermission = await getUserTenantPermission(config.storage, userId, tenantId);
-    
-    if (!userPermission) {
-      return res.status(403).json({ 
-        error: 'You are not a member of this organization' 
-      });
-    }
-    
-    // Attach permission info to request for later use
-    (req as any).tenantPermission = userPermission;
     next();
   };
 }
 
 /**
- * Middleware: Require Editor or Owner permission
- * User must have at least 'Editor' permissions
+ * Middleware: Require app membership
+ * User must be a member of the app (any permission level)
+ * Supports both appId (new) and tenantId (backward compatibility)
  */
-export function requireEditor(config: TenantPermissionConfig) {
+export function requireAppMembership(config: TenantPermissionConfig) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.id;
-    const tenantId = req.params.tenantId || req.body.tenantId || req.headers.tenant;
+    // Check for appId first (new), then tenantId (backward compatibility)
+    const appId = req.params.appId || req.body.appId || req.query.appId as string || 
+                  req.params.tenantId || req.body.tenantId || req.query.tenantId as string;
     
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
-    if (!tenantId) {
-      return res.status(400).json({ error: 'Tenant ID required' });
+    if (!appId) {
+      return res.status(400).json({ error: 'App ID required' });
     }
     
-    const userPermission = await getUserTenantPermission(config.storage, userId, tenantId);
+    // For now, we're still using tenant-level collaborators
+    // TODO: Update to use app-level collaborators when that's implemented
+    const userPermission = await getUserTenantPermission(config.storage, userId, appId);
     
     if (!userPermission) {
       return res.status(403).json({ 
-        error: 'You are not a member of this organization' 
+        error: 'You are not a member of this app' 
+      });
+    }
+    
+    // Attach permission info to request for later use
+    (req as any).appPermission = userPermission;
+    (req as any).tenantPermission = userPermission; // Backward compatibility
+    next();
+  };
+}
+
+/**
+ * Middleware: Require tenant membership (legacy)
+ * @deprecated Use requireAppMembership instead
+ * Kept for backward compatibility
+ */
+export const requireTenantMembership = requireAppMembership;
+
+/**
+ * Middleware: Require Editor or Owner permission
+ * User must have at least 'Editor' permissions
+ * Supports both appId (new) and tenantId (backward compatibility)
+ */
+export function requireEditor(config: TenantPermissionConfig) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.user?.id;
+    // Check for appId first (new), then tenantId (backward compatibility)
+    const appId = req.params.appId || req.body.appId || req.query.appId as string ||
+                  req.params.tenantId || req.body.tenantId || req.query.tenantId as string ||
+                  req.headers.tenant as string;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    if (!appId) {
+      return res.status(400).json({ error: 'App ID required' });
+    }
+    
+    const userPermission = await getUserTenantPermission(config.storage, userId, appId);
+    
+    if (!userPermission) {
+      return res.status(403).json({ 
+        error: 'You are not a member of this app' 
       });
     }
     
@@ -131,7 +164,8 @@ export function requireEditor(config: TenantPermissionConfig) {
       });
     }
     
-    (req as any).tenantPermission = userPermission;
+    (req as any).appPermission = userPermission;
+    (req as any).tenantPermission = userPermission; // Backward compatibility
     next();
   };
 }
@@ -148,36 +182,41 @@ export const allowAll = (_config: TenantPermissionConfig) => {
 
 /**
  * Middleware: Require Owner permission
- * User must be organization owner
+ * User must be app owner
+ * Supports both appId (new) and tenantId (backward compatibility)
  */
 export function requireOwner(config: TenantPermissionConfig) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.id;
-    const tenantId = req.params.tenantId || req.body.tenantId || req.headers.tenant;
+    // Check for appId first (new), then tenantId (backward compatibility)
+    const appId = req.params.appId || req.body.appId || req.query.appId as string ||
+                  req.params.tenantId || req.body.tenantId || req.query.tenantId as string ||
+                  req.headers.tenant as string;
     
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
-    if (!tenantId) {
-      return res.status(400).json({ error: 'Tenant ID required' });
+    if (!appId) {
+      return res.status(400).json({ error: 'App ID required' });
     }
     
-    const userPermission = await getUserTenantPermission(config.storage, userId, tenantId);
+    const userPermission = await getUserTenantPermission(config.storage, userId, appId);
     
     if (!userPermission) {
       return res.status(403).json({ 
-        error: 'You are not a member of this organization' 
+        error: 'You are not a member of this app' 
       });
     }
     
     if (userPermission.permission !== 'Owner') {
       return res.status(403).json({ 
-        error: 'Only organization owners can perform this action' 
+        error: 'Only app owners can perform this action' 
       });
     }
     
-    (req as any).tenantPermission = userPermission;
+    (req as any).appPermission = userPermission;
+    (req as any).tenantPermission = userPermission; // Backward compatibility
     next();
   };
 }

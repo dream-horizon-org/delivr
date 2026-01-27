@@ -25,6 +25,7 @@ import * as security from "../utils/security";
 import { buildSystemMetadata } from "../utils/system-metadata.utils";
 import { buildTenantConfig } from "../utils/tenant-metadata.utils";
 import * as validationUtils from "../utils/validation";
+import { createAppRoutes } from "./app.routes";
 import PackageDiffer = packageDiffing.PackageDiffer;
 import NameResolver = storageTypes.NameResolver;
 import PackageManifest = hashUtils.PackageManifest;
@@ -291,11 +292,24 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
+  // ============================================================================
+  // APP ROUTES (NEW - renamed from Tenant)
+  // ============================================================================
+  // Mount app routes (handles /apps/* endpoints)
+  const appRoutes = createAppRoutes(storage);
+  router.use(appRoutes);
+
+  // ============================================================================
+  // TENANT ROUTES (LEGACY - for backward compatibility)
+  // These routes are kept for backward compatibility but delegate to app routes
+  // ============================================================================
+  
+  // Legacy: GET /tenants -> delegates to GET /apps
   router.get("/tenants", (req: Request, res: Response, next: (err?: any) => void): any => {
     const accountId: string = req.user.id;
 
     storage
-      .getTenants(accountId)
+      .getOrgApps(accountId)
       .then((tenants: storageTypes.Organization[]) => {
         res.send({ organisations: tenants });
       })
@@ -304,6 +318,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       });
   });
 
+  // Legacy: POST /tenants -> delegates to POST /apps
   router.post("/tenants", (req: Request, res: Response, next: (err?: any) => void): any => {
     const accountId: string = req.user.id;
     const tenant = req.body;
@@ -314,7 +329,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
       // Check for duplicate tenant name before creating
     storage
-    .getTenants(accountId)
+    .getOrgApps(accountId)
     .then((existingTenants: storageTypes.Organization[]) => {
       // Check if a tenant with the same displayName already exists
       const duplicateTenant = existingTenants.find(
@@ -332,7 +347,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
       // No duplicate found, proceed with creation
       return storage
-        .addTenant(accountId, tenant)
+        .addOrgApp(accountId, tenant)
         .then((createdTenant: storageTypes.Organization) => {
           res.status(201).send({ organisation: createdTenant });
         });
@@ -356,7 +371,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     try {
       // Get tenant details
       const accountId: string = req.user.id;
-      const tenants = await storage.getTenants(accountId);
+      const tenants = await storage.getOrgApps(accountId);
       const tenant = tenants.find((t: storageTypes.Organization) => t.id === tenantId);
       
       if (!tenant) {
@@ -448,7 +463,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     const tenantId: string = req.params.tenantId;
     
     try {
-      const collaborators = await storage.getTenantCollaborators(tenantId);
+      const collaborators = await storage.getOrgAppCollaborators(tenantId);
       return res.status(200).send({ collaborators });
     } catch (error: any) {
       console.error("Error fetching tenant collaborators:", error);
@@ -470,7 +485,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     }
 
     try {
-      await storage.addTenantCollaborator(tenantId, email, permission);
+      await storage.addOrgAppCollaborator(tenantId, email, permission);
       return res.status(201).send({ message: "Collaborator added successfully" });
     } catch (error: any) {
       console.error("Error adding tenant collaborator:", error);
@@ -489,7 +504,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     }
 
     try {
-      await storage.updateTenantCollaborator(tenantId, email, permission);
+      await storage.updateOrgAppCollaborator(tenantId, email, permission);
       return res.status(200).send({ message: "Collaborator updated successfully" });
     } catch (error: any) {
       console.error("Error updating tenant collaborator:", error);
@@ -503,7 +518,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     const email: string = req.params.email;
 
     try {
-      await storage.removeTenantCollaborator(tenantId, email);
+      await storage.removeOrgAppCollaborator(tenantId, email);
       return res.status(200).send({ message: "Collaborator removed successfully" });
     } catch (error: any) {
       console.error("Error removing tenant collaborator:", error);
@@ -516,7 +531,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     const tenantId: string = req.params.tenantId;
 
     storage
-      .removeTenant(accountId, tenantId) // Calls the storage method we'll define next
+      .removeOrgApp(accountId, tenantId) // Calls the storage method we'll define next
       .then(() => {
         res.status(200).send("Org deleted successfully");
       })
