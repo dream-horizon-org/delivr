@@ -60,3 +60,8 @@ export const JS_BUNDLE_OVERRIDE_JAVA = `
 
 export const IOS_CODEPUSH_IMPORT_SWIFT = `import CodePush`;
 export const IOS_CODEPUSH_IMPORT_OBJC = `#import <CodePush/CodePush.h>`;
+
+export const DOTA_POD_HELPERS_REQUIRE = `require_relative '../node_modules/@d11/dota/ios/scripts/dota_pod_helpers.rb'`;
+
+export const DOTA_POST_INSTALL_CALL = (projectName: string): string =>
+  `dota_post_install(installer, '${projectName}', File.expand_path(__dir__))`;
