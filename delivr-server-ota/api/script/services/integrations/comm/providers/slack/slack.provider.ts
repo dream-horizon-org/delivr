@@ -338,6 +338,53 @@ export class SlackProvider implements ICommService {
     return responses;
   }
 
+  /**
+   * Send message to specific channels only
+   * Used for ad-hoc notifications where user selects channels
+   */
+  async sendToSpecificChannels(
+    channelIds: string[],
+    task: Task,
+    parameters: string[],
+    platform?: Platform
+  ): Promise<Map<string, MessageResponse>> {
+    const responses = new Map<string, MessageResponse>();
+
+    // Build message from template (with platform for platform-specific templates)
+    const message = buildSlackMessage(task, parameters, platform);
+    
+    if (!message) {
+      throw new Error(`Template not found for task: ${task}`);
+    }
+
+    // Send to each specified channel
+    for (const channelId of channelIds) {
+      try {
+        const result = await this.client.chat.postMessage({
+          channel: channelId,
+          text: message
+        });
+
+        responses.set(channelId, {
+          ok: true,
+          channel: channelId,
+          ts: result.ts,
+          message: result
+        });
+      } catch (error: any) {
+        console.error(`Failed to send to channel ${channelId}:`, error);
+        responses.set(channelId, {
+          ok: false,
+          channel: channelId,
+          ts: '',
+          error: error.message ?? 'Unknown error'
+        });
+      }
+    }
+
+    return responses;
+  }
+
   // ============================================================================
   // CHANNEL OPERATIONS - Manage channels
   // ============================================================================

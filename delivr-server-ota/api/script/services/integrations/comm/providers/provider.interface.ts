@@ -57,6 +57,23 @@ export interface ICommService {
    */
   sendBasicMessage(args: SendMessageArgs): Promise<Map<string, MessageResponse>>;
 
+  /**
+   * Send message to specific channels only
+   * Used for ad-hoc notifications where user selects channels
+   * 
+   * @param channelIds - Array of specific channel IDs to send to
+   * @param task - Message template task type
+   * @param parameters - Array of values to replace placeholders
+   * @param platform - Optional: platform for platform-specific templates
+   * @returns Map of channel IDs to message responses
+   */
+  sendToSpecificChannels(
+    channelIds: string[],
+    task: Task,
+    parameters: string[],
+    platform?: Platform
+  ): Promise<Map<string, MessageResponse>>;
+
   // ============================================================================
   // CHANNEL OPERATIONS
   // ============================================================================

@@ -43,6 +43,9 @@ export enum NotificationType {
   BUILD_CANCELLED = 'BUILD_CANCELLED',
   BUILD_USER_ACTION_PENDING = 'BUILD_USER_ACTION_PENDING',
   BUILD_SUSPENDED = 'BUILD_SUSPENDED',
+  
+  // Ad-hoc notifications
+  AD_HOC_CUSTOM = 'AD_HOC_CUSTOM',
 }
 
 // Array of all notification types for validation

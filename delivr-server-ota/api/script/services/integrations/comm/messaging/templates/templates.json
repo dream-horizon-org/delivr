@@ -41,72 +41,24 @@
       "description": "*Test Management Links:*\n\n{0}"
     },
     "preregression-builds": {
-      "platforms": {
-        "ios_app_store": {
-          "metadata": {
-            "name": "iOS Pre-Regression Build",
-            "emoji": "",
-            "color": "#000000",
-            "category": "build"
-          },
-          "fields": [],
-          "description": "iOS pre-regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
-        },
-        "android_play_store": {
-          "metadata": {
-            "name": "Android Playstore Pre-Regression Build",
-            "emoji": "",
-            "color": "#3DDC84",
-            "category": "build"
-          },
-          "fields": [],
-          "description": "Android Playstore pre-regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
-        },
-        "android_web": {
-          "metadata": {
-            "name": "Android Web Pre-Regression Build",
-            "emoji": "",
-            "color": "#3DDC84",
-            "category": "build"
-          },
-          "fields": [],
-          "description": "Android Web pre-regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
-        }
-      }
+      "metadata": {
+        "name": "Pre-Regression Build",
+        "emoji": "",
+        "color": "#0066CC",
+        "category": "build"
+      },
+      "fields": [],
+      "description": "{0} pre-regression build ready.\n\n*Version:* {1}\n*Branch:* {2}{3}"
     },
     "preregression-builds-failed": {
-      "platforms": {
-        "ios_app_store": {
-          "metadata": {
-            "name": "iOS Pre-Regression Build Failed",
-            "emoji": "",
-            "color": "#DC3545",
-            "category": "build"
-          },
-          "fields": [],
-          "description": "iOS Pre-Regression Build Failed.\n\n<{0}|View Workflow>"
-        },
-        "android_play_store": {
-          "metadata": {
-            "name": "Android Playstore Pre-Regression Build Failed",
-            "emoji": "",
-            "color": "#DC3545",
-            "category": "build"
-          },
-          "fields": [],
-          "description": "Android Playstore Pre-Regression Build Failed.\n\n<{0}|View Workflow>"
-        },
-        "android_web": {
-          "metadata": {
-            "name": "Android Web Pre-Regression Build Failed",
-            "emoji": "",
-            "color": "#DC3545",
-            "category": "build"
-          },
-          "fields": [],
-          "description": "Android Web Pre-Regression Build Failed.\n\n<{0}|View Workflow>"
-        }
-      }
+      "metadata": {
+        "name": "Pre-Regression Build Failed",
+        "emoji": "",
+        "color": "#DC3545",
+        "category": "build"
+      },
+      "fields": [],
+      "description": "{0} Pre-Regression Build Failed.\n\n<{1}|View Workflow>"
     },
     "regression-kickoff-reminder": {
       "metadata": {
@@ -119,72 +71,24 @@
       "description": "Next set of builds will be triggered at *{0}*\n\nPlease make sure your changes are merged in release branch *{1}* before that."
     },
     "regression-builds": {
-      "platforms": {
-        "ios_app_store": {
-          "metadata": {
-            "name": "iOS Regression Build",
-            "emoji": "",
-            "color": "#000000",
-            "category": "build"
-          },
-          "fields": [],
-          "description": "iOS regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
-        },
-        "android_play_store": {
-          "metadata": {
-            "name": "Android Playstore Regression Build",
-            "emoji": "",
-            "color": "#3DDC84",
-            "category": "build"
-          },
-          "fields": [],
-          "description": "Android Playstore regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
-        },
-        "android_web": {
-          "metadata": {
-            "name": "Android Web Regression Build",
-            "emoji": "",
-            "color": "#3DDC84",
-            "category": "build"
-          },
-          "fields": [],
-          "description": "Android Web regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
-        }
-      }
+      "metadata": {
+        "name": "Regression Build",
+        "emoji": "",
+        "color": "#0066CC",
+        "category": "build"
+      },
+      "fields": [],
+      "description": "{0} regression build ready.\n\n*Version:* {1}\n*Branch:* {2}{3}"
     },
     "regression-builds-failed": {
-      "platforms": {
-        "ios_app_store": {
-          "metadata": {
-            "name": "iOS Regression Build Failed",
-            "emoji": "",
-            "color": "#DC3545",
-            "category": "build"
-          },
-          "fields": [],
-          "description": "iOS Regression Build Failed.\n\n<{0}|View Workflow>"
-        },
-        "android_play_store": {
-          "metadata": {
-            "name": "Android Playstore Regression Build Failed",
-            "emoji": "",
-            "color": "#DC3545",
-            "category": "build"
-          },
-          "fields": [],
-          "description": "Android Playstore Regression Build Failed.\n\n<{0}|View Workflow>"
-        },
-        "android_web": {
-          "metadata": {
-            "name": "Android Web Regression Build Failed",
-            "emoji": "",
-            "color": "#DC3545",
-            "category": "build"
-          },
-          "fields": [],
-          "description": "Android Web Regression Build Failed.\n\n<{0}|View Workflow>"
-        }
-      }
+      "metadata": {
+        "name": "Regression Build Failed",
+        "emoji": "",
+        "color": "#DC3545",
+        "category": "build"
+      },
+      "fields": [],
+      "description": "{0} Regression Build Failed.\n\n<{1}|View Workflow>"
     },
     "release-notes": {
       "metadata": {
@@ -207,38 +111,14 @@
       "description": "Final release notes for release tag *{0}* have been created.\n\n<{1}|View Release>"
     },
     "test-results-summary": {
-      "platforms": {
-        "ios_app_store": {
-          "metadata": {
-            "name": "iOS Test Results Summary",
-            "emoji": "",
-            "color": "#17A2B8",
-            "category": "testing"
-          },
-          "fields": [],
-          "description": "*iOS Test Results*\n\n*Total Tests:* {0}\n*Passed:* {1} ✅\n*Failed:* {2} ❌\n*Skipped:* {3} ⏭️\n\n*Pass Rate:* {4}%\n\n<{5}|View Full Report>"
-        },
-        "android_play_store": {
-          "metadata": {
-            "name": "Android Playstore Test Results Summary",
-            "emoji": "",
-            "color": "#17A2B8",
-            "category": "testing"
-          },
-          "fields": [],
-          "description": "*Android Playstore Test Results*\n\n*Total Tests:* {0}\n*Passed:* {1} ✅\n*Failed:* {2} ❌\n*Skipped:* {3} ⏭️\n\n*Pass Rate:* {4}%\n\n<{5}|View Full Report>"
-        },
-        "android_web": {
-          "metadata": {
-            "name": "Android Web Test Results Summary",
-            "emoji": "",
-            "color": "#17A2B8",
-            "category": "testing"
-          },
-          "fields": [],
-          "description": "*Android Web Test Results*\n\n*Total Tests:* {0}\n*Passed:* {1} ✅\n*Failed:* {2} ❌\n*Skipped:* {3} ⏭️\n\n*Pass Rate:* {4}%\n\n<{5}|View Full Report>"
-        }
-      }
+      "metadata": {
+        "name": "Test Results Summary",
+        "emoji": "",
+        "color": "#17A2B8",
+        "category": "testing"
+      },
+      "fields": [],
+      "description": "*{0} Test Results*\n\n*Total Tests:* {1}\n*Passed:* {2} ✅\n*Failed:* {3} ❌\n*Skipped:* {4} ⏭️\n\n*Pass Rate:* {5}%\n\n<{6}|View Full Report>"
     },
     "whats-new": {
       "metadata": {
@@ -331,25 +211,15 @@
       "fields": [],
       "description": "It's been more than 15 days since {0} version *{1} ({2})* was submitted by *{3}* but it is still not yet LIVE, will be marking it as SUSPENDED release which means No other actions like Pause/Resume/Halt can be taken on that."
     },
-    "ios-test-flight-build": {
+    "special-build": {
       "metadata": {
-        "name": "iOS TestFlight Build",
+        "name": "Special Build",
         "emoji": "",
         "color": "#0066CC",
         "category": "build"
       },
       "fields": [],
-      "description": "iOS TestFlight build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
-    },
-    "android-aab-build": {
-      "metadata": {
-        "name": "Android AAB Build",
-        "emoji": "",
-        "color": "#3DDC84",
-        "category": "build"
-      },
-      "fields": [],
-      "description": "Android AAB build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
+      "description": "{0} build ready.\n\n*Version:* {1}\n*Branch:* {2}{3}"
     },
     "regression-stage-approval-request": {
       "metadata": {
@@ -374,12 +244,12 @@
     "project-management-approval": {
       "metadata": {
         "name": "Project Management Approval Pending",
-        "emoji": "⏳",
+        "emoji": "",
         "color": "#FFC107",
         "category": "release"
       },
       "fields": [],
-      "description": "⏳ *Project Management Approval Pending*\n\n✅ Pre-release tasks are complete\n⚠️ Project management tickets are not yet approved\n\n📋 *Tickets to approve:*\n{1}\n\n<{0}|Review and approve in Delivr>"
+      "description": "Project management tickets are not yet approved.\n\n*Tickets to approve:*\n{1}\n\n<{0}|Review and approve in Delivr>"
     },
     "target-date-changed": {
       "metadata": {
@@ -390,116 +260,6 @@
       },
       "fields": [],
       "description": "Target release date changed for the release.\n\n*Previous Date:* {0}\n*New Date:* {1}"
-    },
-    "ios-appstore-build-submitted": {
-      "metadata": {
-        "name": "iOS App Store Build Submitted",
-        "emoji": "",
-        "color": "#28A745",
-        "category": "release"
-      },
-      "fields": [],
-      "description": "iOS build version *{0} ({1})* submitted to the Appstore by *{2}*."
-    },
-    "android-playstore-build-submitted": {
-      "metadata": {
-        "name": "Android Playstore Build Submitted",
-        "emoji": "",
-        "color": "#28A745",
-        "category": "release"
-      },
-      "fields": [],
-      "description": "Android build version *{0} ({1})* submitted to the Playstore by *{2}*."
-    },
-    "ios-appstore-build-resubmitted": {
-      "metadata": {
-        "name": "iOS App Store Build Resubmitted",
-        "emoji": "",
-        "color": "#17A2B8",
-        "category": "release"
-      },
-      "fields": [],
-      "description": "iOS build version *{0} ({1})* resubmitted to the Appstore by *{2}*."
-    },
-    "android-playstore-build-resubmitted": {
-      "metadata": {
-        "name": "Android Playstore Build Resubmitted",
-        "emoji": "",
-        "color": "#17A2B8",
-        "category": "release"
-      },
-      "fields": [],
-      "description": "Android build version *{0} ({1})* resubmitted to the Playstore by *{2}*."
-    },
-    "ios-appstore-live": {
-      "metadata": {
-        "name": "iOS Appstore Live",
-        "emoji": "",
-        "color": "#28A745",
-        "category": "release"
-      },
-      "fields": [],
-      "description": "iOS Appstore version *{0} ({1})* is now LIVE!"
-    },
-    "android-playstore-live": {
-      "metadata": {
-        "name": "Android Playstore Live",
-        "emoji": "",
-        "color": "#28A745",
-        "category": "release"
-      },
-      "fields": [],
-      "description": "Android Playstore version *{0} ({1})* is now LIVE!"
-    },
-    "ios-appstore-build-rejected": {
-      "metadata": {
-        "name": "iOS App Store Build Rejected",
-        "emoji": "",
-        "color": "#DC3545",
-        "category": "release"
-      },
-      "fields": [],
-      "description": "iOS build *{0} ({1})* was rejected by the App Store due to *{2}*."
-    },
-    "ios-appstore-build-cancelled": {
-      "metadata": {
-        "name": "iOS App Store Build Cancelled",
-        "emoji": "",
-        "color": "#FFC107",
-        "category": "release"
-      },
-      "fields": [],
-      "description": "iOS build *{0} ({1})* was cancelled by *{2}* due to *{3}*."
-    },
-    "android-playstore-user-action-pending": {
-      "metadata": {
-        "name": "Android Playstore User Action Pending",
-        "emoji": "",
-        "color": "#FFC107",
-        "category": "release"
-      },
-      "fields": [],
-      "description": "It's been more than 5 days since Android Playstore version *{0} ({1})* was submitted by *{2}* but it is still not yet LIVE, can you please check the status on Google Play Console to take the next required steps."
-    },
-    "android-playstore-suspended": {
-      "metadata": {
-        "name": "Android Playstore Suspended",
-        "emoji": "",
-        "color": "#DC3545",
-        "category": "release"
-      },
-      "fields": [],
-      "description": "It's been more than 15 days since Android Playstore version *{0} ({1})* was submitted by *{2}* but it is still not yet LIVE, will be marking it as SUSPENDED release which means No other actions like Pause/Resume/Halt can be taken on that."
-    },
-    "android-web-live": {
-      "metadata": {
-        "name": "Android Web Live",
-        "emoji": "",
-        "color": "#28A745",
-        "category": "release"
-      },
-      "fields": [],
-      "description": "Android Web version *{0}* is now LIVE!"
     },
     "task-failed": {
       "metadata": {
@@ -521,15 +281,15 @@
       "fields": [],
       "description": "The release process is paused. Please upload the {0} build to resume the release process.\n\n<{1}|Check on Delivr>"
     },
-    "build-submitted": {
+    "ad-hoc-custom": {
       "metadata": {
-        "name": "Build Submitted",
-        "emoji": "",
-        "color": "#28A745",
-        "category": "release"
+        "name": "Custom Message",
+        "emoji": "📢",
+        "color": "#0066CC",
+        "category": "custom"
       },
       "fields": [],
-      "description": "{0} build version *{1} ({2})* submitted to {3} by *{4}*."
+      "description": "{0}"
     }
   }
 }

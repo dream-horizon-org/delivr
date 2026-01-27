@@ -55,5 +55,6 @@ export const NOTIFICATION_TYPE_TO_TASK: Record<NotificationType, Task> = {
   [NotificationType.BUILD_SUSPENDED]: Task.BUILD_SUSPENDED,
   [NotificationType.TASK_FAILED]: Task.TASK_FAILED,
   [NotificationType.MANUAL_BUILD_UPLOAD_REMINDER]: Task.MANUAL_BUILD_UPLOAD_REMINDER,
+  [NotificationType.AD_HOC_CUSTOM]: Task.AD_HOC_CUSTOM,
 };
 

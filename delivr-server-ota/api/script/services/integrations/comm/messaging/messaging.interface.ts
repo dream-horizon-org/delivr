@@ -47,7 +47,10 @@ export enum Task {
   
   // Failures & Reminders
   TASK_FAILED = 'task-failed',
-  MANUAL_BUILD_UPLOAD_REMINDER = 'manual-build-upload-reminder'
+  MANUAL_BUILD_UPLOAD_REMINDER = 'manual-build-upload-reminder',
+  
+  // Ad-hoc notifications
+  AD_HOC_CUSTOM = 'ad-hoc-custom'
 }
 
 /**
