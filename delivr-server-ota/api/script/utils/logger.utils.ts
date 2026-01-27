@@ -30,7 +30,7 @@ type LogEntry = {
  * In production: JSON for parsing
  */
 const formatLogEntry = (entry: LogEntry): string => {
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProduction = process.env.NODE_ENV === 'prod';
 
   if (isProduction) {
     // JSON format for production (easier to parse in log aggregators)

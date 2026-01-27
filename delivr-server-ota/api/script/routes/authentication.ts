@@ -114,28 +114,35 @@ export class Authentication {
 
   // Middleware to authenticate requests using Google ID token
   public async authenticate(req: Request, res: Response, next: (err?: Error) => void) {
-    // Bypass authentication in development mode
-    if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") {
-      // Check for userid in headers first (for testing with different users)
-      const userId = Array.isArray(req.headers.userid) ? req.headers.userid[0] : req.headers.userid;
+    // In development mode, check AUTH_ENABLED to determine authentication behavior
+    if (process.env.NODE_ENV === "dev") {
+      const authEnabled = process.env.AUTH_ENABLED === "true";
       
-      if (userId) {
-        // Custom user provided via header
-        req.user = {
-          id: userId,
-        };
-      } else if (req.body.user !== undefined) {
-        // User provided via body
-        req.user = req.body.user;
+      if (authEnabled) {
+        // AUTH_ENABLED=true: Fall through to production authentication (expects Bearer token)
+        // Continue to the try block below
       } else {
-        // Default test user
-        req.user = {
-          id: "id_0",
-          email: "user1@example.com",
-          name: "User One",
-        };
+        // AUTH_ENABLED=false: Use simplified dev authentication
+        const userId = Array.isArray(req.headers.userid) ? req.headers.userid[0] : req.headers.userid;
+        
+        if (userId) {
+          // Custom user provided via header
+          req.user = {
+            id: userId,
+          };
+        } else if (req.body.user !== undefined) {
+          // User provided via body
+          req.user = req.body.user;
+        } else {
+          // Default test user
+          req.user = {
+            id: "id_0",
+            email: "user1@example.com",
+            name: "User One",
+          };
+        }
+        return next();
       }
-      return next();
     }
 
     // In production, validate the Google ID token

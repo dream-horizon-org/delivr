@@ -17,7 +17,7 @@ const DEFAULT_CONTENT_TYPE = 'application/octet-stream';
 
 const createS3Client = (): S3 => {
   const region = process.env.S3_REGION;
-  if (process.env.NODE_ENV === 'local' || process.env.NODE_ENV === 'dev') {
+  if (process.env.NODE_ENV === 'dev') {
     return new S3({
       region,
       endpoint: process.env.S3_ENDPOINT,

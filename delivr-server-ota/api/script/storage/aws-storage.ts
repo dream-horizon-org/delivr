@@ -934,7 +934,7 @@ export class S3Storage implements storage.Storage {
           region: process.env.S3_REGION, 
         }
 
-        if (process.env.NODE_ENV === "local" || process.env.NODE_ENV === "dev") {
+        if (process.env.NODE_ENV === "dev") {
           // These additional configurations are passed due to AWS SDK Version issue on local
           this.s3 = new S3({
             ...s3Config,
@@ -2649,7 +2649,7 @@ export class S3Storage implements storage.Storage {
         return this.setupPromise
           .then(() => {
 
-            if(process.env.NODE_ENV === "development") {
+            if(process.env.NODE_ENV === "dev") {
               // Get the signed URL from S3
               return this.s3.getSignedUrlPromise('getObject', {
                 Bucket: this.bucketName,
