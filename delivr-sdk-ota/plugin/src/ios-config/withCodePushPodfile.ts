@@ -35,8 +35,8 @@ export const withCodePushPodfile: ConfigPlugin = (config) => {
         tag: "dota-post-install",
         src: config.modResults.contents,
         newSrc: `  ${DOTA_POST_INSTALL_CALL(projectName)}`,
-        anchor: /post_install\s+do\s+\|installer\|/,
-        offset: 1,
+        anchor: /:mac_catalyst_enabled\s*=>/,
+        offset: 3,
         comment: "#",
       });
       config.modResults.contents = postInstallResult.contents;
