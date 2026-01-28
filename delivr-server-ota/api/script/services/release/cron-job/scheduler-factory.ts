@@ -34,6 +34,7 @@ import type { CronicleService } from '~services/cronicle';
 const RELEASE_ORCHESTRATION_JOB = {
   TITLE: 'release_orchestration',
   CATEGORY: 'release_orchestration',
+  CATEGORY_MAX_CHILDREN: 1,  // Only 1 concurrent job allowed in this category
   NOTES: 'Processes all active releases every 1 minute',
   WEBHOOK_PATH: '/internal/cron/releases',
   INTERVAL_MINUTES: 1
@@ -243,6 +244,7 @@ export async function registerCronicleReleaseTick(
       // No ID provided - let Cronicle auto-generate
       title: RELEASE_ORCHESTRATION_JOB.TITLE,
       category: categoryTitle,  // CronicleService handles ID resolution/creation
+      categoryMaxChildren: RELEASE_ORCHESTRATION_JOB.CATEGORY_MAX_CHILDREN,
       enabled: true,
       timing: {
         minutes: minutesArray, // Every N minutes (e.g., [0, 1, 2, ..., 59] for every minute)

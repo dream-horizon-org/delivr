@@ -956,6 +956,7 @@ export class S3Storage implements storage.Storage {
             password: process.env.DB_PASS || DB_PASS,
             host: process.env.DB_HOST || DB_HOST,
             dialect: 'mysql',
+            logging: false,
             replication: {
                 write: {
                     host: process.env.DB_HOST || DB_HOST,

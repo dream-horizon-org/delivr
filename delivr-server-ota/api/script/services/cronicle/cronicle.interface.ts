@@ -73,6 +73,7 @@ export type CreateCronicleJobRequest = {
   title: string;                    // Job display name
   enabled?: boolean;                // Default true
   category: CronicleJobCategory;    // Category for organization
+  categoryMaxChildren?: number;     // Max concurrent jobs in this category (0 = unlimited, default 0)
   timing: CronicleTimingConfig;     // When to run
   timezone?: string;                // e.g., 'Asia/Kolkata'
   params: CronicleWebhookParams;    // Webhook configuration
