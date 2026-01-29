@@ -21,11 +21,11 @@ const isNonEmptyString = (value: unknown): value is string => {
 // COMMON VALIDATORS
 // ============================================================================
 
-export const validateTenantId = (req: Request, res: Response, next: NextFunction): void => {
+export const validateAppId = (req: Request, res: Response, next: NextFunction): void => {
   const appId = req.params.appId;
-  const isTenantIdInvalid = !isNonEmptyString(appId);
+  const isAppIdInvalid = !isNonEmptyString(appId);
   
-  if (isTenantIdInvalid) {
+  if (isAppIdInvalid) {
     res.status(HTTP_STATUS.BAD_REQUEST).json({ 
       success: false, 
       error: 'appId is required' 

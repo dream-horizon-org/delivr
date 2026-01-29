@@ -45,7 +45,7 @@ import type { Storage } from '../storage/storage';
   router.get(
     '/integrations/store/tenant/:appId',
     tenantPermissions.requireAppMembership({ storage }),
-    validateStore.validateTenantId,
+    validateStore.validateAppId,
     storeControllers.getStoreIntegrationsByTenant
   );
 
@@ -53,7 +53,7 @@ import type { Storage } from '../storage/storage';
   router.patch(
     '/integrations/store/tenant/:appId/revoke',
     tenantPermissions.requireOwner({ storage }),
-    validateStore.validateTenantId,
+    validateStore.validateAppId,
     validateStore.validateRevokeStoreIntegrationsQuery,
     storeControllers.revokeStoreIntegrations
   );

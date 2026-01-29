@@ -21,10 +21,10 @@ const isNonEmptyString = (value: unknown): value is string => {
 /**
  * Validate presence of :appId path parameter.
  */
-export const validateTenantId = (req: Request, res: Response, next: NextFunction): void => {
+export const validateAppId = (req: Request, res: Response, next: NextFunction): void => {
   const appId = req.params.appId;
-  const isTenantIdInvalid = !isNonEmptyString(appId);
-  if (isTenantIdInvalid) {
+  const isAppIdInvalid = !isNonEmptyString(appId);
+  if (isAppIdInvalid) {
     res.status(HTTP_STATUS.BAD_REQUEST).json({ verified: false, message: 'appId is required' });
     return;
   }

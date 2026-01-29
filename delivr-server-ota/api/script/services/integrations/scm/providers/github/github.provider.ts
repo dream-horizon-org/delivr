@@ -186,7 +186,7 @@ export class GitHubProvider implements SCMIntegration {
   private getClientAndRepo = async (
     appId: string
   ): Promise<{ client: OctokitClient; owner: string; repo: string }> => {
-    const integration = await this.scmController.findActiveByTenantWithTokens(appId);
+    const integration = await this.scmController.findActiveByAppWithTokens(appId);
     if (!integration) {
       throw new Error(SCM_ERROR_MESSAGES.ACTIVE_INTEGRATION_NOT_FOUND);
     }

@@ -277,7 +277,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
 
       try {
         const scmController = (storage as any).scmController;
-        const scmIntegration = await scmController.findActiveByTenant(appId);
+        const scmIntegration = await scmController.findActiveByApp(appId);
 
         // Check Comm/Slack integration
         const commIntegrationRepository = (storage as any).commIntegrationRepository;

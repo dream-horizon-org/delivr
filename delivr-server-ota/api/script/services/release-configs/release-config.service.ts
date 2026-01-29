@@ -661,11 +661,6 @@ export class ReleaseConfigService {
     return this.configRepo.findByAppId(appId, includeArchived);
   }
 
-  /**
-   * @deprecated Use listConfigsByApp instead
-   * Kept for backward compatibility
-   */
-  listConfigsByTenant = this.listConfigsByApp;
 
   /**
    * List configs by app id with verbose integration details

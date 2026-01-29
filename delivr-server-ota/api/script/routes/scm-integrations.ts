@@ -37,7 +37,7 @@ export function createSCMIntegrationRoutes(storage: Storage): Router {
       try {
         // Get the active SCM integration for this tenant
         const scmController = (storage as any).scmController;
-        const integration = await scmController.findActiveByTenantWithTokens(appId);
+        const integration = await scmController.findActiveByAppWithTokens(appId);
         
         if (!integration) {
           return res.status(404).json({

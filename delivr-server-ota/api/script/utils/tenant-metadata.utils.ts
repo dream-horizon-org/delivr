@@ -389,7 +389,7 @@ export async function transformAppDistributionIntegrationsForConfig(
 /**
  * Build tenant config response
  */
-export async function buildTenantConfig(
+export async function buildAppConfig(
   scmIntegrations: any[],
   slackIntegration: any | null,
   cicdIntegrations: any[],

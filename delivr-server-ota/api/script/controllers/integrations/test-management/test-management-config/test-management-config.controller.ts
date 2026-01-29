@@ -14,7 +14,7 @@ import {
   validateIntegrationId,
   validatePassThresholdPercent,
   validatePlatformConfigurations,
-  validateTenantId
+  validateAppId
 } from './test-management-config.validation';
 
 type AuthenticatedRequest = Request & {
@@ -33,10 +33,10 @@ const createConfigHandler = (service: TestManagementConfigService) =>
       const { appId } = req.params;
       const { integrationId, name, passThresholdPercent, platformConfigurations } = req.body;
 
-      const tenantIdError = validateTenantId(appId);
-      if (tenantIdError) {
+      const AppIdError = validateAppId(appId);
+      if (AppIdError) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('appId', tenantIdError)
+          validationErrorResponse('appId', AppIdError)
         );
         return;
       }
@@ -128,10 +128,10 @@ const listConfigsByAppHandler = (service: TestManagementConfigService) =>
     try {
       const { appId } = req.params;
 
-      const tenantIdError = validateTenantId(appId);
-      if (tenantIdError) {
+      const AppIdError = validateAppId(appId);
+      if (AppIdError) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('appId', tenantIdError)
+          validationErrorResponse('appId', AppIdError)
         );
         return;
       }

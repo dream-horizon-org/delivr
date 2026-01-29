@@ -16,7 +16,7 @@ export const createCICDConnectionsRoutes = (storage: Storage): Router => {
   // Create/Verify by provider type
   router.post(
     "/apps/:appId/integrations/ci-cd/connections/:providerType/verify",
-    validateCICD.validateTenantId,
+    validateCICD.validateAppId,
     validateCICD.validateProviderTypeParam,
     validateCICD.validateConnectionVerifyBody,
     tenantPermissions.requireOwner({ storage }),
@@ -25,7 +25,7 @@ export const createCICDConnectionsRoutes = (storage: Storage): Router => {
 
   router.post(
     "/apps/:appId/integrations/ci-cd/connections/:providerType",
-    validateCICD.validateTenantId,
+    validateCICD.validateAppId,
     validateCICD.validateProviderTypeParam,
     validateCICD.validateConnectionCreateBody,
     tenantPermissions.requireOwner({ storage }),
@@ -35,7 +35,7 @@ export const createCICDConnectionsRoutes = (storage: Storage): Router => {
   // CRUD by integrationId
   router.get(
     "/apps/:appId/integrations/ci-cd/connections/:integrationId",
-    validateCICD.validateTenantId,
+    validateCICD.validateAppId,
     validateCICD.validateIntegrationIdParam,
     tenantPermissions.requireAppMembership({ storage }),
     getIntegrationById
@@ -43,7 +43,7 @@ export const createCICDConnectionsRoutes = (storage: Storage): Router => {
 
   router.patch(
     "/apps/:appId/integrations/ci-cd/connections/:integrationId",
-    validateCICD.validateTenantId,
+    validateCICD.validateAppId,
     validateCICD.validateIntegrationIdParam,
     tenantPermissions.requireOwner({ storage }),
     updateIntegrationById
@@ -51,7 +51,7 @@ export const createCICDConnectionsRoutes = (storage: Storage): Router => {
 
   router.delete(
     "/apps/:appId/integrations/ci-cd/connections/:integrationId",
-    validateCICD.validateTenantId,
+    validateCICD.validateAppId,
     validateCICD.validateIntegrationIdParam,
     tenantPermissions.requireOwner({ storage }),
     deleteIntegrationById

@@ -14,6 +14,7 @@ import {
   successResponse,
   validationErrorResponse
 } from '~utils/response.utils';
+import { buildAppConfig } from '~utils/tenant-metadata.utils';
 
 type AuthenticatedRequest = Request & {
   user?: {
@@ -37,7 +38,7 @@ const createAppHandler = (appService: AppService, storage: any) =>
         return;
       }
 
-      const { name, displayName, description } = req.body;
+      const { name, displayName } = req.body;
 
       // Validate required fields
       if (!name && !displayName) {
@@ -50,7 +51,7 @@ const createAppHandler = (appService: AppService, storage: any) =>
       // For now, orgId is null (will be set when Organizations are implemented)
       // We'll use the storage method which handles collaborator creation
       const orgId = null; // TODO: Get from request context when Organizations are implemented
-
+      console.log('orgId', orgId);
       // Use storage.addOrgApp for now (handles collaborator creation)
       // This maintains backward compatibility with existing flow
       const createdApp = await storage.addOrgApp(accountId, {
@@ -83,10 +84,10 @@ const createAppHandler = (appService: AppService, storage: any) =>
   };
 
 /**
- * Get app by ID
+ * Get app by ID with platform targets and connected integrations (same config format as getTenantInfo).
  * GET /apps/:appId
- * Tries App table first; if not found, falls back to getOrgApps (legacy tenant id) so
- * both new App records and legacy org/tenant ids resolve.
+ * Tries App table first; if not found, falls back to getOrgApps (legacy tenant id).
+ * Returns app and organisation with platformTargets and releaseManagement.config.
  */
 const getAppHandler = (appService: AppService, storage: any) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -95,27 +96,96 @@ const getAppHandler = (appService: AppService, storage: any) =>
       const accountId = (req as AuthenticatedRequest).user?.id;
       const orgId = null; // TODO: Get from request context when Organizations are implemented
 
+      let base: Record<string, unknown>;
       const app = await appService.getApp(orgId || '', appId);
 
-      if (!app && accountId && storage?.getOrgApps) {
+      if (app) {
+        base = { ...app } as Record<string, unknown>;
+      } else if (accountId && storage?.getOrgApps) {
         const orgApps = await storage.getOrgApps(accountId);
         const tenant = orgApps?.find((t: { id: string }) => t.id === appId);
-        if (tenant) {
-          res.status(HTTP_STATUS.OK).json(
-            successResponse({ organisation: tenant })
-          );
+        if (!tenant) {
+          res.status(HTTP_STATUS.NOT_FOUND).json(notFoundResponse('App'));
           return;
         }
-      }
-
-      if (!app) {
-        res.status(HTTP_STATUS.NOT_FOUND).json(
-          notFoundResponse('App')
-        );
+        base = { ...tenant } as Record<string, unknown>;
+      } else {
+        res.status(HTTP_STATUS.NOT_FOUND).json(notFoundResponse('App'));
         return;
       }
 
-      res.status(HTTP_STATUS.OK).json(successResponse({ app }));
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
+      let platformTargets: unknown[] = [];
+      const appPlatformTargetService = (storage as any).appPlatformTargetService;
+      if (appPlatformTargetService) {
+        try {
+          const result = await appPlatformTargetService.getPlatformTargets(appId, true);
+          platformTargets = result ?? [];
+        } catch (_err) {
+          // keep default []
+        }
+      }
+
+      const scmController = (storage as any).scmController;
+      const commIntegrationRepository = (storage as any).commIntegrationRepository;
+      const cicdIntegrationRepository = (storage as any).cicdIntegrationRepository;
+      const projectManagementIntegrationRepository = (storage as any).projectManagementIntegrationRepository;
+
+      const scmIntegrations = scmController ? await scmController.findAll({ appId, isActive: true }) : [];
+      const slackIntegration = commIntegrationRepository ? await commIntegrationRepository.findByTenant(appId, 'SLACK') : null;
+      const cicdIntegrations = cicdIntegrationRepository ? await cicdIntegrationRepository.findAll({ appId }) : [];
+
+      let testManagementIntegrations: unknown[] = [];
+      if ((storage as any).testManagementIntegrationService) {
+        try {
+          testManagementIntegrations = await (storage as any).testManagementIntegrationService.listTenantIntegrations(appId);
+        } catch (_err) {
+          // keep default []
+        }
+      }
+
+      let projectManagementIntegrations: unknown[] = [];
+      if (projectManagementIntegrationRepository) {
+        try {
+          projectManagementIntegrations = await projectManagementIntegrationRepository.findAll({ appId });
+        } catch (_err) {
+          // keep default []
+        }
+      }
+
+      let storeIntegrations: unknown[] = [];
+      if ((storage as any).storeIntegrationController) {
+        try {
+          storeIntegrations = await (storage as any).storeIntegrationController.findAll({ appId, status: 'VERIFIED' });
+        } catch (_err) {
+          // keep default []
+        }
+      }
+
+      const tenantConfig = await buildAppConfig(
+        scmIntegrations,
+        slackIntegration,
+        cicdIntegrations,
+        testManagementIntegrations,
+        projectManagementIntegrations,
+        storeIntegrations,
+        storage
+      );
+
+      const appPayload = {
+        ...base,
+        platformTargets,
+        releaseManagement: {
+          config: tenantConfig,
+        },
+      };
+
+      res.status(HTTP_STATUS.OK).json(
+        successResponse({ app: appPayload, organisation: appPayload })
+      );
     } catch (error) {
       const statusCode = getErrorStatusCode(error);
       res.status(statusCode).json(

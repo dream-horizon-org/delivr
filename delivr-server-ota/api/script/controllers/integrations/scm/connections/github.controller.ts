@@ -148,7 +148,7 @@ export async function createGitHubConnection(
   
   try {
     const scmController = getSCMController();
-    const existing = await scmController.findActiveByTenant(appId);
+    const existing = await scmController.findActiveByApp(appId);
     
     // Double-layer encryption: Decrypt frontend-encrypted values, then encrypt with backend storage key
     const { decrypted: decryptedData } = decryptFields(
@@ -229,7 +229,7 @@ export async function getGitHubConnection(
 
   try {
     const scmController = getSCMController();
-    const integration = await scmController.findActiveByTenant(appId);
+    const integration = await scmController.findActiveByApp(appId);
 
     if (!integration || integration.scmType !== 'GITHUB') {
       return res.status(404).json({
@@ -264,7 +264,7 @@ export async function updateGitHubConnection(
 
   try {
     const scmController = getSCMController();
-    const existing = await scmController.findActiveByTenant(appId);
+    const existing = await scmController.findActiveByApp(appId);
 
     if (!existing || existing.scmType !== 'GITHUB') {
       return res.status(404).json({
@@ -337,7 +337,7 @@ export async function deleteGitHubConnection(
 
   try {
     const scmController = getSCMController();
-    const existing = await scmController.findActiveByTenant(appId);
+    const existing = await scmController.findActiveByApp(appId);
 
     if (!existing || existing.scmType !== 'GITHUB') {
       return res.status(404).json({
@@ -373,7 +373,7 @@ export async function fetchGitHubBranches(
 
   try {
     const scmController = getSCMController();
-    const integration = await scmController.findActiveByTenantWithTokens(appId);
+    const integration = await scmController.findActiveByAppWithTokens(appId);
 
     if (!integration || integration.scmType !== 'GITHUB') {
       return res.status(404).json({
@@ -389,7 +389,7 @@ export async function fetchGitHubBranches(
       });
     }
     
-    // Token is already decrypted by findActiveByTenantWithTokens (decryptFromStorage)
+    // Token is already decrypted by findActiveByAppWithTokens (decryptFromStorage)
     // No need to decrypt again
     const branches = await fetchBranchesFromGitHub(
       integration.owner,

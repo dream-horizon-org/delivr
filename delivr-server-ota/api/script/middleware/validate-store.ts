@@ -19,10 +19,10 @@ const isNonEmptyString = (value: unknown): value is string => {
   return isString && isNonEmpty;
 };
 
-export const validateTenantId = (req: Request, res: Response, next: NextFunction): void => {
+export const validateAppId = (req: Request, res: Response, next: NextFunction): void => {
   const appId = req.params.appId;
-  const isTenantIdInvalid = !isNonEmptyString(appId);
-  if (isTenantIdInvalid) {
+  const isAppIdInvalid = !isNonEmptyString(appId);
+  if (isAppIdInvalid) {
     res.status(HTTP_STATUS.BAD_REQUEST).json({ 
       success: false, 
       error: ERROR_MESSAGES.APP_ID_REQUIRED 
@@ -51,16 +51,16 @@ export const validateConnectStoreBody = (req: Request, res: Response, next: Next
 
   const isStoreTypeInvalid = !isNonEmptyString(storeType);
   const isPlatformInvalid = !isNonEmptyString(platform);
-  const isTenantIdInvalid = !isNonEmptyString(appId);
+  const isAppIdInvalid = !isNonEmptyString(appId);
   const isPayloadMissing = !payload || typeof payload !== 'object';
 
-  const hasInvalid = isStoreTypeInvalid || isPlatformInvalid || isTenantIdInvalid || isPayloadMissing;
+  const hasInvalid = isStoreTypeInvalid || isPlatformInvalid || isAppIdInvalid || isPayloadMissing;
 
   if (hasInvalid) {
     const missingFields: string[] = [];
     if (isStoreTypeInvalid) missingFields.push('storeType');
     if (isPlatformInvalid) missingFields.push('platform');
-    if (isTenantIdInvalid) missingFields.push('appId');
+    if (isAppIdInvalid) missingFields.push('appId');
     if (isPayloadMissing) missingFields.push('payload');
 
     const errorMessage = `Missing required fields: ${missingFields.join(', ')}`;
@@ -292,16 +292,16 @@ export const validatePatchStoreBody = (req: Request, res: Response, next: NextFu
   // Validate required fields
   const isStoreTypeInvalid = !isNonEmptyString(storeType);
   const isPlatformInvalid = !isNonEmptyString(platform);
-  const isTenantIdInvalid = !isNonEmptyString(appId);
+  const isAppIdInvalid = !isNonEmptyString(appId);
   const isUserIdInvalid = !isNonEmptyString(userId);
 
-  const hasInvalidRequired = isStoreTypeInvalid || isPlatformInvalid || isTenantIdInvalid || isUserIdInvalid;
+  const hasInvalidRequired = isStoreTypeInvalid || isPlatformInvalid || isAppIdInvalid || isUserIdInvalid;
 
   if (hasInvalidRequired) {
     const missingFields: string[] = [];
     if (isStoreTypeInvalid) missingFields.push('storeType');
     if (isPlatformInvalid) missingFields.push('platform');
-    if (isTenantIdInvalid) missingFields.push('appId');
+    if (isAppIdInvalid) missingFields.push('appId');
     if (isUserIdInvalid) missingFields.push('userId');
 
     const errorMessage = `Missing required fields: ${missingFields.join(', ')}`;
@@ -622,8 +622,8 @@ export const validatePlayStoreUploadBody = (req: Request, res: Response, next: N
   const releaseNotes = req.body?.releaseNotes; // Optional
 
   // Validate appId
-  const isTenantIdInvalid = !isNonEmptyString(appId);
-  if (isTenantIdInvalid) {
+  const isAppIdInvalid = !isNonEmptyString(appId);
+  if (isAppIdInvalid) {
     res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: false,
       error: ERROR_MESSAGES.APP_ID_REQUIRED,
@@ -758,8 +758,8 @@ export const validatePlayStoreListingsQuery = (req: Request, res: Response, next
   const platform = req.query?.platform as string;
 
   // Validate appId
-  const isTenantIdInvalid = !isNonEmptyString(appId);
-  if (isTenantIdInvalid) {
+  const isAppIdInvalid = !isNonEmptyString(appId);
+  if (isAppIdInvalid) {
     res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: false,
       error: ERROR_MESSAGES.APP_ID_REQUIRED,

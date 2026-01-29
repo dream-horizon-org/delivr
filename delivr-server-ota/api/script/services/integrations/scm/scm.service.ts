@@ -11,13 +11,13 @@ import { SCMType } from '~storage/integrations/scm';
  */
 export class SCMService implements SCMIntegration {
   private getProviderForTenant = async (appId: string) => {
-    const storage = getStorage() as unknown as { scmController?: { findActiveByTenantWithTokens: (appId: string) => Promise<{ scmType: SCMType } | null> } };
+    const storage = getStorage() as unknown as { scmController?: { findActiveByAppWithTokens: (appId: string) => Promise<{ scmType: SCMType } | null> } };
     const controller = storage?.scmController;
     const controllerMissing = !controller;
     if (controllerMissing) {
       throw new Error(SCM_ERROR_MESSAGES.ACTIVE_INTEGRATION_NOT_FOUND);
     }
-    const integration = await controller.findActiveByTenantWithTokens(appId);
+    const integration = await controller.findActiveByAppWithTokens(appId);
     const integrationMissing = !integration;
     if (integrationMissing) {
       throw new Error(SCM_ERROR_MESSAGES.ACTIVE_INTEGRATION_NOT_FOUND);

@@ -16,21 +16,21 @@ export const createCICDConfigRoutes = (storage: Storage): Router => {
 
   router.post(
     "/apps/:appId/integrations/ci-cd/configs",
-    validateCICD.validateTenantId,
+    validateCICD.validateAppId,
     tenantPermissions.requireOwner({ storage }),
     createConfig
   );
 
   router.get(
     "/apps/:appId/integrations/ci-cd/configs",
-    validateCICD.validateTenantId,
+    validateCICD.validateAppId,
     tenantPermissions.requireAppMembership({ storage }),
     listConfigsByApp
   );
 
   router.get(
     "/apps/:appId/integrations/ci-cd/configs/:configId",
-    validateCICD.validateTenantId,
+    validateCICD.validateAppId,
     validateCICD.validateConfigIdParam,
     tenantPermissions.requireAppMembership({ storage }),
     getConfigById
@@ -38,7 +38,7 @@ export const createCICDConfigRoutes = (storage: Storage): Router => {
 
   router.patch(
     "/apps/:appId/integrations/ci-cd/configs/:configId",
-    validateCICD.validateTenantId,
+    validateCICD.validateAppId,
     validateCICD.validateConfigIdParam,
     tenantPermissions.requireEditor({ storage }),
     updateConfigById
@@ -46,7 +46,7 @@ export const createCICDConfigRoutes = (storage: Storage): Router => {
 
   router.delete(
     "/apps/:appId/integrations/ci-cd/configs/:configId",
-    validateCICD.validateTenantId,
+    validateCICD.validateAppId,
     validateCICD.validateConfigIdParam,
     tenantPermissions.requireEditor({ storage }),
     deleteConfigById

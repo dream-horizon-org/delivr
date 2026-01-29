@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { HTTP_STATUS, RESPONSE_STATUS } from "~constants/http";
 import { ERROR_MESSAGES } from "../constants";
 import { formatErrorMessage } from "~utils/error.utils";
-import { getIntegrationForTenant, getWorkflowAdapter } from "./workflow-adapter.utils";
+import { getIntegrationForApp, getWorkflowAdapter } from "./workflow-adapter.utils";
 
 export const getJobParameters = async (req: Request, res: Response): Promise<any> => {
   const appId = req.params.appId;
@@ -14,7 +14,7 @@ export const getJobParameters = async (req: Request, res: Response): Promise<any
      * For GitHub Actions: returns workflow_dispatch inputs.
      * For Jenkins: returns job parameter definitions.
      */
-    const integration = await getIntegrationForTenant(appId, integrationId);
+    const integration = await getIntegrationForApp(appId, integrationId);
     if (!integration) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND });
     }
@@ -39,7 +39,7 @@ export const triggerWorkflow = async (req: Request, res: Response): Promise<any>
   const { workflowId, workflowType, platform, jobParameters = {} } = req.body || {};
 
   try {
-    const integration = await getIntegrationForTenant(appId, integrationId);
+    const integration = await getIntegrationForApp(appId, integrationId);
     if (!integration) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND });
     }
@@ -66,7 +66,7 @@ export const getQueueStatus = async (req: Request, res: Response): Promise<any> 
   const queueUrl = typeof req.query.queueUrl === 'string' ? req.query.queueUrl : undefined;
 
   try {
-    const integration = await getIntegrationForTenant(appId, integrationId);
+    const integration = await getIntegrationForApp(appId, integrationId);
     if (!integration) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND });
     }
@@ -100,7 +100,7 @@ export const getRunStatus = async (req: Request, res: Response): Promise<any> =>
   const runId = typeof req.query.runId === 'string' ? req.query.runId : undefined;
 
   try {
-    const integration = await getIntegrationForTenant(appId, integrationId);
+    const integration = await getIntegrationForApp(appId, integrationId);
     if (!integration) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND });
     }

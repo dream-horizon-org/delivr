@@ -158,7 +158,7 @@ export const validateConfigName = (value: unknown): string | null => {
  * Validate app id
  * Returns error message if invalid, null if valid
  */
-export const validateTenantId = (value: unknown): string | null => {
+export const validateAppId = (value: unknown): string | null => {
   const isString = typeof value === 'string';
 
   if (!isString) {

@@ -72,11 +72,6 @@ export const listConfigsByApp = async (req: Request, res: Response): Promise<any
   }
 };
 
-/**
- * @deprecated Use listConfigsByApp instead
- * Kept for backward compatibility
- */
-export const listConfigsByTenant = listConfigsByApp;
 
 /**
  * Fetch a CI/CD config by id (tenant-scoped).

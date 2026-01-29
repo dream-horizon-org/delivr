@@ -23,7 +23,6 @@ import * as errorUtils from "../utils/rest-error-handling";
 import { isUnfinishedRollout } from "../utils/rollout-selector";
 import * as security from "../utils/security";
 import { buildSystemMetadata } from "../utils/system-metadata.utils";
-import { buildTenantConfig } from "../utils/tenant-metadata.utils";
 import * as validationUtils from "../utils/validation";
 import { createAppRoutes } from "./app.routes";
 import PackageDiffer = packageDiffing.PackageDiffer;
@@ -358,104 +357,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     });
   });
 
-  // Get tenant info with release setup status and integrations
-  // IMPORTANT: No caching - always returns fresh data for release management
-  router.get("/apps/:appId", tenantPermissions.requireAppMembership({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
-    const appId: string = req.params.appId;
-    
-    // Set no-cache headers to prevent stale data issues
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    
-    try {
-      // Get tenant details
-      const accountId: string = req.user.id;
-      const tenants = await storage.getOrgApps(accountId);
-      const tenant = tenants.find((t: storageTypes.Organization) => t.id === appId);
-      
-      if (!tenant) {
-        return res.status(404).send({ error: "Tenant not found" });
-      }
-
-      // Get all integrations for this tenant
-      const scmController = (storage as any).scmController;
-      const commIntegrationRepository = (storage as any).commIntegrationRepository;
-      const cicdIntegrationRepository = (storage as any).cicdIntegrationRepository;
-      const projectManagementIntegrationRepository = (storage as any).projectManagementIntegrationRepository;
-      
-      // SCM integrations (GitHub, GitLab, Bitbucket)
-      const scmIntegrations = await scmController.findAll({ appId, isActive: true });
-      
-      // Comm/Slack integrations
-      const slackIntegration = await commIntegrationRepository.findByTenant(appId, 'SLACK');
-
-      // CI CD integrations (Jenkins, Github Actions, Circle CI, GitLab CI, etc.)
-      const cicdIntegrations = await cicdIntegrationRepository.findAll({ appId });
-      
-      // Test Management integrations (Checkmate, TestRail, etc.) - tenant-level
-      // Note: Using appId as appId (tenant = project in our system)
-      let testManagementIntegrations: any[] = [];
-      if ((storage as any).testManagementIntegrationService) {
-        try {
-          testManagementIntegrations = await (storage as any).testManagementIntegrationService.listTenantIntegrations(appId);
-          console.log(`[TenantInfo] ===================================  Found ${testManagementIntegrations.length} test management integrations for tenant ${appId}`);
-        } catch (error) {
-          console.error('[TenantInfo] Error fetching test management integrations:', error);
-        }
-      }
-
-      // Project Management integrations (JIRA, Linear, Asana, etc.)
-      let projectManagementIntegrations: any[] = [];
-      if (projectManagementIntegrationRepository) {
-        try {
-          projectManagementIntegrations = await projectManagementIntegrationRepository.findAll({ 
-            appId: appId
-          });
-          console.log(`[TenantInfo] Found ${projectManagementIntegrations.length} project management integrations for tenant ${appId}`);
-        } catch (error) {
-          console.error('[TenantInfo] Error fetching project management integrations:', error);
-        }
-      }
-
-      // App Distribution integrations (Play Store, App Store, etc.)
-      let storeIntegrations: any[] = [];
-      if ((storage as any).storeIntegrationController) {
-        try {
-          storeIntegrations = await (storage as any).storeIntegrationController.findAll({ 
-            appId, 
-            status: 'VERIFIED' // Only show verified integrations
-          });
-          console.log(`[TenantInfo] Found ${storeIntegrations.length} store integrations for tenant ${appId}`);
-        } catch (error) {
-          console.error('[TenantInfo] Error fetching store integrations:', error);
-        }
-      }
-      
-
-      const tenantConfig = await buildTenantConfig(
-        scmIntegrations,
-        slackIntegration,
-        cicdIntegrations,
-        testManagementIntegrations,
-        projectManagementIntegrations,
-        storeIntegrations,
-        storage
-      );
-      
-      return res.status(200).send({
-        organisation: {
-          ...tenant,
-          releaseManagement: {
-            config: tenantConfig,  // Structured config with connected integrations
-          }
-        }
-      });
-    } catch (error: any) {
-      console.error("Error fetching tenant info:", error);
-      return next(error);
-    }
-  });
+  // GET /apps/:appId is handled by app.routes (app controller returns app + organisation with platformTargets and releaseManagement.config)
 
   // Get tenant collaborators (Owner only)
   router.get("/apps/:appId/collaborators", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {

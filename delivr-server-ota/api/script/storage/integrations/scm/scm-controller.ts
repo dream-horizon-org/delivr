@@ -129,7 +129,7 @@ export class SCMIntegrationController {
    * @param appId - app id
    * @returns First active integration or null
    */
-  async findActiveByTenant(appId: string): Promise<SafeSCMIntegration | null> {
+  async findActiveByApp(appId: string): Promise<SafeSCMIntegration | null> {
     const integration = await this.model.findOne({
       where: { 
         appId, 
@@ -150,7 +150,7 @@ export class SCMIntegrationController {
    * @param appId - app id
    * @returns First active integration with decrypted tokens or null
    */
-  async findActiveByTenantWithTokens(appId: string): Promise<TenantSCMIntegration | null> {
+  async findActiveByAppWithTokens(appId: string): Promise<TenantSCMIntegration | null> {
     const integration = await this.model.findOne({
       where: { 
         appId, 

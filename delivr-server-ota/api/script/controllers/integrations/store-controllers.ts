@@ -1265,8 +1265,8 @@ export const getStoreIntegrationsByTenant = async (
   try {
     const { appId } = req.params;
     
-    const isTenantIdMissing = !appId || typeof appId !== 'string';
-    if (isTenantIdMissing) {
+    const isAppIdMissing = !appId || typeof appId !== 'string';
+    if (isAppIdMissing) {
       res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: RESPONSE_STATUS.FAILURE,
         error: ERROR_MESSAGES.APP_ID_REQUIRED,
@@ -1381,8 +1381,8 @@ export const revokeStoreIntegrations = async (
     const { appId } = req.params;
     const { storeType, platform } = req.query;
     
-    const isTenantIdMissing = !appId || typeof appId !== 'string';
-    if (isTenantIdMissing) {
+    const isAppIdMissing = !appId || typeof appId !== 'string';
+    if (isAppIdMissing) {
       res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: RESPONSE_STATUS.FAILURE,
         error: ERROR_MESSAGES.APP_ID_REQUIRED,

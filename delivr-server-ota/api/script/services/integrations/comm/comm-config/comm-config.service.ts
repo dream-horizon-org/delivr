@@ -257,12 +257,6 @@ export class CommConfigService {
   }
 
   /**
-   * @deprecated Use listConfigsByApp instead
-   * Kept for backward compatibility
-   */
-  listConfigsByTenant = this.listConfigsByApp;
-
-  /**
    * Update config
    */
   async updateConfig(

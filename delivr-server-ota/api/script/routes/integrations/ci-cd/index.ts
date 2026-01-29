@@ -32,7 +32,7 @@ export function createCICDIntegrationRoutes(storage: Storage): Router {
   // Provider-agnostic workflows CRUD stays here
   router.post(
     "/apps/:appId/integrations/ci-cd/workflows",
-    validateCICD.validateTenantId,
+    validateCICD.validateAppId,
     tenantPermissions.requireEditor({ storage }),
     validateCICD.validateCreateWorkflowBody,
     createWorkflow
@@ -40,28 +40,28 @@ export function createCICDIntegrationRoutes(storage: Storage): Router {
 
   router.get(
     "/apps/:appId/integrations/ci-cd/workflows",
-    validateCICD.validateTenantId,
+    validateCICD.validateAppId,
     tenantPermissions.requireAppMembership({ storage }),
     listWorkflows
   );
 
   router.get(
     "/apps/:appId/integrations/ci-cd/workflows/:workflowId",
-    validateCICD.validateTenantId,
+    validateCICD.validateAppId,
     tenantPermissions.requireAppMembership({ storage }),
     getWorkflowById
   );
 
   router.patch(
     "/apps/:appId/integrations/ci-cd/workflows/:workflowId",
-    validateCICD.validateTenantId,
+    validateCICD.validateAppId,
     tenantPermissions.requireEditor({ storage }),
     updateWorkflow
   );
 
   router.delete(
     "/apps/:appId/integrations/ci-cd/workflows/:workflowId",
-    validateCICD.validateTenantId,
+    validateCICD.validateAppId,
     tenantPermissions.requireEditor({ storage }),
     deleteWorkflow
   );

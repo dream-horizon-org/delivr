@@ -28,7 +28,7 @@ export const getWorkflowAdapter = (provider: CICDProviderType): WorkflowAdapter 
   throw new Error(ERROR_MESSAGES.OPERATION_NOT_SUPPORTED);
 };
 
-export const getIntegrationForTenant = async (appId: string, integrationId: string) => {
+export const getIntegrationForApp = async (appId: string, integrationId: string) => {
   const storage = getStorage();
   const repo = (storage as any).cicdIntegrationRepository as CICDIntegrationRepository;
   const integration = await repo.findById(integrationId);

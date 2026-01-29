@@ -207,11 +207,6 @@ const listConfigsByAppHandler = (service: ReleaseConfigService) =>
     }
   };
 
-/**
- * @deprecated Use listConfigsByAppHandler instead
- * Kept for backward compatibility
- */
-const listConfigsByTenantHandler = listConfigsByAppHandler;
 
 /**
  * Handler: Update config
@@ -350,11 +345,6 @@ export const createReleaseConfigController = (
   createConfig: createConfigHandler(service),
   getConfigById: getConfigByIdHandler(service),
   listConfigsByApp: listConfigsByAppHandler(service),
-  /**
-   * @deprecated Use listConfigsByApp instead
-   * Kept for backward compatibility
-   */
-  listConfigsByTenant: listConfigsByTenantHandler(service),
   updateConfig: updateConfigHandler(service),
   deleteConfig: deleteConfigHandler(service),
   getActivityLogs: getActivityLogsHandler(activityLogService)
