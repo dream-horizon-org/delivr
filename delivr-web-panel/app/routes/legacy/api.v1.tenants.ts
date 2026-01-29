@@ -14,11 +14,11 @@ export const loader = authenticateLoaderRequest(async ({ user }) => {
       return json({ error: 'User not authenticated' }, { status: 401 });
     }
     
-    const { data, status } = await CodepushService.getTenants(user.user.id);
+    const { data, status } = await CodepushService.getApps(user.user.id);
     return json(data, { status });
   } catch (error: any) {
-    console.error('[API-Tenants] Error fetching tenants:', error.message);
-    return json({ error: 'Failed to fetch tenants' }, { status: 500 });
+    console.error('[API-Tenants] Error fetching apps:', error.message);
+    return json({ error: 'Failed to fetch apps' }, { status: 500 });
   }
 });
 
@@ -26,11 +26,6 @@ export const loader = authenticateLoaderRequest(async ({ user }) => {
  * Legacy function name - kept for backward compatibility
  * @deprecated Use createApp instead
  */
-const createOrganization: AuthenticatedActionFunction = async ({ request, user }) => {
-  // Delegate to createApp
-  return createApp({ request, user });
-};
-
 const createApp: AuthenticatedActionFunction = async ({ request, user }) => {
   try {
     console.log("=== CREATE APP REQUEST ===");

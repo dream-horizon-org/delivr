@@ -16,7 +16,7 @@ export const removeAppCollabarator = async ({
     null,
     AxiosResponse<RemoveCollabaratorsResponse>
   >(route("/api/v1/:app/collaborators", { app: appId }), {
-    headers: { email, tenant },
+    headers: { email, app: tenant },
   });
 
   return data;

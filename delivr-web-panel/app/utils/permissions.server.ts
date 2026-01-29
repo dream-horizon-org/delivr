@@ -20,12 +20,18 @@ export const PermissionService = {
   async getTenantRole(appId: string, userId: string): Promise<TenantRoleType> {
     try {
       const response = await CodepushService.getTenants(userId);
-      if (!response.data) {
+      if (!response?.data) {
         console.warn('[PermissionService] Failed to fetch tenants from service');
         return null;
       }
-      
-      const org = response.data.organisations.find((o) => o.id === appId);
+
+      // Backend may return { data: { apps, organisations } } or { organisations }
+      const payload = response.data?.data ?? response.data;
+      const apps = Array.isArray(payload?.apps) ? payload.apps : [];
+      const orgs = Array.isArray(payload?.organisations) ? payload.organisations : [];
+      const list = [...apps, ...orgs];
+
+      const org = list.find((o: { id: string }) => o.id === appId);
       if (!org) {
         console.warn(`[PermissionService] Organization ${appId} not found`);
         return null;

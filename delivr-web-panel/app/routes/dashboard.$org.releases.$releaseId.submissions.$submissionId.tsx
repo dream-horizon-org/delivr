@@ -36,8 +36,8 @@ import { useCallback, useState } from 'react';
 import type { User } from '~/.server/services/Auth/auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import { Breadcrumb } from '~/components/Common';
-import { CancelSubmissionDialog } from '~/components/Distribution/CancelSubmissionDialog';
-import { ResubmissionDialog } from '~/components/Distribution/ReSubmissionDialog';
+import { CancelSubmissionDialog } from '~/components/distribution/CancelSubmissionDialog';
+import { ResubmissionDialog } from '~/components/distribution/ReSubmissionDialog';
 import { getBreadcrumbItems } from '~/constants/breadcrumbs';
 import { SUBMISSION_STATUS_LABELS } from '~/constants/distribution/distribution.constants';
 import {

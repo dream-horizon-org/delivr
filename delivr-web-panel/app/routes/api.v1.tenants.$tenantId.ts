@@ -29,7 +29,7 @@ const getTenantInfo: AuthenticatedLoaderFunction = async ({ params, user }) => {
     console.log(`[BFF-TenantInfo] Fetching tenant info for: ${appId}, userId: ${user.user.id}`);
     
     // Fetch base tenant info
-    const response = await CodepushService.getTenantInfo({
+    const response = await CodepushService.getAppInfo({
       userId: user.user.id,
       appId,
     });

@@ -77,7 +77,6 @@ export const loader = authenticateLoaderRequest(async ({ request, params, user }
       user,
       initialAppConfig,
       // Legacy fields for backward compatibility
-      appId: appId,
       organisation: result.data?.organisation || result.data?.app, // Use app if organisation not present
       initialTenantConfig: initialAppConfig,
     }, {
@@ -100,7 +99,6 @@ export type AppLayoutLoaderData = {
   user: any;
   initialAppConfig: TenantConfig | null;
   // Legacy fields for backward compatibility
-  appId: string;
   organisation: App | undefined;
   initialTenantConfig: TenantConfig | null;
 };

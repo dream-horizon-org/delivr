@@ -144,7 +144,7 @@ class Codepush {
   }
 
   async getDeployentsForApp(data: DeploymentsRequest) {
-    const headers: DeploymentsRequest = data;
+    const headers = { ...data, app: data.tenant, tenant: data.tenant };
 
     return this.__client.get<null, AxiosResponse<DeploymentsResponse>>(
       `/apps/${encodeURIComponent(data.appId)}/deployments`,
@@ -155,7 +155,7 @@ class Codepush {
   }
 
   async deleteDeployentsForApp(data: DeleteDeploymentsRequest) {
-    const headers: DeleteDeploymentsRequest = data;
+    const headers = { ...data, app: data.tenant, tenant: data.tenant };
 
     return this.__client.delete<null, AxiosResponse<DeleteDeploymentsResponse>>(
       `/apps/${encodeURIComponent(data.appId)}/deployments/${encodeURIComponent(
@@ -168,7 +168,7 @@ class Codepush {
   }
 
   async getCollaboratorForApp(data: CollabaratorsRequest) {
-    const headers: CollabaratorsRequest = data;
+    const headers = { ...data, app: data.tenant, tenant: data.tenant };
 
     return this.__client.get<null, AxiosResponse<CollabaratorsResponse>>(
       `/apps/${encodeURIComponent(data.appId)}/collaborators`,
@@ -190,7 +190,7 @@ class Codepush {
   }
 
   async addCollaboratorForApp(data: AddCollabaratorsRequest) {
-    const headers: AddCollabaratorsRequest = data;
+    const headers = { ...data, app: data.tenant, tenant: data.tenant };
 
     return this.__client.post<null, AxiosResponse<AddCollabaratorsResponse>>(
       `/apps/${encodeURIComponent(
@@ -204,7 +204,7 @@ class Codepush {
   }
 
   async removeCollaboratorForApp(data: RemoveCollabaratorsRequest) {
-    const headers: RemoveCollabaratorsRequest = data;
+    const headers = { ...data, app: data.tenant, tenant: data.tenant };
 
     return this.__client.delete<
       null,
@@ -220,7 +220,7 @@ class Codepush {
   }
 
   async updateCollaboratorPermissionForApp(data: UpdateCollabaratorsRequest) {
-    const headers: UpdateCollabaratorsRequest = data;
+    const headers = { ...data, app: data.tenant, tenant: data.tenant };
 
     return this.__client.patch<
       null,
@@ -239,7 +239,7 @@ class Codepush {
   }
 
   async createDeployentsForApp(data: CreateDeploymentsRequest) {
-    const headers: CreateDeploymentsRequest = data;
+    const headers = { ...data, app: data.tenant, tenant: data.tenant };
 
     return this.__client.post<null, AxiosResponse<CreateDeploymentsResponse>>(
       `/apps/${encodeURIComponent(data.appId)}/deployments`,
@@ -253,7 +253,7 @@ class Codepush {
   }
 
   async getReleasesForDeployentsForApp(data: DeploymentsReleaseRequest) {
-    const headers: DeploymentsReleaseRequest = data;
+    const headers = { ...data, app: data.tenant, tenant: data.tenant };
 
     return this.__client.get<null, AxiosResponse<DeploymentsReleaseResponse>>(
       `/apps/${encodeURIComponent(data.appId)}/deployments/${encodeURIComponent(
@@ -266,8 +266,7 @@ class Codepush {
   }
 
   async updateReleaseForDeployentForApp(data: UpdateDeploymentsReleaseRequest) {
-    const headers: Pick<UpdateDeploymentsReleaseRequest, "tenant" | "userId"> =
-      data;
+    const headers = { userId: data.userId, app: data.tenant, tenant: data.tenant };
     const body: UpdatePackageRequest = { ...data };
 
     return this.__client.patch<null, AxiosResponse<DeploymentsReleaseResponse>>(
@@ -321,10 +320,7 @@ class Codepush {
   }
 
   async promoteReleaseFromDeployment(data: PromoteReleaseToDeploymentRequest) {
-    const headers: Pick<
-      PromoteReleaseToDeploymentRequest,
-      "userId" | "tenant"
-    > = data;
+    const headers = { userId: data.userId, app: data.tenant, tenant: data.tenant };
 
     return this.__client.post<
       null,
@@ -357,6 +353,7 @@ class Codepush {
 
     const headers = {
       "userId": data.userId,
+      "app": data.tenant,
       "tenant": data.tenant,
       "Accept": "application/vnd.code-push.v1+json",
     };
@@ -518,12 +515,14 @@ class Codepush {
    * Get app info with release management setup status
    */
   async getAppInfo(data: TenantInfoRequest) {
-    const headers: Pick<TenantInfoRequest, "userId"> = {
+    const headers: TenantInfoRequest & { app?: string } = {
       userId: data.userId,
+      appId: data.appId,
+      app: data.appId,
     };
-    
+
     return this.__client.get<TenantInfoResponse>(
-      `/apps/${data.appId}`, // appId is actually appId now
+      `/apps/${data.appId}`,
       { headers }
     );
   }

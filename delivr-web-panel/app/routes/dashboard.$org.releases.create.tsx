@@ -33,11 +33,10 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
   if (!appId) {
     throw new Response('App not found', { status: 404 });
   }
-  console.log('create release page loader', appId, user);
 
   // Check if user is editor or owner - only editors/owners can create releases
   try {
-    const isEditor = await PermissionService.isAppEditor(appId, user.user.id);
+    const isEditor = await PermissionService.isTenantEditor(appId, user.user.id);
     if (!isEditor) {
       throw redirect(`/dashboard/${appId}/releases`);
     }
@@ -51,7 +50,6 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
 
   return json({
     appId,
-    org: appId, // Legacy field for backward compatibility
     user,
     returnTo,
   });
@@ -59,14 +57,12 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
 
 export default function CreateReleasePage() {
   const loaderData = useLoaderData<typeof loader>();
-  console.log('create release page', loaderData);
-  const appId = (loaderData as { appId?: string; org?: string }).appId || (loaderData as { org: string }).org; // Support both new and legacy
-  const userId = ((loaderData as { user?: { id: string } }).user?.id) || '';
+  const appId = (loaderData as { appId?: string }).appId ?? '';
+  const userId = ((loaderData as { user?: { id: string } }).user?.id) ?? '';
   const { activeReleaseConfigs } = useConfig();
   const hasConfigurations = activeReleaseConfigs.length > 0;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  console.log('create release page', appId, userId, hasConfigurations);
 
   // Handle form submission - use BFF route (same pattern as release-config and integrations)
   const handleSubmit = async (backendRequest: CreateReleaseBackendRequest): Promise<void> => {
@@ -110,8 +106,8 @@ export default function CreateReleasePage() {
     navigate(`/dashboard/${appId}/releases/configure?returnTo=create`);
   };
 
-  // Breadcrumb items
-  const breadcrumbItems = getBreadcrumbItems('releases.create', { org });
+  // Breadcrumb items (breadcrumbs API expects key "org" for URL segment)
+  const breadcrumbItems = getBreadcrumbItems('releases.create', { org: appId });
 
   // If no configurations exist, show banner to create one
   if (!hasConfigurations) {
@@ -120,7 +116,7 @@ export default function CreateReleasePage() {
         <Container size="xl">
           <Stack gap="md">
             <Breadcrumb items={breadcrumbItems} />
-            <NoConfigurationAlert org={org} onCreateConfig={handleCreateNewConfig} />
+            <NoConfigurationAlert org={appId} onCreateConfig={handleCreateNewConfig} />
           </Stack>
         </Container>
       </div>
@@ -138,7 +134,7 @@ export default function CreateReleasePage() {
               description="Fill in the form below to create a new release"
             />
 
-            <CreateReleaseForm org={org} userId={userId} onSubmit={handleSubmit} />
+            <CreateReleaseForm org={appId} userId={userId} onSubmit={handleSubmit} />
           </Paper>
         </Stack>
       </Container>
