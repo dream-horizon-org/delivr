@@ -6,7 +6,7 @@
 import type { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
 import type { AppService } from '~services/app/app.service';
-import type { CreateAppRequest, UpdateAppRequest } from '~types/app.types';
+import type { UpdateAppRequest } from '~types/app.types';
 import {
   errorResponse,
   getErrorStatusCode,
@@ -85,15 +85,28 @@ const createAppHandler = (appService: AppService, storage: any) =>
 /**
  * Get app by ID
  * GET /apps/:appId
+ * Tries App table first; if not found, falls back to getOrgApps (legacy tenant id) so
+ * both new App records and legacy org/tenant ids resolve.
  */
-const getAppHandler = (appService: AppService) =>
+const getAppHandler = (appService: AppService, storage: any) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { appId } = req.params;
-      // For now, orgId is null (will be set when Organizations are implemented)
+      const accountId = (req as AuthenticatedRequest).user?.id;
       const orgId = null; // TODO: Get from request context when Organizations are implemented
 
       const app = await appService.getApp(orgId || '', appId);
+
+      if (!app && accountId && storage?.getOrgApps) {
+        const orgApps = await storage.getOrgApps(accountId);
+        const tenant = orgApps?.find((t: { id: string }) => t.id === appId);
+        if (tenant) {
+          res.status(HTTP_STATUS.OK).json(
+            successResponse({ organisation: tenant })
+          );
+          return;
+        }
+      }
 
       if (!app) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
@@ -231,7 +244,7 @@ export const createAppController = (
   storage: any
 ) => ({
   createApp: createAppHandler(appService, storage),
-  getApp: getAppHandler(appService),
+  getApp: getAppHandler(appService, storage),
   listApps: listAppsHandler(appService, storage),
   updateApp: updateAppHandler(appService),
   deleteApp: deleteAppHandler(appService, storage)

@@ -3060,7 +3060,7 @@ export class S3Storage implements storage.Storage {
     private async getCollabrators(app:storage.App, accountId: string) {
       // Updated: Query app-level collaborators (appId is now the primary FK)
       // For DOTA apps: Query by appId (which references the new App entity) or by DOTA app id
-      const appIdForQuery = (app as any).appId || app.tenantId; // Support both for transition
+      const appIdForQuery = (app as any).appId || (app as any).tenantId; // Support both for transition
       
       const collabModel = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
         where: { 
