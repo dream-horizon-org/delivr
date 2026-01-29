@@ -1,7 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
-import { ERROR_MESSAGES } from '../controllers/integrations/ci-cd/constants';
+import { ERROR_MESSAGES, PROVIDER_DEFAULTS } from '../controllers/integrations/ci-cd/constants';
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
+import * as yup from 'yup';
 
 /**
  * CI/CD validation middleware
@@ -11,12 +12,217 @@ import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface
  * - Returns early with an HTTP 400 and domain-specific error message
  * - Delegates provider-specific validation where applicable
  */
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
 const isNonEmptyString = (value: unknown): value is string => {
   const isString = typeof value === 'string';
   const trimmed = isString ? value.trim() : '';
   const isNonEmpty = trimmed.length > 0;
   return isString && isNonEmpty;
 };
+
+// ============================================================================
+// YUP VALIDATION SCHEMAS
+// ============================================================================
+
+/**
+ * Generic Yup validation helper
+ * Validates data against schema and returns formatted errors
+ * @param includeVerifiedField - Whether to include "verified" field in error response (true for verify operations only)
+ */
+async function validateWithYup<T>(
+  schema: yup.Schema<T>,
+  data: unknown,
+  res: Response,
+  includeVerifiedField: boolean = false
+): Promise<T | null> {
+  try {
+    const validated = await schema.validate(data, {
+      abortEarly: false,
+      stripUnknown: true
+    });
+    return validated;
+  } catch (error) {
+    if (error instanceof yup.ValidationError) {
+      const errorsByField = new Map<string, string[]>();
+      error.inner.forEach((err) => {
+        const field = err.path || 'unknown';
+        if (!errorsByField.has(field)) {
+          errorsByField.set(field, []);
+        }
+        errorsByField.get(field)!.push(err.message);
+      });
+      const details = Array.from(errorsByField.entries()).map(([field, messages]) => ({
+        field,
+        messages
+      }));
+      
+      const errorResponse: any = {
+        success: false,
+        error: 'Request validation failed',
+        details: details
+      };
+      
+      if (includeVerifiedField) {
+        errorResponse.verified = false;
+      }
+      
+      res.status(HTTP_STATUS.BAD_REQUEST).json(errorResponse);
+      return null;
+    }
+    
+    const errorResponse: any = {
+      success: false,
+      error: 'Validation error occurred',
+      details: []
+    };
+    
+    if (includeVerifiedField) {
+      errorResponse.verified = false;
+    }
+    
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(errorResponse);
+    return null;
+  }
+}
+
+/**
+ * Jenkins config fields schema (reusable for CREATE and UPDATE)
+ */
+const jenkinsConfigFieldsSchema = yup.object({
+  hostUrl: yup
+    .string()
+    .trim()
+    .required('Host URL is required')
+    .url('Host URL must be a valid URL (e.g., https://jenkins.example.com)'),
+  username: yup
+    .string()
+    .trim()
+    .required('Username is required'),
+  apiToken: yup
+    .string()
+    .trim()
+    .required('API Token is required'),
+  useCrumb: yup
+    .boolean()
+    .optional()
+    .default(true),
+  crumbPath: yup
+    .string()
+    .trim()
+    .optional()
+    .default(PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH),
+  displayName: yup
+    .string()
+    .trim()
+    .optional(),
+  _encrypted: yup.boolean().optional()
+});
+
+/**
+ * Yup schema for Jenkins verification
+ */
+const jenkinsVerifySchema = jenkinsConfigFieldsSchema.pick([
+  'hostUrl',
+  'username',
+  'apiToken',
+  'useCrumb',
+  'crumbPath',
+  '_encrypted'
+]);
+
+/**
+ * Yup schema for Jenkins CREATE
+ */
+const jenkinsCreateSchema = jenkinsConfigFieldsSchema;
+
+/**
+ * Yup schema for Jenkins UPDATE (all fields optional but validated if present)
+ */
+const jenkinsUpdateSchema = yup.object({
+  hostUrl: yup
+    .string()
+    .trim()
+    .optional()
+    .min(1, 'Host URL cannot be empty if provided')
+    .url('Host URL must be a valid URL (e.g., https://jenkins.example.com)'),
+  username: yup
+    .string()
+    .trim()
+    .optional()
+    .min(1, 'Username cannot be empty if provided'),
+  apiToken: yup
+    .string()
+    .trim()
+    .optional()
+    .min(1, 'API Token cannot be empty if provided'),
+  useCrumb: yup
+    .boolean()
+    .optional(),
+  crumbPath: yup
+    .string()
+    .trim()
+    .optional()
+    .min(1, 'Crumb path cannot be empty if provided'),
+  displayName: yup
+    .string()
+    .trim()
+    .optional()
+    .min(1, 'Display name cannot be empty if provided'),
+  _encrypted: yup.boolean().optional()
+});
+
+/**
+ * GitHub Actions config fields schema (reusable for CREATE and UPDATE)
+ */
+const githubActionsConfigFieldsSchema = yup.object({
+  apiToken: yup
+    .string()
+    .trim()
+    .required('API Token is required'),
+  displayName: yup
+    .string()
+    .trim()
+    .optional(),
+  _encrypted: yup.boolean().optional()
+});
+
+/**
+ * Yup schema for GitHub Actions verification
+ */
+const githubActionsVerifySchema = githubActionsConfigFieldsSchema.pick([
+  'apiToken',
+  '_encrypted'
+]);
+
+/**
+ * Yup schema for GitHub Actions CREATE
+ */
+const githubActionsCreateSchema = githubActionsConfigFieldsSchema;
+
+/**
+ * Yup schema for GitHub Actions UPDATE (all fields optional but validated if present)
+ */
+const githubActionsUpdateSchema = yup.object({
+  apiToken: yup
+    .string()
+    .trim()
+    .optional()
+    .min(1, 'API Token cannot be empty if provided'),
+  displayName: yup
+    .string()
+    .trim()
+    .optional()
+    .min(1, 'Display name cannot be empty if provided'),
+  _encrypted: yup.boolean().optional()
+});
+
+// ============================================================================
+// COMMON VALIDATORS
+// ============================================================================
 
 /**
  * Validate presence of :tenantId path parameter.
@@ -34,17 +240,16 @@ export const validateTenantId = (req: Request, res: Response, next: NextFunction
 /**
  * Jenkins verify body: hostUrl, username and apiToken must be present.
  */
-export const validateJenkinsVerifyBody = (req: Request, res: Response, next: NextFunction): void => {
-  const { hostUrl, username, apiToken } = req.body || {};
-  const isHostInvalid = !isNonEmptyString(hostUrl);
-  const isUsernameInvalid = !isNonEmptyString(username);
-  const isTokenInvalid = !isNonEmptyString(apiToken);
-  const hasInvalid = isHostInvalid || isUsernameInvalid || isTokenInvalid;
-  if (hasInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ verified: false, message: ERROR_MESSAGES.JENKINS_VERIFY_REQUIRED });
-    return;
+export const validateJenkinsVerifyBody = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const validated = await validateWithYup(jenkinsVerifySchema, req.body, res, true);
+  if (validated) {
+    req.body = validated;  // ✅ Replace with trimmed values
+    next();
   }
-  next();
 };
 
 /**
@@ -89,17 +294,16 @@ export const validateJenkinsQueueQuery = (req: Request, res: Response, next: Nex
 /**
  * Jenkins create body: hostUrl, username and apiToken must be present.
  */
-export const validateCreateJenkinsBody = (req: Request, res: Response, next: NextFunction): void => {
-  const { hostUrl, username, apiToken } = req.body || {};
-  const isHostInvalid = !isNonEmptyString(hostUrl);
-  const isUsernameInvalid = !isNonEmptyString(username);
-  const isTokenInvalid = !isNonEmptyString(apiToken);
-  const hasInvalid = isHostInvalid || isUsernameInvalid || isTokenInvalid;
-  if (hasInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.JENKINS_CREATE_REQUIRED });
-    return;
+export const validateCreateJenkinsBody = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const validated = await validateWithYup(jenkinsCreateSchema, req.body, res, false);
+  if (validated) {
+    req.body = validated;  // ✅ Replace with trimmed values
+    next();
   }
-  next();
 };
 
 /**
@@ -118,29 +322,63 @@ export const validateCreateWorkflowBody = (req: Request, res: Response, next: Ne
 };
 
 /**
+ * Jenkins update body: validates fields if present.
+ */
+export const validateUpdateJenkinsBody = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const validated = await validateWithYup(jenkinsUpdateSchema, req.body, res, false);
+  if (validated) {
+    req.body = validated;  // ✅ Replace with trimmed values
+    next();
+  }
+};
+
+/**
  * GitHub Actions verify body: apiToken must be present.
  */
-export const validateGHAVerifyBody = (req: Request, res: Response, next: NextFunction): void => {
-  const { apiToken } = req.body || {};
-  const tokenInvalid = !isNonEmptyString(apiToken);
-  if (tokenInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ verified: false, message: ERROR_MESSAGES.MISSING_TOKEN_AND_SCM });
-    return;
+export const validateGHAVerifyBody = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const validated = await validateWithYup(githubActionsVerifySchema, req.body, res, true);
+  if (validated) {
+    req.body = validated;  // ✅ Replace with trimmed values
+    next();
   }
-  next();
 };
 
 /**
  * GitHub Actions create body: apiToken must be present.
  */
-export const validateCreateGHABody = (req: Request, res: Response, next: NextFunction): void => {
-  const { apiToken } = req.body || {};
-  const tokenInvalid = !isNonEmptyString(apiToken);
-  if (tokenInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.GHA_CREATE_REQUIRED });
-    return;
+export const validateCreateGHABody = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const validated = await validateWithYup(githubActionsCreateSchema, req.body, res, false);
+  if (validated) {
+    req.body = validated;  // ✅ Replace with trimmed values
+    next();
   }
-  next();
+};
+
+/**
+ * GitHub Actions update body: validates fields if present.
+ */
+export const validateUpdateGHABody = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const validated = await validateWithYup(githubActionsUpdateSchema, req.body, res, false);
+  if (validated) {
+    req.body = validated;  // ✅ Replace with trimmed values
+    next();
+  }
 };
 
 /**
@@ -163,7 +401,7 @@ export const validateProviderTypeParam = (req: Request, res: Response, next: Nex
 /**
  * Validate verify body for the resolved provider.
  */
-export const validateConnectionVerifyBody = (req: Request, res: Response, next: NextFunction): void => {
+export const validateConnectionVerifyBody = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const raw = String(req.params.providerType || '');
   const providerKey = raw.toUpperCase().replace('-', '_') as keyof typeof CICDProviderType;
   const provider = CICDProviderType[providerKey] as CICDProviderType | undefined;
@@ -181,7 +419,7 @@ export const validateConnectionVerifyBody = (req: Request, res: Response, next: 
 /**
  * Validate create body for the resolved provider.
  */
-export const validateConnectionCreateBody = (req: Request, res: Response, next: NextFunction): void => {
+export const validateConnectionCreateBody = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const raw = String(req.params.providerType || '');
   const providerKey = raw.toUpperCase().replace('-', '_') as keyof typeof CICDProviderType;
   const provider = CICDProviderType[providerKey] as CICDProviderType | undefined;
@@ -194,6 +432,18 @@ export const validateConnectionCreateBody = (req: Request, res: Response, next: 
     return validateCreateGHABody(req, res, next);
   }
   res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED });
+};
+
+/**
+ * Validate update body for the resolved provider (from database, not params).
+ * This requires reading the integration from DB first to determine the provider.
+ * For now, we'll create provider-specific update validators and call them based on integration lookup.
+ */
+export const validateConnectionUpdateBody = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  // For update, we don't have providerType in params, it's determined by integrationId
+  // The controller will handle provider-specific validation after fetching the integration
+  // For now, just pass through - validation will be done in controller based on provider
+  next();
 };
 
 /**

@@ -15,7 +15,7 @@ type CreateInput = {
 };
 
 export class JenkinsConnectionService extends ConnectionService<CreateInput> {
-  verifyConnection = async (params: JenkinsVerifyParams): Promise<{ isValid: boolean; message: string }> => {
+  verifyConnection = async (params: JenkinsVerifyParams): Promise<{ isValid: boolean; message: string; details?: any }> => {
     const provider = await ProviderFactory.getProvider(CICDProviderType.JENKINS);
     const jenkins = provider as JenkinsProviderContract;
     return jenkins.verifyConnection(params);
@@ -48,6 +48,12 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
       crumbPath
     });
 
+    if (!verify.isValid) {
+      const error: any = new Error(verify.message);
+      error.details = verify.details;
+      throw error;
+    }
+
     // Store the ORIGINAL (encrypted) token in database
     const createData: CreateCICDIntegrationDto & { id: string } = {
       id: shortid.generate(),
@@ -60,9 +66,9 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
       apiToken: input.apiToken, // Store encrypted value
       providerConfig: { useCrumb, crumbPath } as any,
       createdByAccountId: accountId,
-      verificationStatus: verify.isValid ? VerificationStatus.VALID : VerificationStatus.INVALID,
+      verificationStatus: VerificationStatus.VALID,
       lastVerifiedAt: new Date(),
-      verificationError: verify.isValid ? null : verify.message
+      verificationError: null
     };
     const created = await this.repository.create(createData);
     return this.toSafe(created);
@@ -90,6 +96,8 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
     const tokenToUse = updateData.apiToken ?? storedToken;
     const tokenMissing = !tokenToUse;
 
+    let verify: { isValid: boolean; message: string; details?: any } | undefined;
+    
     if (tokenMissing) {
       updateData.verificationStatus = VerificationStatus.INVALID;
       updateData.lastVerifiedAt = new Date();
@@ -111,7 +119,7 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
       }
       
       if (decryptedToken) {
-        const verify = await this.verifyConnection({
+        verify = await this.verifyConnection({
           hostUrl: hostUrlToUse,
           username: usernameToUse,
           apiToken: decryptedToken,
@@ -139,7 +147,10 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
     const wasInvalid = updateData.verificationStatus === VerificationStatus.INVALID;
     if (wasInvalid) {
       const errorMessage = updateData.verificationError ?? ERROR_MESSAGES.JENKINS_VERIFY_FAILED;
-      throw new Error(errorMessage);
+      const error: any = new Error(errorMessage);
+      // Try to attach details if available (from verification result)
+      error.details = verify?.details;
+      throw error;
     }
     return this.toSafe(updated as any);
   };

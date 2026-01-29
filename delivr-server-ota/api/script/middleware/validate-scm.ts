@@ -131,6 +131,8 @@ const githubUpdateSchema = yup.object({
   owner: yup
     .string()
     .trim()
+    .optional()
+    .min(1, 'GitHub owner cannot be empty if provided')
     .max(39, 'GitHub owner cannot exceed 39 characters')
     .test(
       'valid-github-owner',
@@ -139,30 +141,33 @@ const githubUpdateSchema = yup.object({
         if (!value) return true; // Skip validation if empty
         return /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(value);
       }
-    )
-    .optional(),
+    ),
   
   repo: yup
     .string()
     .trim()
-    .max(100, 'Repository name cannot exceed 100 characters')
-    .optional(),
+    .optional()
+    .min(1, 'Repository name cannot be empty if provided')
+    .max(100, 'Repository name cannot exceed 100 characters'),
   
   accessToken: yup
     .string()
     .trim()
-    .optional(),
+    .optional()
+    .min(1, 'Access token cannot be empty if provided'),
   
   displayName: yup
     .string()
     .trim()
-    .optional(),
+    .optional()
+    .min(1, 'Display name cannot be empty if provided'),
   
   defaultBranch: yup
     .string()
     .trim()
-    .max(100, 'Default branch cannot exceed 100 characters')
-    .optional(),
+    .optional()
+    .min(1, 'Default branch cannot be empty if provided')
+    .max(100, 'Default branch cannot exceed 100 characters'),
   
   webhookEnabled: yup
     .boolean()
@@ -243,7 +248,7 @@ async function validateWithYup<T>(
       res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: false,
         verified: false,
-        message: "Request validation failed", // Generic message for top-level
+        error: "Request validation failed", // Generic error for top-level
         details: details // Specific field errors for frontend to parse
       });
       return null;
@@ -251,7 +256,7 @@ async function validateWithYup<T>(
     
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: 'Validation error occurred',
+      error: 'Validation error occurred',
       details: []
     });
     return null;
@@ -301,7 +306,7 @@ export const validateCreateGitHubBody = async (
   const validated = await validateWithYup(githubCreateSchema, req.body, res);
   if (validated) {
     req.body = validated;  // ✅ Replace with trimmed values
-    next();
+  next();
   }
 };
 

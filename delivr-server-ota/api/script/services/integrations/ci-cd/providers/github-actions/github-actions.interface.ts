@@ -13,6 +13,7 @@ export type GHAVerifyParams = {
 export type GHAVerifyResult = {
   isValid: boolean;
   message: string;
+  details?: any;
 };
 
 export type GHAWorkflowInputsParams = {

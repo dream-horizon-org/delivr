@@ -62,6 +62,7 @@ export type VerifyTenantTestManagementIntegrationResult = {
   status: VerificationStatus;
   message: string;
   error?: string;
+  details?: any;
 };
 
 // Query filters

@@ -47,21 +47,35 @@ export class JiraProvider implements IProjectManagementProvider {
 
   /**
    * Validate JIRA configuration
+   * Returns detailed verification result with error information
    */
-  async validateConfig(config: ProjectManagementIntegrationConfig): Promise<boolean> {
+  async validateConfig(
+    config: ProjectManagementIntegrationConfig
+  ): Promise<{ isValid: boolean; message: string; details?: any }> {
     try {
       if (!this.isJiraConfig(config)) {
-        return false;
+        return {
+          isValid: false,
+          message: 'Invalid Jira configuration structure'
+        };
       }
 
       // Decrypt apiToken before validation (may be encrypted from frontend)
       const decryptedConfig = this.getJiraConfig(config);
       const client = new JiraClient(decryptedConfig);
-      await client.testConnection();
-      return true;
+      const result = await client.testConnection();
+      
+      return {
+        isValid: result.success,
+        message: result.message,
+        details: result.details
+      };
     } catch (error) {
       console.error('JIRA config validation failed:', error);
-      return false;
+      return {
+        isValid: false,
+        message: error instanceof Error ? error.message : 'Failed to validate Jira configuration'
+      };
     }
   }
 

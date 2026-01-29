@@ -70,13 +70,6 @@ export async function verifyGitHubConnection(
 ): Promise<any> {
   const { owner, repo, accessToken, _encrypted } = req.body;
 
-  if (!owner || !repo || !accessToken) {
-    return res.status(400).json({
-      success: false,
-      error: "owner, repo, and accessToken are required"
-    });
-  }
-
   try {
     // Decrypt accessToken if encrypted (frontend sends encrypted values)
     const decryptedToken = _encrypted 
@@ -90,7 +83,7 @@ export async function verifyGitHubConnection(
       return res.status(400).json({
         success: false,
         verified: false,
-        message: verificationResult.message,
+        error: verificationResult.message,
         details: verificationResult.details
       });
     }
@@ -107,8 +100,8 @@ export async function verifyGitHubConnection(
     return res.status(400).json({
       success: false,
       verified: false,
-      message: error.message || "Failed to verify connection",
-      details: { error: error.message }
+      error: error.message || "Failed to verify connection",
+      details: { message : error.message }
     });
   }
 }
@@ -136,12 +129,6 @@ export async function createGitHubConnection(
     _encrypted
   } = req.body;
 
-  if (!owner || !repo || !accessToken) {
-    return res.status(400).json({
-      success: false,
-      error: "owner, repo, and accessToken are required"
-    });
-  }
   // Verify credentials before saving
   const decryptedToken = _encrypted 
   ? decryptIfEncrypted(accessToken, 'accessToken')
@@ -153,7 +140,7 @@ export async function createGitHubConnection(
   return res.status(400).json({
     success: false,
     verified: false,
-    message: verificationResult.message,
+    error: verificationResult.message,
     details: verificationResult.details
   });
   }
@@ -224,7 +211,8 @@ export async function createGitHubConnection(
     console.error(`[GitHub] Error saving integration:`, error.message);
     return res.status(500).json({
       success: false,
-      error: error.message || "Failed to save GitHub integration"
+      error: "Failed to save GitHub integration",
+      details: { message: error.message },
     });
   }
 }
@@ -246,7 +234,7 @@ export async function getGitHubConnection(
     if (!integration || integration.scmType !== 'GITHUB') {
       return res.status(404).json({
         success: false,
-        error: "No GitHub integration found for this tenant"
+        error: "No GitHub integration found for this tenant",
       });
     }
 
@@ -258,7 +246,8 @@ export async function getGitHubConnection(
     console.error(`[GitHub] Error fetching integration:`, error.message);
     return res.status(500).json({
       success: false,
-      error: error.message || "Failed to fetch GitHub integration"
+      error: "Failed to fetch GitHub integration",
+      details: { message: error.message  },
     });
   }
 }
@@ -310,9 +299,9 @@ export async function updateGitHubConnection(
 
       if (!verificationResult.isValid) {
         return res.status(400).json({
-          success: false, 
+          success: false,
           verified: false,
-          message: verificationResult.message,
+          error: verificationResult.message,
           details: verificationResult.details
         });
       }
@@ -341,7 +330,8 @@ export async function updateGitHubConnection(
     console.error(`[GitHub] Error updating integration:`, error.message);
     return res.status(500).json({
       success: false,
-      error: error.message || "Failed to update GitHub integration"
+      error: "Failed to update GitHub integration",
+      details: { message: error.message },
     });
   }
 }
@@ -363,7 +353,7 @@ export async function deleteGitHubConnection(
     if (!existing || existing.scmType !== 'GITHUB') {
       return res.status(404).json({
         success: false,
-        error: "No GitHub integration found for this tenant"
+        error: "No GitHub integration found for this tenant",
       });
     }
 
@@ -377,7 +367,8 @@ export async function deleteGitHubConnection(
     console.error(`[GitHub] Error deleting integration:`, error.message);
     return res.status(500).json({
       success: false,
-      error: error.message || "Failed to delete GitHub integration"
+      error: "Failed to delete GitHub integration",
+      details: { message: error.message },
     });
   }
 }
@@ -427,7 +418,8 @@ export async function fetchGitHubBranches(
     console.error(`[GitHub] Error fetching branches:`, error.message);
     return res.status(500).json({
       success: false,
-      error: error.message || "Failed to fetch branches"
+      error: "Failed to fetch branches",
+      details: { message: error.message },
     });
   }
 }
@@ -461,7 +453,7 @@ async function verifyGitHub(
       return {
         isValid: false,
         message: `Invalid GitHub token: ${userResponse.status} ${userResponse.statusText}`,
-        details: { error: errorText }
+        details: { message: errorText },
       };
     }
 
@@ -490,7 +482,7 @@ async function verifyGitHub(
       return {
         isValid: false,
         message: `Failed to access repository: ${repoResponse.status} ${repoResponse.statusText}`,
-        details: { error: errorText }
+        details: { message: errorText },
       };
     }
 
@@ -501,7 +493,7 @@ async function verifyGitHub(
       return {
         isValid: false,
         message: 'Token does not have sufficient permissions for this repository',
-        details: { permissions }
+        details: { permissions },
       };
     }
 
@@ -521,7 +513,7 @@ async function verifyGitHub(
     return {
       isValid: false,
       message: `Connection failed: ${error.message}`,
-      details: { error: error.message }
+      details: { message: error.message },
     };
   }
 }

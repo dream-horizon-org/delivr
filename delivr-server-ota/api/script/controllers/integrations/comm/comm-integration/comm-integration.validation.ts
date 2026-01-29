@@ -3,67 +3,156 @@
  * Input validation for integration endpoints
  */
 
+import * as yup from 'yup';
+import type { Response } from 'express';
+import { HTTP_STATUS } from '~constants/http';
+
+/* ==================== YUP VALIDATION SCHEMAS ==================== */
+
 /**
- * Validate bot token format
+ * Generic Yup validation helper
+ * Validates data against schema and returns formatted errors
+ * @param includeVerifiedField - Whether to include "verified" field in error response (true for verify operations only)
  */
-export const validateBotToken = (botToken: unknown): string | null => {
-  if (!botToken) {
-    return 'Bot token is required';
+async function validateWithYup<T>(
+  schema: yup.Schema<T>,
+  data: unknown,
+  res: Response,
+  includeVerifiedField: boolean = false
+): Promise<T | null> {
+  try {
+    const validated = await schema.validate(data, {
+      abortEarly: false,
+      stripUnknown: true
+    });
+    return validated;
+  } catch (error) {
+    if (error instanceof yup.ValidationError) {
+      const errorsByField = new Map<string, string[]>();
+      error.inner.forEach((err) => {
+        const field = err.path || 'unknown';
+        if (!errorsByField.has(field)) {
+          errorsByField.set(field, []);
+        }
+        errorsByField.get(field)!.push(err.message);
+      });
+      const details = Array.from(errorsByField.entries()).map(([field, messages]) => ({
+        field,
+        messages
+      }));
+      
+      const errorResponse: any = {
+        success: false,
+        error: 'Request validation failed',
+        details: details
+      };
+      
+      if (includeVerifiedField) {
+        errorResponse.verified = false;
+      }
+      
+      res.status(HTTP_STATUS.BAD_REQUEST).json(errorResponse);
+      return null;
+    }
+    
+    const errorResponse: any = {
+      success: false,
+      error: 'Validation error occurred',
+      details: []
+    };
+    
+    if (includeVerifiedField) {
+      errorResponse.verified = false;
+    }
+    
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(errorResponse);
+    return null;
   }
+}
 
-  if (typeof botToken !== 'string') {
-    return 'Bot token must be a string';
-  }
+/**
+ * Yup schema for Slack verification (stateless verify)
+ */
+const slackVerifySchema = yup.object({
+  botToken: yup
+    .string()
+    .trim()
+    .required('Bot token is required'),
+  _encrypted: yup.boolean().optional()
+});
 
-  if (!botToken.startsWith('xoxb-')) {
-    return 'Invalid Slack bot token format. Must start with "xoxb-"';
-  }
+/**
+ * Yup schema for Slack CREATE
+ */
+const slackConfigSchema = yup.object({
+  botToken: yup
+    .string()
+    .trim()
+    .required('Bot token is required'),
+  botUserId: yup.string().trim().optional(),
+  workspaceId: yup.string().trim().optional(),
+  workspaceName: yup.string().trim().optional(),
+  _encrypted: yup.boolean().optional()
+});
 
-  return null;
+/**
+ * Yup schema for Slack UPDATE (all fields optional but validated if present)
+ */
+const slackUpdateSchema = yup.object({
+  botToken: yup
+    .string()
+    .trim()
+    .optional()
+    .min(1, 'Bot token cannot be empty if provided'),
+  botUserId: yup
+    .string()
+    .trim()
+    .optional()
+    .min(1, 'Bot user ID cannot be empty if provided'),
+  workspaceId: yup
+    .string()
+    .trim()
+    .optional()
+    .min(1, 'Workspace ID cannot be empty if provided'),
+  workspaceName: yup
+    .string()
+    .trim()
+    .optional()
+    .min(1, 'Workspace name cannot be empty if provided'),
+  _encrypted: yup.boolean().optional()
+});
+
+/**
+ * Validate Slack verify request with Yup
+ * Includes "verified: false" in error responses
+ */
+export const validateSlackVerifyRequest = async (
+  data: unknown,
+  res: Response
+): Promise<yup.InferType<typeof slackVerifySchema> | null> => {
+  return validateWithYup(slackVerifySchema, data, res, true); // true = include "verified" field
 };
 
 /**
- * Validate workspace ID
+ * Validate Slack config with Yup (for CREATE operations)
+ * Does NOT include "verified" field in error responses
  */
-export const validateWorkspaceId = (workspaceId: unknown): string | null => {
-  if (!workspaceId) {
-    return null; // Optional field
-  }
-
-  if (typeof workspaceId !== 'string') {
-    return 'Workspace ID must be a string';
-  }
-
-  return null;
+export const validateSlackConfig = async (
+  data: unknown,
+  res: Response
+): Promise<yup.InferType<typeof slackConfigSchema> | null> => {
+  return validateWithYup(slackConfigSchema, data, res, false); // false = no "verified" field
 };
 
 /**
- * Validate workspace name
+ * Validate Slack config with Yup (for UPDATE operations)
+ * Validates only fields that are present (partial update)
+ * Does NOT include "verified" field in error responses
  */
-export const validateWorkspaceName = (workspaceName: unknown): string | null => {
-  if (!workspaceName) {
-    return null; // Optional field
-  }
-
-  if (typeof workspaceName !== 'string') {
-    return 'Workspace name must be a string';
-  }
-
-  return null;
-};
-
-/**
- * Validate bot user ID
- */
-export const validateBotUserId = (botUserId: unknown): string | null => {
-  if (!botUserId) {
-    return null; // Optional field
-  }
-
-  if (typeof botUserId !== 'string') {
-    return 'Bot user ID must be a string';
-  }
-
-  return null;
+export const validateSlackUpdateConfig = async (
+  data: unknown,
+  res: Response
+): Promise<yup.InferType<typeof slackUpdateSchema> | null> => {
+  return validateWithYup(slackUpdateSchema, data, res, false); // false = no "verified" field
 };
 

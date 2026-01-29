@@ -82,6 +82,7 @@ export interface VerificationResult {
   workspaceName?: string;
   botUserId?: string;
   error?: string;
+  details?: any;
 }
 
 export interface HealthCheckResult {

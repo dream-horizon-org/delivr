@@ -60,6 +60,15 @@ export interface TestStatusResult {
 }
 
 /**
+ * Validation result with detailed error information
+ */
+export type ValidationResult = {
+  isValid: boolean;
+  message: string;
+  details?: any;
+};
+
+/**
  * Main provider interface
  * All test management providers must implement this
  */
@@ -69,7 +78,7 @@ export interface ITestManagementProvider {
   /**
    * Validate provider configuration (credentials, connectivity)
    */
-  validateConfig(config: TenantTestManagementIntegrationConfig): Promise<boolean>;
+  validateConfig(config: TenantTestManagementIntegrationConfig): Promise<ValidationResult>;
   
   /**
    * Create a new test run

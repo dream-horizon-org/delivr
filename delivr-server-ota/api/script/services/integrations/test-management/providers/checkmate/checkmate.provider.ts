@@ -97,7 +97,10 @@ export class CheckmateProvider implements ITestManagementProvider {
     if (requestFailed) {
       const errorText = await response.text().catch(() => CHECKMATE_ERROR_MESSAGES.UNKNOWN_ERROR);
       const errorMessage = `${CHECKMATE_ERROR_MESSAGES.API_ERROR_PREFIX}: ${response.status} ${response.statusText} - ${errorText}`;
-      throw new Error(errorMessage);
+      const error: any = new Error(errorMessage);
+      error.status = response.status;
+      error.responseText = errorText;
+      throw error;
     }
 
     const jsonResponse: T = await response.json();
@@ -170,26 +173,18 @@ export class CheckmateProvider implements ITestManagementProvider {
   /**
    * Validate Checkmate configuration
    */
-  validateConfig = async (config: TenantTestManagementIntegrationConfig): Promise<boolean> => {
+  validateConfig = async (config: TenantTestManagementIntegrationConfig): Promise<{ isValid: boolean; message: string; details?: any }> => {
     if (!this.isCheckmateConfig(config)) {
-      return false;
+      return {
+        isValid: false,
+        message: 'Invalid Checkmate configuration structure'
+      };
     }
     
-    // Use getCheckmateConfig to decrypt authToken for API calls
-    const checkmateConfig = this.getCheckmateConfig(config);
-    
     try {
-      // Validate required fields
-      if (!checkmateConfig.baseUrl || !checkmateConfig.authToken) {
-        return false;
-      }
-
-      // Validate URL format
-      try {
-        new URL(checkmateConfig.baseUrl);
-      } catch {
-        return false;
-      }
+      // Decrypt authToken for API calls (move inside try to catch decryption errors)
+      const checkmateConfig = this.getCheckmateConfig(config);
+      
 
       // Test credentials by fetching projects
       // Validation requires BOTH successful API call AND valid orgId (returns projects)
@@ -216,15 +211,101 @@ export class CheckmateProvider implements ITestManagementProvider {
       const projectCount = rawResponse?.data?.projectCount?.[0]?.count ?? 0;
       
       if (projectCount === 0) {
-        console.error('[Checkmate Validation] ❌ Invalid credentials - organization has no projects');
-        return false;
+        return {
+          isValid: false,
+          message: 'Organization has no projects. Verify orgId is correct.',
+          details: {
+            errorCode: 'no_projects',
+            message: 'Check that the orgId matches your Checkmate organization'
+          }
+        };
       }
       
-      return true;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[Checkmate Validation] ❌ Validation failed:', errorMessage);
-      return false;
+      return {
+        isValid: true,
+        message: 'Successfully connected to Checkmate'
+      };
+    } catch (error: any) {
+      const status = error.status;
+      const errorText = error.responseText || error.message;
+
+      // Handle HTTP status codes from API responses
+      if (status === 401) {
+        return {
+          isValid: false,
+          message: 'Invalid Checkmate credentials. Please verify your authToken is correct.',
+          details: {
+            errorCode: 'invalid_credentials',
+            message: 'Generate a new auth token from Checkmate settings if the current one is invalid or expired'
+          }
+        };
+      }
+
+      if (status === 403) {
+        return {
+          isValid: false,
+          message: 'Invalid Checkmate authToken or insufficient permissions. Please verify your token is correct and has required permissions.',
+          details: {
+            errorCode: 'invalid_credentials_or_permissions',
+            message: 'Check: 1) Auth token is valid (generate a new one from Checkmate settings if needed), 2) Token has access to read projects for the specified organization'
+          }
+        };
+      }
+
+      if (status === 404) {
+        return {
+          isValid: false,
+          message: 'Checkmate resource not found.',
+          details: {
+            errorCode: 'resource_not_found',
+            message: 'Verify the baseUrl and orgId are correct'
+          }
+        };
+      }
+
+      if (status >= 500 && status < 600) {
+        return {
+          isValid: false,
+          message: `Checkmate service temporarily unavailable (${status}). Please try again later.`,
+          details: {
+            errorCode: 'service_unavailable',
+            message: 'Checkmate servers are experiencing issues. This is not a credentials problem - retry in a few minutes.'
+          }
+        };
+      }
+
+      // Network errors (no HTTP response received)
+      if (!status) {
+        // Check if it's a fetch network error vs other errors
+        const isFetchError = error.message && (
+          error.message.includes('fetch') || 
+          error.message.includes('Failed to fetch') || 
+          error.name === 'TypeError'
+        );
+        
+        return {
+          isValid: false,
+          message: isFetchError 
+            ? 'Network error: Unable to connect to Checkmate. Please verify the baseUrl is correct and accessible.'
+            : `Configuration error: ${errorText}`,
+          details: {
+            errorCode: isFetchError ? 'network_error' : 'config_error',
+            message: isFetchError 
+              ? 'Check: 1) Base URL is correct, 2) Checkmate server is accessible from your network, 3) No firewall blocking the connection'
+              : errorText
+          }
+        };
+      }
+
+      // Generic API error
+      return {
+        isValid: false,
+        message: `Checkmate API error (${status}): ${errorText}`,
+        details: {
+          errorCode: 'api_error',
+          message: errorText
+        }
+      };
     }
   };
 

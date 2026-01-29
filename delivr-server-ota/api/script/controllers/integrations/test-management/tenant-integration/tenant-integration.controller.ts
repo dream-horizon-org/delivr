@@ -16,8 +16,12 @@ import {
   validateConfigStructure,
   validatePartialConfigStructure,
   validateIntegrationName,
-  validateProviderType
+  validateProviderType,
+  validateVerifyRequest,
+  validateCheckmateConfig,
+  validateCheckmateUpdateConfig
 } from './tenant-integration.validation';
+import { TestManagementProviderType } from '~types/integrations/test-management';
 
 type AuthenticatedRequest = Request & {
   user?: {
@@ -58,28 +62,36 @@ const createIntegrationHandler = (service: TestManagementIntegrationService) =>
         return;
       }
 
-      // Validate config structure (JSONB)
-      const configError = validateConfigStructure(config, providerType);
-      if (configError) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(validationErrorResponse('config', configError));
-        return;
+      // Validate config structure for CHECKMATE (Yup validation)
+      // TODO: Implement Yup validation for TESTRAIL and other providers
+      let validatedConfig = config;
+      if (providerType === TestManagementProviderType.CHECKMATE) {
+        const validated = await validateCheckmateConfig(config, res);
+        if (!validated) {
+          return; // Response already sent by validation function
+        }
+        validatedConfig = validated;
       }
 
+      // Config validation (connection test) happens in service layer
       const data: CreateTenantTestManagementIntegrationDto = {
         tenantId,
         name,
         providerType,
-        config,
+        config: validatedConfig,
         createdByAccountId: req.user?.id
       };
 
       const integration = await service.createTenantIntegration(data);
 
       res.status(HTTP_STATUS.CREATED).json(successResponse(integration));
-    } catch (error) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        errorResponse(error, TEST_MANAGEMENT_ERROR_MESSAGES.CREATE_INTEGRATION_FAILED)
-      );
+    } catch (error: any) {
+      const statusCode = getErrorStatusCode(error);
+      res.status(statusCode).json({
+        success: false,
+        error: error.message || TEST_MANAGEMENT_ERROR_MESSAGES.CREATE_INTEGRATION_FAILED,
+        ...(error.details && { details: error.details })
+      });
     }
   };
 
@@ -178,10 +190,22 @@ const updateIntegrationHandler = (service: TestManagementIntegrationService) =>
           return;
         }
 
-        const configError = validatePartialConfigStructure(config, existing.providerType);
-        if (configError) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(validationErrorResponse('config', configError));
-          return;
+        // Use Yup validation for Checkmate
+        // TODO: Implement Yup validation for TESTRAIL and other providers
+        if (existing.providerType === TestManagementProviderType.CHECKMATE) {
+          const validated = await validateCheckmateUpdateConfig(config, res);
+          if (!validated) {
+            return; // Response already sent by validation function
+          }
+          // Replace config with validated (trimmed, transformed) data
+          req.body.config = validated;
+        } else {
+          // Fallback validation for non-Checkmate providers (not implemented yet)
+          const configError = validatePartialConfigStructure(config, existing.providerType);
+          if (configError) {
+            res.status(HTTP_STATUS.BAD_REQUEST).json(validationErrorResponse('config', configError));
+            return;
+          }
         }
       }
 
@@ -200,10 +224,13 @@ const updateIntegrationHandler = (service: TestManagementIntegrationService) =>
       }
 
       res.status(HTTP_STATUS.OK).json(successResponse(integration));
-    } catch (error) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        errorResponse(error, TEST_MANAGEMENT_ERROR_MESSAGES.UPDATE_INTEGRATION_FAILED)
-      );
+    } catch (error: any) {
+      const statusCode = getErrorStatusCode(error);
+      res.status(statusCode).json({
+        success: false,
+        error: error.message || TEST_MANAGEMENT_ERROR_MESSAGES.UPDATE_INTEGRATION_FAILED,
+        ...(error.details && { details: error.details })
+      });
     }
   };
 
@@ -294,23 +321,38 @@ const verifyCredentialsHandler = (service: TestManagementIntegrationService) =>
         return;
       }
 
-      // Validate config structure
-      const configError = validateConfigStructure(config, providerType);
-      if (configError) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(validationErrorResponse('config', configError));
-        return;
+      // Unified validation (handles CHECKMATE Yup and others manual validation internally)
+      const validated = await validateVerifyRequest(req.body, providerType as TestManagementProviderType, res);
+      if (!validated) {
+        return; // Response already sent by validation function
       }
 
-      const result = await service.verifyCredentials(providerType, config);
+      const result = await service.verifyCredentials(providerType, validated.config);
       
-      // Always return 200 OK - the HTTP status indicates the API call succeeded,
-      // not whether credentials are valid. Credential validity is in result.success.
-      res.status(HTTP_STATUS.OK).json(successResponse(result));
-    } catch (error) {
+      // Return proper status codes based on verification result
+      if (result.success) {
+        res.status(HTTP_STATUS.OK).json({
+          success: true,
+          verified: true,
+          message: result.message,
+          ...(result.details && { details: result.details })
+        });
+      } else {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          verified: false,
+          error: result.message,
+          ...(result.details && { details: result.details })
+        });
+      }
+    } catch (error: any) {
       const statusCode = getErrorStatusCode(error);
-      res.status(statusCode).json(
-        errorResponse(error, TEST_MANAGEMENT_ERROR_MESSAGES.VERIFY_INTEGRATION_FAILED)
-      );
+      res.status(statusCode).json({
+        success: false,
+        verified: false,
+        error: error.message || TEST_MANAGEMENT_ERROR_MESSAGES.VERIFY_INTEGRATION_FAILED,
+        ...(error.details && { details: error.details })
+      });
     }
   };
 

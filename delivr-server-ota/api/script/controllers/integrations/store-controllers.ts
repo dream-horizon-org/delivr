@@ -265,17 +265,42 @@ const verifyAppStoreConnect = async (
     });
 
     const responseStatus = response.status;
-    const isUnauthorized = responseStatus === 401;
-    const isForbidden = responseStatus === 403;
+      // Handle 401 - Invalid credentials
+      if (responseStatus === 401) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        return {
+          isValid: false,
+          message: 'Invalid App Store Connect credentials. Please verify your Issuer ID, Key ID, and Private Key are correct.',
+          details: {
+            status: 401,
+            hint: 'Credentials are incorrect. Generate new API keys from App Store Connect → Users and Access → Keys',
+          },
+        };
+      }
 
-    if (isUnauthorized || isForbidden) {
+      // Handle 403 - Valid credentials but insufficient permissions
+      if (responseStatus === 403) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        return {
+          isValid: false,
+          message: 'App Store Connect credentials are valid but lack required permissions.',
+          details: {
+            status: 403,
+            hint: 'Update the API key permissions in App Store Connect. Required: Admin or App Manager role with access to this app.',
+          },
+        };
+      }
+
+      // Handle 5xx - Apple server errors
+    if (responseStatus >= 500 && responseStatus < 600) {
       const errorText = await response.text().catch(() => 'Unknown error');
       return {
         isValid: false,
-        message: `App Store Connect authentication failed (${responseStatus}): Invalid credentials or insufficient permissions`,
+        message: `App Store Connect service temporarily unavailable (${responseStatus}). Please try again later.`,
         details: {
           status: responseStatus,
           error: errorText,
+          hint: 'Apple\'s servers are experiencing issues. This is not a credentials problem - retry in a few minutes.',
         },
       };
     }
@@ -491,18 +516,31 @@ const verifyGooglePlayStore = async (
     });
 
     const responseStatus = response.status;
-    const isUnauthorized = responseStatus === 401;
-    const isForbidden = responseStatus === 403;
     const isNotFound = responseStatus === 404;
 
-    if (isUnauthorized || isForbidden) {
+    if (responseStatus === 401) {
       const errorText = await response.text().catch(() => 'Unknown error');
       return {
         isValid: false,
-        message: `Google Play Store authentication failed (${responseStatus}): Invalid credentials or insufficient permissions`,
+        message: 'Invalid Google Play Store credentials. Please verify your service account JSON is correct.',
         details: {
-          status: responseStatus,
+          status: 401,
           error: errorText,
+          hint: 'Service account credentials are incorrect. Verify: 1) JSON structure is valid, 2) private_key is correct, 3) client_email matches the service account',
+        },
+      };
+    }
+    
+    // Handle 403 - Valid credentials but insufficient permissions
+    if (responseStatus === 403) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      return {
+        isValid: false,
+        message: 'Google Play Store credentials are valid but lack required permissions.',
+        details: {
+          status: 403,
+          error: errorText,
+          hint: 'Grant access to the service account in Google Play Console → Settings → API Access → Link service account. Required permission: View app information and download bulk reports (read-only) or Admin (full access)',
         },
       };
     }
@@ -519,6 +557,20 @@ const verifyGooglePlayStore = async (
       };
     }
 
+
+    if (responseStatus >= 500 && responseStatus < 600) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      return {
+        isValid: false,
+        message: `Google Play Developer API temporarily unavailable (${responseStatus}). Please try again later.`,
+        details: {
+          status: responseStatus,
+          error: errorText,
+          hint: 'Google\'s servers are experiencing issues. This is not a credentials problem - retry in a few minutes.',
+        },
+      };
+    }
+    
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
       return {
@@ -606,14 +658,23 @@ export const verifyStore = async (req: Request, res: Response): Promise<void> =>
     }
 
     const isVerified = verificationResult.isValid;
-    const statusCode = isVerified ? HTTP_STATUS.OK : HTTP_STATUS.UNAUTHORIZED;
+    const statusCode = isVerified ? HTTP_STATUS.OK : HTTP_STATUS.BAD_REQUEST;
 
-    res.status(statusCode).json({
-      success: isVerified ? RESPONSE_STATUS.SUCCESS : RESPONSE_STATUS.FAILURE,
-      verified: isVerified,
-      message: verificationResult.message,
-      details: verificationResult.details,
-    });
+    if (isVerified) {
+      res.status(statusCode).json({
+        success: true,
+        verified: true,
+        message: verificationResult.message,
+        details: verificationResult.details,
+      });
+    } else {
+      res.status(statusCode).json({
+        success: false,
+        verified: false,
+        error: verificationResult.message,
+        details: verificationResult.details,
+      });
+    }
   } catch (error) {
     const message = getErrorMessage(error, ERROR_MESSAGES.VERIFICATION_FAILED);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
@@ -782,17 +843,6 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
 
       // Update status to VERIFIED since verification passed
       await integrationController.updateStatus(integrationId, IntegrationStatus.VERIFIED);
-
-      const createFailed = !newIntegration;
-      if (createFailed) {
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-          success: RESPONSE_STATUS.FAILURE,
-          error: ERROR_MESSAGES.INTEGRATION_CREATE_FAILED,
-        });
-        return;
-      }
-
-      integrationId = newIntegration.id;
     }
 
     // Create credentials based on store type

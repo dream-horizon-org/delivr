@@ -1,3 +1,4 @@
+import { encryptForStorage } from '~utils/encryption';
 import { CommType } from '../comm-types';
 import type { VerificationResult, ListChannelsResponse } from '../comm-types';
 import { ProviderFactory } from '../providers/provider.factory';
@@ -42,10 +43,11 @@ export class CommIntegrationService {
 
       const result = await provider.verify();
       return result;
-    } catch (error) {
+    } catch (error: any) {
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Unknown error occurred'
+        message: error instanceof Error ? error.message : 'Unknown error occurred',
+        details: { errorCode: 'unknown_error', message: error.message }
       };
     }
   }
@@ -79,10 +81,20 @@ export class CommIntegrationService {
       createdByAccountId?: string | null;
     }
   ): Promise<SafeSlackIntegration> {
+    // Verify credentials before saving
+    const commType = this.mapCommunicationType(providerType);
+    const verificationResult = await this.verifyCredentials(commType, data.botToken);
+
+    if (!verificationResult.success) {
+      const error: any = new Error(verificationResult.message);
+      error.details = verificationResult.details;
+      throw error;
+    }
+    const encryptedBotToken = encryptForStorage(data.botToken);
     const createData: CreateSlackIntegrationDto = {
       tenantId,
       communicationType: providerType,
-      slackBotToken: data.botToken,
+      slackBotToken: encryptedBotToken,
       slackBotUserId: data.botUserId,
       slackWorkspaceId: data.workspaceId,
       slackWorkspaceName: data.workspaceName,
@@ -147,15 +159,39 @@ export class CommIntegrationService {
 
   /**
    * Update integration by integrationId
+   * VALIDATES credentials if botToken is being updated
    */
   async updateIntegration(
     integrationId: string,
     updateData: UpdateSlackIntegrationDto
   ): Promise<SafeSlackIntegration | null> {
-    const existing = await this.repository.findById(integrationId);
+    const existing = await this.repository.findById(integrationId, true);
 
     if (!existing) {
       return null;
+    }
+
+    // Verify credentials if botToken is being updated
+    const tokenIsBeingUpdated = updateData.slackBotToken !== undefined;
+    
+    if (tokenIsBeingUpdated) {
+      const commType = this.mapCommunicationType(existing.communicationType);
+      const verificationResult = await this.verifyCredentials(
+        commType, 
+        updateData.slackBotToken
+      );
+
+      if (!verificationResult.success) {
+        const error: any = new Error(verificationResult.message);
+        error.details = verificationResult.details;
+        throw error;
+      }
+
+      // Update verification status to VALID
+      await this.repository.updateVerificationStatus(
+        integrationId,
+        VerificationStatus.VALID
+      );
     }
 
     return await this.repository.update(integrationId, updateData);
@@ -163,6 +199,7 @@ export class CommIntegrationService {
 
   /**
    * Update integration by tenantId (legacy method)
+   * VALIDATES credentials if botToken is being updated
    */
   async updateIntegrationByTenant(
     tenantId: string,
@@ -170,11 +207,38 @@ export class CommIntegrationService {
   ): Promise<SafeSlackIntegration | null> {
     const existing = await this.repository.findByTenant(
       tenantId,
-      CommunicationType.SLACK
+      CommunicationType.SLACK,
+      true // include token for verification
     );
 
     if (!existing) {
       return null;
+    }
+
+    // Verify credentials if botToken is being updated
+    const tokenIsBeingUpdated = updateData.slackBotToken !== undefined;
+    
+    if (tokenIsBeingUpdated) {
+      const commType = this.mapCommunicationType(existing.communicationType);
+      const verificationResult = await this.verifyCredentials(
+        commType, 
+        updateData.slackBotToken
+      );
+
+      if (!verificationResult.success) {
+        const error: any = new Error(verificationResult.message);
+        error.details = verificationResult.details;
+        throw error;
+      }
+
+      const encryptedBotToken = encryptForStorage(updateData.slackBotToken);
+      updateData.slackBotToken = encryptedBotToken;
+
+      // Update verification status to VALID
+      await this.repository.updateVerificationStatus(
+        existing.id,
+        VerificationStatus.VALID
+      );
     }
 
     return await this.repository.update(existing.id, updateData);

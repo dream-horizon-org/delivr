@@ -44,32 +44,115 @@ export class JenkinsProvider implements JenkinsProviderContract {
       }
 
       const resp = await fetchWithTimeout(sanitizeJoin(hostUrl, '/api/json'), { headers }, timeoutMs);
+      
       if (!resp.ok) {
-        return { isValid: false, message: `Jenkins API error: ${resp.status} ${resp.statusText}` };
+        const status = resp.status;
+        const statusText = resp.statusText;
+        
+        // Handle specific HTTP status codes
+        if (status === 401) {
+          return {
+            isValid: false,
+            message: 'Invalid Jenkins credentials. Please verify your username and API token are correct.',
+            details: {
+              errorCode: 'invalid_credentials',
+              message: 'Generate a new API token from Jenkins → User Settings → Configure → API Token'
+            }
+          };
+        }
+        
+        if (status === 403) {
+          return {
+            isValid: false,
+            message: 'Jenkins credentials are valid but lack required permissions.',
+            details: {
+              errorCode: 'insufficient_permissions',
+              message: 'Ensure your Jenkins user has permission to access the API and view jobs'
+            }
+          };
+        }
+        
+        if (status === 404) {
+          return {
+            isValid: false,
+            message: 'Jenkins instance not found. Please verify the host URL is correct.',
+            details: {
+              errorCode: 'instance_not_found',
+              message: 'Check the URL format and ensure Jenkins is running at this address'
+            }
+          };
+        }
+        
+        if (status >= 500 && status < 600) {
+          return {
+            isValid: false,
+            message: `Jenkins service temporarily unavailable (${status}). Please try again later.`,
+            details: {
+              errorCode: 'service_unavailable',
+              message: 'Jenkins servers are experiencing issues. This is not a credentials problem - retry in a few minutes.'
+            }
+          };
+        }
+        
+        return {
+          isValid: false,
+          message: `Jenkins API error (${status}): ${statusText}`,
+          details: {
+            errorCode: 'api_error',
+            message: statusText
+          }
+        };
       }
 
       return { isValid: true, message: SUCCESS_MESSAGES.VERIFIED };
     } catch (e: any) {
       const isTimeout = e && (e.name === 'AbortError' || e.code === 'ABORT_ERR');
       if (isTimeout) {
-        return { isValid: false, message: ERROR_MESSAGES.JENKINS_QUEUE_TIMEOUT };
+        return {
+          isValid: false,
+          message: 'Connection timeout. Please check your Jenkins credentials and try again.',
+          details: {
+            errorCode: 'timeout',
+            message: 'The request took too long to complete. Verify Jenkins is accessible and responding'
+          }
+        };
       }
       
       // Provide more helpful error messages for common network issues
       const errorMessage = e?.message ? String(e.message) : 'Unknown error';
-      let userFriendlyMessage = `Connection failed: ${errorMessage}`;
       
       // Check for common Docker networking issues
       if (errorMessage.includes('fetch failed') || errorMessage.includes('ECONNREFUSED') || errorMessage.includes('ENOTFOUND')) {
         const isLocalhost = hostUrl.includes('localhost') || hostUrl.includes('127.0.0.1');
         if (isLocalhost) {
-          userFriendlyMessage = `Connection failed: Cannot reach Jenkins at ${hostUrl}. If your API server is running in Docker, use 'host.docker.internal:8080' (Mac/Windows) or '172.17.0.1:8080' (Linux) instead of 'localhost:8080'. Original error: ${errorMessage}`;
+          return {
+            isValid: false,
+            message: `Cannot reach Jenkins at ${hostUrl}. Please verify the host URL.`,
+            details: {
+              errorCode: 'network_error',
+              message: 'If your API server is running in Docker, use "host.docker.internal:8080" (Mac/Windows) or "172.17.0.1:8080" (Linux) instead of "localhost:8080"'
+            }
+          };
         } else {
-          userFriendlyMessage = `Connection failed: Cannot reach Jenkins at ${hostUrl}. Please verify the URL is correct and accessible from the API server. Original error: ${errorMessage}`;
+          return {
+            isValid: false,
+            message: `Cannot reach Jenkins at ${hostUrl}. Please verify the URL is correct and accessible.`,
+            details: {
+              errorCode: 'network_error',
+              message: 'Ensure the Jenkins server is running and accessible from your network'
+            }
+          };
         }
       }
       
-      return { isValid: false, message: userFriendlyMessage };
+      return {
+        isValid: false,
+        message: `Connection failed: ${errorMessage}`,
+        details: {
+          errorCode: 'network_error',
+          message: errorMessage
+        }
+      };
     }
   };
 

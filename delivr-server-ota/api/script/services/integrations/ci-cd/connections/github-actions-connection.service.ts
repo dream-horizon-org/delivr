@@ -12,7 +12,7 @@ type CreateInput = {
 };
 
 export class GitHubActionsConnectionService extends ConnectionService<CreateInput> {
-  verifyConnection = async (params: GHAVerifyParams): Promise<{ isValid: boolean; message: string }> => {
+  verifyConnection = async (params: GHAVerifyParams): Promise<{ isValid: boolean; message: string; details?: any }> => {
     const provider = await ProviderFactory.getProvider(CICDProviderType.GITHUB_ACTIONS);
     const gha = provider as GitHubActionsProviderContract;
     return gha.verifyConnection(params);
@@ -41,6 +41,12 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
       timeoutMs: Number(process.env.GHA_VERIFY_TIMEOUT_MS || 6000)
     });
     
+    if (!verify.isValid) {
+      const error: any = new Error(verify.message);
+      error.details = verify.details;
+      throw error;
+    }
+    
     // Store the ORIGINAL (encrypted) token in database
     const createData: CreateCICDIntegrationDto & { id: string } = {
       id: shortid.generate(),
@@ -52,9 +58,9 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
       apiToken: input.apiToken, // Store encrypted value
       providerConfig: null as any,
       createdByAccountId: accountId,
-      verificationStatus: verify.isValid ? VerificationStatus.VALID : VerificationStatus.INVALID,
+      verificationStatus: VerificationStatus.VALID,
       lastVerifiedAt: new Date(),
-      verificationError: verify.isValid ? null : verify.message
+      verificationError: null
     };
     const created = await this.repository.create(createData);
     return this.toSafe(created);
@@ -76,6 +82,9 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
     const storedToken: string | undefined = (withSecrets as any)?.apiToken as (string | undefined);
     const tokenToCheck: string | undefined = updateData.apiToken ?? storedToken;
     const tokenMissing = !tokenToCheck;
+    
+    let verify: { isValid: boolean; message: string; details?: any } | undefined;
+    
     if (tokenMissing) {
       updateData.verificationStatus = VerificationStatus.INVALID;
       updateData.lastVerifiedAt = new Date();
@@ -97,7 +106,7 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
       }
       
       if (decryptedToken) {
-        const verify = await this.verifyConnection({
+        verify = await this.verifyConnection({
           apiToken: decryptedToken,
           githubApiBase: PROVIDER_DEFAULTS.GITHUB_API,
           userAgent: HEADERS.USER_AGENT,
@@ -114,7 +123,10 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
     const wasInvalid = updateData.verificationStatus === VerificationStatus.INVALID;
     if (wasInvalid) {
       const errorMessage = updateData.verificationError ?? ERROR_MESSAGES.FAILED_VERIFY_GHA;
-      throw new Error(errorMessage);
+      const error: any = new Error(errorMessage);
+      // Try to attach details if available (from verification result)
+      error.details = verify?.details;
+      throw error;
     }
     return this.toSafe(updated as any);
   };
