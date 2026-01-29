@@ -61,7 +61,7 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
   }
   
   // Check permissions - only editors and owners can access
-  const isEditor = await PermissionService.isTenantEditor(org, user.user.id);
+  const isEditor = await PermissionService.isAppEditor(org, user.user.id);
   if (!isEditor) {
     throw redirect(`/dashboard/${org}/releases`);
   }
@@ -197,7 +197,7 @@ export default function WorkflowsPage() {
     
     try {
       const result = await apiGet<{ success: boolean; workflows?: CICDWorkflow[] }>(
-        `/api/v1/tenants/${org}/workflows`
+        `/api/v1/apps/${org}/workflows`
       );
       
       if (result.success && result.data?.workflows) {
@@ -226,7 +226,7 @@ export default function WorkflowsPage() {
   const handleCreateWorkflow = useCallback(async (workflowData: any) => {
     try {
       const result = await apiPost<{ success: boolean; error?: string }>(
-        `/api/v1/tenants/${org}/workflows`,
+        `/api/v1/apps/${org}/workflows`,
         workflowData
       );
 
@@ -246,7 +246,7 @@ export default function WorkflowsPage() {
   const handleUpdateWorkflow = useCallback(async (workflowId: string, workflowData: any) => {
     try {
       const result = await apiPatch<{ success: boolean; error?: string }>(
-        `/api/v1/tenants/${org}/workflows/${workflowId}`,
+        `/api/v1/apps/${org}/workflows/${workflowId}`,
         workflowData
       );
 
@@ -266,7 +266,7 @@ export default function WorkflowsPage() {
   const handleDeleteWorkflow = useCallback(async (workflowId: string) => {
     try {
       const result = await apiDelete<{ success: boolean; error?: string }>(
-        `/api/v1/tenants/${org}/workflows/${workflowId}`
+        `/api/v1/apps/${org}/workflows/${workflowId}`
       );
 
       if (result.success) {

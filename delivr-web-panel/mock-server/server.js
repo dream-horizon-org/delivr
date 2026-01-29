@@ -269,7 +269,7 @@ function transformRelease(release, appId) {
  * GET /tenants/:appId/releases/:releaseId
  * Get single release by ID (can be either 'id' or 'releaseId' field)
  */
-server.get('/api/v1/tenants/:appId/releases/:releaseId', (req, res) => {
+server.get('/api/v1/apps/:appId/releases/:releaseId', (req, res) => {
   const { appId, releaseId } = req.params;
   const db = router.db;
   
@@ -314,7 +314,7 @@ server.get('/api/v1/tenants/:appId/releases/:releaseId', (req, res) => {
  * GET /tenants/:appId/releases
  * List all releases for a tenant (matches ReleaseManagement service)
  */
-server.get('/api/v1/tenants/:appId/releases', (req, res) => {
+server.get('/api/v1/apps/:appId/releases', (req, res) => {
   const db = router.db;
   const releases = db.get('releases').value() || [];
   
@@ -353,22 +353,22 @@ server.get('/api/v1/tenants/:appId/releases', (req, res) => {
 });
 
 /**
- * GET /api/v1/tenants/:appId/releases
+ * GET /api/v1/apps/:appId/releases
  * List all releases for a tenant (with /api/v1 prefix - matches backend API)
  */
-server.get('/api/v1/tenants/:appId/releases', (req, res) => {
+server.get('/api/v1/apps/:appId/releases', (req, res) => {
   const db = router.db;
   const releases = db.get('releases').value() || [];
   
-  console.log(`[GET /api/v1/tenants/:appId/releases] app id:`, req.params.appId);
-  console.log(`[GET /api/v1/tenants/:appId/releases] Total releases in DB:`, releases.length);
+  console.log(`[GET /api/v1/apps/:appId/releases] app id:`, req.params.appId);
+  console.log(`[GET /api/v1/apps/:appId/releases] Total releases in DB:`, releases.length);
   
   // Transform to match backend response format
   const transformedReleases = releases.map(release => {
     return transformRelease(release, req.params.appId);
   });
   
-  console.log(`[GET /api/v1/tenants/:appId/releases] Returning ${transformedReleases.length} releases`);
+  console.log(`[GET /api/v1/apps/:appId/releases] Returning ${transformedReleases.length} releases`);
   
   // Return format matches backend: {success: true, releases: [...]}
   // The BFF layer will wrap this in {success: true, data: {releases: [...]}} for the frontend
@@ -382,7 +382,7 @@ server.get('/api/v1/tenants/:appId/releases', (req, res) => {
  * GET /tenants/:appId/release-configs
  * List release configs (mock to prevent errors)
  */
-server.get('/api/v1/tenants/:appId/release-configs', (req, res) => {
+server.get('/api/v1/apps/:appId/release-configs', (req, res) => {
   res.json({
     success: true,
     data: [],
@@ -390,10 +390,10 @@ server.get('/api/v1/tenants/:appId/release-configs', (req, res) => {
 });
 
 /**
- * GET /api/v1/tenants/:appId/release-config
+ * GET /api/v1/apps/:appId/release-config
  * List release configs (alternate path - for client-side calls)
  */
-server.get('/api/v1/tenants/:appId/release-config', (req, res) => {
+server.get('/api/v1/apps/:appId/release-config', (req, res) => {
   res.json({
     success: true,
     data: [],

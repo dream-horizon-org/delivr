@@ -35,7 +35,7 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
   if (!user || !user.user || !user.user.id) {
     throw redirect(`/dashboard/${org}/releases`);
   }
-  const isEditor = await PermissionService.isTenantEditor(org, user.user.id);
+  const isEditor = await PermissionService.isAppEditor(org, user.user.id);
   if (!isEditor) {
     throw redirect(`/dashboard/${org}/releases`);
   }
@@ -44,7 +44,7 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
   try {
     const url = new URL(request.url);
     const result = await apiGet<{ workflows?: CICDWorkflow[] }>(
-      `${url.protocol}//${url.host}/api/v1/tenants/${org}/workflows`,
+      `${url.protocol}//${url.host}/api/v1/apps/${org}/workflows`,
       {
         headers: {
           'Cookie': request.headers.get('Cookie') || '',
@@ -78,7 +78,7 @@ export const action = authenticateActionRequest({
       return json({ error: 'User not authenticated' }, { status: 401 });
     }
     
-    const isEditor = await PermissionService.isTenantEditor(org, user.user.id);
+    const isEditor = await PermissionService.isAppEditor(org, user.user.id);
     if (!isEditor) {
       return json({ error: 'Only editors and owners can create workflows' }, { status: 403 });
     }

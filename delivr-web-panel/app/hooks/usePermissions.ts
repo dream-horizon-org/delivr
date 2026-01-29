@@ -12,10 +12,8 @@ import {
   isReleasePilot,
   canPerformReleaseAction,
   // Legacy functions for backward compatibility
-  isTenantOwner,
-  isTenantEditor,
 } from '~/utils/permissions';
-import { TenantRole, type TenantRoleType } from '~/constants/permissions';
+import { AppLevelRole, type AppLevelRoleType } from '~/constants/permissions';
 
 export function usePermissions(appId: string | undefined, userId: string) {
   // Reuse existing app list - already cached by React Query!
@@ -23,7 +21,7 @@ export function usePermissions(appId: string | undefined, userId: string) {
 
   return {
     isLoading,
-    role: appId ? (apps.find((a) => a.id === appId)?.role ?? null) : null as TenantRoleType,
+    role: appId ? (apps.find((a) => a.id === appId)?.role ?? null) : null as AppLevelRoleType,
     isOwner: appId ? isAppOwner(apps, appId) : false,
     isEditor: appId ? isAppEditor(apps, appId) : false,
     

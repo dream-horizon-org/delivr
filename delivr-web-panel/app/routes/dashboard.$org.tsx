@@ -13,8 +13,11 @@ import { apiGet, getApiErrorMessage } from '~/utils/api-client';
 import { ConfigProvider } from '~/contexts/ConfigContext';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import type { App } from '~/.server/services/Codepush/types';
-import type { TenantConfig } from '~/types/system-metadata';
-import type { SystemMetadataBackend } from '~/types/system-metadata';
+import type { TenantConfig, SystemMetadataBackend } from '~/types/system-metadata';
+import {
+  DEFAULT_EMPTY_CONNECTED_INTEGRATIONS,
+  DEFAULT_RELEASE_MANAGEMENT,
+} from '~/constants/app-layout.constants';
 
 export const loader = authenticateLoaderRequest(async ({ request, params, user }) => {
   const { org: appId } = params; // Route param is still $org for now, but we treat it as appId
@@ -49,26 +52,26 @@ export const loader = authenticateLoaderRequest(async ({ request, params, user }
 
     // Extract app config from app response (check both app and organisation for backward compatibility)
     const config = result.data?.app?.releaseManagement?.config || result.data?.organisation?.releaseManagement?.config;
-    const initialAppConfig: TenantConfig | null = config ? {
-      appId: appId, // Keep appId for backward compatibility with TenantConfig type
-      organization: {
-        id: app.id,
-        name: app.displayName,
-      },
-      releaseManagement: {
-        connectedIntegrations: config.connectedIntegrations || {
-          SOURCE_CONTROL: [],
-          COMMUNICATION: [],
-          CI_CD: [],
-          TEST_MANAGEMENT: [],
-          PROJECT_MANAGEMENT: [],
-          APP_DISTRIBUTION: [],
-        },
-        enabledPlatforms: config.enabledPlatforms || [],
-        enabledTargets: config.enabledTargets || [],
-        allowedReleaseTypes: config.allowedReleaseTypes || [],
-      },
-    } : null;
+    const initialAppConfig: TenantConfig | null = config
+      ? {
+          appId,
+          organization: {
+            id: app.id,
+            name: app.displayName,
+          },
+          releaseManagement: {
+            connectedIntegrations:
+              config.connectedIntegrations ?? DEFAULT_EMPTY_CONNECTED_INTEGRATIONS,
+            enabledPlatforms:
+              config.enabledPlatforms ?? DEFAULT_RELEASE_MANAGEMENT.enabledPlatforms,
+            enabledTargets:
+              config.enabledTargets ?? DEFAULT_RELEASE_MANAGEMENT.enabledTargets,
+            allowedReleaseTypes:
+              config.allowedReleaseTypes ??
+              DEFAULT_RELEASE_MANAGEMENT.allowedReleaseTypes,
+          },
+        }
+      : null;
 
     // Return with no-cache headers to ensure fresh data
     return json({
@@ -76,9 +79,7 @@ export const loader = authenticateLoaderRequest(async ({ request, params, user }
       app,
       user,
       initialAppConfig,
-      // Legacy fields for backward compatibility
-      organisation: result.data?.organisation || result.data?.app, // Use app if organisation not present
-      initialTenantConfig: initialAppConfig,
+      // Legacy fields for backward compatibility // Use app if organisation not present
     }, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, private',
@@ -99,8 +100,6 @@ export type AppLayoutLoaderData = {
   user: any;
   initialAppConfig: TenantConfig | null;
   // Legacy fields for backward compatibility
-  organisation: App | undefined;
-  initialTenantConfig: TenantConfig | null;
 };
 
 /**
@@ -122,7 +121,7 @@ export type OrgLayoutLoaderData = AppLayoutLoaderData;
 export { shouldRevalidate } from './dashboard';
 
 export default function AppLayout() {
-  const { appId, initialAppConfig, initialTenantConfig } = useLoaderData<AppLayoutLoaderData>();
+  const { appId, initialAppConfig } = useLoaderData<AppLayoutLoaderData>();
   
   // Get system metadata from dashboard.tsx loader (parent layout)
   // This allows system metadata to be fetched at top level and shared
@@ -133,7 +132,7 @@ export default function AppLayout() {
     <ConfigProvider
       appId={appId} // ConfigProvider still uses appId internally
       initialSystemMetadata={initialSystemMetadata}
-      initialTenantConfig={initialAppConfig || initialTenantConfig}
+      initialAppConfig={initialAppConfig }
     >
       <Outlet />
     </ConfigProvider>

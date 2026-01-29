@@ -37,7 +37,7 @@ import { IntegrationConnectModal } from '~/components/Integrations/IntegrationCo
 import type { Integration, IntegrationDetails } from '~/types/integrations';
 import { IntegrationCategory, IntegrationStatus } from '~/types/integrations';
 import { useConfig } from '~/contexts/ConfigContext';
-import { refetchTenantConfigInBackground } from '~/utils/cache-invalidation';
+import { refetchAppConfigInBackground } from '~/utils/cache-invalidation';
 import { INTEGRATION_DISPLAY_NAMES, INTEGRATION_CATEGORY_LABELS } from '~/constants/integration-ui';
 import { INTEGRATION_MESSAGES } from '~/constants/toast-messages';
 import { showSuccessToast, showInfoToast } from '~/utils/toast';
@@ -216,8 +216,8 @@ export default function IntegrationsPage() {
     const isKnownIntegration = integrationId in INTEGRATION_DISPLAY_NAMES;
     if (isKnownIntegration) {
       showSuccessToast(INTEGRATION_MESSAGES.CONNECT_SUCCESS(displayName, !!editingIntegration));
-      // Refetch tenant config in background to reflect latest integration changes
-      refetchTenantConfigInBackground(queryClient, params.org);
+      // Refetch app config (getApp) so connected integrations list updates
+      refetchAppConfigInBackground(queryClient, params.org);
     } else {
       showInfoToast(INTEGRATION_MESSAGES.DEMO_MODE(integrationId));
     }
@@ -235,8 +235,8 @@ export default function IntegrationsPage() {
 
   const handleDisconnectComplete = useCallback(() => {
     if (!params.org) return;
-    // Refetch tenant config in background to reflect latest integration changes
-    refetchTenantConfigInBackground(queryClient, params.org);
+    // Refetch app config (getApp) so connected integrations list updates
+    refetchAppConfigInBackground(queryClient, params.org);
   }, [params.org, queryClient]);
 
   const handleCloseDetailModal = useCallback(() => {
@@ -252,6 +252,24 @@ export default function IntegrationsPage() {
 
   // Breadcrumb items
   const breadcrumbItems = getBreadcrumbItems('integrations', { org: appId });
+
+  // Tab config for StandardizedTabs (must be at top level - hooks cannot be conditional)
+  const tabConfig = useMemo(
+    () =>
+      orderedCategories.map((category) => {
+        const categoryIntegrations = integrationsByCategory[category] ?? [];
+        const connectedInCategory = categoryIntegrations.filter(
+          (i) => i.status === IntegrationStatus.CONNECTED
+        ).length;
+        return {
+          value: category,
+          label: INTEGRATION_CATEGORY_LABELS[category] ?? category,
+          icon: CATEGORY_ICONS[category],
+          count: connectedInCategory > 0 ? connectedInCategory : undefined,
+        };
+      }),
+    [orderedCategories, integrationsByCategory]
+  );
 
   // Loading state
   if (isLoading) {
@@ -329,22 +347,7 @@ export default function IntegrationsPage() {
       <StandardizedTabs
         activeTab={validTab}
         onTabChange={handleTabChange}
-        tabs={useMemo(() => 
-          orderedCategories.map((category) => {
-            const categoryIntegrations = integrationsByCategory[category] ?? [];
-            const connectedInCategory = categoryIntegrations.filter(
-              i => i.status === IntegrationStatus.CONNECTED
-            ).length;
-
-            return {
-              value: category,
-              label: INTEGRATION_CATEGORY_LABELS[category] ?? category,
-              icon: CATEGORY_ICONS[category],
-              count: connectedInCategory > 0 ? connectedInCategory : undefined,
-            };
-          }),
-          [orderedCategories, integrationsByCategory]
-        )}
+        tabs={tabConfig}
       >
         {orderedCategories.map((category) => {
           const integrations = integrationsByCategory[category] ?? [];

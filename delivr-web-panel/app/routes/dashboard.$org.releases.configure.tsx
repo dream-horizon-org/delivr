@@ -53,7 +53,7 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
 
   // Check if user is owner - only owners can create/edit configs
   try {
-    const isEditor = await PermissionService.isTenantEditor(org, user.user.id);
+    const isEditor = await PermissionService.isAppEditor(org, user.user.id);
     if (!isEditor) {
       throw redirect(`/dashboard/${org}/releases`);
     }
@@ -75,7 +75,7 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
   const configIdToLoad = editConfigId || cloneConfigId;
   if (configIdToLoad) {
     try {
-      const endpoint = `/api/v1/tenants/${org}/release-config/${configIdToLoad}`;
+      const endpoint = `/api/v1/apps/${org}/release-config/${configIdToLoad}`;
       const result = await apiGet<ReleaseConfiguration>(
         `${url.protocol}//${url.host}${endpoint}`,
         {
@@ -140,7 +140,7 @@ export const action = authenticateActionRequest({
 
     // Check if user is owner - only owners can create/edit configs
     try {
-      const isEditor = await PermissionService.isTenantEditor(org, user.user.id);
+      const isEditor = await PermissionService.isAppEditor(org, user.user.id);
       if (!isEditor) {
         return json({ success: false, error: 'Only organization owners can create/edit configurations' }, { status: 403 });
       }

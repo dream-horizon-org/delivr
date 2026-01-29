@@ -541,7 +541,7 @@ export function useCherryPickStatus(
 
 /**
  * Approve regression stage
- * Backend contract: POST /api/v1/tenants/{appId}/releases/{releaseId}/trigger-pre-release
+ * Backend contract: POST /api/v1/apps/{appId}/releases/{releaseId}/trigger-pre-release
  */
 export function useApproveRegression(appId?: string, releaseId?: string) {
   const queryClient = useQueryClient();
@@ -579,7 +579,7 @@ export function useApproveRegression(appId?: string, releaseId?: string) {
 
 /**
  * Complete pre-release stage / Trigger Distribution
- * Backend contract: POST /api/v1/tenants/{appId}/releases/{releaseId}/trigger-distribution
+ * Backend contract: POST /api/v1/apps/{appId}/releases/{releaseId}/trigger-distribution
  */
 export function useCompletePreReleaseStage(appId?: string, releaseId?: string) {
   const queryClient = useQueryClient();

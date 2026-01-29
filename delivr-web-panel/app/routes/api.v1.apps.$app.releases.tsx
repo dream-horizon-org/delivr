@@ -3,7 +3,7 @@
  * GET  /api/v1/apps/:appId/releases
  * POST /api/v1/apps/:appId/releases
  *
- * Same behaviour as /api/v1/tenants/:tenantId/releases for app-centric URLs.
+ * Same behaviour as /api/v1/apps/:tenantId/releases for app-centric URLs.
  */
 
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from '@remix-run/node';

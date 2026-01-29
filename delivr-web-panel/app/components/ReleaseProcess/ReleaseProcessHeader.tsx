@@ -89,7 +89,7 @@ export function ReleaseProcessHeader({
   const handleUpdate = async (updateRequest: UpdateReleaseBackendRequest): Promise<void> => {
     try {
       const result = await apiPatch<{ success: boolean; release?: BackendReleaseResponse; error?: string }>(
-        `/api/v1/tenants/${org}/releases/${release.id}`,
+        `/api/v1/apps/${org}/releases/${release.id}`,
         updateRequest
       );
 

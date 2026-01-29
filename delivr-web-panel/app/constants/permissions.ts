@@ -9,7 +9,7 @@
  * Tenant Role Enum
  * Represents user's permission level in a tenant/organization
  */
-export enum TenantRole {
+export enum AppLevelRole {
   OWNER = 'Owner',
   EDITOR = 'Editor',
   VIEWER = 'Viewer',
@@ -19,14 +19,14 @@ export enum TenantRole {
  * Permission constants (for backward compatibility and convenience)
  */
 export const PERMISSIONS = {
-  OWNER: TenantRole.OWNER,
-  EDITOR: TenantRole.EDITOR,
-  VIEWER: TenantRole.VIEWER,
+  OWNER: AppLevelRole.OWNER,
+  EDITOR: AppLevelRole.EDITOR,
+  VIEWER: AppLevelRole.VIEWER,
 } as const;
 
 /**
  * Type for tenant role values
  */
-export type TenantRoleType = TenantRole | null;
+export type AppLevelRoleType = AppLevelRole | null;
 
 

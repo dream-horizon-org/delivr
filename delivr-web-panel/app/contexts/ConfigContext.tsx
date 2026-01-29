@@ -10,7 +10,7 @@ import { createContext, useContext, ReactNode, useMemo, useCallback, useEffect }
 const DEBUG = false;
 const log = (...args: any[]) => DEBUG && console.log('[ConfigContext]', ...args);
 import { useSystemMetadata } from '~/hooks/useSystemMetadata';
-import { useTenantConfig } from '~/hooks/useTenantConfig';
+import { useAppConfig } from '~/hooks/useAppConfig';
 import { useReleaseConfigs } from '~/hooks/useReleaseConfigs';
 import type {
   SystemMetadata,
@@ -95,12 +95,12 @@ export function ConfigProvider({
   children,
   appId,
   initialSystemMetadata,
-  initialTenantConfig,
+  initialAppConfig,
 }: {
   children: ReactNode;
   appId?: string;
   initialSystemMetadata?: SystemMetadataBackend | null;
-  initialTenantConfig?: TenantConfig | null;
+  initialAppConfig?: TenantConfig | null;
 }) {
   // Fetch system metadata (global) - minimal backend data
   // Use initialData from server-side loader if provided
@@ -116,7 +116,7 @@ export function ConfigProvider({
     data: tenantConfig,
     isLoading: isLoadingTenantConfig,
     error: tenantConfigError,
-  } = useTenantConfig(appId, initialTenantConfig);
+  } = useAppConfig(appId, initialAppConfig);
   
   // Fetch release configurations (cached)
   const {

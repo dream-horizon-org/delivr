@@ -202,7 +202,7 @@ class ReleaseProcess {
 
   /**
    * Get presigned URL for build artifact download
-   * Backend endpoint: GET /api/v1/tenants/{appId}/builds/{buildId}/artifact
+   * Backend endpoint: GET /api/v1/apps/{appId}/builds/{buildId}/artifact
    */
   async getBuildArtifactDownloadUrl(appId: string, buildId: string, userId: string) {
     return this.__client.get<null, AxiosResponse<{
@@ -265,7 +265,7 @@ class ReleaseProcess {
 
   /**
    * Approve regression stage - Matches backend contract API #11
-   * Backend endpoint: POST /api/v1/tenants/{appId}/releases/{releaseId}/trigger-pre-release
+   * Backend endpoint: POST /api/v1/apps/{appId}/releases/{releaseId}/trigger-pre-release
    */
   async approveRegressionStage(appId: string, releaseId: string, request: ApproveRegressionStageRequest, userId: string) {
     return this.__client.post<ApproveRegressionStageRequest, AxiosResponse<ApproveRegressionStageResponse>>(
@@ -277,7 +277,7 @@ class ReleaseProcess {
 
   /**
    * Trigger Distribution (Stage 4) / Approve Pre-Release Stage
-   * Backend contract: POST /api/v1/tenants/{appId}/releases/{releaseId}/trigger-distribution
+   * Backend contract: POST /api/v1/apps/{appId}/releases/{releaseId}/trigger-distribution
    */
   async triggerDistributionStage(
     appId: string, 

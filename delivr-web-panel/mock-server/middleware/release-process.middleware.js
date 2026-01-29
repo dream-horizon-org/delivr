@@ -584,7 +584,7 @@ function createReleaseProcessMiddleware(router) {
     // STAGE APIs - Backend contract: GET /tasks?stage={stage}
     // ============================================================================
 
-    // GET /api/v1/tenants/:appId/releases/:releaseId/tasks?stage={stage}
+    // GET /api/v1/apps/:appId/releases/:releaseId/tasks?stage={stage}
     if (method === 'GET' && path.includes('/tasks')) {
       // Get stage from query params (try both req.query and destructured query)
       const stage = req.query?.stage || query.stage;
@@ -816,7 +816,7 @@ function createReleaseProcessMiddleware(router) {
     // TASK APIs
     // ============================================================================
 
-    // POST /api/v1/tenants/:appId/releases/:releaseId/tasks/:taskId/retry
+    // POST /api/v1/apps/:appId/releases/:releaseId/tasks/:taskId/retry
     if (method === 'POST' && path.includes('/tasks/') && path.includes('/retry')) {
       const taskId = extractTaskId(path);
       const releaseId = extractReleaseId(path);
@@ -870,7 +870,7 @@ function createReleaseProcessMiddleware(router) {
     // BUILD APIs
     // ============================================================================
 
-    // PUT/POST /api/v1/tenants/:appId/releases/:releaseId/stages/:stage/builds/:platform
+    // PUT/POST /api/v1/apps/:appId/releases/:releaseId/stages/:stage/builds/:platform
     // Backend route structure: stage and platform are path parameters
     // Stage can be: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE' (TaskStage)
     // Frontend sends: 'PRE_REGRESSION' | 'REGRESSION' | 'PRE_RELEASE' (BuildUploadStage)
@@ -878,7 +878,7 @@ function createReleaseProcessMiddleware(router) {
     // API contract specifies PUT, but we support both PUT and POST for compatibility
     if ((method === 'PUT' || method === 'POST') && path.includes('/stages/') && path.includes('/builds/')) {
       // Extract stage and platform from path
-      // Path format: /api/v1/tenants/:appId/releases/:releaseId/stages/:stage/builds/:platform
+      // Path format: /api/v1/apps/:appId/releases/:releaseId/stages/:stage/builds/:platform
       const stageMatch = path.match(/\/stages\/([^/]+)\/builds\/([^/]+)/);
       if (!stageMatch) {
         return res.status(400).json({
@@ -984,7 +984,7 @@ function createReleaseProcessMiddleware(router) {
       });
     }
 
-    // POST /api/v1/tenants/:appId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight
+    // POST /api/v1/apps/:appId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight
     if (method === 'POST' && path.includes('/builds/ios/verify-testflight')) {
       const stageMatch = path.match(/\/stages\/([^/]+)\/builds\/ios\/verify-testflight/);
       if (!stageMatch) {
@@ -1078,7 +1078,7 @@ function createReleaseProcessMiddleware(router) {
       });
     }
 
-    // GET /api/v1/tenants/:appId/releases/:releaseId/builds/artifacts
+    // GET /api/v1/apps/:appId/releases/:releaseId/builds/artifacts
     if (method === 'GET' && path.includes('/builds/artifacts') && !path.includes('/builds/artifacts/')) {
       const platform = query.platform;
       const buildStage = query.buildStage;
@@ -1175,7 +1175,7 @@ function createReleaseProcessMiddleware(router) {
     // STATUS CHECK APIs - Updated to match backend contract
     // ============================================================================
 
-    // GET /api/v1/tenants/:appId/releases/:releaseId/test-management-run-status
+    // GET /api/v1/apps/:appId/releases/:releaseId/test-management-run-status
     if (method === 'GET' && path.includes('/test-management-run-status')) {
       const platform = query.platform;
       const task = db.get('releaseTasks')
@@ -1250,7 +1250,7 @@ function createReleaseProcessMiddleware(router) {
       }
     }
 
-    // GET /api/v1/tenants/:appId/releases/:releaseId/project-management-run-status
+    // GET /api/v1/apps/:appId/releases/:releaseId/project-management-run-status
     if (method === 'GET' && path.includes('/project-management-run-status')) {
       const platform = query.platform;
       const task = db.get('releaseTasks')
@@ -1295,7 +1295,7 @@ function createReleaseProcessMiddleware(router) {
       }
     }
 
-    // GET /api/v1/tenants/:appId/releases/:releaseId/check-cherry-pick-status
+    // GET /api/v1/apps/:appId/releases/:releaseId/check-cherry-pick-status
     if (method === 'GET' && path.includes('/check-cherry-pick-status')) {
       // Get release to determine cherry pick status
       const release = db.get('releases').find({ id: releaseId }).value();
@@ -1325,8 +1325,8 @@ function createReleaseProcessMiddleware(router) {
     // APPROVAL APIs
     // ============================================================================
 
-    // POST /api/v1/tenants/:appId/releases/:releaseId/trigger-pre-release
-    // Also handle legacy path: /api/v1/tenants/:appId/releases/:releaseId/stages/regression/approve
+    // POST /api/v1/apps/:appId/releases/:releaseId/trigger-pre-release
+    // Also handle legacy path: /api/v1/apps/:appId/releases/:releaseId/stages/regression/approve
     if (method === 'POST' && (path.includes('/trigger-pre-release') || path.includes('/stages/regression/approve'))) {
       const release = db.get('releases').find({ id: releaseId }).value();
 
@@ -1355,7 +1355,7 @@ function createReleaseProcessMiddleware(router) {
       });
     }
 
-    // POST /api/v1/tenants/:appId/releases/:releaseId/stages/pre-release/complete
+    // POST /api/v1/apps/:appId/releases/:releaseId/stages/pre-release/complete
     if (method === 'POST' && path.includes('/stages/pre-release/complete')) {
       const release = db.get('releases').find({ id: releaseId }).value();
 
@@ -1387,7 +1387,7 @@ function createReleaseProcessMiddleware(router) {
     // NOTIFICATION APIs
     // ============================================================================
 
-    // GET /api/v1/tenants/:appId/releases/:releaseId/notifications
+    // GET /api/v1/apps/:appId/releases/:releaseId/notifications
     if (method === 'GET' && path.includes('/notifications')) {
       const notifications = db.get('notifications')
         .filter({ releaseId })
@@ -1410,7 +1410,7 @@ function createReleaseProcessMiddleware(router) {
       });
     }
 
-    // POST /api/v1/tenants/:appId/releases/:releaseId/notify
+    // POST /api/v1/apps/:appId/releases/:releaseId/notify
     if (method === 'POST' && path.includes('/notify')) {
       const { messageType } = body;
 
@@ -1445,7 +1445,7 @@ function createReleaseProcessMiddleware(router) {
     // ACTIVITY LOG API - Updated to match backend contract
     // ============================================================================
 
-    // GET /api/v1/tenants/:appId/releases/:releaseId/activity-logs
+    // GET /api/v1/apps/:appId/releases/:releaseId/activity-logs
     if (method === 'GET' && path.includes('/activity-logs')) {
       const activities = db.get('activityLogs')
         .filter({ releaseId })

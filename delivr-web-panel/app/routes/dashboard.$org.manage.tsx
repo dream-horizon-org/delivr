@@ -20,7 +20,7 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
 
   // Check if user is owner - only owners can manage team
   try {
-    const isOwner = await PermissionService.isTenantOwner(org, user.user.id);
+    const isOwner = await PermissionService.isAppOwner(org, user.user.id);
     if (!isOwner) {
       throw redirect(`/dashboard/${org}/releases`);
     }

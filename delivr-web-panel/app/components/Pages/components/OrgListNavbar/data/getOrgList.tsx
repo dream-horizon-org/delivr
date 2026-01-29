@@ -1,7 +1,7 @@
 import { apiGet } from "~/utils/api-client";
 import { extractApiErrorMessage } from "~/utils/api-error-utils";
 import { TenantsResponse } from "~/.server/services/Codepush/types";
-import { TenantRole } from "~/constants/permissions";
+import { AppLevelRole } from "~/constants/permissions";
 
 /**
  * App entity (renamed from Organization/Tenant)
@@ -12,7 +12,7 @@ export type App = {
   name: string;
   displayName: string;
   isAdmin: boolean;
-  role: TenantRole;
+  role: AppLevelRole;
 };
 
 /**
@@ -44,25 +44,25 @@ export const getAppList = async (): Promise<App[]> => {
   
   return apps.map((item) => {
     // Backend returns "Owner" | "Editor" | "Viewer"
-    let role: TenantRole;
+    let role: AppLevelRole;
     if (item.role === 'Collaborator') {
-      role = TenantRole.VIEWER;
-    } else if (item.role === TenantRole.OWNER || item.role === 'Owner') {
-      role = TenantRole.OWNER;
-    } else if (item.role === TenantRole.EDITOR || item.role === 'Editor') {
-      role = TenantRole.EDITOR;
-    } else if (item.role === TenantRole.VIEWER || item.role === 'Viewer') {
-      role = TenantRole.VIEWER;
+      role = AppLevelRole.VIEWER;
+    } else if (item.role === AppLevelRole.OWNER || item.role === 'Owner') {
+      role = AppLevelRole.OWNER;
+    } else if (item.role === AppLevelRole.EDITOR || item.role === 'Editor') {
+      role = AppLevelRole.EDITOR;
+    } else if (item.role === AppLevelRole.VIEWER || item.role === 'Viewer') {
+      role = AppLevelRole.VIEWER;
     } else {
       // Fallback to Viewer if unknown role
-      role = TenantRole.VIEWER;
+      role = AppLevelRole.VIEWER;
     }
     
     return {
       id: item.id,
       name: item.displayName, // Use displayName as name
       displayName: item.displayName,
-      isAdmin: role === TenantRole.OWNER,
+      isAdmin: role === AppLevelRole.OWNER,
       role,
     };
   });

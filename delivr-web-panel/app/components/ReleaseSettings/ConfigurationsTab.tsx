@@ -189,7 +189,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
       
       // Archive by updating isActive and status via PUT (not DELETE)
       const result = await apiPut<{ success: boolean; data?: any; error?: string }>(
-        `/api/v1/tenants/${org}/release-config/${archiveModal.configId}`,
+        `/api/v1/apps/${org}/release-config/${archiveModal.configId}`,
         archivePayload
       );
       
@@ -245,7 +245,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
       
       // Unarchive by updating isActive and status via PUT
       const result = await apiPut<{ success: boolean; data?: any; error?: string }>(
-        `/api/v1/tenants/${org}/release-config/${unarchiveModal.configId}`,
+        `/api/v1/apps/${org}/release-config/${unarchiveModal.configId}`,
         unarchivePayload
       );
       
@@ -291,7 +291,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
     
     try {
       const result = await apiDelete<{ success: boolean; error?: string }>(
-        `/api/v1/tenants/${org}/release-config/${deleteModal.configId}`
+        `/api/v1/apps/${org}/release-config/${deleteModal.configId}`
       );
       
       if (result.success) {
@@ -360,7 +360,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
       if (currentDefault && currentDefault.id !== configId) {
         console.log('[ConfigurationsTab] Unsetting previous default:', currentDefault.id);
         const unsetResult = await apiPut(
-          `/api/v1/tenants/${org}/release-config/${currentDefault.id}`,
+          `/api/v1/apps/${org}/release-config/${currentDefault.id}`,
           { ...currentDefault, isDefault: false } // Send full config with only isDefault changed
         );
         
@@ -386,7 +386,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
       // Now set the new default
       // Send the FULL config object to prevent backend from wiping out other fields
       const result = await apiPut(
-        `/api/v1/tenants/${org}/release-config/${configId}`,
+        `/api/v1/apps/${org}/release-config/${configId}`,
         { ...configToSetDefault, isDefault: true } // Send full config with only isDefault changed
       );
       

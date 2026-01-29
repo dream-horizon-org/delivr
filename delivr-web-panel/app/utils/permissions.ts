@@ -8,7 +8,7 @@
  * For use in components (client-side), use the hook usePermissions().
  */
 
-import { TenantRole, type TenantRoleType } from '~/constants/permissions';
+import { AppLevelRole, type AppLevelRoleType } from '~/constants/permissions';
 import { apiGet } from '~/utils/api-client';
 
 // Local type definition to avoid importing from server-only module
@@ -24,7 +24,7 @@ type AppsResponse = {
 
 export interface AppWithRoleType {
   id: string;
-  role: TenantRole;
+  role: AppLevelRole;
 }
 
 /**
@@ -39,7 +39,7 @@ export interface OrganizationWithRole extends AppWithRoleType {}
 export function getAppRole(
   apps: AppWithRoleType[],
   appId: string
-): TenantRoleType {
+): AppLevelRoleType {
   const app = apps.find((a) => a.id === appId);
   return app?.role ?? null;
 }
@@ -52,7 +52,7 @@ export function isAppOwner(
   appId: string
 ): boolean {
   const app = apps.find((a) => a.id === appId);
-  return app?.role === TenantRole.OWNER;
+  return app?.role === AppLevelRole.OWNER;
 }
 
 /**
@@ -63,17 +63,17 @@ export function isAppEditor(
   appId: string
 ): boolean {
   const app = apps.find((a) => a.id === appId);
-  return app?.role === TenantRole.EDITOR || app?.role === TenantRole.OWNER;
+  return app?.role === AppLevelRole.EDITOR || app?.role === AppLevelRole.OWNER;
 }
 
 /**
  * Legacy functions for backward compatibility
  * @deprecated Use getAppRole, isAppOwner, isAppEditor instead
  */
-export function getTenantRole(
+export function getAppLevelRole(
   apps: AppWithRoleType[],
   appId: string
-): TenantRoleType {
+): AppLevelRoleType {
   return getAppRole(apps, appId);
 }
 
@@ -137,7 +137,7 @@ export const PermissionService = {
   /**
    * Get user's role for an app (client-side only - uses API route)
    */
-  async getAppRole(appId: string, userId: string): Promise<TenantRoleType> {
+  async getAppRole(appId: string, userId: string): Promise<AppLevelRoleType> {
     try {
       const result = await apiGet<AppsResponse>('/api/v1/apps');
       if (!result.success || !result.data) {
@@ -153,11 +153,11 @@ export const PermissionService = {
       }
       
       // Map role (handle Collaborator -> Viewer)
-      if (app.role === 'Collaborator') return TenantRole.VIEWER;
-      if (app.role === TenantRole.OWNER) return TenantRole.OWNER;
-      if (app.role === TenantRole.EDITOR) return TenantRole.EDITOR;
-      if (app.role === TenantRole.VIEWER) return TenantRole.VIEWER;
-      return TenantRole.VIEWER; // Fallback
+      if (app.role === 'Collaborator') return AppLevelRole.VIEWER;
+      if (app.role === AppLevelRole.OWNER) return AppLevelRole.OWNER;
+      if (app.role === AppLevelRole.EDITOR) return AppLevelRole.EDITOR;
+      if (app.role === AppLevelRole.VIEWER) return AppLevelRole.VIEWER;
+      return AppLevelRole.VIEWER; // Fallback
     } catch (error) {
       console.error('[PermissionService] Error fetching app role:', error);
       return null;
@@ -170,7 +170,7 @@ export const PermissionService = {
   async isAppOwner(appId: string, userId: string): Promise<boolean> {
     try {
       const role = await this.getAppRole(appId, userId);
-      return role === TenantRole.OWNER;
+      return role === AppLevelRole.OWNER;
     } catch (error) {
       console.error('[PermissionService] Error checking app owner:', error);
       return false; // Fail closed
@@ -183,7 +183,7 @@ export const PermissionService = {
   async isAppEditor(appId: string, userId: string): Promise<boolean> {
     try {
       const role = await this.getAppRole(appId, userId);
-      return role === TenantRole.EDITOR || role === TenantRole.OWNER;
+      return role === AppLevelRole.EDITOR || role === AppLevelRole.OWNER;
     } catch (error) {
       console.error('[PermissionService] Error checking app editor:', error);
       return false; // Fail closed
@@ -194,7 +194,7 @@ export const PermissionService = {
    * Legacy methods for backward compatibility
    * @deprecated Use getAppRole, isAppOwner, isAppEditor instead
    */
-  async getTenantRole(appId: string, userId: string): Promise<TenantRoleType> {
+  async getAppLevelRole(appId: string, userId: string): Promise<AppLevelRoleType> {
     return this.getAppRole(appId, userId);
   },
 

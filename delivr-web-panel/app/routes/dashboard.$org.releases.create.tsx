@@ -36,7 +36,7 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
 
   // Check if user is editor or owner - only editors/owners can create releases
   try {
-    const isEditor = await PermissionService.isTenantEditor(appId, user.user.id);
+    const isEditor = await PermissionService.isAppEditor(appId, user.user.id);
     if (!isEditor) {
       throw redirect(`/dashboard/${appId}/releases`);
     }

@@ -16,6 +16,7 @@ import { IconAlertCircle, IconEdit, IconTrash, IconUserPlus } from "@tabler/icon
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { COLLABORATOR_MESSAGES } from "~/constants/toast-messages";
+import { invalidateAppCollaborators } from "~/utils/cache-invalidation";
 import { showErrorToast, showSuccessToast } from "~/utils/toast";
 
 interface Collaborator {
@@ -43,7 +44,7 @@ export function TenantCollaboratorsPage({ appId, userId }: TenantCollaboratorsPa
 
   // Fetch collaborators
   const { data: collaborators, isLoading, error } = useQuery<Record<string, Collaborator>>(
-    ["tenant-collaborators", appId],
+    ["app-collaborators", appId],
     async () => {
       const response = await fetch(`/api/v1/apps/${appId}/collaborators`, {
         credentials: "include",
@@ -82,7 +83,7 @@ export function TenantCollaboratorsPage({ appId, userId }: TenantCollaboratorsPa
     {
       onSuccess: () => {
         showSuccessToast(COLLABORATOR_MESSAGES.ADD_SUCCESS);
-        queryClient.invalidateQueries(["tenant-collaborators", appId]);
+        invalidateAppCollaborators(queryClient, appId);
         setAddModalOpen(false);
         setNewEmail("");
         setNewPermission("Viewer");
@@ -118,7 +119,7 @@ export function TenantCollaboratorsPage({ appId, userId }: TenantCollaboratorsPa
     {
       onSuccess: () => {
         showSuccessToast(COLLABORATOR_MESSAGES.UPDATE_SUCCESS);
-        queryClient.invalidateQueries(["tenant-collaborators", appId]);
+        invalidateAppCollaborators(queryClient, appId);
         setEditModalOpen(false);
         setSelectedCollaborator(null);
       },
@@ -153,7 +154,7 @@ export function TenantCollaboratorsPage({ appId, userId }: TenantCollaboratorsPa
     {
       onSuccess: () => {
         showSuccessToast(COLLABORATOR_MESSAGES.REMOVE_SUCCESS);
-        queryClient.invalidateQueries(["tenant-collaborators", appId]);
+        invalidateAppCollaborators(queryClient, appId);
         setDeleteModalOpen(false);
         setSelectedCollaborator(null);
       },

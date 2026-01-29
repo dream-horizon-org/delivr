@@ -2,8 +2,8 @@
  * BFF API Route: Get App by ID
  * GET /api/v1/apps/:appId
  *
- * Serves the same data as /api/v1/tenants/:tenantId for app-centric URLs.
- * Dashboard and useTenantConfig call this endpoint.
+ * Serves the same data as /api/v1/apps/:tenantId for app-centric URLs.
+ * Dashboard and useAppConfig call this endpoint.
  */
 
 import { json } from '@remix-run/node';
