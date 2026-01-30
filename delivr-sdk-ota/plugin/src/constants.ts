@@ -60,3 +60,29 @@ export const JS_BUNDLE_OVERRIDE_JAVA = `
 
 export const IOS_CODEPUSH_IMPORT_SWIFT = `import CodePush`;
 export const IOS_CODEPUSH_IMPORT_OBJC = `#import <CodePush/CodePush.h>`;
+
+export const DOTA_POD_HELPERS_REQUIRE = `require_relative '../node_modules/@d11/dota/ios/scripts/dota_pod_helpers.rb'`;
+
+export const DOTA_POST_INSTALL_CALL = (projectName: string): string =>
+  `dota_post_install(installer, '${projectName}', File.expand_path(__dir__))`;
+
+export const PODFILE_MERGE_TAGS = {
+  POD_HELPERS: "dota-pod-helpers",
+  POST_INSTALL: "dota-post-install",
+} as const;
+
+export const PODFILE_ANCHOR_PATTERNS = {
+  REQUIRE_STATEMENT: /^require /m,
+  MAC_CATALYST_ENABLED: /:mac_catalyst_enabled\s*=>/,
+} as const;
+
+export const PODFILE_OFFSETS = {
+  REQUIRE_ANCHOR: 0,
+  POST_INSTALL_ANCHOR: 3,
+} as const;
+
+export const PODFILE_COMMENT = "#";
+
+export const ERROR_MESSAGES = {
+  MODIFYING_PODFILE: "Error modifying Podfile:",
+} as const;
