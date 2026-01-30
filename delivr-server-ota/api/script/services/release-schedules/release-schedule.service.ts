@@ -122,7 +122,7 @@ export class ReleaseScheduleService {
   /**
    * Get schedules by tenant
    */
-  getByTenantId = async (appId: string): Promise<ReleaseScheduleRecord[]> => {
+  getByAppId = async (appId: string): Promise<ReleaseScheduleRecord[]> => {
     return this.scheduleRepository.findByAppId(appId);
   };
 

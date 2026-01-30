@@ -37,7 +37,7 @@ const getGithubTokenForTenant = async (appId: string): Promise<string | null> =>
   const storage = getStorage() as any;
   const repo = storage?.cicdIntegrationRepository;
   if (!repo) return null;
-  const gha = await repo.findByTenantAndProvider(appId, CICDProviderType.GITHUB_ACTIONS);
+  const gha = await repo.findByAppAndProvider(appId, CICDProviderType.GITHUB_ACTIONS);
   const hasToken = !!gha && isNonEmptyString((gha as any).apiToken);
   return hasToken ? (gha as any).apiToken as string : null;
 };

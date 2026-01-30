@@ -22,7 +22,7 @@ export class JenkinsWorkflowService extends WorkflowService {
   fetchJobParameters = async (appId: string, workflowUrl: string): Promise<{ parameters: Array<{
     name: string; type: 'boolean' | 'string' | 'choice'; description?: string; defaultValue?: unknown; options?: string[];
   }>}> => {
-    const integration = await this.integrationRepository.findByTenantAndProvider(appId, CICDProviderType.JENKINS);
+    const integration = await this.integrationRepository.findByAppAndProvider(appId, CICDProviderType.JENKINS);
     if (!integration) throw new Error(ERROR_MESSAGES.JENKINS_CONNECTION_NOT_FOUND);
     const hasBasicCreds = integration.authType === AuthType.BASIC && !!integration.username && !!integration.apiToken;
     if (!hasBasicCreds) throw new Error(ERROR_MESSAGES.JENKINS_BASIC_REQUIRED);
@@ -129,7 +129,7 @@ export class JenkinsWorkflowService extends WorkflowService {
    */
   getQueueStatus = async (appId: string, queueUrl: string): Promise<JenkinsQueueStatusResult> => {
     const urlObj = new URL(queueUrl);
-    const integration = await this.integrationRepository.findByTenantAndProvider(appId, CICDProviderType.JENKINS);
+    const integration = await this.integrationRepository.findByAppAndProvider(appId, CICDProviderType.JENKINS);
     const integrationNotFound = !integration;
     if (integrationNotFound) {
       throw new Error(ERROR_MESSAGES.JENKINS_CONNECTION_NOT_FOUND);
@@ -169,7 +169,7 @@ export class JenkinsWorkflowService extends WorkflowService {
    */
   getBuildStatus = async (appId: string, buildUrl: string): Promise<JenkinsBuildStatusResult> => {
     const urlObj = new URL(buildUrl);
-    const integration = await this.integrationRepository.findByTenantAndProvider(appId, CICDProviderType.JENKINS);
+    const integration = await this.integrationRepository.findByAppAndProvider(appId, CICDProviderType.JENKINS);
     const integrationNotFound = !integration;
     if (integrationNotFound) {
       throw new Error(ERROR_MESSAGES.JENKINS_CONNECTION_NOT_FOUND);

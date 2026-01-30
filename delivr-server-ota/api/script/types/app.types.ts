@@ -11,6 +11,7 @@ export interface AppAttributes {
   organizationId: string | null;
   displayName?: string;
   description?: string;
+  isActive: boolean;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
@@ -27,6 +28,7 @@ export interface UpdateAppRequest {
   name?: string;
   displayName?: string;
   description?: string;
+  isActive?: boolean;
 }
 
 export interface AppWithPlatformTargets extends AppAttributes {

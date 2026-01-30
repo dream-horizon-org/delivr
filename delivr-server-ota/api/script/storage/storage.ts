@@ -76,7 +76,7 @@ export interface App {
   tenantName?: string;
 }
 
-export interface Organization {
+export interface OrgApp {
   /*generated*/ createdBy: string;
   /*generated*/ createdTime: number;
   /*generated*/ id?: string;
@@ -168,9 +168,9 @@ export interface Storage {
 
   // OrgApp methods (new App entities - renamed from Tenant)
   // Note: These work with the new App entity (renamed from Tenant)
-  // The organizationId FK exists but Organization entity not implemented yet
-  getOrgApps(accountId: string): Promise<Organization[]>;  // Returns apps (new App entities, renamed from Tenant)
-  addOrgApp(accountId: string, orgApp: Organization): Promise<Organization>;  // Creates app (new App entity)
+  // The organizationId FK exists but Org entity not implemented yet
+  getOrgApps(accountId: string): Promise<OrgApp[]>;
+  addOrgApp(accountId: string, orgApp: OrgApp): Promise<OrgApp>;
   removeOrgApp(accountId: string, appId: string): Promise<void>;  // Removes app (new App entity)
   
   // OrgApp collaborator methods (for new App entities)
@@ -334,7 +334,7 @@ export class NameResolver {
       return item.appId === appRequest.organisation.orgId;
   }
 
-  public static findAppByTenantId(apps: App[], appId: string, name: string): App {
+  public static findAppByAppId(apps: App[], appId: string, name: string): App {
     if (!apps.length) return null;
 
     for (let i = 0; i < apps.length; i++) {
@@ -436,7 +436,7 @@ export class NameResolver {
       .getApps(accountId)
       .then((apps: App[]): App => {
         //check this logic
-        const app: App = appId ? NameResolver.findAppByTenantId(apps, appId, name) : NameResolver.findByName(apps, name);
+        const app: App = appId ? NameResolver.findAppByAppId(apps, appId, name) : NameResolver.findByName(apps, name);
         if (!app) throw storageError(ErrorCode.NotFound);
         return app;
       })

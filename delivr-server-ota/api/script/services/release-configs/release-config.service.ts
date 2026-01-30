@@ -681,7 +681,7 @@ export class ReleaseConfigService {
    * Get default config for tenant
    */
   async getDefaultConfig(appId: string): Promise<ReleaseConfiguration | null> {
-    return this.configRepo.findDefaultByTenantId(appId);
+    return this.configRepo.findDefaultByAppId(appId);
   }
 
   /**

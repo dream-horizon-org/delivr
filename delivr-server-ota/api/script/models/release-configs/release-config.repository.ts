@@ -76,7 +76,6 @@ export class ReleaseConfigRepository {
    * @deprecated Use findByAppId instead
    * Kept for backward compatibility
    */
-  findByTenantId = this.findByAppId;
 
   findByAppIdAndName = async (
     appId: string,
@@ -93,11 +92,6 @@ export class ReleaseConfigRepository {
     return this.toPlainObject(config);
   };
 
-  /**
-   * @deprecated Use findByAppIdAndName instead
-   * Kept for backward compatibility
-   */
-  findByTenantIdAndName = this.findByAppIdAndName;
 
   findDefaultByAppId = async (
     appId: string
@@ -112,12 +106,6 @@ export class ReleaseConfigRepository {
 
     return this.toPlainObject(config);
   };
-
-  /**
-   * @deprecated Use findDefaultByAppId instead
-   * Kept for backward compatibility
-   */
-  findDefaultByTenantId = this.findDefaultByAppId;
 
   update = async (
     id: string,

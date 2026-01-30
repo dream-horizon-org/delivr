@@ -268,7 +268,7 @@ export class TestFlightBuildVerificationService {
     errorCode?: string;
     errorMessage?: string;
   }> {
-    const integrations = await this.storeIntegrationController.findByTenantAndStoreType(
+    const integrations = await this.storeIntegrationController.findByAppAndStoreType(
       appId,
       StoreType.APP_STORE
     );

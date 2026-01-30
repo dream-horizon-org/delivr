@@ -81,7 +81,7 @@ export class StoreIntegrationController {
     return integrations;
   }
 
-  async findByTenantAndStoreType(
+  async findByAppAndStoreType(
     appId: string, 
     storeType: StoreType
   ): Promise<SafeStoreIntegration[]> {
@@ -92,7 +92,7 @@ export class StoreIntegrationController {
     return results.map(r => this.toSafeObject(r.toJSON()));
   }
 
-  async findByTenantStoreTypeAndAppIdentifier(
+  async findByAppStoreTypeAndAppIdentifier(
     appId: string,
     storeType: StoreType,
     appIdentifier: string

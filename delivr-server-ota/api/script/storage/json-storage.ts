@@ -39,7 +39,7 @@ export class JsonStorage implements storage.Storage {
   public static NextIdNumber: number = 0;
   public accounts: { [id: string]: storage.Account } = {};
   public apps: { [id: string]: storage.App } = {};
-  public tenants: {[id: string]: storage.Organization} = {};
+  public tenants: {[id: string]: storage.OrgApp} = {};
   public deployments: { [id: string]: storage.Deployment } = {};
   public packages: { [id: string]: storage.Package } = {};
   public blobs: { [id: string]: string } = {};
@@ -184,7 +184,7 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(<void>null);
   }
 
-  public getTenants(accountId: string): Promise<storage.Organization[]> {
+  public getTenants(accountId: string): Promise<storage.OrgApp[]> {
     const tenantIds = this.accountToTenantsMap[accountId];
     if (tenantIds) {
       const tenants = tenantIds.map((id: string) => {
@@ -196,7 +196,7 @@ export class JsonStorage implements storage.Storage {
     return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
   }
 
-  public addTenant(accountId: string, tenant: storage.Organization): Promise<storage.Organization> {
+  public addTenant(accountId: string, tenant: storage.OrgApp): Promise<storage.OrgApp> {
     tenant = clone(tenant);
     tenant.id = this.newId();
     tenant.createdBy = accountId;
@@ -232,11 +232,11 @@ export class JsonStorage implements storage.Storage {
   }
 
   // OrgApp methods (stubs - not implemented, use S3Storage instead)
-  public getOrgApps(_accountId: string): Promise<storage.Organization[]> {
+  public getOrgApps(_accountId: string): Promise<storage.OrgApp[]> {
     return Promise.reject(new Error('JsonStorage: getOrgApps not implemented - use S3Storage'));
   }
 
-  public addOrgApp(_accountId: string, _orgApp: storage.Organization): Promise<storage.Organization> {
+  public addOrgApp(_accountId: string, _orgApp: storage.OrgApp): Promise<storage.OrgApp> {
     return Promise.reject(new Error('JsonStorage: addOrgApp not implemented - use S3Storage'));
   }
 

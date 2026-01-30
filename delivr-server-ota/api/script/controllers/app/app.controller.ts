@@ -135,7 +135,7 @@ const getAppHandler = (appService: AppService, storage: any) =>
       const projectManagementIntegrationRepository = (storage as any).projectManagementIntegrationRepository;
 
       const scmIntegrations = scmController ? await scmController.findAll({ appId, isActive: true }) : [];
-      const slackIntegration = commIntegrationRepository ? await commIntegrationRepository.findByTenant(appId, 'SLACK') : null;
+      const slackIntegration = commIntegrationRepository ? await commIntegrationRepository.findByApp(appId, 'SLACK') : null;
       const cicdIntegrations = cicdIntegrationRepository ? await cicdIntegrationRepository.findAll({ appId }) : [];
 
       let testManagementIntegrations: unknown[] = [];

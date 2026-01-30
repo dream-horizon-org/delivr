@@ -29,6 +29,7 @@ export class AppRepository {
       organizationId: json.organizationId,
       displayName: json.displayName ?? undefined,
       description: json.description ?? undefined,
+      isActive: json.isActive ?? true,
       createdBy: json.createdBy,
       createdAt: json.createdAt,
       updatedAt: json.updatedAt
@@ -50,8 +51,10 @@ export class AppRepository {
     return this.toPlainObject(app);
   };
 
-  findById = async (id: string): Promise<AppAttributes | null> => {
-    const app = await this.getModel().findByPk(id);
+  findById = async (id: string, includeInactive = false): Promise<AppAttributes | null> => {
+    const where: Record<string, unknown> = { id };
+    if (!includeInactive) where.isActive = true;
+    const app = await this.getModel().findOne({ where });
 
     if (!app) {
       return null;
@@ -69,19 +72,21 @@ export class AppRepository {
     return apps.map((app) => this.toPlainObject(app));
   };
 
-  findByCreatedBy = async (createdBy: string): Promise<AppAttributes[]> => {
+  findByCreatedBy = async (createdBy: string, includeInactive = false): Promise<AppAttributes[]> => {
+    const where: Record<string, unknown> = { createdBy };
+    if (!includeInactive) where.isActive = true;
     const apps = await this.getModel().findAll({
-      where: { createdBy },
+      where,
       order: [['createdAt', 'DESC']]
     });
 
     return apps.map((app) => this.toPlainObject(app));
   };
 
-  findByName = async (name: string): Promise<AppAttributes | null> => {
-    const app = await this.getModel().findOne({
-      where: { name }
-    });
+  findByName = async (name: string, includeInactive = false): Promise<AppAttributes | null> => {
+    const where: Record<string, unknown> = { name };
+    if (!includeInactive) where.isActive = true;
+    const app = await this.getModel().findOne({ where });
 
     if (!app) {
       return null;
@@ -111,7 +116,8 @@ export class AppRepository {
     await app.update({
       name: data.name ?? undefined,
       displayName: data.displayName ?? undefined,
-      description: data.description ?? undefined
+      description: data.description ?? undefined,
+      ...(data.isActive !== undefined && { isActive: data.isActive })
     });
 
     return this.toPlainObject(app);
@@ -125,8 +131,11 @@ export class AppRepository {
     return rowsDeleted > 0;
   };
 
-  findByIdWithPlatformTargets = async (id: string): Promise<AppWithPlatformTargets | null> => {
-    const app = await this.getModel().findByPk(id, {
+  findByIdWithPlatformTargets = async (id: string, includeInactive = false): Promise<AppWithPlatformTargets | null> => {
+    const where: Record<string, unknown> = { id };
+    if (!includeInactive) where.isActive = true;
+    const app = await this.getModel().findOne({
+      where,
       include: [
         {
           model: this.sequelize.models['app_platform_target'],

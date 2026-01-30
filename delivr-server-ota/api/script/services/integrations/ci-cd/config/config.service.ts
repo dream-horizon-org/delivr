@@ -1,5 +1,5 @@
 import type { CICDConfigRepository, CICDWorkflowRepository, CICDIntegrationRepository } from '~models/integrations/ci-cd';
-import type { CreateCICDConfigDto, FieldError, AppCICDConfig, AppCICDConfigWithWorkflows, UpdateCICDConfigDto } from '~types/integrations/ci-cd/config.interface';
+import type { CreateCICDConfigDto, FieldError, AppCICDConfig, AppCICDConfigWithWorkflows } from '~types/integrations/ci-cd/config.interface';
 import type { AppCICDWorkflow } from '~types/integrations/ci-cd/workflow.interface';
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 import { CICD_CONFIG_ERROR_MESSAGES } from './config.constants';
@@ -144,10 +144,6 @@ export class CICDConfigService {
   }
 
   /**
-   * @deprecated Use listByApp instead
-   * Kept for backward compatibility
-   */
-  listByTenant = this.listByApp;
 
   async updateConfig(dto: UpdateCICDConfigDto): Promise<AppCICDConfig | null> {
     const configId = dto.configId;

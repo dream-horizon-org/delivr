@@ -127,8 +127,8 @@ export class CommIntegrationService {
   /**
    * Get integration by tenant
    */
-  async getIntegrationByTenant(appId: string): Promise<SafeSlackIntegration | null> {
-    return await this.repository.findByTenant(
+  async getIntegrationByApp(appId: string): Promise<SafeSlackIntegration | null> {
+    return await this.repository.findByApp(
       appId,
       CommunicationType.SLACK
     );
@@ -138,7 +138,7 @@ export class CommIntegrationService {
    * Get integration with token (for internal use)
    */
   async getIntegrationWithToken(appId: string): Promise<AppCommunicationIntegration | null> {
-    return await this.repository.findByTenant(
+    return await this.repository.findByApp(
       appId,
       CommunicationType.SLACK,
       true // include token
@@ -164,11 +164,11 @@ export class CommIntegrationService {
   /**
    * Update integration by appId (legacy method)
    */
-  async updateIntegrationByTenant(
+  async updateIntegrationByApp(
     appId: string,
     updateData: UpdateSlackIntegrationDto
   ): Promise<SafeSlackIntegration | null> {
-    const existing = await this.repository.findByTenant(
+    const existing = await this.repository.findByApp(
       appId,
       CommunicationType.SLACK
     );
@@ -197,8 +197,8 @@ export class CommIntegrationService {
   /**
    * Delete integration by appId (legacy method)
    */
-  async deleteIntegrationByTenant(appId: string): Promise<boolean> {
-    const existing = await this.repository.findByTenant(
+  async deleteIntegrationByApp(appId: string): Promise<boolean> {
+    const existing = await this.repository.findByApp(
       appId,
       CommunicationType.SLACK
     );

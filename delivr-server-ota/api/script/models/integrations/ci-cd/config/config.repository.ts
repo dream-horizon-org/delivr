@@ -38,7 +38,7 @@ export class CICDConfigRepository {
    * @deprecated Use findByApp instead
    * Kept for backward compatibility
    */
-  findByTenant = this.findByApp;
+  findByApp = this.findByApp;
 
   update = async (
     id: string,

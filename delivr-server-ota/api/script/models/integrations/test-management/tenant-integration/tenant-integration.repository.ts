@@ -91,11 +91,6 @@ export class TenantTestManagementIntegrationRepository {
     return integrations.map((integration) => this.toPlainObject(integration));
   };
 
-  /**
-   * @deprecated Use findByApp instead
-   * Kept for backward compatibility
-   */
-  findByTenant = this.findByApp;
 
   // Alias for findByApp (used by service)
   findAll = async (

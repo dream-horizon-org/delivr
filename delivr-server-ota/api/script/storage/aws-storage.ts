@@ -305,6 +305,11 @@ export function createApp(sequelize: Sequelize) {
         key: 'id',
       },
     },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -1859,7 +1864,7 @@ export class S3Storage implements storage.Storage {
         .catch(S3Storage.storageErrorHandler);
     }
     
-    public getOrgApps(accountId: string): Promise<storage.Organization[]> {
+    public getOrgApps(accountId: string): Promise<storage.OrgApp[]> {
       // Fetch all tenants where the account is a member (via collaborators)
       // Account → Tenant (parent entity) → Apps
       return this.setupPromise
@@ -1880,9 +1885,9 @@ export class S3Storage implements storage.Storage {
               const permission = collab.dataValues.permission;
               
               const app = await this.sequelize.models[MODELS.APP].findOne({
-                where: { id: appId }
+                where: { id: appId, isActive: true }
               });
-              
+
               if (!app) return null;
               
               return {
@@ -1896,12 +1901,12 @@ export class S3Storage implements storage.Storage {
           );
           
           // Filter out any nulls
-          return apps.filter((t: storage.Organization | null) => t !== null) as storage.Organization[];
+          return apps.filter((t: storage.OrgApp | null) => t !== null) as storage.OrgApp[];
         })
         .catch(S3Storage.storageErrorHandler);
     }
     
-    public addOrgApp(accountId: string, orgApp: storage.Organization): Promise<storage.Organization> {
+    public addOrgApp(accountId: string, orgApp: storage.OrgApp): Promise<storage.OrgApp> {
       return this.setupPromise
         .then(async () => {
           const appId = orgApp.id || shortid.generate();
@@ -1913,7 +1918,8 @@ export class S3Storage implements storage.Storage {
             displayName: orgApp.displayName,
             name: orgApp.displayName,  // Use displayName as name
             createdBy: accountId,
-            organizationId: null,  // Will be set when Organization entity is implemented
+            organizationId: null,  // Will be set when Org entity is implemented
+            isActive: true,
             createdAt: new Date(),
             updatedAt: new Date()
           });
@@ -1984,10 +1990,11 @@ export class S3Storage implements storage.Storage {
         
         })
         .then(() => {
-          // Remove the app entry (new App entity)
-          return this.sequelize.models[MODELS.APP].destroy({
-            where: { id: appId, createdBy: accountId },
-          });
+          // Soft delete: set isActive = false (new App entity)
+          return this.sequelize.models[MODELS.APP].update(
+            { isActive: false },
+            { where: { id: appId, createdBy: accountId } }
+          );
         })
         .catch(S3Storage.storageErrorHandler);
     }

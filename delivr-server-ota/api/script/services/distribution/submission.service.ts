@@ -4232,7 +4232,7 @@ export class SubmissionService {
     }
 
     const storeIntegrationController = (storage as any).storeIntegrationController as StoreIntegrationController;
-    const integrations = await storeIntegrationController.findByTenantAndStoreType(
+    const integrations = await storeIntegrationController.findByAppAndStoreType(
       distribution.appId,
       StoreType.APP_STORE
     );

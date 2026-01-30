@@ -46,7 +46,7 @@ import type { Storage } from '../storage/storage';
     '/integrations/store/tenant/:appId',
     tenantPermissions.requireAppMembership({ storage }),
     validateStore.validateAppId,
-    storeControllers.getStoreIntegrationsByTenant
+    storeControllers.getStoreIntegrationsByApp
   );
 
   // Revoke store integrations by tenant, storeType, and platform

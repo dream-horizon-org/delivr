@@ -149,7 +149,7 @@ export class CommIntegrationRepository {
    * @deprecated Use findByApp instead
    * Kept for backward compatibility
    */
-  findByTenant = this.findByApp;
+  findByApp = this.findByApp;
 
   /**
    * Find integration by workspace

@@ -116,20 +116,20 @@ const createScheduledReleaseHandler = (service: ReleaseScheduleService) =>
  * 
  * GET /apps/:appId/release-schedules
  */
-const listSchedulesByTenantHandler = (service: ReleaseScheduleService) =>
+const listSchedulesByAppHandler = (service: ReleaseScheduleService) =>
   async (req: Request, res: Response): Promise<void> => {
     const { appId } = req.params;
 
-    console.log('[listSchedulesByTenant] Fetching schedules for tenant:', appId);
+    console.log('[listSchedulesByApp] Fetching schedules for tenant:', appId);
 
     try {
-      const schedules = await service.getByTenantId(appId);
+      const schedules = await service.getByAppId(appId);
 
       res.status(HTTP_STATUS.OK).json(
         successResponse(schedules)
       );
     } catch (error) {
-      console.error('[listSchedulesByTenant] Failed:', error);
+      console.error('[listSchedulesByApp] Failed:', error);
       const statusCode = getErrorStatusCode(error);
       res.status(statusCode).json(
         errorResponse(error, RELEASE_SCHEDULE_ERROR_MESSAGES.LIST_SCHEDULES_FAILED)
@@ -150,5 +150,5 @@ export const createReleaseScheduleController = (
   // Internal webhook
   createScheduledRelease: createScheduledReleaseHandler(service),
   // User-facing
-  listSchedulesByTenant: listSchedulesByTenantHandler(service)
+  listSchedulesByApp: listSchedulesByAppHandler(service)
 });

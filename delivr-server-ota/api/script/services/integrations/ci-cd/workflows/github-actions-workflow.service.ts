@@ -11,7 +11,7 @@ export class GitHubActionsWorkflowService extends WorkflowService {
    * Resolve a GitHub token for the tenant if available from CI/CD integration.
    */
   private getGithubTokenForTenant = async (appId: string): Promise<string | null> => {
-    const gha = await this.integrationRepository.findByTenantAndProvider(appId, CICDProviderType.GITHUB_ACTIONS);
+    const gha = await this.integrationRepository.findByAppAndProvider(appId, CICDProviderType.GITHUB_ACTIONS);
     if (gha?.apiToken) return gha.apiToken as string;
     // TODO: consider retrieving token from SCM integration repository if needed
     return null;

@@ -19,7 +19,7 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
   };
 
   create = async (appId: string, accountId: string, input: CreateInput): Promise<SafeCICDIntegration> => {
-    const existing = await this.repository.findByTenantAndProvider(appId, CICDProviderType.GITHUB_ACTIONS);
+    const existing = await this.repository.findByAppAndProvider(appId, CICDProviderType.GITHUB_ACTIONS);
     if (existing) {
       throw new Error(ERROR_MESSAGES.GHA_ALREADY_EXISTS);
     }
@@ -61,12 +61,12 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
   };
 
   get = async (appId: string): Promise<SafeCICDIntegration | null> => {
-    const found = await this.repository.findByTenantAndProvider(appId, CICDProviderType.GITHUB_ACTIONS);
+    const found = await this.repository.findByAppAndProvider(appId, CICDProviderType.GITHUB_ACTIONS);
     return found ? this.toSafe(found) : null;
   };
 
   update = async (appId: string, updateData: UpdateCICDIntegrationDto): Promise<SafeCICDIntegration> => {
-    const existing = await this.repository.findByTenantAndProvider(appId, CICDProviderType.GITHUB_ACTIONS);
+    const existing = await this.repository.findByAppAndProvider(appId, CICDProviderType.GITHUB_ACTIONS);
     if (!existing) {
       throw new Error(ERROR_MESSAGES.GHA_NOT_FOUND);
     }
@@ -120,7 +120,7 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
   };
 
   delete = async (appId: string): Promise<void> => {
-    const existing = await this.repository.findByTenantAndProvider(appId, CICDProviderType.GITHUB_ACTIONS);
+    const existing = await this.repository.findByAppAndProvider(appId, CICDProviderType.GITHUB_ACTIONS);
     if (!existing) {
       throw new Error(ERROR_MESSAGES.GHA_NOT_FOUND);
     }

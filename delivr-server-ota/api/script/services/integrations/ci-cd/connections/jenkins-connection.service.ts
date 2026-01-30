@@ -22,7 +22,7 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
   };
 
   create = async (appId: string, accountId: string, input: CreateInput): Promise<SafeCICDIntegration> => {
-    const existing = await this.repository.findByTenantAndProvider(appId, CICDProviderType.JENKINS);
+    const existing = await this.repository.findByAppAndProvider(appId, CICDProviderType.JENKINS);
     if (existing) {
       throw new Error(ERROR_MESSAGES.JENKINS_ALREADY_EXISTS);
     }
@@ -69,12 +69,12 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
   };
 
   get = async (appId: string): Promise<SafeCICDIntegration | null> => {
-    const found = await this.repository.findByTenantAndProvider(appId, CICDProviderType.JENKINS);
+    const found = await this.repository.findByAppAndProvider(appId, CICDProviderType.JENKINS);
     return found ? this.toSafe(found) : null;
   };
 
   update = async (appId: string, updateData: UpdateCICDIntegrationDto): Promise<SafeCICDIntegration> => {
-    const existing = await this.repository.findByTenantAndProvider(appId, CICDProviderType.JENKINS);
+    const existing = await this.repository.findByAppAndProvider(appId, CICDProviderType.JENKINS);
     if (!existing) {
       throw new Error(ERROR_MESSAGES.JENKINS_NOT_FOUND);
     }
@@ -145,7 +145,7 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
   };
 
   delete = async (appId: string): Promise<void> => {
-    const existing = await this.repository.findByTenantAndProvider(appId, CICDProviderType.JENKINS);
+    const existing = await this.repository.findByAppAndProvider(appId, CICDProviderType.JENKINS);
     if (!existing) {
       throw new Error(ERROR_MESSAGES.JENKINS_NOT_FOUND);
     }

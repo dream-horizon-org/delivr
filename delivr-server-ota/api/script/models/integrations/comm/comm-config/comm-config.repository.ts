@@ -1,6 +1,5 @@
 import type {
   AppCommChannel,
-  TenantCommChannel,
   StageChannelMapping,
   SlackChannel
 } from '~types/integrations/comm/comm-integration';
@@ -72,12 +71,6 @@ export class CommConfigRepository {
 
     return this.toPlainObject(channelConfig);
   };
-
-  /**
-   * @deprecated Use findByApp instead
-   * Kept for backward compatibility
-   */
-  findByTenant = this.findByApp;
 
   /**
    * Update channel configuration (general update)

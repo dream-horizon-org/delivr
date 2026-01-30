@@ -3,8 +3,6 @@ import { CommunicationType } from '~types/integrations/comm/comm-integration';
 import type {
   AppCommChannel,
   TenantCommChannel,
-  StageChannelMapping,
-  SlackChannel
 } from '~types/integrations/comm/comm-integration';
 import type {
   CreateChannelConfigDto,

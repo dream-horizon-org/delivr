@@ -244,7 +244,7 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
       };
 
       // Check if integration exists
-      const existing = await service.getIntegrationByTenant(appId);
+      const existing = await service.getIntegrationByApp(appId);
       
       let result;
       let isNew = false;
@@ -257,7 +257,7 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
           slackWorkspaceId: workspaceId,
           slackWorkspaceName: workspaceName
         };
-        result = await service.updateIntegrationByTenant(appId, updateData);
+        result = await service.updateIntegrationByApp(appId, updateData);
         isNew = false;
       } else {
         // Create new - store backend-encrypted value
@@ -294,7 +294,7 @@ const getIntegrationHandler = (service: CommIntegrationService) =>
     try {
       const { appId } = req.params;
 
-      const integration = await service.getIntegrationByTenant(appId);
+      const integration = await service.getIntegrationByApp(appId);
 
       if (!integration) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
@@ -482,7 +482,7 @@ const updateIntegrationHandler = (service: CommIntegrationService) =>
       if (workspaceId) updateData.slackWorkspaceId = workspaceId;
       if (workspaceName) updateData.slackWorkspaceName = workspaceName;
 
-      const updated = await service.updateIntegrationByTenant(appId, updateData);
+      const updated = await service.updateIntegrationByApp(appId, updateData);
 
       res.status(HTTP_STATUS.OK).json(
         successResponse(updated, COMM_INTEGRATION_SUCCESS_MESSAGES.INTEGRATION_UPDATED)
@@ -504,7 +504,7 @@ const deleteIntegrationHandler = (service: CommIntegrationService) =>
     try {
       const { appId } = req.params;
 
-      await service.deleteIntegrationByTenant(appId);
+      await service.deleteIntegrationByApp(appId);
 
       res.status(HTTP_STATUS.OK).json(
         successMessageResponse(COMM_INTEGRATION_SUCCESS_MESSAGES.INTEGRATION_DELETED)

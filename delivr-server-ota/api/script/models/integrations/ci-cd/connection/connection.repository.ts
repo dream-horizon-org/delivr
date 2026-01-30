@@ -96,7 +96,7 @@ export class CICDIntegrationRepository {
     return deleted > 0;
   };
 
-  findByTenantAndProvider = async (
+  findByAppAndProvider = async (
     appId: string,
     providerType: CreateCICDIntegrationDto['providerType']
   ): Promise<TenantCICDIntegration | null> => {

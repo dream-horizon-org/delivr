@@ -1258,7 +1258,7 @@ interface _StoreIntegrationsByPlatformResponse {
   error?: string;
 }
 
-export const getStoreIntegrationsByTenant = async (
+export const getStoreIntegrationsByApp = async (
   req: Request,
   res: Response
 ): Promise<void> => {

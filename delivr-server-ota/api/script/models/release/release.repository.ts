@@ -51,7 +51,7 @@ export class ReleaseRepository {
     return this.toPlainObject(release);
   }
 
-  async findAllByTenantId(appId: string): Promise<Release[]> {
+  async findAllByAppId(appId: string): Promise<Release[]> {
     const releases = await this.model.findAll({
       where: { appId },
       order: [['createdAt', 'DESC']]

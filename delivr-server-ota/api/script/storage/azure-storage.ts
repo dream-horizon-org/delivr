@@ -344,7 +344,7 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public getTenants(accountId: string): Promise<storage.Organization[]> {
+  public getTenants(accountId: string): Promise<storage.OrgApp[]> {
     return this._setupPromise
       .then(() => {
         return this.getAccount(accountId);
@@ -355,7 +355,7 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public addTenant(accountId: string, tenant: storage.Organization): Promise<storage.Organization> {
+  public addTenant(accountId: string, tenant: storage.OrgApp): Promise<storage.OrgApp> {
     tenant = storage.clone(tenant);
     tenant.id = shortid.generate();
     tenant.createdBy = accountId;
@@ -387,11 +387,11 @@ export class AzureStorage implements storage.Storage {
   }
 
   // OrgApp methods (stubs - not implemented, use S3Storage instead)
-  public getOrgApps(_accountId: string): Promise<storage.Organization[]> {
+  public getOrgApps(_accountId: string): Promise<storage.OrgApp[]> {
     return Promise.reject(new Error('AzureStorage: getOrgApps not implemented - use S3Storage'));
   }
 
-  public addOrgApp(_accountId: string, _orgApp: storage.Organization): Promise<storage.Organization> {
+  public addOrgApp(_accountId: string, _orgApp: storage.OrgApp): Promise<storage.OrgApp> {
     return Promise.reject(new Error('AzureStorage: addOrgApp not implemented - use S3Storage'));
   }
 

@@ -334,7 +334,7 @@ export class ReleaseRetrievalService {
    */
   async getAllReleases(appId: string, includeTasks: boolean = false): Promise<ReleaseResponseBody[]> {
     // Fetch all releases for tenant
-    const releases = await this.releaseRepo.findAllByTenantId(appId);
+    const releases = await this.releaseRepo.findAllByAppId(appId);
 
     // Fetch platform-target mappings for all releases
     const releaseResponses: ReleaseResponseBody[] = [];

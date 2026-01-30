@@ -281,7 +281,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
 
         // Check Comm/Slack integration
         const commIntegrationRepository = (storage as any).commIntegrationRepository;
-        const slackIntegration = await commIntegrationRepository.findByTenant(appId, 'SLACK');
+        const slackIntegration = await commIntegrationRepository.findByApp(appId, 'SLACK');
 
         // TODO: Check other required integrations (targets, pipelines, etc.)
         // const targetPlatforms = await storage.getTenantTargetPlatforms(appId);

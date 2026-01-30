@@ -282,7 +282,7 @@ export const deleteWorkflow = async (req: Request, res: Response): Promise<any> 
     }
 
     // Check if workflow is referenced by any config
-    const configs = await configRepository.findByTenant(appId);
+    const configs = await configRepository.findByApp(appId);
     const isWorkflowReferenced = configs.some((config: { workflowIds: string[] }) => {
       const workflowIds = Array.isArray(config.workflowIds) ? config.workflowIds : [];
       return workflowIds.includes(workflowId);

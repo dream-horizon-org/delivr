@@ -298,68 +298,9 @@ export function getManagementRouter(config: ManagementConfig): Router {
   const appRoutes = createAppRoutes(storage);
   router.use(appRoutes);
 
-  // ============================================================================
-  // TENANT ROUTES (LEGACY - for backward compatibility)
-  // These routes are kept for backward compatibility but delegate to app routes
-  // ============================================================================
-  
-  // Legacy: GET /tenants -> delegates to GET /apps
-  router.get("/tenants", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
+  // GET /apps/:appId, POST /apps, DELETE /apps/:appId are handled by app.routes
 
-    storage
-      .getOrgApps(accountId)
-      .then((tenants: storageTypes.Organization[]) => {
-        res.send({ organisations: tenants });
-      })
-      .catch((error: any) => {
-        next(error);
-      });
-  });
-
-  // Legacy: POST /tenants -> delegates to POST /apps
-  router.post("/tenants", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const tenant = req.body;
-
-    if (!tenant.displayName) {
-      return res.status(400).send({ error: "displayName is required" });
-    }
-
-      // Check for duplicate tenant name before creating
-    storage
-    .getOrgApps(accountId)
-    .then((existingTenants: storageTypes.Organization[]) => {
-      // Check if a tenant with the same displayName already exists
-      const duplicateTenant = existingTenants.find(
-        (t: storageTypes.Organization) => 
-          t.displayName.toLowerCase().trim() === tenant.displayName.toLowerCase().trim()
-      );
-
-      if (duplicateTenant) {
-        errorUtils.sendConflictError(
-          res, 
-          `An organization named '${tenant.displayName}' already exists.`
-        );
-        return;
-      }
-
-      // No duplicate found, proceed with creation
-      return storage
-        .addOrgApp(accountId, tenant)
-        .then((createdTenant: storageTypes.Organization) => {
-          res.status(201).send({ organisation: createdTenant });
-        });
-    })
-    .catch((error: any) => {
-      console.error("Error creating tenant:", error);
-      next(error);
-    });
-  });
-
-  // GET /apps/:appId is handled by app.routes (app controller returns app + organisation with platformTargets and releaseManagement.config)
-
-  // Get tenant collaborators (Owner only)
+  // App collaborators (Owner only)
   router.get("/apps/:appId/collaborators", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
     console.log("Getting collaborators for tenant:", req.params.appId);
     const appId: string = req.params.appId;
@@ -426,20 +367,6 @@ export function getManagementRouter(config: ManagementConfig): Router {
       console.error("Error removing tenant collaborator:", error);
       return errorUtils.restErrorHandler(res, error, next);
     }
-  });
-
-  router.delete("/apps/:appId", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appId: string = req.params.appId;
-
-    storage
-      .removeOrgApp(accountId, appId) // Calls the storage method we'll define next
-      .then(() => {
-        res.status(200).send("Org deleted successfully");
-      })
-      .catch((error: any) => {
-        next(error); // Forward error to error handler
-      });
   });
 
   router.get("/apps", (req: Request, res: Response, next: (err?: any) => void): any => {
