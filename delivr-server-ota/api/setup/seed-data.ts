@@ -48,6 +48,30 @@ const PRIMARY_KEYS: Record<string, string> = {
   platformStoreMappings: 'id',
 };
 
+// Get current timestamp in MySQL format (YYYY-MM-DD HH:MM:SS)
+const getMySQLTimestamp = (): string => {
+  const now = new Date();
+  return now.toISOString().slice(0, 19).replace('T', ' ');
+};
+
+// Get current time as epoch milliseconds
+const getEpochMillis = (): number => Date.now();
+
+// Add timestamps to a record
+const addTimestamps = (record: Record<string, unknown>): Record<string, unknown> => {
+  const mysqlTimestamp = getMySQLTimestamp();
+  const epochMillis = getEpochMillis();
+  
+  return {
+    ...record,
+    // MySQL datetime fields
+    createdAt: mysqlTimestamp,
+    updatedAt: mysqlTimestamp,
+    // Epoch millisecond fields (if applicable - will be overwritten if already set)
+    ...(record.createdTime !== undefined ? { createdTime: epochMillis } : {}),
+  };
+};
+
 async function seedData(): Promise<void> {
   const dbHost = process.env.DB_HOST ?? 'localhost';
   const dbUser = process.env.DB_USER ?? 'root';
@@ -128,7 +152,10 @@ async function seedData(): Promise<void> {
 
       // Insert data
       let insertedCount = 0;
-      for (const record of data) {
+      for (const rawRecord of data) {
+        // Add current timestamps to each record
+        const record = addTimestamps(rawRecord);
+        
         const columns = Object.keys(record);
         const values = Object.values(record).map(v => 
           v === null ? null : 

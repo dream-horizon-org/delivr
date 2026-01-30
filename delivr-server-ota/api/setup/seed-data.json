@@ -1,5 +1,5 @@
 {
-  "_comment": "Seed data for local development. Only injected when volumes are recreated (fresh/clear-data).",
+  "_comment": "Seed data for local development. Timestamps are auto-generated at runtime.",
   
   "accounts": [
     {
@@ -7,13 +7,13 @@
       "email": "admin@delivr.live",
       "name": "Admin User",
       "picture": null,
-      "createdTime": 1706515200000
+      "createdTime": 0
     }
   ],
 
   "tenants": [
     {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "id": "00000000-0000-0000-0000-000000000001",
       "displayName": "Development Organization",
       "createdBy": "admin_user_001"
     }
@@ -24,16 +24,16 @@
       "id": "app_dev_001",
       "name": "Demo App",
       "accountId": "admin_user_001",
-      "tenantId": "550e8400-e29b-41d4-a716-446655440000",
-      "createdTime": 1706515200000
+      "tenantId": "00000000-0000-0000-0000-000000000001",
+      "createdTime": 0
     }
   ],
 
   "collaborators": [
     {
-      "email": "admin@delivr.local",
+      "email": "admin@delivr.live",
       "accountId": "admin_user_001",
-      "tenantId": "550e8400-e29b-41d4-a716-446655440000",
+      "tenantId": "00000000-0000-0000-0000-000000000001",
       "appId": null,
       "permission": "Owner",
       "isCreator": true
@@ -47,7 +47,7 @@
       "key": "demo-production-key-abc123",
       "appId": "app_dev_001",
       "packageId": null,
-      "createdTime": 1706515200000
+      "createdTime": 0
     },
     {
       "id": "deployment_staging_001",
@@ -55,7 +55,7 @@
       "key": "demo-staging-key-xyz789",
       "appId": "app_dev_001",
       "packageId": null,
-      "createdTime": 1706515200000
+      "createdTime": 0
     }
   ],
 
@@ -64,8 +64,8 @@
       "id": "access_key_001",
       "name": "dev_admin_key_abcd1234",
       "accountId": "admin_user_001",
-      "createdBy": "admin@delivr.local",
-      "createdTime": 1706515200000,
+      "createdBy": "admin@delivr.live",
+      "createdTime": 0,
       "friendlyName": "Admin Development Key",
       "expires": 1893456000000,
       "scope": "All",
@@ -97,4 +97,3 @@
     }
   ]
 }
-

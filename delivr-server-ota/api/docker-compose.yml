@@ -104,8 +104,6 @@ services:
     container_name: delivr-app-dev
     ports:
       - "3010:3010"
-    env_file:
-      - .env
     volumes:
       # Mount source code for hot reload
       - ../api:/app/api
@@ -137,8 +135,6 @@ services:
     container_name: delivr-app-prod
     ports:
       - "3010:3010"
-    env_file:
-      - .env
     # No volume mounts - code is baked into image
     depends_on:
       db:
