@@ -26,6 +26,11 @@ export type JiraProjectIssueType = {
   description?: string;
 };
 
+export type JiraProjectMetadata = {
+  statuses: JiraProjectStatus[];
+  issueTypes: JiraProjectIssueType[];
+};
+
 export class JiraMetadataService {
   constructor(
     private readonly integrationRepo: ProjectManagementIntegrationRepository
@@ -69,40 +74,14 @@ export class JiraMetadataService {
   }
 
   /**
-   * Get all statuses for a Jira project
+   * Get combined metadata (statuses AND issue types) for a Jira project
+   * Fetches both in parallel using Promise.all to minimize latency
    */
-  async getProjectStatuses(
-    integrationId: string, 
-    projectKey: string,
-    tenantId?: string
-  ): Promise<JiraProjectStatus[]> {
-    const integration = await this.integrationRepo.findById(integrationId);
-    
-    if (!integration) {
-      throw new Error(`Integration not found: ${integrationId}`);
-    }
-
-    // Validate tenant ownership if tenantId provided
-    if (tenantId && integration.tenantId !== tenantId) {
-      throw new Error(`Integration ${integrationId} does not belong to tenant ${tenantId}`);
-    }
-
-    this.validateJiraIntegration(integration.providerType, integrationId);
-
-    const provider = new JiraProvider();
-    const statuses = await provider.getProjectStatuses(integration.config, projectKey);
-    
-    return statuses;
-  }
-
-  /**
-   * Get all issue types for a Jira project
-   */
-  async getProjectIssueTypes(
+  async getProjectMetadata(
     integrationId: string,
     projectKey: string,
     tenantId?: string
-  ): Promise<JiraProjectIssueType[]> {
+  ): Promise<JiraProjectMetadata> {
     const integration = await this.integrationRepo.findById(integrationId);
     
     if (!integration) {
@@ -117,9 +96,17 @@ export class JiraMetadataService {
     this.validateJiraIntegration(integration.providerType, integrationId);
 
     const provider = new JiraProvider();
-    const issueTypes = await provider.getProjectIssueTypes(integration.config, projectKey);
     
-    return issueTypes;
+    // Fetch both statuses and issue types in parallel
+    const [statuses, issueTypes] = await Promise.all([
+      provider.getProjectStatuses(integration.config, projectKey),
+      provider.getProjectIssueTypes(integration.config, projectKey)
+    ]);
+    
+    return {
+      statuses,
+      issueTypes
+    };
   }
 }
 
