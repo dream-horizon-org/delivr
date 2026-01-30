@@ -354,21 +354,34 @@ class ProjectManagementIntegrationServiceClass extends IntegrationService {
   }
 
   /**
-   * Get Jira statuses for a specific project
-   * Fetches all statuses from Jira for a given project using the integration credentials
+   * Get Jira project metadata (statuses and issue types combined)
+   * Fetches both statuses and issue types from Jira for a given project using the integration credentials
    */
-  async getJiraStatuses(
+  async getJiraProjectMetadata(
     tenantId: string,
     integrationId: string,
     projectKey: string,
     userId: string
-  ): Promise<{ success: boolean; data?: Array<{ id: string; name: string; category: string }>; error?: string }> {
+  ): Promise<{ 
+    success: boolean; 
+    data?: { 
+      statuses: Array<{ id: string; name: string; category: string }>; 
+      issueTypes: Array<{ id: string; name: string; subtask: boolean; description?: string }> 
+    }; 
+    error?: string 
+  }> {
     try {
-      const endpoint = PROJECT_MANAGEMENT.jiraMetadata.getStatuses(tenantId, integrationId, projectKey);
+      const endpoint = PROJECT_MANAGEMENT.jiraMetadata.getProjectMetadata(tenantId, integrationId, projectKey);
       
       this.logRequest('GET', endpoint);
       
-      const result = await this.get<{ success: boolean; data: Array<{ id: string; name: string; category: string }> }>(
+      const result = await this.get<{ 
+        success: boolean; 
+        data: { 
+          statuses: Array<{ id: string; name: string; category: string }>; 
+          issueTypes: Array<{ id: string; name: string; subtask: boolean; description?: string }> 
+        } 
+      }>(
         endpoint,
         userId
       );
@@ -377,11 +390,11 @@ class ProjectManagementIntegrationServiceClass extends IntegrationService {
       
       return {
         success: result.success,
-        data: result.data || [],
+        data: result.data || { statuses: [], issueTypes: [] },
         error: (result as any).error
       };
     } catch (error: any) {
-      this.logResponse('GET', PROJECT_MANAGEMENT.jiraMetadata.getStatuses(tenantId, integrationId, projectKey), false);
+      this.logResponse('GET', PROJECT_MANAGEMENT.jiraMetadata.getProjectMetadata(tenantId, integrationId, projectKey), false);
       
       // Check if this is a network/connection error
       if (error.message === 'No response from server') {
@@ -393,52 +406,7 @@ class ProjectManagementIntegrationServiceClass extends IntegrationService {
       
       return {
         success: false,
-        error: error.message || 'Failed to fetch Jira statuses'
-      };
-    }
-  }
-
-  /**
-   * Get Jira issue types for a specific project
-   * Fetches all issue types from Jira for a given project using the integration credentials
-   */
-  async getJiraIssueTypes(
-    tenantId: string,
-    integrationId: string,
-    projectKey: string,
-    userId: string
-  ): Promise<{ success: boolean; data?: Array<{ id: string; name: string; subtask: boolean; description?: string }>; error?: string }> {
-    try {
-      const endpoint = PROJECT_MANAGEMENT.jiraMetadata.getIssueTypes(tenantId, integrationId, projectKey);
-      
-      this.logRequest('GET', endpoint);
-      
-      const result = await this.get<{ success: boolean; data: Array<{ id: string; name: string; subtask: boolean; description?: string }> }>(
-        endpoint,
-        userId
-      );
-      
-      this.logResponse('GET', endpoint, result.success);
-      
-      return {
-        success: result.success,
-        data: result.data || [],
-        error: (result as any).error
-      };
-    } catch (error: any) {
-      this.logResponse('GET', PROJECT_MANAGEMENT.jiraMetadata.getIssueTypes(tenantId, integrationId, projectKey), false);
-      
-      // Check if this is a network/connection error
-      if (error.message === 'No response from server') {
-        return {
-          success: false,
-          error: 'Unable to connect to backend server. Please check your backend configuration.',
-        };
-      }
-      
-      return {
-        success: false,
-        error: error.message || 'Failed to fetch Jira issue types'
+        error: error.message || 'Failed to fetch Jira project metadata'
       };
     }
   }

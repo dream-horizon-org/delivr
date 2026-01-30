@@ -3,7 +3,7 @@
  * Displays configuration fields for a single platform (Web/iOS/Android)
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, TextInput, Select, Stack, Text, Badge, Loader } from '@mantine/core';
 import type { JiraPlatformConfig } from '~/types/release-config';
 import type { JiraPlatformConfigCardProps } from '~/types/release-config-props';
@@ -47,6 +47,9 @@ export function JiraPlatformConfigCard({
 }: JiraPlatformConfigCardProps) {
   const platformConfig = JIRA_PLATFORM_CONFIG[platform];
   
+  // Track previous project key to detect changes
+  const previousProjectKeyRef = useRef<string>('');
+  
   // State for completion statuses
   const [completionStatuses, setCompletionStatuses] = useState<StatusOption[]>([
     { value: 'Done', label: 'Done' } // Default fallback
@@ -87,28 +90,48 @@ export function JiraPlatformConfigCard({
       if (!projectKey || !integrationId) {
         setCompletionStatuses([{ value: 'Done', label: 'Done' }]);
         setIssueTypes([{ value: 'Task', label: 'Task' }]);
+        previousProjectKeyRef.current = '';
         return;
       }
 
-      // Fetch both statuses and issue types in parallel
+      // Clear previously selected issue type and completion status when project key changes
+      // (but not on initial load when previousProjectKeyRef is empty)
+      if (previousProjectKeyRef.current && previousProjectKeyRef.current !== projectKey) {
+        if (config.parameters?.issueType || config.parameters?.completedStatus) {
+          onChange({
+            ...config,
+            parameters: {
+              ...config.parameters,
+              issueType: '',
+              completedStatus: '',
+            },
+          });
+        }
+      }
+
+      // Update the previous project key ref
+      previousProjectKeyRef.current = projectKey;
+
+      // Fetch project metadata (statuses and issue types)
       setLoadingStatuses(true);
       setLoadingIssueTypes(true);
       setStatusesError(null);
       setIssueTypesError(null);
 
       try {
-        const [statusesResult, issueTypesResult] = await Promise.all([
-          apiGet<JiraStatus[]>(
-            `/api/v1/tenants/${tenantId}/integrations/project-management/${integrationId}/jira/metadata/statuses?projectKey=${projectKey}`
-          ),
-          apiGet<JiraIssueType[]>(
-            `/api/v1/tenants/${tenantId}/integrations/project-management/${integrationId}/jira/metadata/issue-types?projectKey=${projectKey}`
-          ),
-        ]);
+        const metadataResult = await apiGet<{ statuses: JiraStatus[]; issueTypes: JiraIssueType[] }>(
+          `/api/v1/tenants/${tenantId}/integrations/project-management/${integrationId}/jira/metadata/project-metadata?projectKey=${projectKey}`
+        );
+
+        if (!metadataResult.success || !metadataResult.data) {
+          throw new Error('Invalid metadata response format');
+        }
+
+        const { statuses, issueTypes: issueTypesData } = metadataResult.data;
 
         // Process statuses
-        if (statusesResult.success && statusesResult.data && Array.isArray(statusesResult.data)) {
-          const allStatuses = statusesResult.data.map((status) => ({
+        if (statuses && Array.isArray(statuses)) {
+          const allStatuses = statuses.map((status) => ({
             value: status.name,
             label: status.name,
           }));
@@ -118,8 +141,8 @@ export function JiraPlatformConfigCard({
         }
 
         // Process issue types (filter out subtasks)
-        if (issueTypesResult.success && issueTypesResult.data && Array.isArray(issueTypesResult.data)) {
-          const mainIssueTypes = issueTypesResult.data
+        if (issueTypesData && Array.isArray(issueTypesData)) {
+          const mainIssueTypes = issueTypesData
             .filter((type) => !type.subtask)
             .map((type) => ({
               value: type.name,

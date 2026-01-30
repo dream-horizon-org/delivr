@@ -1,8 +1,8 @@
 /**
- * BFF Route: Fetch Jira Issue Types for a Project
- * GET /api/v1/tenants/:tenantId/integrations/project-management/:integrationId/jira/metadata/issue-types?projectKey={projectKey}
+ * BFF Route: Fetch Jira Project Metadata (Statuses and Issue Types Combined)
+ * GET /api/v1/tenants/:tenantId/integrations/project-management/:integrationId/jira/metadata/project-metadata?projectKey={projectKey}
  * 
- * Fetches all Jira issue types for a specific project
+ * Fetches both statuses and issue types for a specific Jira project in a single call
  * This is a proxy route that calls the backend Jira metadata service
  */
 
@@ -39,7 +39,7 @@ export const loader = authenticateLoaderRequest(async ({ params, request, user }
   }
 
   try {
-    const result = await ProjectManagementIntegrationService.getJiraIssueTypes(
+    const result = await ProjectManagementIntegrationService.getJiraProjectMetadata(
       tenantId,
       integrationId,
       projectKey,
@@ -48,21 +48,21 @@ export const loader = authenticateLoaderRequest(async ({ params, request, user }
 
     if (!result.success) {
       return json(
-        { success: false, error: result.error || 'Failed to fetch Jira issue types' },
+        { success: false, error: result.error || 'Failed to fetch Jira project metadata' },
         { status: 500 }
       );
     }
 
     return json({
       success: true,
-      data: result.data || [],
+      data: result.data || { statuses: [], issueTypes: [] },
     });
   } catch (error) {
-    console.error('[Jira Issue Types API] Error fetching issue types:', error);
+    console.error('[Jira Project Metadata API] Error fetching metadata:', error);
     return json(
       { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Failed to fetch Jira issue types' 
+        error: error instanceof Error ? error.message : 'Failed to fetch Jira project metadata' 
       },
       { status: 500 }
     );
