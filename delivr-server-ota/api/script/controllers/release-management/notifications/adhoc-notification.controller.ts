@@ -193,10 +193,13 @@ export class AdHocNotificationController {
       const channelNames = channels.map(ch => ch.name);
       
       // Send message via messaging service
-      const responses = await this.sendToSpecificChannels(
+      const responses = await this.messagingService.sendMessage(
         commsConfigId,
-        channelIds,
-        trimmedMessage
+        Task.AD_HOC_CUSTOM,
+        [trimmedMessage],
+        undefined,
+        undefined,
+        channelIds
       );
 
       // Step 7: Record notification in database
@@ -599,10 +602,12 @@ export class AdHocNotificationController {
     const channelIds = channels.map(ch => ch.id);
 
     // Send to specific channels (no platform enum needed - template is now generalized)
-    return await this.messagingService.sendToSpecificChannels(
+    return await this.messagingService.sendMessage(
       commsConfigId,
       Task.TEST_RESULTS_SUMMARY,
       parameters,
+      undefined,
+      undefined,
       channelIds
     );
   }
@@ -745,10 +750,12 @@ export class AdHocNotificationController {
         const releaseUrl = buildDelivrUrl(tenantId, releaseId);
 
         // Send notification
-        const responses = await this.messagingService.sendToSpecificChannels(
+        const responses = await this.messagingService.sendMessage(
           commsConfigId,
           Task.MANUAL_BUILD_UPLOAD_REMINDER,
           [buildTypeString, releaseUrl],
+          undefined,
+          undefined,
           channelIds
         );
 
@@ -932,10 +939,12 @@ export class AdHocNotificationController {
 
       // Step 6: Send notification
       const channelIds = channels.map(ch => ch.id);
-      const responses = await this.messagingService.sendToSpecificChannels(
+      const responses = await this.messagingService.sendMessage(
         commsConfigId,
         Task.PROJECT_MANAGEMENT_APPROVAL,
         [delivrUrl, ticketList],
+        undefined,
+        undefined,
         channelIds
       );
 
@@ -993,22 +1002,6 @@ export class AdHocNotificationController {
     }
   }
 
-  /**
-   * Send message to specific channels only
-   */
-  private async sendToSpecificChannels(
-    commsConfigId: string,
-    channelIds: string[],
-    message: string
-  ): Promise<Map<string, any>> {
-    // Use ad-hoc-custom task with message as parameter {0}
-    return await this.messagingService.sendToSpecificChannels(
-      commsConfigId,
-      Task.AD_HOC_CUSTOM,
-      [message],
-      channelIds
-    );
-  }
 }
 
 /**

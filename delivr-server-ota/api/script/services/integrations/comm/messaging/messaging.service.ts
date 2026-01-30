@@ -34,6 +34,7 @@ export class MessagingService {
    * @param parameters - Array of values to replace placeholders
    * @param fileUrl - Optional: URL of file to download and attach
    * @param platform - Optional: platform for platform-specific templates
+   * @param channelIds - Optional: specific channel IDs to send to (for ad-hoc notifications). If not provided, uses configured channels.
    * @returns Map of channel IDs to message responses
    */
   async sendMessage(
@@ -41,7 +42,8 @@ export class MessagingService {
     task: Task,
     parameters: string[],
     fileUrl?: string,
-    platform?: Platform
+    platform?: Platform,
+    channelIds?: string[]
   ): Promise<Map<string, MessageResponse>> {
     // 1. Get channel configuration by configId
     const channelConfig = await this.commConfigService.getConfigById(configId);
@@ -74,7 +76,8 @@ export class MessagingService {
       task,
       parameters,
       fileUrl,
-      platform
+      platform,
+      channelIds
     );
   }
 
@@ -214,54 +217,5 @@ export class MessagingService {
     return await provider.healthCheck();
   }
 
-  /**
-   * Send message to specific channels (for ad-hoc notifications)
-   * 
-   * @param configId - Channel configuration ID
-   * @param task - Message template task type
-   * @param parameters - Array of values to replace placeholders
-   * @param channelIds - Specific channel IDs to send to
-   * @returns Map of channel IDs to message responses
-   */
-  async sendToSpecificChannels(
-    configId: string,
-    task: Task,
-    parameters: string[],
-    channelIds: string[],
-    platform?: Platform
-  ): Promise<Map<string, MessageResponse>> {
-    // 1. Get channel configuration by configId
-    const channelConfig = await this.commConfigService.getConfigById(configId);
-    
-    if (!channelConfig) {
-      throw new Error(`Channel configuration not found: ${configId}`);
-    }
-
-    // 2. Get integration by config.integrationId
-    const integration = await this.commIntegrationService.getIntegrationById(
-      channelConfig.integrationId
-    );
-    
-    if (!integration) {
-      throw new Error(`Communication integration not found: ${channelConfig.integrationId}`);
-    }
-
-    // 3. Map DB CommunicationType to CommType enum
-    const commType = this.mapCommunicationType(integration.communicationType);
-
-    // 4. Build config based on comm type
-    const providerConfig = this.buildProviderConfig(commType, integration);
-
-    // 5. Get provider dynamically based on integration type
-    const provider = ProviderFactory.getProvider(commType, providerConfig);
-
-    // 6. Delegate to provider (send to specific channels only)
-    return await provider.sendToSpecificChannels(
-      channelIds,
-      task,
-      parameters,
-      platform
-    );
-  }
 }
 

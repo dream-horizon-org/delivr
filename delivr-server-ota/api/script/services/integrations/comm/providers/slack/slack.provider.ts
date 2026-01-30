@@ -58,7 +58,8 @@ export class SlackProvider implements ICommService {
     task: Task,
     parameters: string[],
     fileUrl?: string,
-    platform?: Platform
+    platform?: Platform,
+    channelIds?: string[]
   ): Promise<Map<string, MessageResponse>> {
     const responses = new Map<string, MessageResponse>();
     
@@ -83,61 +84,71 @@ export class SlackProvider implements ICommService {
         throw new Error(`${SLACK_ERROR_MESSAGES.BUILD_MESSAGE_FAILED} "${task}"${platformInfo}`);
       }
 
-      // Get comm config service from storage
-      const storage = getStorage();
-      const commConfigService = (storage as any).commConfigService;
-      
-      if (!commConfigService) {
-        console.error(`[ConfigId ${configId}] CommConfigService not available on storage`);
-        throw new Error('CommConfigService not available');
-      }
-      
-      // Fetch channel configuration by configId
-      const channelConfig = await commConfigService.getConfigById(configId);
-      
-      if (!channelConfig) {
-        console.error(`[ConfigId ${configId}] ${SLACK_ERROR_MESSAGES.CHANNEL_CONFIG_NOT_FOUND}`);
-        throw new Error(SLACK_ERROR_MESSAGES.CHANNEL_CONFIG_NOT_FOUND);
-      }
-      
-      // Find all buckets that handle this task
-      const relevantBuckets: ChannelBucket[] = [];
-      for (const [bucket, tasks] of Object.entries(BUCKET_TASK_MAPPING)) {
-        if (tasks.includes(task)) {
-          relevantBuckets.push(bucket as ChannelBucket);
-        }
-      }
-      
-      if (relevantBuckets.length === 0) {
-        console.warn(`[ConfigId ${configId}] No buckets configured for task "${task}"`);
-        return responses;
-      }
+      // Determine which channels to send to
+      let targetChannelIds: Set<string>;
+      let relevantBuckets: ChannelBucket[] = [];
 
-      // Collect all unique channel IDs from relevant buckets
-      const channelIds = new Set<string>();
-      const channels = channelConfig.channelData ?? {};
-      console.log('[SlackProvider] Channels:', JSON.stringify(channels, null, 2));
-      
-      for (const bucket of relevantBuckets) {
-        // Use bucket name directly (singular form: 'release', 'build', 'regression', 'critical')
-        const bucketChannels = channels[bucket] ?? [];
+      if (channelIds && channelIds.length > 0) {
+        // Use specific channels provided (for ad-hoc notifications)
+        targetChannelIds = new Set(channelIds);
+        console.log(`[ConfigId ${configId}] Using ${channelIds.length} specific channel(s) for task "${task}"`);
+      } else {
+        // Use default bucket-based channel selection
+        // Get comm config service from storage
+        const storage = getStorage();
+        const commConfigService = (storage as any).commConfigService;
         
-        // Handle both array of strings and array of objects with id property
-        bucketChannels.forEach((channel: any) => {
-          const channelId = typeof channel === 'string' ? channel : channel.id;
-          if (channelId) {
-            channelIds.add(channelId);
+        if (!commConfigService) {
+          console.error(`[ConfigId ${configId}] CommConfigService not available on storage`);
+          throw new Error('CommConfigService not available');
+        }
+        
+        // Fetch channel configuration by configId
+        const channelConfig = await commConfigService.getConfigById(configId);
+        
+        if (!channelConfig) {
+          console.error(`[ConfigId ${configId}] ${SLACK_ERROR_MESSAGES.CHANNEL_CONFIG_NOT_FOUND}`);
+          throw new Error(SLACK_ERROR_MESSAGES.CHANNEL_CONFIG_NOT_FOUND);
+        }
+        
+        // Find all buckets that handle this task
+        for (const [bucket, tasks] of Object.entries(BUCKET_TASK_MAPPING)) {
+          if (tasks.includes(task)) {
+            relevantBuckets.push(bucket as ChannelBucket);
           }
-        });
-      }
+        }
+        
+        if (relevantBuckets.length === 0) {
+          console.warn(`[ConfigId ${configId}] No buckets configured for task "${task}"`);
+          return responses;
+        }
 
-      if (channelIds.size === 0) {
-        console.warn(`[ConfigId ${configId}] No channels configured for buckets [${relevantBuckets.join(', ')}]`);
-        return responses;
+        // Collect all unique channel IDs from relevant buckets
+        targetChannelIds = new Set<string>();
+        const channels = channelConfig.channelData ?? {};
+        console.log('[SlackProvider] Channels:', JSON.stringify(channels, null, 2));
+        
+        for (const bucket of relevantBuckets) {
+          // Use bucket name directly (singular form: 'release', 'build', 'regression', 'critical')
+          const bucketChannels = channels[bucket] ?? [];
+          
+          // Handle both array of strings and array of objects with id property
+          bucketChannels.forEach((channel: any) => {
+            const channelId = typeof channel === 'string' ? channel : channel.id;
+            if (channelId) {
+              targetChannelIds.add(channelId);
+            }
+          });
+        }
+
+        if (targetChannelIds.size === 0) {
+          console.warn(`[ConfigId ${configId}] No channels configured for buckets [${relevantBuckets.join(', ')}]`);
+          return responses;
+        }
       }
 
       // Send message to all unique channels
-      for (const channelId of channelIds) {
+      for (const channelId of targetChannelIds) {
         const responseMap = await this.sendBasicMessage({
           channelId,
           text: message,
@@ -154,12 +165,12 @@ export class SlackProvider implements ICommService {
       // Count actual successes
       const successCount = Array.from(responses.values()).filter(r => r.ok === true).length;
       const fileInfo = files && files.length > 0 ? ` with ${files.length} file(s)` : '';
-      const bucketsInfo = relevantBuckets.join(', ');
+      const bucketsInfo = relevantBuckets.length > 0 ? relevantBuckets.join(', ') : 'specific channels';
       
-      if (successCount === channelIds.size) {
-        console.log(`[ConfigId ${configId}] Sent message for task "${task}" to ${channelIds.size} channel(s) in buckets [${bucketsInfo}]${fileInfo}`);
+      if (successCount === targetChannelIds.size) {
+        console.log(`[ConfigId ${configId}] Sent message for task "${task}" to ${targetChannelIds.size} channel(s) in buckets [${bucketsInfo}]${fileInfo}`);
       } else {
-        console.warn(`[ConfigId ${configId}] Sent message for task "${task}" to ${successCount}/${channelIds.size} channel(s) in buckets [${bucketsInfo}]${fileInfo}`);
+        console.warn(`[ConfigId ${configId}] Sent message for task "${task}" to ${successCount}/${targetChannelIds.size} channel(s) in buckets [${bucketsInfo}]${fileInfo}`);
       }
       
       return responses;
@@ -333,53 +344,6 @@ export class SlackProvider implements ICommService {
         error: error.message
       });
     }
-    }
-
-    return responses;
-  }
-
-  /**
-   * Send message to specific channels only
-   * Used for ad-hoc notifications where user selects channels
-   */
-  async sendToSpecificChannels(
-    channelIds: string[],
-    task: Task,
-    parameters: string[],
-    platform?: Platform
-  ): Promise<Map<string, MessageResponse>> {
-    const responses = new Map<string, MessageResponse>();
-
-    // Build message from template (with platform for platform-specific templates)
-    const message = buildSlackMessage(task, parameters, platform);
-    
-    if (!message) {
-      throw new Error(`Template not found for task: ${task}`);
-    }
-
-    // Send to each specified channel
-    for (const channelId of channelIds) {
-      try {
-        const result = await this.client.chat.postMessage({
-          channel: channelId,
-          text: message
-        });
-
-        responses.set(channelId, {
-          ok: true,
-          channel: channelId,
-          ts: result.ts,
-          message: result
-        });
-      } catch (error: any) {
-        console.error(`Failed to send to channel ${channelId}:`, error);
-        responses.set(channelId, {
-          ok: false,
-          channel: channelId,
-          ts: '',
-          error: error.message ?? 'Unknown error'
-        });
-      }
     }
 
     return responses;
