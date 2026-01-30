@@ -134,11 +134,10 @@ export class Authentication {
           // User provided via body
           req.user = req.body.user;
         } else {
-          // Default test user
           req.user = {
-            id: "id_0",
-            email: "user1@example.com",
-            name: "User One",
+            id: "admin_user_001",
+            email: "admin@delivr.live",
+            name: "Admin User",
           };
         }
         return next();

@@ -47,6 +47,21 @@ That's it! No local Node.js required. Everything runs inside Docker.
 3. Starts infrastructure (MySQL, Redis, Memcached, LocalStack)
 4. Starts app container with hot reload
 5. Creates database schema
+6. Seeds development data (only for `fresh` and `clear-data` commands)
+
+### Seed Data (auto-created with `fresh`/`clear-data`)
+
+| Entity | Data |
+|--------|------|
+| Account | `admin@delivr.local` |
+| Tenant | `Development Organization` |
+| App | `Demo App` |
+| Collaborator | Admin user as Owner |
+| Deployments | Production, Staging |
+| Access Key | `Admin Development Key` |
+| Platforms | ANDROID, IOS |
+| Targets | PLAY_STORE, APP_STORE |
+| Store Mappings | Platform-to-store mappings |
 
 ## Docker Profiles
 
@@ -98,9 +113,16 @@ docker compose --profile dev exec app-dev npm install <package>
 docker compose --profile dev exec app-dev ts-node -r dotenv/config /app/api/setup/create-schema.ts
 ```
 
+### Run seed data manually
+```bash
+docker compose --profile dev exec app-dev ts-node -r dotenv/config /app/api/setup/seed-data.ts
+```
+
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `dev-docker.sh` | Main development script |
 | `create-schema.ts` | Database schema creation |
+| `seed-data.ts` | Seed data injection script |
+| `seed-data.json` | Seed data definition |

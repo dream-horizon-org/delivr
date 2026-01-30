@@ -145,18 +145,18 @@ case "$COMMAND" in
 esac
 
 # -----------------------------------------------------------------------------
-# Step 0: Clean up if needed
+# Clean up if needed
 # -----------------------------------------------------------------------------
 if [ "$REMOVE_VOLUMES" = true ]; then
-    echo -e "\n${YELLOW}[0/5]${NC} Removing containers and volumes..."
+    echo -e "\n${YELLOW}Removing containers and volumes...${NC}"
     docker compose --profile dev down -v --remove-orphans 2>/dev/null || true
     echo -e "  ${GREEN}✓${NC} Cleaned up"
 fi
 
 # -----------------------------------------------------------------------------
-# Step 1: Ensure .env file exists
+# Ensure .env file exists
 # -----------------------------------------------------------------------------
-echo -e "\n${YELLOW}[1/5]${NC} Checking .env file..."
+echo -e "\n${YELLOW}Checking .env file...${NC}"
 
 if [ "$REWRITE_ENV" = true ] || [ ! -f .env ] || [ ! -s .env ] || ! grep -q "^DB_HOST=" .env 2>/dev/null; then
     if [ "$REWRITE_ENV" = true ]; then
@@ -177,9 +177,9 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Step 2: Setup Cronicle API Key
+# Setup Cronicle API Key
 # -----------------------------------------------------------------------------
-echo -e "\n${YELLOW}[2/5]${NC} Setting up Cronicle..."
+echo -e "\n${YELLOW}Setting up Cronicle...${NC}"
 
 # Start Cronicle first to get API key
 docker compose --profile dev up -d cronicle
@@ -243,9 +243,9 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Step 3: Start infrastructure containers
+# Start infrastructure containers
 # -----------------------------------------------------------------------------
-echo -e "\n${YELLOW}[3/5]${NC} Starting infrastructure containers..."
+echo -e "\n${YELLOW}Starting infrastructure containers...${NC}"
 docker compose --profile dev up -d db redis memcached localstack
 echo -e "  ${GREEN}✓${NC} Infrastructure started"
 
@@ -270,9 +270,9 @@ docker compose --profile dev exec -T db mysql -u root -proot -e "CREATE DATABASE
 echo -e "  ${GREEN}✓${NC} Database ready"
 
 # -----------------------------------------------------------------------------
-# Step 4: Start app container
+# Start app container
 # -----------------------------------------------------------------------------
-echo -e "\n${YELLOW}[4/5]${NC} Starting app container..."
+echo -e "\n${YELLOW}Starting app container...${NC}"
 
 BUILD_FLAG=""
 if [ "$REBUILD_CONTAINERS" = true ]; then
@@ -287,13 +287,25 @@ echo -e "  Waiting for app container..."
 sleep 5
 
 # -----------------------------------------------------------------------------
-# Step 5: Create database schema
+# Create database schema
 # -----------------------------------------------------------------------------
-echo -e "\n${YELLOW}[5/5]${NC} Creating database schema..."
+echo -e "\n${YELLOW}Creating database schema...${NC}"
 if docker compose --profile dev exec -T app-dev ts-node -r dotenv/config /app/api/setup/create-schema.ts > /dev/null 2>&1; then
     echo -e "  ${GREEN}✓${NC} Database schema created"
 else
     echo -e "  ${YELLOW}⚠${NC} Schema creation had issues (may already exist)"
+fi
+
+# -----------------------------------------------------------------------------
+# Seed development data (only when volumes were removed)
+# -----------------------------------------------------------------------------
+if [ "$REMOVE_VOLUMES" = true ]; then
+    echo -e "\n${YELLOW}Seeding development data...${NC}"
+    if docker compose --profile dev exec -T app-dev ts-node -r dotenv/config /app/api/setup/seed-data.ts 2>&1; then
+        echo -e "  ${GREEN}✓${NC} Seed data injected"
+    else
+        echo -e "  ${YELLOW}⚠${NC} Seed data injection had issues"
+    fi
 fi
 
 # -----------------------------------------------------------------------------
