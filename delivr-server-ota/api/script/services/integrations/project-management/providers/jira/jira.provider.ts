@@ -9,7 +9,7 @@ import type {
   TicketStatusResult
 } from '../provider.interface';
 import { JiraClient } from './jira.client';
-import type { JiraIntegrationConfig } from './jira.interface';
+import type { JiraIntegrationConfig, JiraMetadataResult } from './jira.interface';
 import { JIRA_DEFAULT_ISSUE_TYPE, JIRA_ERROR_MESSAGES } from './jira.constants';
 import { decryptConfigFields } from '~utils/encryption';
 
@@ -160,6 +160,51 @@ export class JiraProvider implements IProjectManagementProvider {
 
     const projects = await client.getProjects();
     return projects.map((p) => ({ key: p.key, name: p.name }));
+  }
+
+  // ============================================================================
+  // METADATA API METHODS WITH RESULT OBJECT PATTERN
+  // ============================================================================
+
+  /**
+   * Get error message based on HTTP status code
+   * Centralized error messages for consistent user feedback
+   */
+  private getMetadataErrorMessage(status: number, operation: string): string {
+    const messages: Record<number, string> = {
+      401: 'Invalid Jira credentials. Please check your API token and base URL.',
+      403: 'Insufficient Jira permissions. Ensure your user has the required access.',
+      404: 'Jira resource not found',
+      408: 'Request to Jira API timed out. Please try again.',
+      429: 'Jira API rate limit exceeded. Please wait and try again.',
+      500: 'Jira server error. Please try again later.',
+      503: 'Jira service is temporarily unavailable. Please try again later.'
+    };
+    
+    return messages[status] || `Failed to ${operation}`;
+  }
+
+  /**
+   * Get projects with result object pattern
+   * Returns success/failure without throwing exceptions
+   */
+  async getProjectsWithResult(
+    config: ProjectManagementIntegrationConfig
+  ): Promise<JiraMetadataResult<Array<{ key: string; name: string }>>> {
+    try {
+      const data = await this.getProjects(config);
+      return {
+        success: true,
+        data
+      };
+    } catch (error: any) {
+      const status = error.status || 500;
+      return {
+        success: false,
+        message: this.getMetadataErrorMessage(status, 'fetch projects'),
+        statusCode: status
+      };
+    }
   }
 }
 

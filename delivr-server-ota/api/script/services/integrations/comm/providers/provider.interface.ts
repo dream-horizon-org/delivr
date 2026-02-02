@@ -12,7 +12,7 @@ import type {
   MessageResponse,
   MessageFile,
   SendMessageArgs,
-  ListChannelsResponse,
+  ListChannelsResult,
   Channel,
   VerificationResult,
   HealthCheckResult
@@ -63,10 +63,11 @@ export interface ICommService {
 
   /**
    * List all channels the bot/service has access to
+   * Returns result object with detailed error handling (same pattern as verify)
    * 
-   * @returns List of channels with metadata
+   * @returns Result object with channels or error details
    */
-  listChannels(): Promise<ListChannelsResponse>;
+  listChannels(): Promise<ListChannelsResult>;
 
   // ============================================================================
   // VERIFICATION & HEALTH

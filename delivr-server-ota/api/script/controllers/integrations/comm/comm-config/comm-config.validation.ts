@@ -3,128 +3,170 @@
  * Input validation for channel config endpoints
  */
 
-import type { SlackChannel, StageChannelMapping } from '~types/integrations/comm/comm-integration';
+import * as yup from 'yup';
+import type { Response } from 'express';
+import { HTTP_STATUS } from '~constants/http';
 
 /**
- * Validate stage name
+ * Field error type for structured validation errors
  */
-export const validateStageName = (stage: unknown): string | null => {
-  if (!stage) {
-    return 'Stage name is required';
-  }
-
-  if (typeof stage !== 'string') {
-    return 'Stage name must be a string';
-  }
-
-  if (stage.trim().length === 0) {
-    return 'Stage name cannot be empty';
-  }
-
-  return null;
+export type FieldError = {
+  field: string;
+  message: string;
 };
 
 /**
- * Validate Slack channel object
+ * Generic Yup validation helper
+ * Validates data against a Yup schema and sends error response if validation fails
+ * Returns validated data or null (automatically sends error response)
  */
-export const validateSlackChannel = (channel: unknown): string | null => {
-  if (!channel) {
-    return 'Channel is required';
-  }
+const validateWithYup = async <T>(
+  schema: yup.Schema<T>,
+  data: unknown,
+  res: Response
+): Promise<T | null> => {
+  try {
+    const validated = await schema.validate(data, { abortEarly: false });
+    return validated;
+  } catch (error) {
+    if (error instanceof yup.ValidationError) {
+      // Group errors by field
+      const errorsByField = new Map<string, string[]>();
+      error.inner.forEach((err) => {
+        const field = err.path || 'unknown';
+        if (!errorsByField.has(field)) {
+          errorsByField.set(field, []);
+        }
+        errorsByField.get(field)!.push(err.message);
+      });
 
-  if (typeof channel !== 'object' || channel === null) {
-    return 'Channel must be an object';
-  }
+      // Convert to array format with messages (plural)
+      const details = Array.from(errorsByField.entries()).map(([field, messages]) => ({
+        field,
+        messages
+      }));
 
-  const ch = channel as Record<string, unknown>;
-
-  if (!ch.id || typeof ch.id !== 'string') {
-    return 'Channel ID is required and must be a string';
-  }
-
-  if (!ch.name || typeof ch.name !== 'string') {
-    return 'Channel name is required and must be a string';
-  }
-
-  return null;
-};
-
-/**
- * Validate array of Slack channels
- */
-export const validateChannelsArray = (channels: unknown): string | null => {
-  if (!channels) {
-    return 'Channels array is required';
-  }
-
-  if (!Array.isArray(channels)) {
-    return 'Channels must be an array';
-  }
-
-  if (channels.length === 0) {
-    return 'At least one channel is required';
-  }
-
-  for (let i = 0; i < channels.length; i++) {
-    const error = validateSlackChannel(channels[i]);
-    if (error) {
-      return `Channel at index ${i}: ${error}`;
+      res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        error: 'Request validation failed',
+        details
+      });
+      return null;
     }
+    throw error;
   }
-
-  return null;
 };
 
 /**
- * Validate stage channel mapping
+ * Channel schema (for nested array validation)
  */
-export const validateStageChannelMapping = (channelData: unknown): string | null => {
-  if (!channelData) {
-    return 'Channel data is required';
-  }
+const channelSchema = yup.object({
+  id: yup
+    .string()
+    .required('Channel ID is required')
+    .min(1, 'Channel ID cannot be empty'),
+  name: yup
+    .string()
+    .required('Channel name is required')
+    .min(1, 'Channel name cannot be empty')
+});
 
-  if (typeof channelData !== 'object' || channelData === null) {
-    return 'Channel data must be an object';
-  }
+/**
+ * Stage channel mapping schema
+ * Validates that channelData is an object with at least one stage, and each stage has an array of channels
+ */
+const stageChannelMappingSchema = yup.lazy((obj) =>
+  yup.object(
+    Object.keys(obj || {}).reduce((acc, key) => {
+      acc[key] = yup
+        .array()
+        .of(channelSchema)
+        .required(`Channels for stage '${key}' are required`)
+        .min(1, `At least one channel is required for stage '${key}'`);
+      return acc;
+    }, {} as Record<string, any>)
+  ).test('at-least-one-stage', 'At least one stage must be configured', (value) => {
+    return value && Object.keys(value).length > 0;
+  })
+);
 
-  const mapping = channelData as Record<string, unknown>;
-  const stages = Object.keys(mapping);
+/**
+ * Slack Config CREATE schema
+ * All fields are required for creating a new configuration
+ */
+const commConfigCreateSchema = yup.object({
+  tenantId: yup
+    .string()
+    .required('Tenant ID is required')
+    .min(1, 'Tenant ID cannot be empty'),
+  channelData: yup
+    .mixed()
+    .required('Channel data is required')
+    .test('valid-channel-data', 'Invalid channel data', function(value) {
+      if (!value || typeof value !== 'object') {
+        return this.createError({ message: 'Channel data must be an object' });
+      }
+      const stages = Object.keys(value);
+      if (stages.length === 0) {
+        return this.createError({ message: 'At least one stage must be configured' });
+      }
+      return true;
+    })
+    .test('valid-stages', 'Invalid stage configuration', async function(value) {
+      if (!value || typeof value !== 'object') return true; // Already checked above
+      
+      try {
+        await stageChannelMappingSchema.validate(value);
+        return true;
+      } catch (err: any) {
+        return this.createError({ message: err.message });
+      }
+    })
+});
 
-  if (stages.length === 0) {
-    return 'At least one stage must be configured';
-  }
+/**
+ * Slack Config UPDATE schema
+ * All fields are required for updating stage channels
+ */
+const commConfigUpdateSchema = yup.object({
+  id: yup
+    .string()
+    .required('Configuration ID is required')
+    .min(1, 'Configuration ID cannot be empty'),
+  stage: yup
+    .string()
+    .required('Stage name is required')
+    .min(1, 'Stage name cannot be empty'),
+  action: yup
+    .string()
+    .required('Action is required')
+    .oneOf(['add', 'remove'], 'Action must be either "add" or "remove"'),
+  channels: yup
+    .array()
+    .of(channelSchema)
+    .required('Channels are required')
+    .min(1, 'At least one channel is required')
+});
 
-  for (const stage of stages) {
-    const stageError = validateStageName(stage);
-    if (stageError) {
-      return `Stage name error: ${stageError}`;
-    }
-
-    const channelsError = validateChannelsArray(mapping[stage]);
-    if (channelsError) {
-      return `Stage "${stage}": ${channelsError}`;
-    }
-  }
-
-  return null;
+/**
+ * Validate configuration for CREATE operation with Yup
+ * Returns validated data or null (sends error response automatically)
+ */
+export const validateCreateConfig = async (
+  data: unknown,
+  res: Response
+): Promise<yup.InferType<typeof commConfigCreateSchema> | null> => {
+  return validateWithYup(commConfigCreateSchema, data, res);
 };
 
 /**
- * Validate action type for update
+ * Validate configuration for UPDATE operation with Yup
+ * Returns validated data or null (sends error response automatically)
  */
-export const validateUpdateAction = (action: unknown): string | null => {
-  if (!action) {
-    return 'Action is required';
-  }
-
-  if (typeof action !== 'string') {
-    return 'Action must be a string';
-  }
-
-  if (action !== 'add' && action !== 'remove') {
-    return 'Action must be either "add" or "remove"';
-  }
-
-  return null;
+export const validateUpdateConfig = async (
+  data: unknown,
+  res: Response
+): Promise<yup.InferType<typeof commConfigUpdateSchema> | null> => {
+  return validateWithYup(commConfigUpdateSchema, data, res);
 };
 

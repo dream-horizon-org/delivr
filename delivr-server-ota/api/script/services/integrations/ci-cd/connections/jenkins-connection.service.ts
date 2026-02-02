@@ -15,7 +15,7 @@ type CreateInput = {
 };
 
 export class JenkinsConnectionService extends ConnectionService<CreateInput> {
-  verifyConnection = async (params: JenkinsVerifyParams): Promise<{ isValid: boolean; message: string; details?: any }> => {
+  verifyConnection = async (params: JenkinsVerifyParams): Promise<{ success: boolean; message: string; statusCode?: number; details?: any }> => {
     const provider = await ProviderFactory.getProvider(CICDProviderType.JENKINS);
     const jenkins = provider as JenkinsProviderContract;
     return jenkins.verifyConnection(params);
@@ -48,7 +48,7 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
       crumbPath
     });
 
-    if (!verify.isValid) {
+    if (!verify.success) {
       const error: any = new Error(verify.message);
       error.details = verify.details;
       throw error;
@@ -96,7 +96,7 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
     const tokenToUse = updateData.apiToken ?? storedToken;
     const tokenMissing = !tokenToUse;
 
-    let verify: { isValid: boolean; message: string; details?: any } | undefined;
+    let verify: { success: boolean; message: string; statusCode?: number; details?: any } | undefined;
     
     if (tokenMissing) {
       updateData.verificationStatus = VerificationStatus.INVALID;
@@ -126,18 +126,18 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
           useCrumb,
           crumbPath
         });
-        updateData.verificationStatus = verify.isValid ? VerificationStatus.VALID : VerificationStatus.INVALID;
+        updateData.verificationStatus = verify.success ? VerificationStatus.VALID : VerificationStatus.INVALID;
         updateData.lastVerifiedAt = new Date();
-        updateData.verificationError = verify.isValid ? null : verify.message;
+        updateData.verificationError = verify.success ? null : verify.message;
         
         // Only re-encrypt and store if a new token was provided in the update
         // If token was not provided (partial update), keep the existing stored token unchanged
         // This matches the pattern used by GitHub Actions and other integrations
-        if (verify.isValid && updateData.apiToken) {
+        if (verify.success && updateData.apiToken) {
           // New token was provided, re-encrypt it for storage
           updateData.apiToken = encryptForStorage(decryptedToken);
 
-        } else if (verify.isValid) {
+        } else if (verify.success) {
           // Token was not provided (partial update), don't change the stored token
           console.log('[Jenkins Update] Token not provided, keeping existing stored token unchanged');
         }

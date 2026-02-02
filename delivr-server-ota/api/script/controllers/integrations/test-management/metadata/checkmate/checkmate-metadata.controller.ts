@@ -28,29 +28,25 @@ export const createCheckmateMetadataController = (metadataService: CheckmateMeta
  * GET /integrations/test-management/:integrationId/checkmate/metadata/projects
  */
 const getProjectsHandler = (metadataService: CheckmateMetadataService) => async (req: Request, res: Response): Promise<void> => {
-  try {
-    const integrationId = req.params.integrationId;
+  const integrationId = req.params.integrationId;
 
-    if (!integrationId) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        errorResponse('integrationId is required')
-      );
-      return;
-    }
+  if (!integrationId) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      errorResponse('integrationId is required')
+    );
+    return;
+  }
 
-    const response = await metadataService.getProjects(integrationId);
-    
+  const result = await metadataService.getProjects(integrationId);
+  
+  if (result.success && result.data) {
     // Checkmate returns projects in nested structure: response.data.projectsList
-    const projects = response.data.projectsList || [];
-    
-    res.status(HTTP_STATUS.OK).json(
-      successResponse(projects)
-    );
-  } catch (error) {
-    console.error('[Checkmate Metadata] Failed to fetch projects:', error);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      errorResponse(error, 'Failed to fetch projects')
-    );
+    const projects = result.data.data.projectsList || [];
+    res.status(HTTP_STATUS.OK).json(successResponse(projects));
+  } else {
+    const statusCode = result.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
+    const message = result.message || 'Failed to fetch Checkmate projects';
+    res.status(statusCode).json(errorResponse(message));
   }
 };
 
@@ -59,39 +55,35 @@ const getProjectsHandler = (metadataService: CheckmateMetadataService) => async 
  * GET /integrations/test-management/:integrationId/checkmate/metadata/sections?projectId=100
  */
 const getSectionsHandler = (metadataService: CheckmateMetadataService) => async (req: Request, res: Response): Promise<void> => {
-  try {
-    const integrationId = req.params.integrationId;
-    const projectIdParam = req.query.projectId;
+  const integrationId = req.params.integrationId;
+  const projectIdParam = req.query.projectId;
 
-    if (!integrationId) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        errorResponse('integrationId is required')
-      );
-      return;
-    }
+  if (!integrationId) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      errorResponse('integrationId is required')
+    );
+    return;
+  }
 
-    const projectIdError = validateCheckmateProjectId(projectIdParam);
-    if (projectIdError) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        errorResponse(projectIdError)
-      );
-      return;
-    }
+  const projectIdError = validateCheckmateProjectId(projectIdParam);
+  if (projectIdError) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      errorResponse(projectIdError)
+    );
+    return;
+  }
 
-    const projectId = parseInt(String(projectIdParam), 10);
-    const response = await metadataService.getSections(integrationId, projectId);
-    
+  const projectId = parseInt(String(projectIdParam), 10);
+  const result = await metadataService.getSections(integrationId, projectId);
+  
+  if (result.success && result.data) {
     // Extract sections array from Checkmate's response structure
-    const sections = response.data || [];
-    
-    res.status(HTTP_STATUS.OK).json(
-      successResponse(sections)
-    );
-  } catch (error) {
-    console.error('[Checkmate Metadata] Failed to fetch sections:', error);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      errorResponse(error, 'Failed to fetch sections')
-    );
+    const sections = result.data.data || [];
+    res.status(HTTP_STATUS.OK).json(successResponse(sections));
+  } else {
+    const statusCode = result.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
+    const message = result.message || 'Failed to fetch Checkmate sections';
+    res.status(statusCode).json(errorResponse(message));
   }
 };
 
@@ -100,39 +92,35 @@ const getSectionsHandler = (metadataService: CheckmateMetadataService) => async 
  * GET /integrations/test-management/:integrationId/checkmate/metadata/labels?projectId=100
  */
 const getLabelsHandler = (metadataService: CheckmateMetadataService) => async (req: Request, res: Response): Promise<void> => {
-  try {
-    const integrationId = req.params.integrationId;
-    const projectIdParam = req.query.projectId;
+  const integrationId = req.params.integrationId;
+  const projectIdParam = req.query.projectId;
 
-    if (!integrationId) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        errorResponse('integrationId is required')
-      );
-      return;
-    }
+  if (!integrationId) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      errorResponse('integrationId is required')
+    );
+    return;
+  }
 
-    const projectIdError = validateCheckmateProjectId(projectIdParam);
-    if (projectIdError) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        errorResponse(projectIdError)
-      );
-      return;
-    }
+  const projectIdError = validateCheckmateProjectId(projectIdParam);
+  if (projectIdError) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      errorResponse(projectIdError)
+    );
+    return;
+  }
 
-    const projectId = parseInt(String(projectIdParam), 10);
-    const response = await metadataService.getLabels(integrationId, projectId);
-    
+  const projectId = parseInt(String(projectIdParam), 10);
+  const result = await metadataService.getLabels(integrationId, projectId);
+  
+  if (result.success && result.data) {
     // Extract labels array from Checkmate's response structure
-    const labels = response.data || [];
-    
-    res.status(HTTP_STATUS.OK).json(
-      successResponse(labels)
-    );
-  } catch (error) {
-    console.error('[Checkmate Metadata] Failed to fetch labels:', error);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      errorResponse(error, 'Failed to fetch labels')
-    );
+    const labels = result.data.data || [];
+    res.status(HTTP_STATUS.OK).json(successResponse(labels));
+  } else {
+    const statusCode = result.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
+    const message = result.message || 'Failed to fetch Checkmate labels';
+    res.status(statusCode).json(errorResponse(message));
   }
 };
 
@@ -141,39 +129,35 @@ const getLabelsHandler = (metadataService: CheckmateMetadataService) => async (r
  * GET /integrations/test-management/:integrationId/checkmate/metadata/squads?projectId=100
  */
 const getSquadsHandler = (metadataService: CheckmateMetadataService) => async (req: Request, res: Response): Promise<void> => {
-  try {
-    const integrationId = req.params.integrationId;
-    const projectIdParam = req.query.projectId;
+  const integrationId = req.params.integrationId;
+  const projectIdParam = req.query.projectId;
 
-    if (!integrationId) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        errorResponse('integrationId is required')
-      );
-      return;
-    }
+  if (!integrationId) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      errorResponse('integrationId is required')
+    );
+    return;
+  }
 
-    const projectIdError = validateCheckmateProjectId(projectIdParam);
-    if (projectIdError) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        errorResponse(projectIdError)
-      );
-      return;
-    }
+  const projectIdError = validateCheckmateProjectId(projectIdParam);
+  if (projectIdError) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      errorResponse(projectIdError)
+    );
+    return;
+  }
 
-    const projectId = parseInt(String(projectIdParam), 10);
-    const response = await metadataService.getSquads(integrationId, projectId);
-    
+  const projectId = parseInt(String(projectIdParam), 10);
+  const result = await metadataService.getSquads(integrationId, projectId);
+  
+  if (result.success && result.data) {
     // Extract squads array from Checkmate's response structure
-    const squads = response.data || [];
-    
-    res.status(HTTP_STATUS.OK).json(
-      successResponse(squads)
-    );
-  } catch (error) {
-    console.error('[Checkmate Metadata] Failed to fetch squads:', error);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      errorResponse(error, 'Failed to fetch squads')
-    );
+    const squads = result.data.data || [];
+    res.status(HTTP_STATUS.OK).json(successResponse(squads));
+  } else {
+    const statusCode = result.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
+    const message = result.message || 'Failed to fetch Checkmate squads';
+    res.status(statusCode).json(errorResponse(message));
   }
 };
 

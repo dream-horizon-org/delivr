@@ -24,34 +24,31 @@ export const createJiraMetadataController = (metadataService: JiraMetadataServic
  * GET /tenants/:tenantId/integrations/project-management/:integrationId/jira/metadata/projects
  */
 const getProjectsHandler = (metadataService: JiraMetadataService) => async (req: Request, res: Response): Promise<void> => {
-  try {
-    const integrationId = req.params.integrationId;
-    const tenantId = req.params.tenantId;
+  const integrationId = req.params.integrationId;
+  const tenantId = req.params.tenantId;
 
-    if (!integrationId) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        errorResponse('integrationId is required')
-      );
-      return;
-    }
-
-    if (!tenantId) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        errorResponse('tenantId is required')
-      );
-      return;
-    }
-
-    const projects = await metadataService.getProjects(integrationId, tenantId);
-    
-    res.status(HTTP_STATUS.OK).json(
-      successResponse(projects)
+  if (!integrationId) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      errorResponse('integrationId is required')
     );
-  } catch (error) {
-    console.error('[Jira Metadata] Failed to fetch projects:', error);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      errorResponse(error, 'Failed to fetch Jira projects')
+    return;
+  }
+
+  if (!tenantId) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      errorResponse('tenantId is required')
     );
+    return;
+  }
+
+  const result = await metadataService.getProjects(integrationId, tenantId);
+  
+  if (result.success && result.data) {
+    res.status(HTTP_STATUS.OK).json(successResponse(result.data));
+  } else {
+    const statusCode = result.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
+    const message = result.message || 'Failed to fetch Jira projects';
+    res.status(statusCode).json(errorResponse(message));
   }
 };
 

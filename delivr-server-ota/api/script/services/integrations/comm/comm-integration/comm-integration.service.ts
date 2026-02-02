@@ -1,6 +1,6 @@
 import { encryptForStorage } from '~utils/encryption';
 import { CommType } from '../comm-types';
-import type { VerificationResult, ListChannelsResponse } from '../comm-types';
+import type { VerificationResult, ListChannelsResult } from '../comm-types';
 import { ProviderFactory } from '../providers/provider.factory';
 import {
   CommunicationType,
@@ -54,11 +54,12 @@ export class CommIntegrationService {
 
   /**
    * Fetch channels from provider (stateless)
+   * Returns result object with detailed error handling (similar to verifyCredentials)
    */
   async fetchChannels(
     providerType: CommType,
     botToken: string
-  ): Promise<ListChannelsResponse> {
+  ): Promise<ListChannelsResult> {
     const provider = ProviderFactory.getProvider(providerType, {
       commType: providerType,
       botToken

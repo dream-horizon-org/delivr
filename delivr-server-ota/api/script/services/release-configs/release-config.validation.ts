@@ -2,6 +2,9 @@
  * Business logic validation for release configs
  */
 
+import * as yup from 'yup';
+import type { Response } from 'express';
+import { HTTP_STATUS } from '~constants/http';
 import type { 
   CreateReleaseConfigDto, 
   ReleaseSchedule, 
@@ -13,27 +16,322 @@ import { RELEASE_FREQUENCIES } from '~types/release-schedules';
 import { isValidVersion } from '~services/release-schedules/utils';
 
 /**
+ * Generic Yup validation helper
+ * Validates data against schema and sends error response if validation fails
+ */
+const validateWithYup = async <T>(
+  schema: yup.Schema<T>,
+  data: unknown,
+  res: Response
+): Promise<T | null> => {
+  try {
+    const validated = await schema.validate(data, { abortEarly: false });
+    return validated;
+  } catch (error) {
+    if (error instanceof yup.ValidationError) {
+      // Group errors by field
+      const errorsByField = new Map<string, string[]>();
+      error.inner.forEach((err) => {
+        const field = err.path || 'unknown';
+        if (!errorsByField.has(field)) {
+          errorsByField.set(field, []);
+        }
+        errorsByField.get(field)!.push(err.message);
+      });
+
+      // Convert to array format with messages (plural)
+      const details = Array.from(errorsByField.entries()).map(([field, messages]) => ({
+        field,
+        messages
+      }));
+
+      res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        error: 'Request validation failed',
+        details
+      });
+      return null;
+    }
+    throw error;
+  }
+};
+
+/**
+ * Convert time string (HH:mm) to minutes for comparison
+ */
+const timeStringToMinutes = (timeString: string): number => {
+  const [hours, minutes] = timeString.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+/**
  * Check if value is a valid release frequency
  */
 const isValidReleaseFrequency = (value: unknown): value is ReleaseFrequency => {
   return typeof value === 'string' && RELEASE_FREQUENCIES.includes(value as ReleaseFrequency);
 };
 
+// ============================================================================
+// YUP SCHEMAS
+// ============================================================================
+
 /**
- * Check if config has at least one integration configured
- * This is a business rule validation that happens after integration processing
+ * Initial Version Schema
  */
-export const hasAtLeastOneIntegration = (config: Partial<CreateReleaseConfigDto>): boolean => {
-  // Check all integration configs (SCM removed as per requirements)
-  const hasCi = config.ciConfigId !== undefined && config.ciConfigId !== null;
-  const hasTcm = config.testManagementConfigId !== undefined && config.testManagementConfigId !== null;
-  const hasProjectMgmt = config.projectManagementConfigId !== undefined && config.projectManagementConfigId !== null;
-  const hasComms = config.commsConfigId !== undefined && config.commsConfigId !== null;
-  
-  return hasCi || hasTcm || hasProjectMgmt || hasComms;
+const initialVersionSchema = yup.object().shape({
+  platform: yup
+    .string()
+    .required('Platform is required')
+    .trim()
+    .min(1, 'Platform must be a non-empty string'),
+  target: yup
+    .string()
+    .required('Target is required')
+    .trim()
+    .min(1, 'Target must be a non-empty string'),
+  version: yup
+    .string()
+    .required('Version is required')
+    .trim()
+    .min(1, 'Version must be a non-empty string')
+    .test(
+      'valid-semver',
+      (value) => `Version "${value?.value}" is not a valid semver format (e.g., 1.0.0)`,
+      (value) => {
+        if (!value) return false;
+        return isValidVersion(value);
+      }
+    )
+});
+
+/**
+ * Regression Slot Config Schema
+ */
+const regressionSlotConfigSchema = yup.object().shape({
+  regressionBuilds: yup.boolean().optional(),
+  postReleaseNotes: yup.boolean().optional(),
+  automationBuilds: yup.boolean().optional(),
+  automationRuns: yup.boolean().optional()
+});
+
+/**
+ * Regression Slot Schema
+ */
+const regressionSlotSchema = yup.object().shape({
+  name: yup.string().optional(),
+  regressionSlotOffsetFromKickoff: yup
+    .number()
+    .required('Regression slot offset from kickoff is required')
+    .typeError('Regression slot offset must be a number'),
+  time: yup
+    .string()
+    .required('Regression slot time is required'),
+  config: regressionSlotConfigSchema.optional()
+});
+
+/**
+ * Release Schedule Schema
+ */
+const releaseScheduleSchema = yup.object().shape({
+  releaseFrequency: yup
+    .string()
+    .required('Release frequency is required')
+    .test(
+      'valid-frequency',
+      `Release frequency must be one of: ${RELEASE_FREQUENCIES.join(', ')}`,
+      (value) => isValidReleaseFrequency(value)
+    ),
+  firstReleaseKickoffDate: yup
+    .string()
+    .required('First release kickoff date is required'),
+  kickoffReminderTime: yup
+    .string()
+    .required('Kickoff reminder time is required'),
+  kickoffTime: yup
+    .string()
+    .required('Kickoff time is required'),
+  targetReleaseTime: yup
+    .string()
+    .required('Target release time is required'),
+  targetReleaseDateOffsetFromKickoff: yup
+    .number()
+    .required('Target release date offset from kickoff is required')
+    .min(0, 'Target release date offset from kickoff must be greater than or equal to 0')
+    .typeError('Target release date offset must be a number'),
+  kickoffReminderEnabled: yup
+    .boolean()
+    .required('Kickoff reminder enabled flag is required')
+    .typeError('Kickoff reminder enabled must be a boolean'),
+  timezone: yup
+    .string()
+    .required('Timezone is required'),
+  initialVersions: yup
+    .array()
+    .of(initialVersionSchema)
+    .min(1, 'At least one initial version must be specified')
+    .required('Initial versions array is required'),
+  workingDays: yup
+    .array()
+    .of(
+      yup
+        .number()
+        .min(0, 'Working day must be between 0 (Sunday) and 6 (Saturday)')
+        .max(6, 'Working day must be between 0 (Sunday) and 6 (Saturday)')
+    )
+    .min(1, 'At least one working day must be specified')
+    .required('Working days array is required'),
+  regressionSlots: yup
+    .array()
+    .of(regressionSlotSchema)
+    .min(1, 'At least one regression slot must be specified')
+    .required('Regression slots are required')
+})
+.test(
+  'kickoff-time-validation',
+  'Kickoff reminder time must be less than or equal to kickoff time',
+  function (value) {
+    if (!value.kickoffReminderTime || !value.kickoffTime) return true;
+    
+    const reminderMinutes = timeStringToMinutes(value.kickoffReminderTime);
+    const kickoffMinutes = timeStringToMinutes(value.kickoffTime);
+    
+    if (reminderMinutes > kickoffMinutes) {
+      return this.createError({
+        path: 'releaseSchedule.kickoffReminderTime',
+        message: 'Kickoff reminder time must be less than or equal to kickoff time'
+      });
+    }
+    return true;
+  }
+)
+.test(
+  'regression-slot-offset-validation',
+  'Regression slot offset validation',
+  function (value) {
+    if (!value.regressionSlots || !value.targetReleaseDateOffsetFromKickoff) return true;
+    
+    for (let i = 0; i < value.regressionSlots.length; i++) {
+      const slot = value.regressionSlots[i];
+      
+      // Check offset is within bounds
+      if (slot.regressionSlotOffsetFromKickoff > value.targetReleaseDateOffsetFromKickoff) {
+        return this.createError({
+          path: `releaseSchedule.regressionSlots[${i}].regressionSlotOffsetFromKickoff`,
+          message: 'Regression slot offset must be less than or equal to target release date offset from kickoff'
+        });
+      }
+      
+      // Check time constraint when on same day as release
+      if (slot.regressionSlotOffsetFromKickoff === value.targetReleaseDateOffsetFromKickoff) {
+        if (slot.time && value.targetReleaseTime) {
+          const slotMinutes = timeStringToMinutes(slot.time);
+          const releaseMinutes = timeStringToMinutes(value.targetReleaseTime);
+          
+          if (slotMinutes > releaseMinutes) {
+            return this.createError({
+              path: `releaseSchedule.regressionSlots[${i}].time`,
+              message: 'Regression slot time must be less than or equal to target release time when on the same day as release'
+            });
+          }
+        }
+      }
+    }
+    
+    return true;
+  }
+);
+
+/**
+ * Platform Target Schema
+ */
+const platformTargetSchema = yup.object().shape({
+  platform: yup
+    .string()
+    .required('Platform is required'),
+  target: yup
+    .string()
+    .required('Target is required')
+});
+
+/**
+ * Create Release Config Schema
+ */
+const createReleaseConfigSchema = yup.object().shape({
+  name: yup
+    .string()
+    .required('Configuration name is required')
+    .min(1, 'Configuration name cannot be empty'),
+  releaseType: yup
+    .string()
+    .required('Release type is required'),
+  platformTargets: yup
+    .array()
+    .of(platformTargetSchema)
+    .min(1, 'At least one platform target is required')
+    .required('platformTargets is required'),
+  releaseSchedule: releaseScheduleSchema.required('Release schedule is required'),
+  // Optional integration config IDs
+  ciConfigId: yup.string().optional().nullable(),
+  testManagementConfigId: yup.string().optional().nullable(),
+  projectManagementConfigId: yup.string().optional().nullable(),
+  commsConfigId: yup.string().optional().nullable(),
+  tenantId: yup.string().optional() // Will be overridden by controller
+})
+.test(
+  'at-least-one-integration',
+  'At least one integration configuration must be provided',
+  function (value) {
+    const hasCi = value.ciConfigId !== undefined && value.ciConfigId !== null;
+    const hasTcm = value.testManagementConfigId !== undefined && value.testManagementConfigId !== null;
+    const hasProjectMgmt = value.projectManagementConfigId !== undefined && value.projectManagementConfigId !== null;
+    const hasComms = value.commsConfigId !== undefined && value.commsConfigId !== null;
+    
+    if (!hasCi && !hasTcm && !hasProjectMgmt && !hasComms) {
+      return this.createError({
+        path: 'integrations',
+        message: 'At least one integration configuration (CI/CD, Test Management, Project Management, or Communication) must be provided'
+      });
+    }
+    
+    return true;
+  }
+);
+
+/**
+ * Update Release Config Schema (partial)
+ */
+const updateReleaseConfigSchema = createReleaseConfigSchema.partial();
+
+// ============================================================================
+// EXPORTED VALIDATION FUNCTIONS
+// ============================================================================
+
+/**
+ * Validate create release config request
+ */
+export const validateCreateConfig = async (
+  data: unknown,
+  res: Response
+) => {
+  return await validateWithYup(createReleaseConfigSchema, data, res);
 };
 
 /**
+ * Validate update release config request
+ */
+export const validateUpdateConfig = async (
+  data: unknown,
+  res: Response
+) => {
+  return await validateWithYup(updateReleaseConfigSchema, data, res);
+};
+
+// ============================================================================
+// LEGACY FUNCTIONS (DEPRECATED - TO BE REMOVED)
+// ============================================================================
+
+/**
+ * @deprecated Use validateCreateConfig with Yup schemas instead
  * Validate scheduling configuration
  * All fields are mandatory except 'name' in regression slots
  */
@@ -304,19 +602,12 @@ const validateRegressionSlot = (
   return errors;
 };
 
-/**
- * Convert time string (HH:mm) to minutes for comparison
- */
-const timeStringToMinutes = (timeString: string): number => {
-  const [hours, minutes] = timeString.split(':').map(Number);
-  return hours * 60 + minutes;
-};
-
 // ============================================================================
 // UPDATE VALIDATION (Partial - only validates fields that are present)
 // ============================================================================
 
 /**
+ * @deprecated Use validateUpdateConfig with Yup schemas instead
  * Validate scheduling for UPDATE - Only validates fields that are present
  * Used for partial updates like archive (isActive: false) where not all fields are sent
  */

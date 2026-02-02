@@ -30,12 +30,26 @@ export const getIntegrationById = async (req: Request, res: Response): Promise<a
     const integration = await repo.findById(integrationId);
     const notFoundOrMismatch = !integration || integration.tenantId !== tenantId;
     if (notFoundOrMismatch) {
-      return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND });
+      return res.status(HTTP_STATUS.NOT_FOUND).json({ 
+        success: false, 
+        error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND,
+        details: {
+          errorCode: 'integration_not_found',
+          message: 'The integration does not exist or does not belong to this tenant'
+        }
+      });
     }
-    return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, data: toSafe(integration) });
+    return res.status(HTTP_STATUS.OK).json({ success: true, data: toSafe(integration) });
   } catch (e: unknown) {
     const message = formatErrorMessage(e, ERROR_MESSAGES.INTEGRATION_FETCH_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ 
+      success: false, 
+      error: message,
+      details: {
+        errorCode: 'internal_error',
+        message: e instanceof Error ? e.message : 'Unknown error'
+      }
+    });
   }
 };
 
@@ -75,17 +89,29 @@ export const updateIntegrationById = async (req: Request, res: Response): Promis
     // Delegate update to provider adapter (which uses the appropriate service)
     const adapter = getConnectionAdapter(provider);
     if (!adapter.update) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED });
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+        success: false, 
+        error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED,
+        details: {
+          errorCode: 'unsupported_operation',
+          message: 'This provider does not support updates'
+        }
+      });
     }
     const safe = await adapter.update(tenantId, updateData);
-    return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, data: safe });
+    return res.status(HTTP_STATUS.OK).json({ success: true, data: safe });
   } catch (e: any) {
-    const statusCode = e.message?.includes('not found') ? HTTP_STATUS.NOT_FOUND : HTTP_STATUS.BAD_REQUEST;
+    const isNotFound = e.message?.includes('not found');
+    const statusCode = isNotFound ? HTTP_STATUS.NOT_FOUND : HTTP_STATUS.BAD_REQUEST;
     const message = formatErrorMessage(e, ERROR_MESSAGES.INTEGRATION_UPDATE_FAILED);
+    
     return res.status(statusCode).json({ 
-      success: RESPONSE_STATUS.FAILURE, 
+      success: false, 
       error: message,
-      ...(e.details && { details: e.details })
+      details: e.details || {
+        errorCode: isNotFound ? 'integration_not_found' : 'update_failed',
+        message: e.message
+      }
     });
   }
 };
@@ -111,7 +137,14 @@ export const deleteIntegrationById = async (req: Request, res: Response): Promis
     const existing = await repo.findById(integrationId);
     const notFoundOrMismatch = !existing || existing.tenantId !== tenantId;
     if (notFoundOrMismatch) {
-      return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND });
+      return res.status(HTTP_STATUS.NOT_FOUND).json({ 
+        success: false, 
+        error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND,
+        details: {
+          errorCode: 'integration_not_found',
+          message: 'The integration does not exist or does not belong to this tenant'
+        }
+      });
     }
 
     // Check if any workflows reference this integration
@@ -119,16 +152,27 @@ export const deleteIntegrationById = async (req: Request, res: Response): Promis
     const hasWorkflows = workflows.length > 0;
     if (hasWorkflows) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-        success: RESPONSE_STATUS.FAILURE, 
-        error: ERROR_MESSAGES.INTEGRATION_HAS_WORKFLOWS 
+        success: false, 
+        error: ERROR_MESSAGES.INTEGRATION_HAS_WORKFLOWS,
+        details: {
+          errorCode: 'integration_in_use',
+          message: `Cannot delete integration with ${workflows.length} workflow(s) still using it`
+        }
       });
     }
 
     await repo.delete(integrationId);
-    return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS });
+    return res.status(HTTP_STATUS.OK).json({ success: true });
   } catch (e: unknown) {
     const message = formatErrorMessage(e, ERROR_MESSAGES.INTEGRATION_DELETE_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ 
+      success: false, 
+      error: message,
+      details: {
+        errorCode: 'internal_error',
+        message: e instanceof Error ? e.message : 'Unknown error'
+      }
+    });
   }
 };
 
@@ -147,24 +191,29 @@ export const verifyConnectionByProvider = async (req: Request, res: Response): P
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
         success: false,
         verified: false, 
-        error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED 
+        error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED,
+        details: {
+          errorCode: 'unsupported_provider',
+          message: 'This provider type is not supported'
+        }
       });
     }
     
     // Validation is handled by middleware (validateConnectionVerifyBody)
     const adapter = getConnectionAdapter(provider);
     const result = await adapter.verify(req.body || {});
-    const status = result.isValid ? HTTP_STATUS.OK : HTTP_STATUS.BAD_REQUEST;
     
-    if (result.isValid) {
-      return res.status(status).json({ 
+    if (result.success) {
+      return res.status(HTTP_STATUS.OK).json({ 
         success: true,
         verified: true, 
         message: result.message,
         ...(result.details && { details: result.details })
       });
     } else {
-      return res.status(status).json({ 
+      // Read statusCode from result
+      const statusCode = result.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
+      return res.status(statusCode).json({ 
         success: false,
         verified: false, 
         error: result.message,
@@ -176,7 +225,11 @@ export const verifyConnectionByProvider = async (req: Request, res: Response): P
     return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
       success: false,
       verified: false, 
-      error: message 
+      error: message,
+      details: {
+        errorCode: 'verification_failed',
+        message: e instanceof Error ? e.message : 'Unknown error'
+      }
     });
   }
 };
@@ -195,20 +248,32 @@ export const createConnectionByProvider = async (req: Request, res: Response): P
     const providerType = String(req.params.providerType || '').toUpperCase().replace('-', '_') as keyof typeof CICDProviderType;
     const provider = CICDProviderType[providerType] as CICDProviderType | undefined;
     if (!provider) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED });
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+        success: false, 
+        error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED,
+        details: {
+          errorCode: 'unsupported_provider',
+          message: 'This provider type is not supported'
+        }
+      });
     }
     
     // Validation is handled by middleware (validateConnectionCreateBody)
     const adapter = getConnectionAdapter(provider);
     const created = await adapter.create(tenantId, accountId, req.body || {});
-    return res.status(HTTP_STATUS.CREATED).json({ success: RESPONSE_STATUS.SUCCESS, integration: created });
+    return res.status(HTTP_STATUS.CREATED).json({ success: true, integration: created });
   } catch (e: any) {
-    const statusCode = e.message?.includes('already exists') ? HTTP_STATUS.BAD_REQUEST : HTTP_STATUS.INTERNAL_SERVER_ERROR;
+    const isDuplicate = e.message?.includes('already exists');
+    const statusCode = isDuplicate ? HTTP_STATUS.BAD_REQUEST : HTTP_STATUS.INTERNAL_SERVER_ERROR;
     const message = formatErrorMessage(e, ERROR_MESSAGES.FAILED_SAVE_GHA);
+    
     return res.status(statusCode).json({ 
-      success: RESPONSE_STATUS.FAILURE, 
+      success: false, 
       error: message,
-      ...(e.details && { details: e.details })
+      details: e.details || {
+        errorCode: isDuplicate ? 'duplicate_integration' : 'internal_error',
+        message: e.message
+      }
     });
   }
 };

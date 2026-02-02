@@ -11,9 +11,13 @@ export type GHAVerifyParams = {
 };
 
 export type GHAVerifyResult = {
-  isValid: boolean;
+  success: boolean;            // Renamed from isValid for consistency
   message: string;
-  details?: any;
+  statusCode?: number;         // HTTP status code (401, 403, 404, 408, 503, etc.)
+  details?: {
+    errorCode?: string;
+    message?: string;
+  };
 };
 
 export type GHAWorkflowInputsParams = {

@@ -4,5 +4,5 @@ export * from './integration-config.mapper';
 export * from './release-config-activity-log.service';
 
 // Export validation functions for external use
-export { hasAtLeastOneIntegration, validateScheduling } from './release-config.validation';
+export { validateScheduling, validateSchedulingForUpdate, validateCreateConfig, validateUpdateConfig } from './release-config.validation';
 

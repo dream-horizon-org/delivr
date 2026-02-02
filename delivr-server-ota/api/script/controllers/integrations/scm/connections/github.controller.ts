@@ -78,9 +78,11 @@ export async function verifyGitHubConnection(
     
     const verificationResult = await verifyGitHub(owner, repo, decryptedToken);
 
-    // Return 400 if verification fails
-    if (!verificationResult.isValid) {
-      return res.status(400).json({
+    // Return error if verification fails
+    if (!verificationResult.success) {
+      // Read statusCode from result
+      const statusCode = verificationResult.statusCode || 500;
+      return res.status(statusCode).json({
         success: false,
         verified: false,
         error: verificationResult.message,
@@ -136,13 +138,15 @@ export async function createGitHubConnection(
 
   const verificationResult = await verifyGitHub(owner, repo, decryptedToken);
 
-  if (!verificationResult.isValid) {
-  return res.status(400).json({
-    success: false,
-    verified: false,
-    error: verificationResult.message,
-    details: verificationResult.details
-  });
+  if (!verificationResult.success) {
+    // Read statusCode from result
+    const statusCode = verificationResult.statusCode || 500;
+    return res.status(statusCode).json({
+      success: false,
+      verified: false,
+      error: verificationResult.message,
+      details: verificationResult.details
+    });
   }
   
   try {
@@ -212,7 +216,10 @@ export async function createGitHubConnection(
     return res.status(500).json({
       success: false,
       error: "Failed to save GitHub integration",
-      details: { message: error.message },
+      details: { 
+        errorCode: 'internal_error',
+        message: error.message 
+      },
     });
   }
 }
@@ -235,6 +242,10 @@ export async function getGitHubConnection(
       return res.status(404).json({
         success: false,
         error: "No GitHub integration found for this tenant",
+        details: {
+          errorCode: 'integration_not_found',
+          message: 'Set up a GitHub integration first'
+        }
       });
     }
 
@@ -247,7 +258,10 @@ export async function getGitHubConnection(
     return res.status(500).json({
       success: false,
       error: "Failed to fetch GitHub integration",
-      details: { message: error.message  },
+      details: { 
+        errorCode: 'internal_error',
+        message: error.message  
+      },
     });
   }
 }
@@ -297,8 +311,10 @@ export async function updateGitHubConnection(
 
       const verificationResult = await verifyGitHub(ownerToVerify, repoToVerify, tokenToVerify);
 
-      if (!verificationResult.isValid) {
-        return res.status(400).json({
+      if (!verificationResult.success) {
+        // Read statusCode from result
+        const statusCode = verificationResult.statusCode || 500;
+        return res.status(statusCode).json({
           success: false,
           verified: false,
           error: verificationResult.message,
@@ -331,7 +347,10 @@ export async function updateGitHubConnection(
     return res.status(500).json({
       success: false,
       error: "Failed to update GitHub integration",
-      details: { message: error.message },
+      details: { 
+        errorCode: 'internal_error',
+        message: error.message 
+      },
     });
   }
 }
@@ -354,6 +373,10 @@ export async function deleteGitHubConnection(
       return res.status(404).json({
         success: false,
         error: "No GitHub integration found for this tenant",
+        details: {
+          errorCode: 'integration_not_found',
+          message: 'No GitHub integration exists to delete'
+        }
       });
     }
 
@@ -368,7 +391,10 @@ export async function deleteGitHubConnection(
     return res.status(500).json({
       success: false,
       error: "Failed to delete GitHub integration",
-      details: { message: error.message },
+      details: { 
+        errorCode: 'internal_error',
+        message: error.message 
+      },
     });
   }
 }
@@ -390,14 +416,22 @@ export async function fetchGitHubBranches(
     if (!integration || integration.scmType !== 'GITHUB') {
       return res.status(404).json({
         success: false,
-        error: "No GitHub integration found for this tenant"
+        error: "No GitHub integration found for this tenant",
+        details: {
+          errorCode: 'integration_not_found',
+          message: 'Set up a GitHub integration first'
+        }
       });
     }
 
     if (!integration.accessToken) {
       return res.status(500).json({
         success: false,
-        error: "GitHub integration is missing access token"
+        error: "GitHub integration is missing access token",
+        details: {
+          errorCode: 'missing_credentials',
+          message: 'Integration is missing access token. Update the integration with a valid token.'
+        }
       });
     }
     
@@ -419,7 +453,10 @@ export async function fetchGitHubBranches(
     return res.status(500).json({
       success: false,
       error: "Failed to fetch branches",
-      details: { message: error.message },
+      details: { 
+        errorCode: 'api_error',
+        message: error.message 
+      },
     });
   }
 }
@@ -433,9 +470,14 @@ async function verifyGitHub(
   repo: string, 
   accessToken: string
 ): Promise<{
-  isValid: boolean;
+  success: boolean;
   message: string;
-  details?: any;
+  statusCode?: number;
+  details?: {
+    errorCode?: string;
+    message?: string;
+    [key: string]: any;
+  };
 }> {
   try {
     // Verify token by getting authenticated user
@@ -451,9 +493,13 @@ async function verifyGitHub(
     if (!userResponse.ok) {
       const errorText = await userResponse.text();
       return {
-        isValid: false,
+        success: false,
         message: `Invalid GitHub token: ${userResponse.status} ${userResponse.statusText}`,
-        details: { message: errorText },
+        statusCode: userResponse.status === 401 ? 401 : 500,
+        details: { 
+          errorCode: userResponse.status === 401 ? 'invalid_credentials' : 'api_error',
+          message: errorText 
+        },
       };
     }
 
@@ -472,17 +518,25 @@ async function verifyGitHub(
     if (!repoResponse.ok) {
       if (repoResponse.status === 404) {
         return {
-          isValid: false,
+          success: false,
           message: `Repository ${owner}/${repo} not found or access denied`,
-          details: { status: 404 }
+          statusCode: 404,
+          details: { 
+            errorCode: 'repository_not_found',
+            message: `Repository ${owner}/${repo} not found or access denied` 
+          }
         };
       }
       
       const errorText = await repoResponse.text();
       return {
-        isValid: false,
+        success: false,
         message: `Failed to access repository: ${repoResponse.status} ${repoResponse.statusText}`,
-        details: { message: errorText },
+        statusCode: repoResponse.status,
+        details: { 
+          errorCode: 'api_error',
+          message: errorText 
+        },
       };
     }
 
@@ -491,14 +545,19 @@ async function verifyGitHub(
 
     if (!permissions.pull && !permissions.push) {
       return {
-        isValid: false,
+        success: false,
         message: 'Token does not have sufficient permissions for this repository',
-        details: { permissions },
+        statusCode: 403,
+        details: { 
+          errorCode: 'insufficient_permissions',
+          message: 'Token needs at least pull or push permissions for this repository',
+          permissions 
+        },
       };
     }
 
     return {
-      isValid: true,
+      success: true,
       message: 'Connection verified successfully',
       details: {
         user: userData.login,
@@ -511,9 +570,13 @@ async function verifyGitHub(
   } catch (error: any) {
     console.error(`[GitHub] Verification error for ${owner}/${repo}:`, error.message);
     return {
-      isValid: false,
+      success: false,
       message: `Connection failed: ${error.message}`,
-      details: { message: error.message },
+      statusCode: 503,
+      details: { 
+        errorCode: 'network_error',
+        message: error.message 
+      },
     };
   }
 }

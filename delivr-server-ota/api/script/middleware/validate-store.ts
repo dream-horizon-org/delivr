@@ -830,7 +830,7 @@ export const validatePatchStoreBodyByIntegrationId = async (
     }
 
     const storage = getStorage();
-    const storeController = (storage as any).storeController;
+    const storeController = (storage as any).storeIntegrationController;
     
     if (!storeController) {
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({

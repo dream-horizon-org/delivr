@@ -26,6 +26,7 @@ import type {
   CheckmateCreateRunRequest,
   CheckmateCreateRunResponse,
   CheckmateLabelsResponse,
+  CheckmateMetadataResult,
   CheckmateProject,
   CheckmateProjectsResponse,
   CheckmateRunStateData,
@@ -628,5 +629,122 @@ export class CheckmateProvider implements ITestManagementProvider {
     );
 
     return response;
+  };
+
+  // ============================================================================
+  // METADATA API METHODS WITH RESULT OBJECT PATTERN
+  // ============================================================================
+
+  /**
+   * Get error message based on HTTP status code
+   * Centralized error messages for consistent user feedback
+   */
+  private getMetadataErrorMessage(status: number, operation: string): string {
+    const messages: Record<number, string> = {
+      401: 'Invalid Checkmate credentials. Please check your API token and base URL.',
+      403: 'Insufficient Checkmate permissions. Ensure your user has the required access.',
+      404: 'Checkmate resource not found',
+      408: 'Request to Checkmate API timed out. Please try again.',
+      429: 'Checkmate API rate limit exceeded. Please wait and try again.',
+      500: 'Checkmate server error. Please try again later.',
+      503: 'Checkmate service is temporarily unavailable. Please try again later.'
+    };
+    
+    return messages[status] || `Failed to ${operation}`;
+  }
+
+  /**
+   * Get projects with result object pattern
+   * Returns success/failure without throwing exceptions
+   */
+  getProjectsWithResult = async (
+    config: TenantTestManagementIntegrationConfig
+  ): Promise<CheckmateMetadataResult<CheckmateProjectsResponse>> => {
+    try {
+      const data = await this.getProjects(config);
+      return {
+        success: true,
+        data
+      };
+    } catch (error: any) {
+      const status = error.status || 500;
+      return {
+        success: false,
+        message: this.getMetadataErrorMessage(status, 'fetch projects'),
+        statusCode: status
+      };
+    }
+  };
+
+  /**
+   * Get sections with result object pattern
+   * Returns success/failure without throwing exceptions
+   */
+  getSectionsWithResult = async (
+    config: TenantTestManagementIntegrationConfig,
+    projectId: number
+  ): Promise<CheckmateMetadataResult<CheckmateSectionsResponse>> => {
+    try {
+      const data = await this.getSections(config, projectId);
+      return {
+        success: true,
+        data
+      };
+    } catch (error: any) {
+      const status = error.status || 500;
+      return {
+        success: false,
+        message: this.getMetadataErrorMessage(status, 'fetch sections'),
+        statusCode: status
+      };
+    }
+  };
+
+  /**
+   * Get labels with result object pattern
+   * Returns success/failure without throwing exceptions
+   */
+  getLabelsWithResult = async (
+    config: TenantTestManagementIntegrationConfig,
+    projectId: number
+  ): Promise<CheckmateMetadataResult<CheckmateLabelsResponse>> => {
+    try {
+      const data = await this.getLabels(config, projectId);
+      return {
+        success: true,
+        data
+      };
+    } catch (error: any) {
+      const status = error.status || 500;
+      return {
+        success: false,
+        message: this.getMetadataErrorMessage(status, 'fetch labels'),
+        statusCode: status
+      };
+    }
+  };
+
+  /**
+   * Get squads with result object pattern
+   * Returns success/failure without throwing exceptions
+   */
+  getSquadsWithResult = async (
+    config: TenantTestManagementIntegrationConfig,
+    projectId: number
+  ): Promise<CheckmateMetadataResult<CheckmateSquadsResponse>> => {
+    try {
+      const data = await this.getSquads(config, projectId);
+      return {
+        success: true,
+        data
+      };
+    } catch (error: any) {
+      const status = error.status || 500;
+      return {
+        success: false,
+        message: this.getMetadataErrorMessage(status, 'fetch squads'),
+        statusCode: status
+      };
+    }
   };
 }

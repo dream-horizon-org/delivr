@@ -58,7 +58,9 @@ const verifyTokenHandler = (service: CommIntegrationService) =>
           ...(verificationResult.details && { details: verificationResult.details })
         });
       } else {
-        res.status(HTTP_STATUS.BAD_REQUEST).json({
+        // Read statusCode from result
+        const statusCode = verificationResult.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
+        res.status(statusCode).json({
           success: false,
           verified: false,
           error: verificationResult.message,
@@ -82,30 +84,41 @@ const verifyTokenHandler = (service: CommIntegrationService) =>
  */
 const fetchChannelsHandler = (service: CommIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
-    try {
-      // Use Yup validation
-      const validated = await validateSlackVerifyRequest(req.body, res);
-      if (!validated) {
-        return; // Response already sent
-      }
+    // Use Yup validation
+    const validated = await validateSlackVerifyRequest(req.body, res);
+    if (!validated) {
+      return; // Response already sent
+    }
 
-      const decryptedToken = validated._encrypted 
-        ? decryptIfEncrypted(validated.botToken, 'botToken')
-        : validated.botToken;
+    const decryptedToken = validated._encrypted 
+      ? decryptIfEncrypted(validated.botToken, 'botToken')
+      : validated.botToken;
 
-      const channelsResult = await service.fetchChannels('SLACK' as any, decryptedToken);
+    const result = await service.fetchChannels('SLACK' as any, decryptedToken);
 
+    if (result.success) {
       res.status(HTTP_STATUS.OK).json(successResponse({
-        channels: channelsResult.channels ?? [],
+        channels: result.channels ?? [],
         metadata: {
-          total: channelsResult.total
+          total: result.total ?? 0
         }
       }));
-    } catch (error) {
-      const statusCode = getErrorStatusCode(error);
-      res.status(statusCode).json(
-        errorResponse(error, COMM_INTEGRATION_ERROR_MESSAGES.FETCH_CHANNELS_FAILED)
-      );
+    } else {
+      // Map error codes to HTTP status codes (same as verify method pattern)
+      let statusCode: number = HTTP_STATUS.INTERNAL_SERVER_ERROR;
+      if (result.details?.errorCode === 'invalid_credentials' || result.details?.errorCode === 'token_revoked') {
+        statusCode = HTTP_STATUS.UNAUTHORIZED;
+      } else if (result.details?.errorCode === 'missing_scope' || result.details?.errorCode === 'account_inactive') {
+        statusCode = HTTP_STATUS.FORBIDDEN;
+      } else if (result.details?.errorCode === 'network_error') {
+        statusCode = HTTP_STATUS.SERVICE_UNAVAILABLE;
+      }
+
+      res.status(statusCode).json({
+        success: false,
+        error: result.message,
+        ...(result.details && { details: result.details })
+      });
     }
   };
 
@@ -162,14 +175,32 @@ const fetchChannelsByIntegrationIdHandler = (service: CommIntegrationService) =>
         : botToken;  // Already plaintext (repository successfully decrypted it)
 
       // Fetch channels using the decrypted token
-      const channelsResult = await service.fetchChannels('SLACK' as any, decryptedToken);
+      const result = await service.fetchChannels('SLACK' as any, decryptedToken);
 
-      res.status(HTTP_STATUS.OK).json(successResponse({
-        channels: channelsResult.channels ?? [],
-        metadata: {
-          total: channelsResult.total
+      if (result.success) {
+        res.status(HTTP_STATUS.OK).json(successResponse({
+          channels: result.channels ?? [],
+          metadata: {
+            total: result.total ?? 0
+          }
+        }));
+      } else {
+        // Map error codes to HTTP status codes (same as verify method pattern)
+        let statusCode: number = HTTP_STATUS.INTERNAL_SERVER_ERROR;
+        if (result.details?.errorCode === 'invalid_credentials' || result.details?.errorCode === 'token_revoked') {
+          statusCode = HTTP_STATUS.UNAUTHORIZED;
+        } else if (result.details?.errorCode === 'missing_scope' || result.details?.errorCode === 'account_inactive') {
+          statusCode = HTTP_STATUS.FORBIDDEN;
+        } else if (result.details?.errorCode === 'network_error') {
+          statusCode = HTTP_STATUS.SERVICE_UNAVAILABLE;
         }
-      }));
+
+        res.status(statusCode).json({
+          success: false,
+          error: result.message,
+          ...(result.details && { details: result.details })
+        });
+      }
     } catch (error) {
       const statusCode = getErrorStatusCode(error);
       res.status(statusCode).json(

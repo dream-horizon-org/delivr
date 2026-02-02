@@ -12,7 +12,7 @@ type CreateInput = {
 };
 
 export class GitHubActionsConnectionService extends ConnectionService<CreateInput> {
-  verifyConnection = async (params: GHAVerifyParams): Promise<{ isValid: boolean; message: string; details?: any }> => {
+  verifyConnection = async (params: GHAVerifyParams): Promise<{ success: boolean; message: string; statusCode?: number; details?: any }> => {
     const provider = await ProviderFactory.getProvider(CICDProviderType.GITHUB_ACTIONS);
     const gha = provider as GitHubActionsProviderContract;
     return gha.verifyConnection(params);
@@ -41,7 +41,7 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
       timeoutMs: Number(process.env.GHA_VERIFY_TIMEOUT_MS || 6000)
     });
     
-    if (!verify.isValid) {
+    if (!verify.success) {
       const error: any = new Error(verify.message);
       error.details = verify.details;
       throw error;
@@ -83,7 +83,7 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
     const tokenToCheck: string | undefined = updateData.apiToken ?? storedToken;
     const tokenMissing = !tokenToCheck;
     
-    let verify: { isValid: boolean; message: string; details?: any } | undefined;
+    let verify: { success: boolean; message: string; statusCode?: number; details?: any } | undefined;
     
     if (tokenMissing) {
       updateData.verificationStatus = VerificationStatus.INVALID;
@@ -113,9 +113,9 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
           acceptHeader: HEADERS.ACCEPT_GITHUB_JSON,
           timeoutMs: Number(process.env.GHA_VERIFY_TIMEOUT_MS || 6000)
         });
-        updateData.verificationStatus = verify.isValid ? VerificationStatus.VALID : VerificationStatus.INVALID;
+        updateData.verificationStatus = verify.success ? VerificationStatus.VALID : VerificationStatus.INVALID;
         updateData.lastVerifiedAt = new Date();
-        updateData.verificationError = verify.isValid ? null : verify.message;
+        updateData.verificationError = verify.success ? null : verify.message;
       }
     }
 

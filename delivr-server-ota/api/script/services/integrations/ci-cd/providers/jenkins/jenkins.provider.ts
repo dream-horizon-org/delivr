@@ -52,8 +52,9 @@ export class JenkinsProvider implements JenkinsProviderContract {
         // Handle specific HTTP status codes
         if (status === 401) {
           return {
-            isValid: false,
+            success: false,
             message: 'Invalid Jenkins credentials. Please verify your username and API token are correct.',
+            statusCode: 401,
             details: {
               errorCode: 'invalid_credentials',
               message: 'Generate a new API token from Jenkins → User Settings → Configure → API Token'
@@ -63,8 +64,9 @@ export class JenkinsProvider implements JenkinsProviderContract {
         
         if (status === 403) {
           return {
-            isValid: false,
+            success: false,
             message: 'Jenkins credentials are valid but lack required permissions.',
+            statusCode: 403,
             details: {
               errorCode: 'insufficient_permissions',
               message: 'Ensure your Jenkins user has permission to access the API and view jobs'
@@ -74,8 +76,9 @@ export class JenkinsProvider implements JenkinsProviderContract {
         
         if (status === 404) {
           return {
-            isValid: false,
+            success: false,
             message: 'Jenkins instance not found. Please verify the host URL is correct.',
+            statusCode: 404,
             details: {
               errorCode: 'instance_not_found',
               message: 'Check the URL format and ensure Jenkins is running at this address'
@@ -85,8 +88,9 @@ export class JenkinsProvider implements JenkinsProviderContract {
         
         if (status >= 500 && status < 600) {
           return {
-            isValid: false,
+            success: false,
             message: `Jenkins service temporarily unavailable (${status}). Please try again later.`,
+            statusCode: 503,
             details: {
               errorCode: 'service_unavailable',
               message: 'Jenkins servers are experiencing issues. This is not a credentials problem - retry in a few minutes.'
@@ -95,8 +99,9 @@ export class JenkinsProvider implements JenkinsProviderContract {
         }
         
         return {
-          isValid: false,
+          success: false,
           message: `Jenkins API error (${status}): ${statusText}`,
+          statusCode: status,
           details: {
             errorCode: 'api_error',
             message: statusText
@@ -104,13 +109,14 @@ export class JenkinsProvider implements JenkinsProviderContract {
         };
       }
 
-      return { isValid: true, message: SUCCESS_MESSAGES.VERIFIED };
+      return { success: true, message: SUCCESS_MESSAGES.VERIFIED };
     } catch (e: any) {
       const isTimeout = e && (e.name === 'AbortError' || e.code === 'ABORT_ERR');
       if (isTimeout) {
         return {
-          isValid: false,
+          success: false,
           message: 'Connection timeout. Please check your Jenkins credentials and try again.',
+          statusCode: 408,
           details: {
             errorCode: 'timeout',
             message: 'The request took too long to complete. Verify Jenkins is accessible and responding'
@@ -126,8 +132,9 @@ export class JenkinsProvider implements JenkinsProviderContract {
         const isLocalhost = hostUrl.includes('localhost') || hostUrl.includes('127.0.0.1');
         if (isLocalhost) {
           return {
-            isValid: false,
+            success: false,
             message: `Cannot reach Jenkins at ${hostUrl}. Please verify the host URL.`,
+            statusCode: 503,
             details: {
               errorCode: 'network_error',
               message: 'If your API server is running in Docker, use "host.docker.internal:8080" (Mac/Windows) or "172.17.0.1:8080" (Linux) instead of "localhost:8080"'
@@ -135,8 +142,9 @@ export class JenkinsProvider implements JenkinsProviderContract {
           };
         } else {
           return {
-            isValid: false,
+            success: false,
             message: `Cannot reach Jenkins at ${hostUrl}. Please verify the URL is correct and accessible.`,
+            statusCode: 503,
             details: {
               errorCode: 'network_error',
               message: 'Ensure the Jenkins server is running and accessible from your network'
@@ -146,8 +154,9 @@ export class JenkinsProvider implements JenkinsProviderContract {
       }
       
       return {
-        isValid: false,
+        success: false,
         message: `Connection failed: ${errorMessage}`,
+        statusCode: 500,
         details: {
           errorCode: 'network_error',
           message: errorMessage

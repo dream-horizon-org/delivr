@@ -31,8 +31,9 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
         // Handle specific HTTP status codes
         if (status === 401) {
           return {
-            isValid: false,
+            success: false,
             message: 'Invalid GitHub token. Please verify your token is correct.',
+            statusCode: 401,
             details: {
               errorCode: 'invalid_credentials',
               message: 'Generate a new personal access token or fine-grained token from GitHub → Settings → Developer settings → Tokens'
@@ -42,8 +43,9 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
         
         if (status === 403) {
           return {
-            isValid: false,
+            success: false,
             message: 'GitHub token is valid but lacks required permissions.',
+            statusCode: 403,
             details: {
               errorCode: 'insufficient_permissions',
               message: 'Ensure your token has the following scopes: repo, workflow, read:org'
@@ -53,8 +55,9 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
         
         if (status === 404) {
           return {
-            isValid: false,
+            success: false,
             message: 'GitHub API endpoint not found. Please verify the API base URL.',
+            statusCode: 404,
             details: {
               errorCode: 'api_not_found',
               message: 'Check that you are using the correct GitHub API endpoint (https://api.github.com)'
@@ -64,8 +67,9 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
         
         if (status >= 500 && status < 600) {
           return {
-            isValid: false,
+            success: false,
             message: `GitHub service temporarily unavailable (${status}). Please try again later.`,
+            statusCode: 503,
             details: {
               errorCode: 'service_unavailable',
               message: 'GitHub servers are experiencing issues. This is not a token problem - retry in a few minutes.'
@@ -74,8 +78,9 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
         }
         
         return {
-          isValid: false,
+          success: false,
           message: `GitHub API error (${status}): ${statusText}`,
+          statusCode: status,
           details: {
             errorCode: 'api_error',
             message: statusText
@@ -83,13 +88,14 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
         };
       }
       
-      return { isValid: true, message: SUCCESS_MESSAGES.VERIFIED };
+      return { success: true, message: SUCCESS_MESSAGES.VERIFIED };
     } catch (e: any) {
       const isTimeout = e && (e.name === 'AbortError' || e.code === 'ABORT_ERR');
       if (isTimeout) {
         return {
-          isValid: false,
+          success: false,
           message: 'Connection timeout. Please check your GitHub token and try again.',
+          statusCode: 408,
           details: {
             errorCode: 'timeout',
             message: 'The request took too long to complete. Verify GitHub API is accessible and responding'
@@ -99,8 +105,9 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
       
       const errorMessage = e?.message ? String(e.message) : 'Unknown error';
       return {
-        isValid: false,
+        success: false,
         message: `Connection failed: ${errorMessage}`,
+        statusCode: 503,
         details: {
           errorCode: 'network_error',
           message: 'Unable to reach GitHub API. Check your internet connection and try again'

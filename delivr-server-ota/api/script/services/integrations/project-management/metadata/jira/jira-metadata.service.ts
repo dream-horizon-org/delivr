@@ -7,6 +7,7 @@
 import type { ProjectManagementIntegrationRepository } from '~models/integrations/project-management/integration';
 import { ProjectManagementProviderType } from '~types/integrations/project-management';
 import { JiraProvider } from '../../providers/jira/jira.provider';
+import type { JiraMetadataResult } from '../../providers/jira/jira.interface';
 
 export type JiraProject = {
   key: string;
@@ -19,40 +20,43 @@ export class JiraMetadataService {
   ) {}
 
   /**
-   * Validate that integration is Jira
-   * Metadata APIs are Jira-specific
-   */
-  private validateJiraIntegration(providerType: string, integrationId: string): void {
-    const isJira = providerType === ProjectManagementProviderType.JIRA;
-    
-    if (!isJira) {
-      throw new Error(
-        `Jira metadata APIs are only supported for Jira integrations. Integration ${integrationId} is ${providerType}`
-      );
-    }
-  }
-
-  /**
    * Get all projects from Jira
+   * Returns result object instead of throwing exceptions
    */
-  async getProjects(integrationId: string, tenantId?: string): Promise<JiraProject[]> {
+  async getProjects(integrationId: string, tenantId?: string): Promise<JiraMetadataResult<JiraProject[]>> {
     const integration = await this.integrationRepo.findById(integrationId);
     
     if (!integration) {
-      throw new Error(`Integration not found: ${integrationId}`);
+      return {
+        success: false,
+        message: 'Integration not found',
+        statusCode: 404
+      };
     }
 
     // Validate tenant ownership if tenantId provided
     if (tenantId && integration.tenantId !== tenantId) {
-      throw new Error(`Integration ${integrationId} does not belong to tenant ${tenantId}`);
+      return {
+        success: false,
+        message: 'Access denied. Integration does not belong to this tenant.',
+        statusCode: 403
+      };
     }
 
-    this.validateJiraIntegration(integration.providerType, integrationId);
+    // Validate integration is Jira
+    const isJira = integration.providerType === ProjectManagementProviderType.JIRA;
+    if (!isJira) {
+      return {
+        success: false,
+        message: `Jira metadata APIs are only supported for Jira integrations. Integration ${integrationId} is ${integration.providerType}`,
+        statusCode: 400
+      };
+    }
 
     const provider = new JiraProvider();
-    const projects = await provider.getProjects(integration.config);
+    const result = await provider.getProjectsWithResult(integration.config);
     
-    return projects;
+    return result;
   }
 }
 

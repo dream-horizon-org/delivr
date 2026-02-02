@@ -170,7 +170,7 @@ export const generateAppStoreConnectJWT = (
 
 const verifyAppStoreConnect = async (
   payload: AppStoreConnectPayload
-): Promise<{ isValid: boolean; message: string; details?: any }> => {
+): Promise<{ success: boolean; message: string; statusCode?: number; details?: { errorCode?: string; message?: string; [key: string]: any } }> => {
   try {
     const { issuerId, keyId, targetAppId, appIdentifier } = payload;
     let { privateKeyPem } = payload;
@@ -184,10 +184,12 @@ const verifyAppStoreConnect = async (
       // Verify decryption worked (should now start with -----BEGIN)
       if (!decrypted.startsWith('-----BEGIN')) {
         return {
-          isValid: false,
+          success: false,
           message: 'Failed to decrypt private key. Please check ENCRYPTION_KEY environment variable is set correctly on the backend.',
+          statusCode: 500,
           details: {
-            error: 'Decryption did not produce valid PEM format',
+            errorCode: 'decryption_failed',
+            message: 'Decryption did not produce valid PEM format',
             hint: 'Ensure ENCRYPTION_KEY matches between frontend and backend',
           },
         };
@@ -204,9 +206,12 @@ const verifyAppStoreConnect = async (
 
     if (isIssuerIdMissing || isKeyIdMissing || isPrivateKeyMissing) {
       return {
-        isValid: false,
+        success: false,
         message: 'Missing required App Store Connect credentials (issuerId, keyId, or privateKeyPem)',
+        statusCode: 400,
         details: {
+          errorCode: 'missing_credentials',
+          message: 'Required credentials are missing',
           hasIssuerId: !isIssuerIdMissing,
           hasKeyId: !isKeyIdMissing,
           hasPrivateKey: !isPrivateKeyMissing,
@@ -219,10 +224,12 @@ const verifyAppStoreConnect = async (
       console.error('[AppStore] Private key is not in PEM format after decryption');
       console.error('[AppStore] Key starts with:', privateKeyPem.substring(0, 50) + '...');
       return {
-        isValid: false,
+        success: false,
         message: 'Private key is not in valid PEM format. Ensure you are providing a valid .p8 private key from App Store Connect.',
+        statusCode: 400,
         details: {
-          error: 'Expected PEM format starting with -----BEGIN PRIVATE KEY-----',
+          errorCode: 'invalid_key_format',
+          message: 'Expected PEM format starting with -----BEGIN PRIVATE KEY-----',
           received: privateKeyPem.substring(0, 50) + '...',
         },
       };
@@ -243,10 +250,12 @@ const verifyAppStoreConnect = async (
       const jwtErrorMessage = jwtError instanceof Error ? jwtError.message : 'Unknown JWT error';
       console.error('[AppStore] JWT generation failed:', jwtErrorMessage);
       return {
-        isValid: false,
+        success: false,
         message: `Failed to generate JWT token: ${jwtErrorMessage}`,
+        statusCode: 500,
         details: { 
-          error: jwtErrorMessage,
+          errorCode: 'jwt_generation_failed',
+          message: jwtErrorMessage,
           hint: 'Ensure the private key is a valid ES256 key from App Store Connect (.p8 file)'
         },
       };
@@ -269,11 +278,13 @@ const verifyAppStoreConnect = async (
       if (responseStatus === 401) {
         const errorText = await response.text().catch(() => 'Unknown error');
         return {
-          isValid: false,
+          success: false,
           message: 'Invalid App Store Connect credentials. Please verify your Issuer ID, Key ID, and Private Key are correct.',
+          statusCode: 401,
           details: {
+            errorCode: 'invalid_credentials',
+            message: 'Credentials are incorrect. Generate new API keys from App Store Connect → Users and Access → Keys',
             status: 401,
-            hint: 'Credentials are incorrect. Generate new API keys from App Store Connect → Users and Access → Keys',
           },
         };
       }
@@ -282,11 +293,13 @@ const verifyAppStoreConnect = async (
       if (responseStatus === 403) {
         const errorText = await response.text().catch(() => 'Unknown error');
         return {
-          isValid: false,
+          success: false,
           message: 'App Store Connect credentials are valid but lack required permissions.',
+          statusCode: 403,
           details: {
+            errorCode: 'insufficient_permissions',
+            message: 'Update the API key permissions in App Store Connect. Required: Admin or App Manager role with access to this app.',
             status: 403,
-            hint: 'Update the API key permissions in App Store Connect. Required: Admin or App Manager role with access to this app.',
           },
         };
       }
@@ -295,12 +308,14 @@ const verifyAppStoreConnect = async (
     if (responseStatus >= 500 && responseStatus < 600) {
       const errorText = await response.text().catch(() => 'Unknown error');
       return {
-        isValid: false,
+        success: false,
         message: `App Store Connect service temporarily unavailable (${responseStatus}). Please try again later.`,
+        statusCode: 503,
         details: {
+          errorCode: 'service_unavailable',
+          message: 'Apple\'s servers are experiencing issues. This is not a credentials problem - retry in a few minutes.',
           status: responseStatus,
           error: errorText,
-          hint: 'Apple\'s servers are experiencing issues. This is not a credentials problem - retry in a few minutes.',
         },
       };
     }
@@ -308,11 +323,13 @@ const verifyAppStoreConnect = async (
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
       return {
-        isValid: false,
+        success: false,
         message: `App Store Connect API error (${responseStatus}): ${errorText}`,
+        statusCode: responseStatus,
         details: {
+          errorCode: 'api_error',
+          message: errorText,
           status: responseStatus,
-          error: errorText,
         },
       };
     }
@@ -326,9 +343,12 @@ const verifyAppStoreConnect = async (
       const appExists = apps.some((app: any) => app.id === targetAppId);
       if (!appExists) {
         return {
-          isValid: false,
+          success: false,
           message: `App with ID ${targetAppId} not found or not accessible with these credentials`,
+          statusCode: 404,
           details: {
+            errorCode: 'app_not_found',
+            message: `App with ID ${targetAppId} not found`,
             targetAppId,
             accessibleAppsCount: apps.length,
           },
@@ -337,7 +357,7 @@ const verifyAppStoreConnect = async (
     }
 
     return {
-      isValid: true,
+      success: true,
       message: 'App Store Connect credentials verified successfully',
       details: {
         issuerId,
@@ -352,10 +372,12 @@ const verifyAppStoreConnect = async (
     const errorStack = error instanceof Error ? error.stack : undefined;
     
     return {
-      isValid: false,
+      success: false,
       message: `App Store Connect verification failed: ${errorMessage}`,
+      statusCode: 503,
       details: {
-        error: errorMessage,
+        errorCode: 'network_error',
+        message: errorMessage,
         stack: errorStack,
       },
     };
@@ -372,7 +394,7 @@ const verifyAppStoreConnect = async (
 
 const verifyGooglePlayStore = async (
   payload: GooglePlayStorePayload
-): Promise<{ isValid: boolean; message: string; details?: any }> => {
+): Promise<{ success: boolean; message: string; statusCode?: number; details?: { errorCode?: string; message?: string; [key: string]: any } }> => {
   try {
     const serviceAccountJson = payload.serviceAccountJson as any;
     const { appIdentifier } = payload;
@@ -411,9 +433,12 @@ const verifyGooglePlayStore = async (
     if (isServiceAccountMissing || isAppIdentifierMissing || isTypeMissing || 
         isClientEmailMissing || isPrivateKeyMissing) {
       return {
-        isValid: false,
+        success: false,
         message: 'Missing required Google Play Store credentials (serviceAccountJson with type, client_email, private_key, or appIdentifier)',
+        statusCode: 400,
         details: {
+          errorCode: 'missing_credentials',
+          message: 'Required credentials are missing',
           hasServiceAccount: !isServiceAccountMissing,
           hasAppIdentifier: !isAppIdentifierMissing,
           hasType: !isTypeMissing,
@@ -483,9 +508,13 @@ const verifyGooglePlayStore = async (
       
       if (tokenMissing) {
         return {
-          isValid: false,
+          success: false,
           message: 'Failed to obtain access token from Google service account',
-          details: { error: 'No access token returned' },
+          statusCode: 401,
+          details: { 
+            errorCode: 'token_generation_failed',
+            message: 'No access token returned' 
+          },
         };
       }
       
@@ -494,9 +523,13 @@ const verifyGooglePlayStore = async (
       const authErrorMessage = authError instanceof Error ? authError.message : 'Unknown error';
       console.error('Google authentication failed: ', authErrorMessage);
       return {
-        isValid: false,
+        success: false,
         message: `Google authentication failed: ${authErrorMessage}`,
-        details: { error: authErrorMessage },
+        statusCode: 401,
+        details: { 
+          errorCode: 'authentication_failed',
+          message: authErrorMessage 
+        },
       };
     }
 
@@ -521,12 +554,14 @@ const verifyGooglePlayStore = async (
     if (responseStatus === 401) {
       const errorText = await response.text().catch(() => 'Unknown error');
       return {
-        isValid: false,
+        success: false,
         message: 'Invalid Google Play Store credentials. Please verify your service account JSON is correct.',
+        statusCode: 401,
         details: {
+          errorCode: 'invalid_credentials',
+          message: 'Service account credentials are incorrect. Verify: 1) JSON structure is valid, 2) private_key is correct, 3) client_email matches the service account',
           status: 401,
           error: errorText,
-          hint: 'Service account credentials are incorrect. Verify: 1) JSON structure is valid, 2) private_key is correct, 3) client_email matches the service account',
         },
       };
     }
@@ -535,24 +570,28 @@ const verifyGooglePlayStore = async (
     if (responseStatus === 403) {
       const errorText = await response.text().catch(() => 'Unknown error');
       return {
-        isValid: false,
+        success: false,
         message: 'Google Play Store credentials are valid but lack required permissions.',
+        statusCode: 403,
         details: {
+          errorCode: 'insufficient_permissions',
+          message: 'Grant access to the service account in Google Play Console → Settings → API Access → Link service account. Required permission: View app information and download bulk reports (read-only) or Admin (full access)',
           status: 403,
           error: errorText,
-          hint: 'Grant access to the service account in Google Play Console → Settings → API Access → Link service account. Required permission: View app information and download bulk reports (read-only) or Admin (full access)',
         },
       };
     }
 
     if (isNotFound) {
       return {
-        isValid: false,
+        success: false,
         message: `App with package name ${appIdentifier} not found or not accessible with these credentials. Please verify: 1) App exists in Google Play Console, 2) Service account has been granted access in Play Console > Settings > API Access, 3) Package name matches exactly`,
+        statusCode: 404,
         details: {
+          errorCode: 'app_not_found',
+          message: 'Check Google Play Console > Settings > API Access to ensure service account is linked',
           appIdentifier,
           status: responseStatus,
-          hint: 'Check Google Play Console > Settings > API Access to ensure service account is linked',
         },
       };
     }
@@ -561,12 +600,14 @@ const verifyGooglePlayStore = async (
     if (responseStatus >= 500 && responseStatus < 600) {
       const errorText = await response.text().catch(() => 'Unknown error');
       return {
-        isValid: false,
+        success: false,
         message: `Google Play Developer API temporarily unavailable (${responseStatus}). Please try again later.`,
+        statusCode: 503,
         details: {
+          errorCode: 'service_unavailable',
+          message: 'Google\'s servers are experiencing issues. This is not a credentials problem - retry in a few minutes.',
           status: responseStatus,
           error: errorText,
-          hint: 'Google\'s servers are experiencing issues. This is not a credentials problem - retry in a few minutes.',
         },
       };
     }
@@ -574,11 +615,13 @@ const verifyGooglePlayStore = async (
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
       return {
-        isValid: false,
+        success: false,
         message: `Google Play Developer API error (${responseStatus}): ${errorText}`,
+        statusCode: responseStatus,
         details: {
+          errorCode: 'api_error',
+          message: errorText,
           status: responseStatus,
-          error: errorText,
         },
       };
     }
@@ -604,7 +647,7 @@ const verifyGooglePlayStore = async (
     }
     
     return {
-      isValid: true,
+      success: true,
       message: 'Google Play Store credentials verified successfully',
       details: {
         appIdentifier,
@@ -617,10 +660,12 @@ const verifyGooglePlayStore = async (
     const errorStack = error instanceof Error ? error.stack : undefined;
     
     return {
-      isValid: false,
+      success: false,
       message: `Google Play Store verification failed: ${errorMessage}`,
+      statusCode: 503,
       details: {
-        error: errorMessage,
+        errorCode: 'network_error',
+        message: errorMessage,
         stack: errorStack,
       },
     };
@@ -640,7 +685,7 @@ export const verifyStore = async (req: Request, res: Response): Promise<void> =>
     const isAppStore = mappedStoreType === StoreType.APP_STORE || mappedStoreType === StoreType.TESTFLIGHT;
     const isPlayStore = mappedStoreType === StoreType.PLAY_STORE;
 
-    let verificationResult: { isValid: boolean; message: string; details?: any };
+    let verificationResult: { success: boolean; message: string; statusCode?: number; details?: any };
 
     if (isAppStore) {
       const appStorePayload = payload as AppStoreConnectPayload;
@@ -650,24 +695,27 @@ export const verifyStore = async (req: Request, res: Response): Promise<void> =>
       verificationResult = await verifyGooglePlayStore(playStorePayload);
     } else {
       res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
+        success: false,
         verified: false,
         error: ERROR_MESSAGES.INVALID_STORE_TYPE,
+        details: {
+          errorCode: 'invalid_store_type',
+          message: 'Store type must be APP_STORE, TESTFLIGHT, or PLAY_STORE'
+        }
       });
       return;
     }
 
-    const isVerified = verificationResult.isValid;
-    const statusCode = isVerified ? HTTP_STATUS.OK : HTTP_STATUS.BAD_REQUEST;
-
-    if (isVerified) {
-      res.status(statusCode).json({
+    if (verificationResult.success) {
+      res.status(HTTP_STATUS.OK).json({
         success: true,
         verified: true,
         message: verificationResult.message,
         details: verificationResult.details,
       });
     } else {
+      // Read statusCode from result
+      const statusCode = verificationResult.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
       res.status(statusCode).json({
         success: false,
         verified: false,
@@ -678,9 +726,13 @@ export const verifyStore = async (req: Request, res: Response): Promise<void> =>
   } catch (error) {
     const message = getErrorMessage(error, ERROR_MESSAGES.VERIFICATION_FAILED);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: RESPONSE_STATUS.FAILURE,
+      success: false,
       verified: false,
       error: message,
+      details: {
+        errorCode: 'internal_error',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      }
     });
   }
 };
@@ -713,7 +765,7 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
     const isAppStoreType = mappedStoreType === StoreType.APP_STORE || mappedStoreType === StoreType.TESTFLIGHT;
     const isPlayStoreType = mappedStoreType === StoreType.PLAY_STORE;
 
-    let verificationResult: { isValid: boolean; message: string; details?: any };
+    let verificationResult: { success: boolean; message: string; statusCode?: number; details?: any };
 
     if (isAppStoreType) {
       const appStorePayload = payload as AppStoreConnectPayload;
@@ -723,16 +775,21 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
       verificationResult = await verifyGooglePlayStore(playStorePayload);
     } else {
       res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
+        success: false,
         error: ERROR_MESSAGES.INVALID_STORE_TYPE,
+        details: {
+          errorCode: 'invalid_store_type',
+          message: 'Store type must be APP_STORE, TESTFLIGHT, or PLAY_STORE'
+        }
       });
       return;
     }
 
-    const isVerified = verificationResult.isValid;
-    if (!isVerified) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({
-        success: RESPONSE_STATUS.FAILURE,
+    if (!verificationResult.success) {
+      // Read statusCode from result
+      const statusCode = verificationResult.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
+      res.status(statusCode).json({
+        success: false,
         error: `Verification failed: ${verificationResult.message}`,
         details: verificationResult.details,
       });
@@ -764,8 +821,12 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
         if (!trackIsValid) {
           const errorMessage = getInvalidTrackErrorMessage(mappedStoreType, mappedTrack);
           res.status(HTTP_STATUS.BAD_REQUEST).json({
-            success: RESPONSE_STATUS.FAILURE,
+            success: false,
             error: errorMessage,
+            details: {
+              errorCode: 'invalid_track',
+              message: 'The specified track is not valid for this store type'
+            }
           });
           return;
         }
@@ -789,8 +850,12 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
       const updateFailed = !updatedIntegration;
       if (updateFailed) {
         res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-          success: RESPONSE_STATUS.FAILURE,
+          success: false,
           error: ERROR_MESSAGES.INTEGRATION_UPDATE_FAILED,
+          details: {
+            errorCode: 'update_failed',
+            message: 'Failed to update integration in database'
+          }
         });
         return;
       }
@@ -814,8 +879,12 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
         if (!trackIsValid) {
           const errorMessage = getInvalidTrackErrorMessage(mappedStoreType, mappedTrack);
           res.status(HTTP_STATUS.BAD_REQUEST).json({
-            success: RESPONSE_STATUS.FAILURE,
+            success: false,
             error: errorMessage,
+            details: {
+              errorCode: 'invalid_track',
+              message: 'The specified track is not valid for this store type'
+            }
           });
           return;
         }
@@ -1075,7 +1144,7 @@ export const patchStoreIntegration = async (req: Request, res: Response): Promis
     }
 
     // If verification fails, return error WITHOUT saving anything
-    if (!verificationResult || !verificationResult.isValid) {
+    if (!verificationResult || !verificationResult.success) {
       res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: RESPONSE_STATUS.FAILURE,
         error: 'Verification failed',
