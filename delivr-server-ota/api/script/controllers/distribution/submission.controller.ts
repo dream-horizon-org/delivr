@@ -80,8 +80,8 @@ const getSubmissionDetailsHandler = (service: SubmissionService) =>
  * - releaseNotes: string
  * 
  * Request body (Android):
- * - rolloutPercent: number (0-100)
- * - inAppPriority: number (0-5)
+ * - rolloutPercentage: number (0-100)
+ * - inAppUpdatePriority: number (0-5)
  * - releaseNotes: string
  */
 const submitExistingSubmissionHandler = (service: SubmissionService) =>
@@ -178,12 +178,12 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
         );
       } else {
         // Android submission
-        const { rolloutPercent, inAppPriority, releaseNotes } = req.body;
+        const { rolloutPercentage, inAppUpdatePriority, releaseNotes } = req.body;
 
         // Comprehensive validation - all fields and resources
         const validationResult = await service.validateAndroidSubmission(
           submissionId,
-          { rolloutPercent, inAppPriority, releaseNotes },
+          { rolloutPercentage, inAppUpdatePriority, releaseNotes },
           tenantId
         );
         
@@ -206,7 +206,7 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
 
         result = await service.submitExistingAndroidSubmission(
           submissionId,
-          { rolloutPercent, inAppPriority, releaseNotes },
+          { rolloutPercentage, inAppUpdatePriority, releaseNotes },
           submittedBy,
           tenantId
         );
@@ -262,8 +262,8 @@ const submitExistingSubmissionHandler = (service: SubmissionService) =>
  * - version: string
  * - versionCode: number (optional)
  * - aabFile: file (multipart)
- * - rolloutPercent: number
- * - inAppPriority: number
+ * - rolloutPercentage: number
+ * - inAppUpdatePriority: number
  * - releaseNotes: string
  */
 const createNewSubmissionHandler = (service: SubmissionService) =>
@@ -370,7 +370,7 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
         );
       } else {
         // Android resubmission
-        const { version, versionCode, rolloutPercent, inAppPriority, releaseNotes } = req.body;
+        const { version, versionCode, rolloutPercentage, inAppUpdatePriority, releaseNotes } = req.body;
         const aabFile = (req as any).file;
 
         // Validate Android fields
@@ -388,16 +388,16 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
           return;
         }
 
-        if (typeof rolloutPercent !== 'number' || rolloutPercent < 0 || rolloutPercent > 100) {
+        if (typeof rolloutPercentage !== 'number' || rolloutPercentage < 0 || rolloutPercentage > 100) {
           res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('rolloutPercent', 'rolloutPercent must be a number between 0 and 100')
+            validationErrorResponse('rolloutPercentage', 'rolloutPercentage must be a number between 0 and 100')
           );
           return;
         }
 
-        if (typeof inAppPriority !== 'number' || inAppPriority < 0 || inAppPriority > 5) {
+        if (typeof inAppUpdatePriority !== 'number' || inAppUpdatePriority < 0 || inAppUpdatePriority > 5) {
           res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('inAppPriority', 'inAppPriority must be a number between 0 and 5')
+            validationErrorResponse('inAppUpdatePriority', 'inAppUpdatePriority must be a number between 0 and 5')
           );
           return;
         }
@@ -416,8 +416,8 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
             version,
             versionCode: versionCode ? Number(versionCode) : undefined,
             aabFile: aabFile.buffer,
-            rolloutPercent,
-            inAppPriority,
+            rolloutPercentage,
+            inAppUpdatePriority,
             releaseNotes
           },
           tenantId
@@ -446,8 +446,8 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
             version,
             versionCode: versionCode ? Number(versionCode) : undefined,
             aabFile: aabFile.buffer,
-            rolloutPercent,
-            inAppPriority,
+            rolloutPercentage,
+            inAppUpdatePriority,
             releaseNotes
           },
           submittedBy,

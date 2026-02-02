@@ -19,6 +19,7 @@ import type { AppleAppStoreConnectService } from './apple-app-store-connect.serv
 import type { MockAppleAppStoreConnectService } from './apple-app-store-connect.mock';
 import { createAppleServiceFromIntegration } from './apple-app-store-connect.service';
 import { createGoogleServiceFromIntegration, GooglePlayStoreService } from './google-play-store.service';
+import type { MockGooglePlayStoreService } from './google-play-store.mock';
 import { getStorage } from '../../storage/storage-instance';
 import { StoreIntegrationController } from '../../storage/integrations/store/store-controller';
 import { StoreType, IntegrationStatus } from '../../storage/integrations/store/store-types';
@@ -90,8 +91,8 @@ export type SubmitIosRequest = {
  * Android submission request data
  */
 export type SubmitAndroidRequest = {
-  rolloutPercent: number;
-  inAppPriority: number;
+  rolloutPercentage: number;
+  inAppUpdatePriority: number;
   releaseNotes: string;
 };
 
@@ -113,8 +114,8 @@ export type CreateNewAndroidSubmissionRequest = {
   version: string;
   versionCode?: number;
   aabFile: Buffer;
-  rolloutPercent: number;
-  inAppPriority: number;
+  rolloutPercentage: number;
+  inAppUpdatePriority: number;
   releaseNotes: string;
 };
 
@@ -547,7 +548,7 @@ export class SubmissionService {
    * Comprehensive validation for Android submission
    * 
    * Validates ALL prerequisites before submission:
-   * 1. Request body fields (rolloutPercent, inAppPriority, releaseNotes)
+   * 1. Request body fields (rolloutPercentage, inAppUpdatePriority, releaseNotes)
    * 2. Android submission exists
    * 3. Submission is in PENDING state
    * 4. Distribution exists
@@ -561,39 +562,39 @@ export class SubmissionService {
     tenantId: string
   ): Promise<{ valid: boolean; statusCode: number; error?: string; field?: string }> {
     // Step 1: Validate request body fields
-    if (typeof data.rolloutPercent !== 'number') {
+    if (typeof data.rolloutPercentage !== 'number') {
       return {
         valid: false,
         statusCode: 400,
-        error: 'rolloutPercent must be a number',
-        field: 'rolloutPercent'
+        error: 'rolloutPercentage must be a number',
+        field: 'rolloutPercentage'
       };
     }
 
-    if (data.rolloutPercent < 0 || data.rolloutPercent > 100) {
+    if (data.rolloutPercentage < 0 || data.rolloutPercentage > 100) {
       return {
         valid: false,
         statusCode: 400,
-        error: 'rolloutPercent must be between 0 and 100',
-        field: 'rolloutPercent'
+        error: 'rolloutPercentage must be between 0 and 100',
+        field: 'rolloutPercentage'
       };
     }
 
-    if (typeof data.inAppPriority !== 'number') {
+    if (typeof data.inAppUpdatePriority !== 'number') {
       return {
         valid: false,
         statusCode: 400,
-        error: 'inAppPriority must be a number',
-        field: 'inAppPriority'
+        error: 'inAppUpdatePriority must be a number',
+        field: 'inAppUpdatePriority'
       };
     }
 
-    if (data.inAppPriority < 0 || data.inAppPriority > 5) {
+    if (data.inAppUpdatePriority < 0 || data.inAppUpdatePriority > 5) {
       return {
         valid: false,
         statusCode: 400,
-        error: 'inAppPriority must be between 0 and 5',
-        field: 'inAppPriority'
+        error: 'inAppUpdatePriority must be between 0 and 5',
+        field: 'inAppUpdatePriority'
       };
     }
 
@@ -938,7 +939,7 @@ export class SubmissionService {
    * Comprehensive validation for creating new Android submission (resubmission)
    * 
    * Validates ALL prerequisites before creating a new submission:
-   * 1. Request body fields (version, versionCode, aabFile, rolloutPercent, inAppPriority, releaseNotes)
+   * 1. Request body fields (version, versionCode, aabFile, rolloutPercentage, inAppUpdatePriority, releaseNotes)
    * 2. Distribution exists
    * 3. Tenant ownership validation (distribution.tenantId === tenantId)
    * 4. Existing submission exists with SUSPENDED or HALTED status
@@ -1006,39 +1007,39 @@ export class SubmissionService {
       };
     }
 
-    if (typeof data.rolloutPercent !== 'number') {
+    if (typeof data.rolloutPercentage !== 'number') {
       return {
         valid: false,
         statusCode: 400,
-        error: 'rolloutPercent must be a number',
-        field: 'rolloutPercent'
+        error: 'rolloutPercentage must be a number',
+        field: 'rolloutPercentage'
       };
     }
 
-    if (data.rolloutPercent < 0 || data.rolloutPercent > 100) {
+    if (data.rolloutPercentage < 0 || data.rolloutPercentage > 100) {
       return {
         valid: false,
         statusCode: 400,
-        error: 'rolloutPercent must be between 0 and 100',
-        field: 'rolloutPercent'
+        error: 'rolloutPercentage must be between 0 and 100',
+        field: 'rolloutPercentage'
       };
     }
 
-    if (typeof data.inAppPriority !== 'number') {
+    if (typeof data.inAppUpdatePriority !== 'number') {
       return {
         valid: false,
         statusCode: 400,
-        error: 'inAppPriority must be a number',
-        field: 'inAppPriority'
+        error: 'inAppUpdatePriority must be a number',
+        field: 'inAppUpdatePriority'
       };
     }
 
-    if (data.inAppPriority < 0 || data.inAppPriority > 5) {
+    if (data.inAppUpdatePriority < 0 || data.inAppUpdatePriority > 5) {
       return {
         valid: false,
         statusCode: 400,
-        error: 'inAppPriority must be between 0 and 5',
-        field: 'inAppPriority'
+        error: 'inAppUpdatePriority must be between 0 and 5',
+        field: 'inAppUpdatePriority'
       };
     }
 
@@ -1592,10 +1593,12 @@ export class SubmissionService {
 
   /**
    * Submit existing Android submission to Play Store for review
-   * 1. Saves data to database (updates submission details)
-   * 2. Validates tenant ownership
-   * 3. Calls Google Play Console API to submit for review
-   * 4. If successful, changes status to SUBMITTED
+   * 1. Validates tenant ownership
+   * 2. Calls Google Play Console API to submit for review (createEdit → updateTrack → validate → commit)
+   * 3. Only after commitEdit succeeds: persists submission data and status to DB
+   *
+   * DB updates (rolloutPercentage, inAppUpdatePriority, releaseNotes, submittedAt, submittedBy, status)
+   * happen only after commitEdit succeeds, so a failed commit leaves the submission unchanged.
    */
   async submitExistingAndroidSubmission(
     submissionId: string,
@@ -1613,32 +1616,19 @@ export class SubmissionService {
       return null;
     }
 
-    // Step 1: Save data to database first
-    const updatedSubmission = await this.androidSubmissionRepository.update(submissionId, {
-      rolloutPercentage: data.rolloutPercent,
-      inAppUpdatePriority: data.inAppPriority,
-      releaseNotes: data.releaseNotes,
-      submittedAt: new Date(),
-      submittedBy
-    });
-
-    if (!updatedSubmission) {
-      throw new Error('Failed to update submission');
-    }
-
-    // Step 2: Get distribution to retrieve tenantId
-    const distribution = await this.distributionRepository.findById(updatedSubmission.distributionId);
+    // Step 1: Get distribution and validate tenant ownership (no DB write yet)
+    const distribution = await this.distributionRepository.findById(androidSubmission.distributionId);
     
     if (!distribution) {
       throw new Error(`Distribution not found for submission ${submissionId}`);
     }
 
-    // Step 3: Security validation - submission must belong to the claimed tenant
+    // Step 2: Security validation - submission must belong to the claimed tenant
     if (distribution.tenantId !== tenantId) {
       throw new Error('Submission does not belong to this tenant');
     }
 
-    // Step 4: Get store integration and credentials
+    // Step 3: Get store integration and credentials
     const storeIntegrationController = getStoreIntegrationController();
     const integrations = await storeIntegrationController.findAll({
       tenantId,
@@ -1649,9 +1639,8 @@ export class SubmissionService {
     // Use first integration found
     const integration = integrations[0];
 
-
-    // Step 5: Create Google service (decrypts credentials, generates access token)
-    let googleService: GooglePlayStoreService;
+    // Step 4: Create Google service (decrypts credentials or mock)
+    let googleService: GooglePlayStoreService | MockGooglePlayStoreService;
     try {
       googleService = await createGoogleServiceFromIntegration(integration.id);
     } catch (error) {
@@ -1659,23 +1648,23 @@ export class SubmissionService {
       throw new Error(`Failed to load Google Play Store credentials: ${errorMessage}`);
     }
 
-    // Step 6: Create edit
+    // Step 5: Create edit
     const editData = await googleService.createEdit();
     const editId = editData.id;
 
     console.log(`[SubmitAndroidSubmission] Created edit with ID: ${editId}`);
 
     try {
-      // Step 7: Get current production state
+      // Step 6: Get current production state
       const productionStateData = await googleService.getProductionTrack(editId);
       
       console.log('[SubmitAndroidSubmission] Current production state:', JSON.stringify(productionStateData, null, 2));
 
-      // Step 8: Parse releaseNotes from XML-like format to array format
-      const parsedReleaseNotes = this.parseReleaseNotes(updatedSubmission.releaseNotes ?? '');
+      // Step 7: Build release payload from request data and submission (no DB write until after commit)
+      const parsedReleaseNotes = this.parseReleaseNotes(data.releaseNotes ?? '');
       
       // Determine status and userFraction based on rolloutPercentage
-      const rolloutPercentage = updatedSubmission.rolloutPercentage;
+      const rolloutPercentage = data.rolloutPercentage;
       const isFullRollout = rolloutPercentage === 100;
       const status = isFullRollout ? GOOGLE_PLAY_RELEASE_STATUS.COMPLETED : GOOGLE_PLAY_RELEASE_STATUS.IN_PROGRESS;
       
@@ -1685,7 +1674,7 @@ export class SubmissionService {
       // rolloutPercentage 10 = userFraction 0.1
       const userFraction = isFullRollout ? undefined : Math.max(0.0001, rolloutPercentage / 100);
 
-      // Build new release object
+      // Build new release object from request data and existing submission (version/versionCode)
       const newRelease: {
         name: string;
         versionCodes: string[];
@@ -1694,14 +1683,14 @@ export class SubmissionService {
         releaseNotes: Array<{ language: string; text: string }>;
         userFraction?: number;
       } = {
-        name: updatedSubmission.version,
-        versionCodes: [String(updatedSubmission.versionCode)],
+        name: androidSubmission.version,
+        versionCodes: [String(androidSubmission.versionCode)],
         status: status,
-        inAppUpdatePriority: updatedSubmission.inAppUpdatePriority,
+        inAppUpdatePriority: data.inAppUpdatePriority,
         releaseNotes: parsedReleaseNotes.length > 0 ? parsedReleaseNotes : [
           {
             language: 'en-US',
-            text: updatedSubmission.releaseNotes ?? 'Release notes'
+            text: data.releaseNotes ?? 'Release notes'
           }
         ],
       };
@@ -1720,11 +1709,11 @@ export class SubmissionService {
         ],
       };
 
-      // Step 9: Update track (promotion)
+      // Step 8: Update track (promotion)
       await googleService.updateProductionTrack(editId, trackUpdatePayload);
       console.log('[SubmitAndroidSubmission] Track updated successfully');
 
-      // Step 10: Validate the edit (optional dry run)
+      // Step 9: Validate the edit (optional dry run)
       try {
         await googleService.validateEdit(editId);
         console.log('[SubmitAndroidSubmission] Edit validation successful');
@@ -1735,20 +1724,26 @@ export class SubmissionService {
         throw new Error(`Edit validation failed: ${errorMessage}`);
       }
 
-      // Step 11: Commit edit
+      // Step 10: Commit edit (Play Console / mock production track is updated here)
       const commitResult = await googleService.commitEdit(editId);
       console.log('[SubmitAndroidSubmission] Edit committed successfully:', JSON.stringify(commitResult, null, 2));
 
-      // Step 12: If Google API call is successful, update status to SUBMITTED
-    const finalSubmission = await this.androidSubmissionRepository.update(submissionId, {
+      // Step 11: Only after commit succeeds — persist submission data and status (avoids inconsistent DB if commit failed)
+      const submittedAt = new Date();
+      const finalSubmission = await this.androidSubmissionRepository.update(submissionId, {
+        rolloutPercentage: data.rolloutPercentage,
+        inAppUpdatePriority: data.inAppUpdatePriority,
+        releaseNotes: data.releaseNotes,
+        submittedAt,
+        submittedBy,
         status: ANDROID_SUBMISSION_STATUS.SUBMITTED
-    });
+      });
 
-    if (!finalSubmission) {
-      throw new Error('Failed to update submission status to SUBMITTED');
-    }
+      if (!finalSubmission) {
+        throw new Error('Failed to update submission status to SUBMITTED');
+      }
 
-      console.log(`[SubmitAndroidSubmission] Updated Android submission ${submissionId} status to SUBMITTED`);
+      console.log(`[SubmitAndroidSubmission] Updated Android submission ${submissionId} status to SUBMITTED (rollout/releaseNotes/submittedAt persisted after commit)`);
 
       // Step 12.5: Send notification (Android Play Store Build Submitted)
       if (this.releaseNotificationService && distribution.releaseId) {
@@ -2497,8 +2492,8 @@ export class SubmissionService {
         storeType: STORE_TYPE.PLAY_STORE,
         status: ANDROID_SUBMISSION_STATUS.PENDING, // Will be updated to SUBMITTED after API call
         releaseNotes: data.releaseNotes,
-        rolloutPercentage: data.rolloutPercent,
-        inAppUpdatePriority: data.inAppPriority,
+        rolloutPercentage: data.rolloutPercentage,
+        inAppUpdatePriority: data.inAppUpdatePriority,
         submittedBy,
         isActive: true,
       });
@@ -2577,7 +2572,7 @@ export class SubmissionService {
       const parsedReleaseNotes = this.parseReleaseNotes(data.releaseNotes ?? '');
       
       // Determine status and userFraction based on rolloutPercentage
-      const rolloutPercentage = data.rolloutPercent;
+      const rolloutPercentage = data.rolloutPercentage;
       const isFullRollout = rolloutPercentage === 100;
       const status = isFullRollout ? GOOGLE_PLAY_RELEASE_STATUS.COMPLETED : GOOGLE_PLAY_RELEASE_STATUS.IN_PROGRESS;
       
@@ -2599,7 +2594,7 @@ export class SubmissionService {
         name: data.version,
         versionCodes: [String(uploadedVersionCode)],
         status: status,
-        inAppUpdatePriority: data.inAppPriority,
+        inAppUpdatePriority: data.inAppUpdatePriority,
         releaseNotes: parsedReleaseNotes.length > 0 ? parsedReleaseNotes : [
           {
             language: 'en-US',
@@ -3897,16 +3892,22 @@ export class SubmissionService {
     const commitResult = await googleService.commitEdit(editId);
     console.log('[UpdateAndroidRollout] Edit committed successfully:', JSON.stringify(commitResult, null, 2));
 
-    // Step 13: Update rollout percentage in database (only after Google API succeeds)
+    // Step 13: Update rollout percentage and status in database (only after Google API succeeds)
+    // Status should match the Google Play API status: IN_PROGRESS or COMPLETED
+    const newStatus = isFullRollout 
+      ? ANDROID_SUBMISSION_STATUS.COMPLETED 
+      : ANDROID_SUBMISSION_STATUS.IN_PROGRESS;
+
     const updatedSubmission = await this.androidSubmissionRepository.update(submissionId, {
-      rolloutPercentage: rolloutPercent
+      rolloutPercentage: rolloutPercent,
+      status: newStatus
     });
 
     if (!updatedSubmission) {
       throw new Error('Failed to update rollout percentage in database');
     }
 
-    console.log(`[UpdateAndroidRollout] Successfully updated rollout percentage to ${rolloutPercent}% for submission ${submissionId}`);
+    console.log(`[UpdateAndroidRollout] Successfully updated rollout percentage to ${rolloutPercent}% and status to ${newStatus} for submission ${submissionId}`);
 
     return {
       id: updatedSubmission.id,

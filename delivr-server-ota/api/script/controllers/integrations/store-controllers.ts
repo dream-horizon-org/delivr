@@ -40,6 +40,9 @@ import { AndroidSubmissionBuildRepository } from '~models/distribution';
 import { DistributionRepository } from '~models/distribution';
 import { decryptIfEncrypted, encryptForStorage, decryptFromStorage } from '../../utils/encryption';
 import { BUILD_PLATFORM, STORE_TYPE } from '~types/release-management/builds/build.constants';
+import { createGoogleServiceFromIntegration } from '../../services/distribution/google-play-store.service';
+import type { MockGooglePlayStoreService } from '../../services/distribution/google-play-store.mock';
+import type { GooglePlayStoreService } from '../../services/distribution/google-play-store.service';
 
 const isNonEmptyString = (value: unknown): value is string => {
   const isString = typeof value === 'string';
@@ -2134,8 +2137,6 @@ export const getPlayStoreListings = async (req: Request, res: Response): Promise
 
 export const getPlayStoreProductionState = async (req: Request, res: Response): Promise<void> => {
   let editId: string | null = null;
-  let packageName: string | null = null;
-  let accessToken: string | null = null;
   
   try {
     // Extract query parameters
@@ -2225,118 +2226,52 @@ export const getPlayStoreProductionState = async (req: Request, res: Response): 
     }
 
     const integrationId = verifiedIntegration.id;
-    packageName = verifiedIntegration.appIdentifier;
 
     // Validate integration status
     validateIntegrationStatus(verifiedIntegration);
 
-    // Get GoogleAuth client and access token
-    const authResult = await getGoogleAuthClientFromIntegration(integrationId);
-    accessToken = authResult.accessToken;
-
-    const apiBaseUrl = PLAY_STORE_UPLOAD_CONSTANTS.API_BASE_URL;
-
-    // Step 1: Create edit
-    const createEditUrl = `${apiBaseUrl}/applications/${packageName}/edits`;
-    const createEditResponse = await fetch(createEditUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({}),
-    });
-
-    if (!createEditResponse.ok) {
-      const errorText = await createEditResponse.text().catch(() => 'Unknown error');
-      throw new Error(`Failed to create edit: ${createEditResponse.status} ${errorText}`);
+    // Step 1: Create Google service (uses mock if MOCK_GOOGLE_PLAY_API=true)
+    let googleService: GooglePlayStoreService | MockGooglePlayStoreService;
+    try {
+      googleService = await createGoogleServiceFromIntegration(integrationId);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to load Google Play Store service: ${errorMessage}`);
     }
 
-    const editData = await createEditResponse.json();
+    // Step 2: Create edit
+    const editData = await googleService.createEdit();
     editId = editData.id;
 
-    // Step 2: Get production state
-    const productionStateUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editId}/tracks/production`;
-    const productionStateResponse = await fetch(productionStateUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    console.log(`[getPlayStoreProductionState] Created edit with ID: ${editId}`);
 
-    // Step 3: Always delete edit (success or failure)
-    if (editId && packageName && accessToken) {
-      try {
-        const deleteEditUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editId}`;
-        await fetch(deleteEditUrl, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-          },
-        });
-      } catch (deleteError) {
-        // Ignore delete errors - edit will expire automatically
-        console.warn('Failed to delete edit, it will expire automatically');
-      }
-    }
-
-    // Return response based on status
-    if (!productionStateResponse.ok) {
-      const errorText = await productionStateResponse.text().catch(() => 'Unknown error');
-      res.status(productionStateResponse.status).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: `Failed to get production state: ${productionStateResponse.status} ${errorText}`,
-      });
-      return;
-    }
-
-    const productionStateData = await productionStateResponse.json();
-
-    // Step 4: Update Android submission status based on production state
-    // Get submission service from storage to process status update
-    let statusUpdateResult = null;
     try {
-      const storageWithServices = storage as any;
-      const submissionService = storageWithServices.submissionService;
+      // Step 3: Get production track state
+      const productionStateData = await googleService.getProductionTrack(editId);
       
-      if (submissionService) {
-        statusUpdateResult = await submissionService.updateAndroidSubmissionStatus(
-          submissionId,
-          productionStateData
-        );
-        console.log('[getPlayStoreProductionState] Status update result:', statusUpdateResult);
-      } else {
-        console.warn('[getPlayStoreProductionState] SubmissionService not available in storage');
-      }
-    } catch (statusUpdateError) {
-      // Log error but don't fail the request - production state data is still valid
-      console.error('[getPlayStoreProductionState] Failed to update submission status:', statusUpdateError);
-    }
+      console.log('[getPlayStoreProductionState] Production track state:', JSON.stringify(productionStateData, null, 2));
 
-    res.status(HTTP_STATUS.OK).json({
-      success: RESPONSE_STATUS.SUCCESS,
-      data: productionStateData,
-      statusUpdate: statusUpdateResult
-    });
+      // Note: This endpoint is read-only. Database updates are handled by Chronicle scheduled jobs.
+      // Chronicle automatically calls this endpoint and processes the response to update submission status.
+
+      // Return production track state (read-only)
+      res.status(HTTP_STATUS.OK).json({
+        success: RESPONSE_STATUS.SUCCESS,
+        data: productionStateData
+      });
+    } finally {
+      // Step 4: Always delete edit (success or failure)
+      if (editId) {
+        try {
+          await googleService.deleteEdit(editId);
+          console.log(`[getPlayStoreProductionState] Deleted edit ${editId}`);
+        } catch (deleteError) {
+          // Ignore delete errors - edit will expire automatically
+          console.warn(`[getPlayStoreProductionState] Failed to delete edit ${editId}, it will expire automatically`);
+        }
+      }
+    }
   } catch (error) {
-    // Clean up edit on error if it was created
-    if (editId && packageName && accessToken) {
-      try {
-        const apiBaseUrl = PLAY_STORE_UPLOAD_CONSTANTS.API_BASE_URL;
-        const deleteEditUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editId}`;
-        await fetch(deleteEditUrl, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-          },
-        });
-      } catch (deleteError) {
-        // Ignore delete errors - edit will expire automatically
-        console.warn('Failed to delete edit after error, it will expire automatically');
-      }
-    }
-
     const message = getErrorMessage(error, 'Failed to get Play Store production state');
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: RESPONSE_STATUS.FAILURE,
@@ -2344,4 +2279,3 @@ export const getPlayStoreProductionState = async (req: Request, res: Response): 
     });
   }
 };
-

@@ -111,8 +111,8 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * - platform: Required (ANDROID | IOS) - identifies which database table to query
    * 
    * Request Body (Android):
-   * - rolloutPercent: float (0-100)
-   * - inAppPriority: number (0-5)
+   * - rolloutPercentage: float (0-100)
+   * - inAppUpdatePriority: number (0-5)
    * - releaseNotes: string
    * 
    * Request Body (iOS):

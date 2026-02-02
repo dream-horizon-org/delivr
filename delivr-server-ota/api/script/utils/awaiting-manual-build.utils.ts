@@ -22,6 +22,7 @@ import { BuildRepository, CreateBuildDto } from '~models/release/build.repositor
 import { v4 as uuidv4 } from 'uuid';
 import { BUILD_STAGE } from '~types/release-management/builds';
 import type { BuildNotificationService } from '~services/release/build/build-notification.service';
+import { extractVersionCodeFromInternalTrackLink } from '~services/release/task-executor/task-executor';
 
 // ============================================================================
 // TYPES
@@ -290,6 +291,23 @@ export const checkAndConsumeManualBuilds = async (
       const isIosPlatform = upload.platform === 'IOS';
       const storeType = isIosPlatform ? 'APP_STORE' : 'PLAY_STORE';
 
+        // ✅ FIX: Extract versionCode from internalTrackLink for Android builds
+      // For Android with internalTrackLink, buildNumber should be the versionCode (not filename)
+      // For iOS, buildNumber is testflightNumber
+      // For other cases, use uploadFileName as fallback
+      let buildNumber: string | null = null;
+      
+      if (upload.platform === 'ANDROID' && upload.internalTrackLink) {
+        // Extract versionCode from internalTrackLink (source of truth)
+        const versionCode = extractVersionCodeFromInternalTrackLink(upload.internalTrackLink);
+        buildNumber = versionCode ?? uploadFileName; // Fallback to filename if extraction fails
+      } else if (upload.platform === 'IOS' && upload.testflightNumber) {
+        // For iOS, use testflightNumber as buildNumber
+        buildNumber = upload.testflightNumber;
+      }
+
+      console.log(`[ManualBuildHandler] Build number: ${buildNumber}`);
+
       const buildData: CreateBuildDto = {
         id: buildId,
         tenantId: upload.tenantId,
@@ -297,7 +315,7 @@ export const checkAndConsumeManualBuilds = async (
         platform: upload.platform,
         buildType: 'MANUAL',
         buildStage: stage,
-        buildNumber: uploadFileName,
+        buildNumber: buildNumber, // ✅ FIX: Use buildNumber variable, not uploadFileName
         artifactVersionName,
         artifactPath: upload.artifactPath,
         storeType,
