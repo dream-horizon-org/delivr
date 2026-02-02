@@ -290,8 +290,8 @@ sleep 5
 # Create database schema
 # -----------------------------------------------------------------------------
 echo -e "\n${YELLOW}Creating database schema...${NC}"
-if docker compose --profile dev exec -T app-dev ts-node -r dotenv/config /app/api/setup/create-schema.ts > /dev/null 2>&1; then
-    echo -e "  ${GREEN}✓${NC} Database schema created"
+if docker compose --profile dev exec -T app-dev ts-node -r dotenv/config /app/api/setup/create-schema.ts; then
+    echo -e "  ${GREEN}✓${NC} Database schema completed"
 else
     echo -e "  ${YELLOW}⚠${NC} Schema creation had issues (may already exist)"
 fi

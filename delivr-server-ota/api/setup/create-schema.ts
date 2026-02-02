@@ -8,24 +8,11 @@
  */
 
 import 'module-alias/register';
-import { Sequelize } from 'sequelize';
+import { QueryTypes, Sequelize } from 'sequelize';
 import { createModelss } from '../script/storage/aws-storage';
+import { setupLogger, DB_DEFAULTS, TableCountResult } from './setup.constants';
 
-// Colors for console output
-const colors = {
-  reset: '\x1b[0m',
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-};
-
-const log = {
-  info: (msg: string) => console.log(`${colors.blue}ℹ${colors.reset} ${msg}`),
-  success: (msg: string) => console.log(`${colors.green}✓${colors.reset} ${msg}`),
-  warn: (msg: string) => console.log(`${colors.yellow}⚠${colors.reset} ${msg}`),
-  error: (msg: string) => console.log(`${colors.red}✗${colors.reset} ${msg}`),
-};
+const log = setupLogger;
 
 async function createSchema(): Promise<void> {
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -34,10 +21,10 @@ async function createSchema(): Promise<void> {
 
   // Database configuration from environment
   // Use DB_HOST as-is (will be 'db' in Docker, 'localhost' when overridden on host)
-  const dbHost = process.env.DB_HOST || 'localhost';
-  const dbUser = process.env.DB_USER || 'root';
-  const dbPass = process.env.DB_PASS || 'root';
-  const dbName = process.env.DB_NAME || 'delivrdb';
+  const dbHost = process.env.DB_HOST || DB_DEFAULTS.HOST;
+  const dbUser = process.env.DB_USER || DB_DEFAULTS.USER;
+  const dbPass = process.env.DB_PASS || DB_DEFAULTS.PASS;
+  const dbName = process.env.DB_NAME || DB_DEFAULTS.NAME;
 
   log.info(`Creating database if not exists: ${dbName}@${dbHost}`);
 
@@ -81,13 +68,15 @@ async function createSchema(): Promise<void> {
     log.success('Database tables created successfully');
 
     // Verify tables were created
-    const [results] = await sequelize.query(`
-      SELECT COUNT(*) as tableCount 
-      FROM information_schema.tables 
-      WHERE table_schema = '${dbName}'
-    `);
+    const results = await sequelize.query<TableCountResult>(
+      `SELECT COUNT(*) as tableCount 
+       FROM information_schema.tables 
+       WHERE table_schema = '${dbName}'`,
+      { type: QueryTypes.SELECT }
+    );
     
-    const tableCount = (results as Array<{ tableCount: number }>)[0]?.tableCount ?? 0;
+    const hasResults = results && results.length > 0;
+    const tableCount = hasResults ? results[0].tableCount : 0;
     log.success(`Verified: ${tableCount} tables exist in database`);
 
   } catch (error) {

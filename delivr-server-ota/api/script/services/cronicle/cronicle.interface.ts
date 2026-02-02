@@ -165,6 +165,22 @@ export type CreateCronicleCategoryRequest = {
   maxChildren?: number;   // Max concurrent jobs (0 = unlimited)
 };
 
+/**
+ * Options for creating a category
+ */
+export type CreateCategoryOptions = {
+  description?: string;   // Category description
+  maxChildren?: number;   // Max concurrent jobs in this category (0 = unlimited, default 0)
+};
+
+/**
+ * Request parameters for creating a category
+ */
+export type CreateCategoryRequest = {
+  title: string;          // The category title (Cronicle auto-generates ID from title)
+  options?: CreateCategoryOptions;  // Optional configuration for the category
+};
+
 // ─────────────────────────────────────────────────────────────
 // Service Configuration
 // ─────────────────────────────────────────────────────────────

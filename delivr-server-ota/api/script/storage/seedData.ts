@@ -1,6 +1,7 @@
 import 'module-alias/register';
 import { Sequelize } from "sequelize";
 import { createModelss } from "./aws-storage";
+import { NODE_ENV_VALUES } from "../constants/env";
 
 // Define the Sequelize connection
 const sequelize = new Sequelize("codepushdb", "root", "root", {
@@ -271,7 +272,7 @@ async function seed() {
   }
 }
 
-if (process.env.NODE_ENV !== "prod") {
+if (process.env.NODE_ENV !== NODE_ENV_VALUES.PROD) {
   seed();
 } else {
   // Do nothing

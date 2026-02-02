@@ -3,6 +3,7 @@ import * as cookieSession from "cookie-session";
 import { Request, Response, Router, RequestHandler } from "express";
 import * as storage from "../storage/storage";
 import { sendErrorToDatadog } from "../utils/tracer";
+import { NODE_ENV_VALUES, ENV_VARS, getEnvBoolean } from "../constants/env";
 
 // Replace with your actual Google Client ID (from Google Developer Console)
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "<Your Google Client ID>";
@@ -115,8 +116,8 @@ export class Authentication {
   // Middleware to authenticate requests using Google ID token
   public async authenticate(req: Request, res: Response, next: (err?: Error) => void) {
     // In development mode, check AUTH_ENABLED to determine authentication behavior
-    if (process.env.NODE_ENV === "dev") {
-      const authEnabled = process.env.AUTH_ENABLED === "true";
+    if (process.env.NODE_ENV === NODE_ENV_VALUES.DEV) {
+      const authEnabled = getEnvBoolean(ENV_VARS.AUTH_ENABLED, false);
       
       if (authEnabled) {
         // AUTH_ENABLED=true: Fall through to production authentication (expects Bearer token)
@@ -130,7 +131,7 @@ export class Authentication {
           req.user = {
             id: userId,
           };
-        } else if (req.body.user !== undefined) {
+        } else if (req.body.user !== undefined && req.body.user !== null) {
           // User provided via body
           req.user = req.body.user;
         } else {

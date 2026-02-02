@@ -11,42 +11,15 @@ import 'dotenv/config';
 import { Sequelize } from 'sequelize';
 import * as fs from 'fs';
 import * as path from 'path';
+import {
+  seedLogger,
+  DB_DEFAULTS,
+  SEED_TABLE_MAPPINGS,
+  SEED_PRIMARY_KEYS,
+  SEED_ORDER,
+} from './setup.constants';
 
-// Colors for console output
-const GREEN = '\x1b[32m';
-const YELLOW = '\x1b[33m';
-const RED = '\x1b[31m';
-const RESET = '\x1b[0m';
-
-const log = (msg: string) => console.log(`${GREEN}[seed]${RESET} ${msg}`);
-const warn = (msg: string) => console.log(`${YELLOW}[seed]${RESET} ${msg}`);
-const error = (msg: string) => console.log(`${RED}[seed]${RESET} ${msg}`);
-
-// Table name mappings (JSON key -> actual table name)
-const TABLE_MAPPINGS: Record<string, string> = {
-  accounts: 'accounts',
-  tenants: 'tenants',
-  apps: 'apps',
-  collaborators: 'collaborators',
-  deployments: 'deployments',
-  accessKeys: 'accessKeys',
-  platforms: 'platforms',
-  targets: 'targets',
-  platformStoreMappings: 'platform_store_type_mapping',
-};
-
-// Primary key field for each table (for existence check)
-const PRIMARY_KEYS: Record<string, string> = {
-  accounts: 'id',
-  tenants: 'id',
-  apps: 'id',
-  collaborators: 'accountId', // Uses composite key, check by accountId
-  deployments: 'id',
-  accessKeys: 'id',
-  platforms: 'id',
-  targets: 'id',
-  platformStoreMappings: 'id',
-};
+const { log, warn, error } = seedLogger;
 
 // Get current timestamp in MySQL format (YYYY-MM-DD HH:MM:SS)
 const getMySQLTimestamp = (): string => {
@@ -73,10 +46,10 @@ const addTimestamps = (record: Record<string, unknown>): Record<string, unknown>
 };
 
 async function seedData(): Promise<void> {
-  const dbHost = process.env.DB_HOST ?? 'localhost';
-  const dbUser = process.env.DB_USER ?? 'root';
-  const dbPass = process.env.DB_PASS ?? 'root';
-  const dbName = process.env.DB_NAME ?? 'delivrdb';
+  const dbHost = process.env.DB_HOST ?? DB_DEFAULTS.HOST;
+  const dbUser = process.env.DB_USER ?? DB_DEFAULTS.USER;
+  const dbPass = process.env.DB_PASS ?? DB_DEFAULTS.PASS;
+  const dbName = process.env.DB_NAME ?? DB_DEFAULTS.NAME;
 
   log(`Connecting to database ${dbName}@${dbHost}...`);
 
@@ -101,22 +74,10 @@ async function seedData(): Promise<void> {
     const seedData = JSON.parse(fs.readFileSync(seedDataPath, 'utf-8'));
 
     // Seed in order (respecting FK constraints)
-    const seedOrder = [
-      'accounts',
-      'tenants',
-      'apps',
-      'collaborators',
-      'deployments',
-      'accessKeys',
-      'platforms',
-      'targets',
-      'platformStoreMappings',
-    ];
-
-    for (const key of seedOrder) {
+    for (const key of SEED_ORDER) {
       const data = seedData[key];
-      const tableName = TABLE_MAPPINGS[key];
-      const primaryKey = PRIMARY_KEYS[key];
+      const tableName = SEED_TABLE_MAPPINGS[key];
+      const primaryKey = SEED_PRIMARY_KEYS[key];
       
       if (!data || data.length === 0) {
         warn(`No seed data for ${key}, skipping`);

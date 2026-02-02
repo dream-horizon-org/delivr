@@ -58,7 +58,9 @@ export const ENV_VARS = {
   // ============================================================================
   NODE_ENV: 'NODE_ENV',
   DEBUG: 'DEBUG',
-  LOG_LEVEL: 'LOG_LEVEL'
+  LOG_LEVEL: 'LOG_LEVEL',
+  /** Enable authentication in development mode (default: false) */
+  AUTH_ENABLED: 'AUTH_ENABLED'
 } as const;
 
 /**
@@ -81,6 +83,19 @@ export const ENV_DEFAULTS = {
   GHA_RUN_POLL_ATTEMPTS: 10,
   GHA_RUN_POLL_DELAY_MS: 2000,
   GHA_DEFAULT_REF: 'main'
+} as const;
+
+/**
+ * NODE_ENV values
+ * Use these constants instead of hardcoded strings when checking process.env.NODE_ENV
+ * 
+ * Usage:
+ *   import { NODE_ENV_VALUES } from '~constants/env';
+ *   if (process.env.NODE_ENV === NODE_ENV_VALUES.DEV) { ... }
+ */
+export const NODE_ENV_VALUES = {
+  DEV: 'dev',
+  PROD: 'prod'
 } as const;
 
 /**

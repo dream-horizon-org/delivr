@@ -12,7 +12,8 @@ import type {
   CronicleTimingConfig,
   CronicleApiResponse,
   CronicleJobInfo,
-  CronicleCategoryInfo
+  CronicleCategoryInfo,
+  CreateCategoryRequest
 } from './cronicle.interface';
 import { isCronTiming } from './cronicle.interface';
 import {
@@ -109,7 +110,7 @@ export class CronicleServiceImpl implements CronicleService {
     console.log(`[CronicleService] Category '${categoryTitle}' not found. Attempting to create...`);
     
     try {
-      const newCategoryId = await this.createCategory(categoryTitle, { maxChildren });
+      const newCategoryId = await this.createCategory({ title: categoryTitle, options: { maxChildren } });
       console.log(`[CronicleService] Created category '${categoryTitle}' with ID '${newCategoryId}'`);
       return newCategoryId;
     } catch (error) {
@@ -125,16 +126,15 @@ export class CronicleServiceImpl implements CronicleService {
   /**
    * Create a new category in Cronicle
    * 
-   * @param title - The category title (Cronicle auto-generates ID from title)
-   * @param options - Optional configuration for the category
-   * @param options.description - Description for the category
-   * @param options.maxChildren - Max concurrent jobs in this category (0 = unlimited, default 0)
+   * @param request - Category creation request
+   * @param request.title - The category title (Cronicle auto-generates ID from title)
+   * @param request.options - Optional configuration for the category
+   * @param request.options.description - Description for the category
+   * @param request.options.maxChildren - Max concurrent jobs in this category (0 = unlimited, default 0)
    * @returns The created category ID
    */
-  private createCategory = async (
-    title: string, 
-    options: { description?: string; maxChildren?: number } = {}
-  ): Promise<string> => {
+  private createCategory = async (request: CreateCategoryRequest): Promise<string> => {
+    const { title, options = {} } = request;
     const { description, maxChildren = 0 } = options;
     
     const payload = {
