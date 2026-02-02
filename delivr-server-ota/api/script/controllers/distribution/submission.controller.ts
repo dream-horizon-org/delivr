@@ -369,9 +369,12 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
           tenantId
         );
       } else {
-        // Android resubmission
+        // Android resubmission (multipart/form-data: all body fields are strings; coerce numbers)
         const { version, versionCode, rolloutPercentage, inAppUpdatePriority, releaseNotes } = req.body;
         const aabFile = (req as any).file;
+
+        const rolloutPercentageNum = rolloutPercentage != null ? Number(rolloutPercentage) : NaN;
+        const inAppUpdatePriorityNum = inAppUpdatePriority != null ? Number(inAppUpdatePriority) : NaN;
 
         // Validate Android fields
         if (!version || typeof version !== 'string') {
@@ -388,14 +391,14 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
           return;
         }
 
-        if (typeof rolloutPercentage !== 'number' || rolloutPercentage < 0 || rolloutPercentage > 100) {
+        if (typeof rolloutPercentageNum !== 'number' || Number.isNaN(rolloutPercentageNum) || rolloutPercentageNum < 0 || rolloutPercentageNum > 100) {
           res.status(HTTP_STATUS.BAD_REQUEST).json(
             validationErrorResponse('rolloutPercentage', 'rolloutPercentage must be a number between 0 and 100')
           );
           return;
         }
 
-        if (typeof inAppUpdatePriority !== 'number' || inAppUpdatePriority < 0 || inAppUpdatePriority > 5) {
+        if (typeof inAppUpdatePriorityNum !== 'number' || Number.isNaN(inAppUpdatePriorityNum) || inAppUpdatePriorityNum < 0 || inAppUpdatePriorityNum > 5) {
           res.status(HTTP_STATUS.BAD_REQUEST).json(
             validationErrorResponse('inAppUpdatePriority', 'inAppUpdatePriority must be a number between 0 and 5')
           );
@@ -414,10 +417,10 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
           distributionId,
           {
             version,
-            versionCode: versionCode ? Number(versionCode) : undefined,
+            versionCode: versionCode != null && versionCode !== '' ? Number(versionCode) : undefined,
             aabFile: aabFile.buffer,
-            rolloutPercentage,
-            inAppUpdatePriority,
+            rolloutPercentage: rolloutPercentageNum,
+            inAppUpdatePriority: inAppUpdatePriorityNum,
             releaseNotes
           },
           tenantId
@@ -428,14 +431,14 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
           if (validationResult.field) {
             res.status(validationResult.statusCode).json(
               validationErrorResponse(validationResult.field, validationResult.error ?? 'Validation failed')
-          );
+            );
           } else {
             res.status(validationResult.statusCode).json(
               errorResponse(
                 new Error(validationResult.error ?? 'Validation failed'),
                 validationResult.error ?? 'Validation failed'
               )
-          );
+            );
           }
           return;
         }
@@ -444,10 +447,10 @@ const createNewSubmissionHandler = (service: SubmissionService) =>
           distributionId,
           {
             version,
-            versionCode: versionCode ? Number(versionCode) : undefined,
+            versionCode: versionCode != null && versionCode !== '' ? Number(versionCode) : undefined,
             aabFile: aabFile.buffer,
-            rolloutPercentage,
-            inAppUpdatePriority,
+            rolloutPercentage: rolloutPercentageNum,
+            inAppUpdatePriority: inAppUpdatePriorityNum,
             releaseNotes
           },
           submittedBy,

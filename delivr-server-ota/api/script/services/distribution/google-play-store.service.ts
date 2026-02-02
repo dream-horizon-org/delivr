@@ -235,6 +235,15 @@ export class GooglePlayStoreService {
       // Don't throw - edit will expire automatically
     }
   }
+
+  /**
+   * No-op for real API: edit already exists when created via API.
+   * Used by resubmission flow when mock: real createEdit + upload bundle, then mock update/validate/commit
+   * need a session for that real editId; real service does not need to do anything.
+   */
+  ensureEditSession(_editId: string): void {
+    // No-op: edit already exists on Google when created via createEdit
+  }
 }
 
 /**

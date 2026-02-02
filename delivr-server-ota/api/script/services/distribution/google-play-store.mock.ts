@@ -344,6 +344,26 @@ export class MockGooglePlayStoreService {
   }
 
   /**
+   * Ensure an edit session exists for the given editId (e.g. from real Google createEdit).
+   * Used by resubmission when MOCK_GOOGLE_PLAY_API=true: real createEdit + upload bundle,
+   * then mock updateProductionTrack/validateEdit/commitEdit for that editId.
+   */
+  ensureEditSession(editId: string): void {
+    if (MockGooglePlayStoreService.editSessions.has(editId)) {
+      return;
+    }
+    const editSession: EditSessionData = {
+      id: editId,
+      packageName: this.packageName,
+      expiryTimeSeconds: '3600',
+      createdAt: new Date(),
+      committed: false,
+    };
+    MockGooglePlayStoreService.editSessions.set(editId, editSession);
+    console.log(`[MockGooglePlayService] Ensured edit session for external editId: ${editId}`);
+  }
+
+  /**
    * Seed initial production track state for testing
    * Creates a default track with some releases for testing
    */
@@ -358,6 +378,19 @@ export class MockGooglePlayStoreService {
     const initialTrack: ProductionTrackData = {
       track: 'production',
       releases: [
+        {
+          name: '2.9.0',
+          versionCodes: ['1334'],
+          status: GOOGLE_PLAY_RELEASE_STATUS.IN_PROGRESS,
+          inAppUpdatePriority: 2,
+          releaseNotes: [
+            {
+              language: 'en-US',
+              text: 'Promoting versionCode 1334 to internal testers via API',
+            },
+          ],
+          userFraction: 0.05,
+        },
         {
           name: 'Staged Rollout V1.0.17',
           versionCodes: ['10017'],

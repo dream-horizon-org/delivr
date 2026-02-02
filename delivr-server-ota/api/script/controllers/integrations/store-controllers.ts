@@ -2251,13 +2251,34 @@ export const getPlayStoreProductionState = async (req: Request, res: Response): 
       
       console.log('[getPlayStoreProductionState] Production track state:', JSON.stringify(productionStateData, null, 2));
 
-      // Note: This endpoint is read-only. Database updates are handled by Chronicle scheduled jobs.
       // Chronicle automatically calls this endpoint and processes the response to update submission status.
+
+    // Step 4: Update Android submission status based on production state
+    // Get submission service from storage to process status update
+    let statusUpdateResult = null;
+    try {
+      const storageWithServices = storage as any;
+      const submissionService = storageWithServices.submissionService;
+      
+      if (submissionService) {
+        statusUpdateResult = await submissionService.updateAndroidSubmissionStatus(
+          submissionId,
+          productionStateData
+        );
+        console.log('[getPlayStoreProductionState] Status update result:', statusUpdateResult);
+      } else {
+        console.warn('[getPlayStoreProductionState] SubmissionService not available in storage');
+      }
+    } catch (statusUpdateError) {
+      // Log error but don't fail the request - production state data is still valid
+      console.error('[getPlayStoreProductionState] Failed to update submission status:', statusUpdateError);
+    }
 
       // Return production track state (read-only)
       res.status(HTTP_STATUS.OK).json({
         success: RESPONSE_STATUS.SUCCESS,
-        data: productionStateData
+        data: productionStateData,
+        statusUpdate: statusUpdateResult
       });
     } finally {
       // Step 4: Always delete edit (success or failure)

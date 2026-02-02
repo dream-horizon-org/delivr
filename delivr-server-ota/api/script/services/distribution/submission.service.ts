@@ -942,7 +942,7 @@ export class SubmissionService {
    * 1. Request body fields (version, versionCode, aabFile, rolloutPercentage, inAppUpdatePriority, releaseNotes)
    * 2. Distribution exists
    * 3. Tenant ownership validation (distribution.tenantId === tenantId)
-   * 4. Existing submission exists with SUSPENDED or HALTED status
+   * 4. Existing submission exists with SUBMITTED or USER_ACTION_PENDING status
    * 5. Store integration exists for the tenant
    * 6. Integration status is VERIFIED
    */
@@ -1092,17 +1092,19 @@ export class SubmissionService {
       };
     }
 
-    // Check for resubmittable submission (SUSPENDED or HALTED for Android)
+    // Check for resubmittable submission (SUBMITTED or USER_ACTION_PENDING for Android)
+    // Resubmission allowed: SUBMITTED (waiting for Google response) or USER_ACTION_PENDING (5+ days, no response)
+    // Resubmission NOT allowed: SUSPENDED (15+ days, no further action), HALTED (should resume, not resubmit)
     const resubmittableSubmission = existingSubmissions.find(
       sub => sub.isActive && 
-             (sub.status === ANDROID_SUBMISSION_STATUS.SUSPENDED || sub.status === ANDROID_SUBMISSION_STATUS.HALTED)
+             (sub.status === ANDROID_SUBMISSION_STATUS.SUBMITTED || sub.status === ANDROID_SUBMISSION_STATUS.USER_ACTION_PENDING)
     );
 
     if (!resubmittableSubmission) {
       return {
         valid: false,
         statusCode: 400,
-        error: `Cannot create new Android submission for distribution ${distributionId}. No active submission found with SUSPENDED or HALTED status. Resubmission is only allowed after a submission has been suspended or halted.`
+        error: `Cannot create new Android submission for distribution ${distributionId}. No active submission found with SUBMITTED or USER_ACTION_PENDING status. Resubmission is only allowed when submission is SUBMITTED (waiting for Google) or USER_ACTION_PENDING (5+ days with no response).`
       };
     }
 
@@ -2276,11 +2278,22 @@ export class SubmissionService {
     tenantId: string
   ): Promise<SubmissionDetailsResponse> {
     let editId: string | null = null;
+    let realEditId: string | null = null;
     let packageName: string | null = null;
     let accessToken: string | null = null;
     let artifactPath: string | null = null;
     let previousVersionCode: number | null = null;
-    let productionTrackState: any = null;
+    let productionTrackState: {
+      track: string;
+      releases: Array<{
+        name: string;
+        versionCodes: string[];
+        status: string;
+        userFraction?: number;
+        inAppUpdatePriority?: number;
+        releaseNotes?: Array<{ language: string; text: string }>;
+      }>;
+    } | null = null;
 
     try {
       // Step 1: Validate distribution exists and get tenantId
@@ -2297,22 +2310,24 @@ export class SubmissionService {
 
       console.log(`[SubmissionService] Step 1 completed: Distribution found for ${distributionId}, tenantId: ${tenantId}`);
 
-      // Step 2: Validate existing submission exists and check for active submission with USER_ACTION_PENDING or SUSPENDED status
+      // Step 2: Validate existing submission exists and check for active submission with SUBMITTED or USER_ACTION_PENDING status
+      // Resubmission allowed: SUBMITTED (waiting for Google response) or USER_ACTION_PENDING (5+ days, no response)
+      // Resubmission NOT allowed: SUSPENDED (15+ days, no further action), HALTED (should resume, not resubmit)
     const existingSubmissions = await this.androidSubmissionRepository.findByDistributionId(distributionId);
     
 
-    // Find active submission with USER_ACTION_PENDING or SUSPENDED status
+    // Find active submission with SUBMITTED or USER_ACTION_PENDING status
     const activeSubmission = existingSubmissions.find(
       sub => sub.isActive && 
-             (sub.status === ANDROID_SUBMISSION_STATUS.USER_ACTION_PENDING || 
-              sub.status === ANDROID_SUBMISSION_STATUS.SUSPENDED)
+             (sub.status === ANDROID_SUBMISSION_STATUS.SUBMITTED || 
+              sub.status === ANDROID_SUBMISSION_STATUS.USER_ACTION_PENDING)
     );
 
     if (!activeSubmission) {
       throw new Error(
         `Cannot create new Android submission for distribution ${distributionId}. ` +
-        `No active submission found with ${ANDROID_SUBMISSION_STATUS.USER_ACTION_PENDING} or ${ANDROID_SUBMISSION_STATUS.SUSPENDED} status. ` +
-        `Resubmission requires an existing active submission in one of these states.`
+        `No active submission found with ${ANDROID_SUBMISSION_STATUS.SUBMITTED} or ${ANDROID_SUBMISSION_STATUS.USER_ACTION_PENDING} status. ` +
+        `Resubmission is only allowed when submission is SUBMITTED (waiting for Google) or USER_ACTION_PENDING (5+ days with no response).`
       );
     }
 
@@ -2331,13 +2346,13 @@ export class SubmissionService {
     console.log(
       `[SubmissionService] Step 2 completed: Found active Android submission: ${activeSubmission.id} with status ${activeSubmission.status}. ` +
       `Previous versionCode: ${previousVersionCode}. ` +
-      `This submission is still active (Cronicle set it to SUSPENDED but kept isActive=true for resubmission). ` +
+      `This submission is still active and in SUBMITTED or USER_ACTION_PENDING state (eligible for resubmission). ` +
       `Will mark as inactive and create new submission.`
     );
 
     // NOTE: We keep the old submission active until new one succeeds
-    // Even though status is SUSPENDED, isActive remains true (set by Cronicle for resubmission)
-    // Old submission's Cronicle job is already stopped (Cronicle stopped it when status became SUSPENDED)
+    // Old submission is in SUBMITTED or USER_ACTION_PENDING state (eligible for resubmission)
+    // Old submission's Cronicle job may still be running (will be stopped when new submission succeeds)
     console.log(`[SubmissionService] Step 3: Old submission ${activeSubmission.id} will remain active until new submission succeeds.`);
 
       // Step 3: Get store integration to get packageName and credentials
@@ -2362,7 +2377,13 @@ export class SubmissionService {
 
       validateIntegrationStatus(verifiedIntegration);
 
-      // Get GoogleAuth client and access token
+      const isMock = (process.env.MOCK_GOOGLE_PLAY_API ?? 'false').toLowerCase() === 'true';
+      let googleService: GooglePlayStoreService | MockGooglePlayStoreService | null = null;
+      if (isMock) {
+        googleService = await createGoogleServiceFromIntegration(integrationId);
+      }
+
+      // Get GoogleAuth client and access token (needed for real bundle upload in both mock and real paths)
       const authResult = await getGoogleAuthClientFromIntegration(integrationId);
       accessToken = authResult.accessToken;
 
@@ -2370,77 +2391,74 @@ export class SubmissionService {
 
       // Step 4: Check for active releases in production track and remove old version
       console.log(`[SubmissionService] Step 6: Checking for active releases in production track`);
-      
-      // Create edit to check for active releases
-      const createEditUrlForCheck = `${apiBaseUrl}/applications/${packageName}/edits`;
-      const createEditResponseForCheck = await fetch(createEditUrlForCheck, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      });
-
-      if (!createEditResponseForCheck.ok) {
-        const errorText = await createEditResponseForCheck.text().catch(() => 'Unknown error');
-        throw new Error(`Failed to create edit for active release check: ${createEditResponseForCheck.status} ${errorText}`);
-      }
-
-      const editDataForCheck = await createEditResponseForCheck.json();
-      const editIdForCheck = editDataForCheck.id;
-
-      try {
-        // Get current production track state
-        const productionStateUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editIdForCheck}/tracks/production`;
-        const productionStateResponse = await fetch(productionStateUrl, {
-          method: 'GET',
+      if (isMock && googleService) {
+        const editForCheck = await googleService.createEdit();
+        const editIdForCheck = editForCheck.id;
+        try {
+          productionTrackState = await googleService.getProductionTrack(editIdForCheck);
+          console.log(`[SubmissionService] Step 6: Fetched production track state (mock)`);
+          const releases = productionTrackState.releases ?? [];
+          const filteredReleases = releases.filter((release: { versionCodes?: string[] }) => {
+            const hasPrevious = release.versionCodes?.includes(String(previousVersionCode));
+            return !hasPrevious;
+          });
+          productionTrackState = { ...productionTrackState, releases: filteredReleases };
+          console.log(`[SubmissionService] Step 6 completed: Removed release with versionCode ${previousVersionCode} from track state (mock)`);
+        } finally {
+          await googleService.deleteEdit(editIdForCheck);
+        }
+      } else {
+        const createEditUrlForCheck = `${apiBaseUrl}/applications/${packageName}/edits`;
+        const createEditResponseForCheck = await fetch(createEditUrlForCheck, {
+          method: 'POST',
           headers: {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify({}),
         });
 
-        if (productionStateResponse.ok) {
-          // Store the full production track state response
-          productionTrackState = await productionStateResponse.json();
-          
-          console.log(`[SubmissionService] Step 6: Fetched production track state`);
-          console.log(`[SubmissionService] Response body:`, JSON.stringify(productionTrackState, null, 2));
-          
-          // Remove the release containing previousVersionCode
-          const releases = productionTrackState.releases || [];
-          const filteredReleases = releases.filter((release: any) => {
-            // Check if this release contains the previousVersionCode
-            const hasPreviousVersionCode = release.versionCodes && 
-                                           release.versionCodes.includes(String(previousVersionCode));
-            return !hasPreviousVersionCode;
-          });
-          
-          // Update the stored productionTrackState with filtered releases
-          productionTrackState = {
-            ...productionTrackState,
-            releases: filteredReleases
-          };
-          
-          console.log(`[SubmissionService] Step 6 completed: Removed release with versionCode ${previousVersionCode} from track state`);
-          console.log(`[SubmissionService] Remaining releases:`, JSON.stringify(filteredReleases, null, 2));
-        } else {
-          // If we can't get the track state, we'll need to fetch it later
-          console.warn(`[SubmissionService] Step 6: Could not fetch production track state, will fetch later`);
+        if (!createEditResponseForCheck.ok) {
+          const errorText = await createEditResponseForCheck.text().catch(() => 'Unknown error');
+          throw new Error(`Failed to create edit for active release check: ${createEditResponseForCheck.status} ${errorText}`);
         }
-      } finally {
-        // Always delete the check edit
+
+        const editDataForCheck = await createEditResponseForCheck.json();
+        const editIdForCheck = editDataForCheck.id;
+
         try {
-          const deleteEditUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editIdForCheck}`;
-          await fetch(deleteEditUrl, {
-            method: 'DELETE',
+          const productionStateUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editIdForCheck}/tracks/production`;
+          const productionStateResponse = await fetch(productionStateUrl, {
+            method: 'GET',
             headers: {
               'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
             },
           });
-        } catch (deleteError) {
-          console.warn('[SubmissionService] Failed to delete check edit, it will expire automatically');
+
+          if (productionStateResponse.ok) {
+            productionTrackState = await productionStateResponse.json();
+            console.log(`[SubmissionService] Step 6: Fetched production track state`);
+            const releases = productionTrackState.releases || [];
+            const filteredReleases = releases.filter((release: { versionCodes?: string[] }) => {
+              const hasPrevious = release.versionCodes?.includes(String(previousVersionCode));
+              return !hasPrevious;
+            });
+            productionTrackState = { ...productionTrackState, releases: filteredReleases };
+            console.log(`[SubmissionService] Step 6 completed: Removed release with versionCode ${previousVersionCode} from track state`);
+          } else {
+            console.warn(`[SubmissionService] Step 6: Could not fetch production track state, will fetch later`);
+          }
+        } finally {
+          try {
+            const deleteEditUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editIdForCheck}`;
+            await fetch(deleteEditUrl, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${accessToken}` },
+            });
+          } catch (deleteError) {
+            console.warn('[SubmissionService] Failed to delete check edit, it will expire automatically');
+          }
         }
       }
 
@@ -2500,35 +2518,57 @@ export class SubmissionService {
 
       console.log(`[SubmissionService] Step 8 completed: Created new Android submission ${newSubmissionId}`);
 
-      // Step 7: Create edit session for resubmission
-      console.log(`[SubmissionService] Step 9: Creating edit session for resubmission`);
-      console.log(`[SubmissionService] Request body: {}`);
-      
-      const createEditUrl = `${apiBaseUrl}/applications/${packageName}/edits`;
-      const createEditResponse = await fetch(createEditUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      });
-
-      if (!createEditResponse.ok) {
-        const errorText = await createEditResponse.text().catch(() => 'Unknown error');
-        throw new Error(`Failed to create edit: ${createEditResponse.status} ${errorText}`);
+      // Step 7: Create edit, upload bundle, update track, validate, commit
+      // When mock: real createEdit + real upload bundle only; track/validate/commit use mock (production track not updated).
+      // When real: all steps use real Google API.
+      if (isMock && googleService) {
+        // Real API: create edit (for bundle upload)
+        console.log(`[SubmissionService] Step 9: Creating edit session for resubmission (real API for bundle upload)`);
+        const createEditUrl = `${apiBaseUrl}/applications/${packageName}/edits`;
+        const createEditResponse = await fetch(createEditUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        });
+        if (!createEditResponse.ok) {
+          const errorText = await createEditResponse.text().catch(() => 'Unknown error');
+          throw new Error(`Failed to create edit: ${createEditResponse.status} ${errorText}`);
+        }
+        const editData = await createEditResponse.json();
+        realEditId = editData.id;
+        editId = realEditId;
+        console.log(`[SubmissionService] Step 9 completed: Edit session created with ID ${realEditId} (real)`);
+      } else {
+        console.log(`[SubmissionService] Step 9: Creating edit session for resubmission`);
+        const createEditUrl = `${apiBaseUrl}/applications/${packageName}/edits`;
+        const createEditResponse = await fetch(createEditUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        });
+        if (!createEditResponse.ok) {
+          const errorText = await createEditResponse.text().catch(() => 'Unknown error');
+          throw new Error(`Failed to create edit: ${createEditResponse.status} ${errorText}`);
+        }
+        const editData = await createEditResponse.json();
+        editId = editData.id;
+        console.log(`[SubmissionService] Step 9 completed: Edit session created with ID ${editId}`);
       }
 
-      const editData = await createEditResponse.json();
-      editId = editData.id;
+      const editIdForUpload = editId;
+      if (!editIdForUpload || !packageName || !accessToken) {
+        throw new Error('Missing editId, packageName, or accessToken for bundle upload');
+      }
 
-      console.log(`[SubmissionService] Step 9 completed: Edit session created with ID ${editId}`);
-      console.log(`[SubmissionService] Response body:`, JSON.stringify(editData, null, 2));
-
-      // Step 8: Upload bundle to Google Play
+      // Step 8: Upload bundle to Google Play (always real API to get versionCode from response)
       console.log(`[SubmissionService] Step 10: Uploading AAB bundle to Google Play`);
-      const uploadBundleUrl = `https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/${packageName}/edits/${editId}/bundles?uploadType=media`;
-      
+      const uploadBundleUrl = `https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/${packageName}/edits/${editIdForUpload}/bundles?uploadType=media`;
       const uploadBundleResponse = await fetch(uploadBundleUrl, {
         method: 'POST',
         headers: {
@@ -2543,7 +2583,7 @@ export class SubmissionService {
         throw new Error(`Failed to upload bundle: ${uploadBundleResponse.status} ${errorText}`);
       }
 
-      const bundleData = await uploadBundleResponse.json();
+      const bundleData = await uploadBundleResponse.json() as { versionCode?: number };
       const uploadedVersionCode = bundleData.versionCode;
 
       if (!uploadedVersionCode || typeof uploadedVersionCode !== 'number') {
@@ -2551,38 +2591,21 @@ export class SubmissionService {
       }
 
       console.log(`[SubmissionService] Step 10 completed: Bundle uploaded with versionCode ${uploadedVersionCode}`);
-      console.log(`[SubmissionService] Response body:`, JSON.stringify(bundleData, null, 2));
 
-      // Update submission with actual versionCode
       await this.androidSubmissionRepository.update(newSubmissionId, {
         versionCode: uploadedVersionCode,
       });
 
-      // Step 9: Update track (assigning the release)
-      // Using stored productionTrackState from Step 6 (already has previousVersionCode release removed)
-      console.log(`[SubmissionService] Step 11: Updating production track with new release`);
-      
+      // Step 9: Update track, Step 10: Validate, Step 11: Commit
       if (!productionTrackState) {
         throw new Error('Production track state not available. Cannot update track without track state data.');
       }
-      
-      // Use all remaining releases from Step 5 (already has previousVersionCode removed)
       const existingReleases = productionTrackState.releases || [];
-
       const parsedReleaseNotes = this.parseReleaseNotes(data.releaseNotes ?? '');
-      
-      // Determine status and userFraction based on rolloutPercentage
       const rolloutPercentage = data.rolloutPercentage;
       const isFullRollout = rolloutPercentage === 100;
       const status = isFullRollout ? GOOGLE_PLAY_RELEASE_STATUS.COMPLETED : GOOGLE_PLAY_RELEASE_STATUS.IN_PROGRESS;
-      
-      // Calculate userFraction (minimum 0.0001 if rolloutPercentage < 100)
-      // rolloutPercentage 0.01 = userFraction 0.0001
-      // rolloutPercentage 1 = userFraction 0.01
-      // rolloutPercentage 10 = userFraction 0.1
       const userFraction = isFullRollout ? undefined : Math.max(0.0001, rolloutPercentage / 100);
-
-      // Build new release object
       const newRelease: {
         name: string;
         versionCodes: string[];
@@ -2593,94 +2616,86 @@ export class SubmissionService {
       } = {
         name: data.version,
         versionCodes: [String(uploadedVersionCode)],
-        status: status,
+        status,
         inAppUpdatePriority: data.inAppUpdatePriority,
         releaseNotes: parsedReleaseNotes.length > 0 ? parsedReleaseNotes : [
-          {
-            language: 'en-US',
-            text: data.releaseNotes ?? 'Release notes'
-          }
+          { language: 'en-US', text: data.releaseNotes ?? 'Release notes' }
         ],
       };
-
-      // Add userFraction only if not full rollout
       if (!isFullRollout && userFraction !== undefined) {
         newRelease.userFraction = userFraction;
       }
-
-      // Build track update payload - preserve existing releases and add new one
-      const updatedReleases = [
-        newRelease,
-        ...existingReleases
-      ];
-
       const updateTrackRequestBody = {
         track: 'production',
-        releases: updatedReleases,
+        releases: [newRelease, ...existingReleases],
       };
 
-      console.log(`[SubmissionService] Request body:`, JSON.stringify(updateTrackRequestBody, null, 2));
-
-      const updateTrackUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editId}/tracks/production`;
-      const updateTrackResponse = await fetch(updateTrackUrl, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateTrackRequestBody),
-      });
-
-      if (!updateTrackResponse.ok) {
-        const errorText = await updateTrackResponse.text().catch(() => 'Unknown error');
-        throw new Error(`Failed to update track: ${updateTrackResponse.status} ${errorText}`);
+      if (isMock && googleService) {
+        googleService.ensureEditSession(editIdForUpload);
+        await googleService.updateProductionTrack(editIdForUpload, updateTrackRequestBody);
+        console.log(`[SubmissionService] Step 11 completed: Track updated (mock, production track unchanged)`);
+        await googleService.validateEdit(editIdForUpload);
+        console.log(`[SubmissionService] Step 12 completed: Validation successful (mock)`);
+        await googleService.commitEdit(editIdForUpload);
+        console.log(`[SubmissionService] Step 13 completed: Edit committed (mock, production track unchanged)`);
+        // Clean up real edit (we created it for bundle upload only)
+        try {
+          const deleteEditUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editIdForUpload}`;
+          await fetch(deleteEditUrl, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+          });
+          console.log(`[SubmissionService] Cleaned up real edit ${editIdForUpload} after mock commit`);
+        } catch (deleteError) {
+          console.warn(`[SubmissionService] Failed to delete real edit after mock commit, it will expire automatically`);
+        }
+      } else {
+        console.log(`[SubmissionService] Step 11: Updating production track with new release`);
+        const updateTrackUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editIdForUpload}/tracks/production`;
+        const updateTrackResponse = await fetch(updateTrackUrl, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updateTrackRequestBody),
+        });
+        if (!updateTrackResponse.ok) {
+          const errorText = await updateTrackResponse.text().catch(() => 'Unknown error');
+          throw new Error(`Failed to update track: ${updateTrackResponse.status} ${errorText}`);
+        }
+        console.log(`[SubmissionService] Step 11 completed: Track updated successfully`);
+        console.log(`[SubmissionService] Step 12: Validating edit (dry run)`);
+        const validateUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editIdForUpload}:validate`;
+        const validateResponse = await fetch(validateUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        });
+        if (!validateResponse.ok) {
+          const errorText = await validateResponse.text().catch(() => 'Unknown error');
+          throw new Error(`Validation failed: ${validateResponse.status} ${errorText}`);
+        }
+        console.log(`[SubmissionService] Step 12 completed: Validation successful`);
+        console.log(`[SubmissionService] Step 13: Committing edit (live submission)`);
+        const commitUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editIdForUpload}:commit`;
+        const commitResponse = await fetch(commitUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        });
+        if (!commitResponse.ok) {
+          const errorText = await commitResponse.text().catch(() => 'Unknown error');
+          throw new Error(`Failed to commit edit: ${commitResponse.status} ${errorText}`);
+        }
+        console.log(`[SubmissionService] Step 13 completed: Edit committed successfully`);
       }
-
-      const updateTrackData = await updateTrackResponse.json();
-      console.log(`[SubmissionService] Step 11 completed: Track updated successfully`);
-      console.log(`[SubmissionService] Response body:`, JSON.stringify(updateTrackData, null, 2));
-
-      // Step 10: Validate (dry run)
-      console.log(`[SubmissionService] Step 12: Validating edit (dry run)`);
-      const validateUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editId}:validate`;
-      const validateResponse = await fetch(validateUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      });
-
-      if (!validateResponse.ok) {
-        const errorText = await validateResponse.text().catch(() => 'Unknown error');
-        throw new Error(`Validation failed: ${validateResponse.status} ${errorText}`);
-      }
-
-      const validateData = await validateResponse.json();
-      console.log(`[SubmissionService] Step 12 completed: Validation successful`);
-      console.log(`[SubmissionService] Response body:`, JSON.stringify(validateData, null, 2));
-
-      // Step 11: Commit (live submission)
-      console.log(`[SubmissionService] Step 13: Committing edit (live submission)`);
-      const commitUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editId}:commit`;
-      const commitResponse = await fetch(commitUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      });
-
-      if (!commitResponse.ok) {
-        const errorText = await commitResponse.text().catch(() => 'Unknown error');
-        throw new Error(`Failed to commit edit: ${commitResponse.status} ${errorText}`);
-      }
-
-      const commitData = await commitResponse.json();
-      console.log(`[SubmissionService] Step 13 completed: Edit committed successfully`);
-      console.log(`[SubmissionService] Response body:`, JSON.stringify(commitData, null, 2));
 
       // Step 12: Update submission status to SUBMITTED
       console.log(`[SubmissionService] Step 13: Updating submission status to SUBMITTED`);
@@ -2774,18 +2789,19 @@ export class SubmissionService {
       return response;
 
     } catch (error) {
-      // Clean up edit on error if it was created
-      if (editId && packageName && accessToken) {
+      // Clean up real edit on error if it was created (both mock and real paths use real create edit for main flow)
+      const editIdToCleanup = realEditId ?? editId;
+      if (editIdToCleanup && packageName && accessToken) {
         try {
           const apiBaseUrlForCleanup = PLAY_STORE_UPLOAD_CONSTANTS.API_BASE_URL;
-          const deleteEditUrl = `${apiBaseUrlForCleanup}/applications/${packageName}/edits/${editId}`;
+          const deleteEditUrl = `${apiBaseUrlForCleanup}/applications/${packageName}/edits/${editIdToCleanup}`;
           await fetch(deleteEditUrl, {
             method: 'DELETE',
             headers: {
               'Authorization': `Bearer ${accessToken}`,
             },
           });
-          console.log(`[SubmissionService] Cleaned up edit ${editId} after error`);
+          console.log(`[SubmissionService] Cleaned up edit ${editIdToCleanup} after error`);
         } catch (deleteError) {
           console.warn(`[SubmissionService] Failed to delete edit after error, it will expire automatically`);
         }
