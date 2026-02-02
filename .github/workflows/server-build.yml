@@ -21,7 +21,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version-file: 'delivr-server-ota/api/.nvmrc'
           cache: 'npm'
           cache-dependency-path: 'delivr-server-ota/api/package-lock.json'
 
