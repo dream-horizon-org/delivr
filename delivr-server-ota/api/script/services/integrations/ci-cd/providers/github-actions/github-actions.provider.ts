@@ -23,15 +23,83 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
 
     try {
       const userResp = await fetchWithTimeout(`${githubApiBase}/user`, { headers }, timeoutMs);
-      const tokenInvalid = !userResp.ok;
-      if (tokenInvalid) {
-        return { isValid: false, message: ERROR_MESSAGES.INVALID_GITHUB_TOKEN };
+      
+      if (!userResp.ok) {
+        const status = userResp.status;
+        const statusText = userResp.statusText;
+        
+        // Handle specific HTTP status codes
+        if (status === 401) {
+          return {
+            success: false,
+            message: 'Invalid GitHub token. Please verify your token is correct.',
+            statusCode: 401,
+            errorCode: 'invalid_credentials',
+            details: ['Generate a new personal access token or fine-grained token from GitHub → Settings → Developer settings → Tokens']
+          };
+        }
+        
+        if (status === 403) {
+          return {
+            success: false,
+            message: 'GitHub token is valid but lacks required permissions.',
+            statusCode: 403,
+            errorCode: 'insufficient_permissions',
+            details: ['Ensure your token has the following scopes: repo, workflow, read:org']
+          };
+        }
+        
+        if (status === 404) {
+          return {
+            success: false,
+            message: 'GitHub API endpoint not found. Please verify the API base URL.',
+            statusCode: 404,
+            errorCode: 'api_not_found',
+            details: ['Check that you are using the correct GitHub API endpoint (https://api.github.com)']
+          };
+        }
+        
+        if (status >= 500 && status < 600) {
+          return {
+            success: false,
+            message: `GitHub service temporarily unavailable (${status}). Please try again later.`,
+            statusCode: 503,
+            errorCode: 'service_unavailable',
+            details: ['GitHub servers are experiencing issues. This is not a token problem - retry in a few minutes.']
+          };
+        }
+        
+        return {
+          success: false,
+          message: `GitHub API error (${status}): ${statusText}`,
+          statusCode: status,
+          errorCode: 'api_error',
+          details: [statusText]
+        };
       }
-    } catch {
-      return { isValid: false, message: ERROR_MESSAGES.FAILED_VERIFY_GHA };
+      
+      return { success: true, message: SUCCESS_MESSAGES.VERIFIED };
+    } catch (e: any) {
+      const isTimeout = e && (e.name === 'AbortError' || e.code === 'ABORT_ERR');
+      if (isTimeout) {
+        return {
+          success: false,
+          message: 'Connection timeout. Please check your GitHub token and try again.',
+          statusCode: 408,
+          errorCode: 'timeout',
+          details: ['The request took too long to complete. Verify GitHub API is accessible and responding']
+        };
+      }
+      
+      const errorMessage = e?.message ? String(e.message) : 'Unknown error';
+      return {
+        success: false,
+        message: `Connection failed: ${errorMessage}`,
+        statusCode: 503,
+        errorCode: 'network_error',
+        details: ['Unable to reach GitHub API. Check your internet connection and try again']
+      };
     }
-
-    return { isValid: true, message: SUCCESS_MESSAGES.VERIFIED };
   };
 
   /**

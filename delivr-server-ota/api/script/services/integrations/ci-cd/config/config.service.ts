@@ -5,7 +5,6 @@ import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface
 import { CICD_CONFIG_ERROR_MESSAGES } from './config.constants';
 import * as shortid from 'shortid';
 import { validateAndNormalizeWorkflowsForConfig, dedupeIds, splitWorkflows } from './config.utils';
-import { validateWorkflowsForCreateConfig, CICDConfigValidationError } from './config.validation';
 import { WorkflowService } from '../workflows/workflow.service';
 import { GitHubActionsWorkflowService } from '../workflows/github-actions-workflow.service';
 import { JenkinsWorkflowService } from '../workflows/jenkins-workflow.service';
@@ -48,17 +47,12 @@ export class CICDConfigService {
   }
 
   async validateConfig(dto: CreateCICDConfigDto): Promise<{ isValid: boolean; errors: FieldError[]; integration: 'ci' }> {
-    const tenantId = dto.tenantId;
     const workflows = Array.isArray(dto.workflows) ? dto.workflows : [];
     const noWorkflowsProvided = workflows.length === 0;
     if (noWorkflowsProvided) {
       return { "isValid": false, "errors": [{ field: 'workflows', message: CICD_CONFIG_ERROR_MESSAGES.WORKFLOWS_REQUIRED }], "integration": "ci" };
     }
-    const validation = await validateWorkflowsForCreateConfig(workflows, tenantId);
-    const hasValidationErrors = validation.errors.length > 0;
-    if (hasValidationErrors) {
-      return { "isValid": false, "errors": validation.errors, "integration": "ci" };
-    }
+    // Note: Validation now happens at controller level using Yup schemas
     return { "isValid": true, "errors": [], "integration": "ci" };
   }
 
@@ -74,13 +68,8 @@ export class CICDConfigService {
     let finalWorkflowIds: string[] = dedupeIds([...existingIds]);
 
     if (workflowsToCreate.length > 0) {
-      const validation = await validateWorkflowsForCreateConfig(workflowsToCreate, tenantId);
-      const hasValidationErrors = validation.errors.length > 0;
-      if (hasValidationErrors) {
-        throw new CICDConfigValidationError(validation.errors);
-      }
-
-      // Validate and normalize all workflows before creating any
+      // Note: Validation now happens at controller level using Yup schemas
+      // Normalize workflows before creating
       const validatedWorkflows = validateAndNormalizeWorkflowsForConfig(workflowsToCreate, tenantId, createdByAccountId);
 
       const createdWorkflows: TenantCICDWorkflow[] = [];
@@ -160,13 +149,7 @@ export class CICDConfigService {
     let finalWorkflowIds: string[] = dedupeIds(existingIds);
 
     if (workflowsToCreate.length > 0) {
-      // Validate incoming workflows first; throw structured validation error if any
-      const validation = await validateWorkflowsForCreateConfig(workflowsToCreate, tenantId);
-      const hasValidationErrors = validation.errors.length > 0;
-      if (hasValidationErrors) {
-        throw new CICDConfigValidationError(validation.errors);
-      }
-
+      // Note: Validation now happens at controller level using Yup schemas
       const normalizedWorkflows = validateAndNormalizeWorkflowsForConfig(workflowsToCreate as unknown[], tenantId, createdByAccountId);
 
       const createdWorkflows: TenantCICDWorkflow[] = [];

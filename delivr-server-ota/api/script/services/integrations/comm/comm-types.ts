@@ -62,6 +62,22 @@ export interface ListChannelsResponse {
 }
 
 /**
+ * Result object for listChannels operation with detailed error handling
+ * Similar to VerificationResult for consistent error handling
+ */
+export interface ListChannelsResult {
+  success: boolean;
+  channels?: Channel[];
+  total?: number;
+  message?: string;
+  error?: string;
+  details?: {
+    errorCode: string;
+    message: string;
+  };
+}
+
+/**
  * Comm Configuration
  * Note: Channels will be managed separately via slack_configuration table
  */
@@ -78,10 +94,12 @@ export interface CommConfig {
 export interface VerificationResult {
   success: boolean;
   message: string;
+  statusCode?: number;       // HTTP status code (401, 403, 500, 503, etc.)
   workspaceId?: string;
   workspaceName?: string;
   botUserId?: string;
   error?: string;
+  details?: any;
 }
 
 export interface HealthCheckResult {

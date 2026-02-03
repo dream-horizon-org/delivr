@@ -5,10 +5,11 @@
  */
 
 import { HTTP_STATUS } from '~constants/http';
-import type { ErrorResponse, SuccessResponse } from './response.interface';
+import type { ErrorResponse, SuccessResponse, ErrorDetails } from './response.interface';
+import type { ValidationError } from '~types/validation/validation-result.interface';
 
 // Re-export types for backwards compatibility
-export type { ErrorResponse, SuccessResponse };
+export type { ErrorResponse, SuccessResponse, ErrorDetails };
 
 // ============================================================================
 // RESPONSE BUILDERS
@@ -37,6 +38,9 @@ export const successMessageResponse = (message: string): SuccessResponse<undefin
 
 /**
  * Build error response from unknown error
+ * @param error - The caught error
+ * @param context - Optional context for logging
+ * @returns ErrorResponse with generic error details
  */
 export const errorResponse = (error: unknown, context?: string): ErrorResponse => {
   const message = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -47,41 +51,207 @@ export const errorResponse = (error: unknown, context?: string): ErrorResponse =
 
   return {
     success: false,
-    error: message
+    error: message,
+    details: {
+      errorCode: 'internal_server_error',
+      messages: [message]
+    }
   };
 };
 
 /**
- * Build validation error response
+ * Build detailed error response
+ * Use this when you have specific error codes and messages
+ * @param error - Human-readable error summary
+ * @param errorCode - Machine-readable error code (snake_case)
+ * @param messages - Array of error messages
+ * @returns ErrorResponse with structured details
+ * 
+ * @example
+ * detailedErrorResponse(
+ *   'Configuration not found',
+ *   'config_not_found',
+ *   ['The requested CI/CD configuration does not exist']
+ * )
+ */
+export const detailedErrorResponse = (
+  error: string,
+  errorCode: string,
+  messages: string | string[]
+): ErrorResponse => {
+  return {
+    success: false,
+    error,
+    details: {
+      errorCode,
+      messages: Array.isArray(messages) ? messages : [messages]
+    }
+  };
+};
+
+/**
+ * Build multiple validation errors response
+ * Use this when validation fails for multiple fields
+ * @param error - Human-readable error summary
+ * @param errors - Array of error details with fields
+ * @returns ErrorResponse with array of error details
+ * 
+ * @example
+ * validationErrorsResponse('Workflow validation failed', [
+ *   { field: 'workflows[0].integrationId', errorCode: 'integration_not_found', messages: ['CI/CD integration not found'] }
+ * ])
+ */
+export const validationErrorsResponse = (
+  error: string,
+  errors: Array<{ field?: string; errorCode: string; messages: string[] }>
+): ErrorResponse => {
+  return {
+    success: false,
+    error,
+    details: errors
+  };
+};
+
+/**
+ * Build single validation error response
+ * Use this for single field validation errors
+ * @param field - Field that failed validation
+ * @param message - Error message
+ * @returns ErrorResponse with single error detail
+ * 
+ * @example
+ * validationErrorResponse('integrationId', 'Integration ID is required')
  */
 export const validationErrorResponse = (field: string, message: string): ErrorResponse => {
   return {
     success: false,
-    error: message,
-    field
+    error: 'Validation failed',
+    details: {
+      field,
+      errorCode: 'validation_error',
+      messages: [message]
+    }
   };
 };
 
 /**
- * Build configuration error response
+ * Build validation errors response from ValidationResult errors
+ * Use this when validation returns structured ValidationError array
+ * @param error - Human-readable error summary
+ * @param errors - Array of ValidationError from validateWithYup
+ * @returns ErrorResponse with validation errors
+ * 
+ * @example
+ * const result = await validateWithYup(schema, data);
+ * if (!result.success) {
+ *   return res.status(400).json(
+ *     buildValidationErrorResponse('Request validation failed', result.errors)
+ *   );
+ * }
  */
-export const configurationErrorResponse = (message: string, details?: Record<string, unknown>): ErrorResponse => {
+export const buildValidationErrorResponse = (
+  error: string,
+  errors: ValidationError[]
+): ErrorResponse => {
   return {
     success: false,
-    error: message,
-    code: 'CONFIGURATION_ERROR',
-    ...(details && { details })
+    error,
+    details: errors.map(err => ({
+      field: err.field,
+      errorCode: 'validation_failed',
+      messages: err.messages
+    }))
   };
 };
 
 /**
  * Build not found error response
+ * @param resource - Name of the resource not found
+ * @param errorCode - Optional custom error code (defaults to 'not_found')
+ * @returns ErrorResponse with not found details
+ * 
+ * @example
+ * notFoundResponse('CI/CD configuration', 'config_not_found')
  */
-export const notFoundResponse = (resource: string): ErrorResponse => {
+export const notFoundResponse = (
+  resource: string,
+  errorCode: string = 'not_found'
+): ErrorResponse => {
   return {
     success: false,
     error: `${resource} not found`,
-    code: 'NOT_FOUND'
+    details: {
+      errorCode,
+      messages: [`The requested ${resource.toLowerCase()} does not exist`]
+    }
+  };
+};
+
+/**
+ * Build unauthorized error response
+ * Use for 401 authentication errors
+ * @param message - Optional custom message
+ * @returns ErrorResponse with unauthorized details
+ * 
+ * @example
+ * unauthorizedResponse('Authentication required')
+ */
+export const unauthorizedResponse = (message?: string): ErrorResponse => {
+  return {
+    success: false,
+    error: message || 'Unauthorized',
+    details: {
+      errorCode: 'unauthorized',
+      messages: [message || 'Authentication required']
+    }
+  };
+};
+
+/**
+ * Build forbidden error response
+ * Use for 403 authorization errors
+ * @param message - Optional custom message
+ * @param errorCode - Optional custom error code
+ * @returns ErrorResponse with forbidden details
+ * 
+ * @example
+ * forbiddenResponse('Integration does not belong to this tenant', 'integration_access_denied')
+ */
+export const forbiddenResponse = (
+  message?: string,
+  errorCode: string = 'access_denied'
+): ErrorResponse => {
+  return {
+    success: false,
+    error: message || 'Access denied',
+    details: {
+      errorCode,
+      messages: [message || 'You do not have permission to access this resource']
+    }
+  };
+};
+
+/**
+ * Build simple error response
+ * Use when you only need error message without detailed structure
+ * @param error - Error message
+ * @param errorCode - Error code
+ * @returns ErrorResponse with simple details
+ * 
+ * @example
+ * simpleErrorResponse('Operation failed', 'operation_failed')
+ */
+export const simpleErrorResponse = (
+  error: string,
+  errorCode: string = 'error'
+): ErrorResponse => {
+  return {
+    success: false,
+    error,
+    details: {
+      errorCode,
+      messages: [error]
+    }
   };
 };
 
@@ -124,6 +294,11 @@ export const getErrorStatusCode = (error: unknown): number => {
 
 /**
  * Transform verification result to API response
+ * @param result - Verification result object
+ * @returns Success or error response based on verification
+ * 
+ * @example
+ * verificationResultToResponse({ isValid: true, message: 'Verified successfully' })
  */
 export const verificationResultToResponse = (result: {
   isValid: boolean;
@@ -141,7 +316,11 @@ export const verificationResultToResponse = (result: {
   return {
     success: false,
     error: result.message,
-    ...(result.details && { details: result.details as Record<string, unknown> })
+    details: {
+      errorCode: 'verification_failed',
+      messages: [result.message],
+      ...(result.details && { metadata: result.details as Record<string, unknown> })
+    }
   };
 };
 

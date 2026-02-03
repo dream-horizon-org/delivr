@@ -34,12 +34,12 @@ export class TestManagementIntegrationService {
   ): Promise<TenantTestManagementIntegration> {
     // Validate credentials before creating - prevents saving broken integrations
     const provider = ProviderFactory.getProvider(data.providerType);
-    const isValidConfig = await provider.validateConfig(data.config);
+    const validationResult = await provider.validateConfig(data.config);
     
-    if (!isValidConfig) {
-      throw new Error(
-        `Failed to connect to ${data.providerType}. ${TEST_MANAGEMENT_ERROR_MESSAGES.INVALID_CONFIG}`
-      );
+    if (!validationResult.isValid) {
+      const error: any = new Error(validationResult.message);
+      error.details = validationResult.details;
+      throw error;
     }
     
     return await this.repository.create(data);
@@ -84,12 +84,12 @@ export class TestManagementIntegrationService {
       
       // Validate merged config - ensures credentials work before saving
       const provider = ProviderFactory.getProvider(integration.providerType);
-      const isValidConfig = await provider.validateConfig(mergedConfig);
+      const validationResult = await provider.validateConfig(mergedConfig);
       
-      if (!isValidConfig) {
-        throw new Error(
-          `Failed to connect to ${integration.providerType}. ${TEST_MANAGEMENT_ERROR_MESSAGES.INVALID_CONFIG}`
-        );
+      if (!validationResult.isValid) {
+        const error: any = new Error(validationResult.message);
+        error.details = validationResult.details;
+        throw error;
       }
     }
     
@@ -121,14 +121,13 @@ export class TestManagementIntegrationService {
 
     try {
       const provider = ProviderFactory.getProvider(integration.providerType);
-      const isValid = await provider.validateConfig(integration.config);
+      const validationResult = await provider.validateConfig(integration.config);
       
       return {
-        success: isValid,
-        status: isValid ? VerificationStatus.VALID : VerificationStatus.INVALID,
-        message: isValid 
-          ? 'Integration verified successfully'
-          : 'Failed to verify integration'
+        success: validationResult.isValid,
+        status: validationResult.isValid ? VerificationStatus.VALID : VerificationStatus.INVALID,
+        message: validationResult.message,
+        details: validationResult.details
       };
     } catch (error) {
       return {
@@ -149,14 +148,13 @@ export class TestManagementIntegrationService {
   ): Promise<VerifyTenantTestManagementIntegrationResult> {
     try {
       const provider = ProviderFactory.getProvider(providerType);
-      const isValid = await provider.validateConfig(config);
+      const validationResult = await provider.validateConfig(config);
       
       return {
-        success: isValid,
-        status: isValid ? VerificationStatus.VALID : VerificationStatus.INVALID,
-        message: isValid 
-          ? 'Credentials verified successfully'
-          : 'Failed to verify credentials'
+        success: validationResult.isValid,
+        status: validationResult.isValid ? VerificationStatus.VALID : VerificationStatus.INVALID,
+        message: validationResult.message,
+        details: validationResult.details
       };
     } catch (error) {
       return {

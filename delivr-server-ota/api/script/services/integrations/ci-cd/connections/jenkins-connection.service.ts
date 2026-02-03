@@ -5,6 +5,7 @@ import type { JenkinsProviderContract, JenkinsVerifyParams } from '../providers/
 import { PROVIDER_DEFAULTS, ERROR_MESSAGES } from '../../../../controllers/integrations/ci-cd/constants';
 import * as shortid from 'shortid';
 import { decryptFromStorage, encryptForStorage } from '~utils/encryption';
+import { createErrorWithCode } from '~utils/error.utils';
 
 type CreateInput = {
   displayName?: string;
@@ -15,7 +16,7 @@ type CreateInput = {
 };
 
 export class JenkinsConnectionService extends ConnectionService<CreateInput> {
-  verifyConnection = async (params: JenkinsVerifyParams): Promise<{ isValid: boolean; message: string }> => {
+  verifyConnection = async (params: JenkinsVerifyParams) => {
     const provider = await ProviderFactory.getProvider(CICDProviderType.JENKINS);
     const jenkins = provider as JenkinsProviderContract;
     return jenkins.verifyConnection(params);
@@ -24,7 +25,7 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
   create = async (tenantId: string, accountId: string, input: CreateInput): Promise<SafeCICDIntegration> => {
     const existing = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
     if (existing) {
-      throw new Error(ERROR_MESSAGES.JENKINS_ALREADY_EXISTS);
+      throw createErrorWithCode(ERROR_MESSAGES.JENKINS_ALREADY_EXISTS, 'DUPLICATE_INTEGRATION', 409);
     }
     const useCrumb = input.providerConfig?.useCrumb ?? true;
     const crumbPath = input.providerConfig?.crumbPath ?? PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH;
@@ -48,6 +49,10 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
       crumbPath
     });
 
+    if (verify.success === false) {
+      throw createErrorWithCode(verify.message, verify.errorCode, verify.statusCode, verify.details);
+    }
+
     // Store the ORIGINAL (encrypted) token in database
     const createData: CreateCICDIntegrationDto & { id: string } = {
       id: shortid.generate(),
@@ -60,9 +65,9 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
       apiToken: input.apiToken, // Store encrypted value
       providerConfig: { useCrumb, crumbPath } as any,
       createdByAccountId: accountId,
-      verificationStatus: verify.isValid ? VerificationStatus.VALID : VerificationStatus.INVALID,
+      verificationStatus: VerificationStatus.VALID,
       lastVerifiedAt: new Date(),
-      verificationError: verify.isValid ? null : verify.message
+      verificationError: null
     };
     const created = await this.repository.create(createData);
     return this.toSafe(created);
@@ -76,7 +81,7 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
   update = async (tenantId: string, updateData: UpdateCICDIntegrationDto): Promise<SafeCICDIntegration> => {
     const existing = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
     if (!existing) {
-      throw new Error(ERROR_MESSAGES.JENKINS_NOT_FOUND);
+      throw createErrorWithCode(ERROR_MESSAGES.JENKINS_NOT_FOUND, 'INTEGRATION_NOT_FOUND', 404);
     }
     // Always verify on update
     const providerConfig = updateData.providerConfig as Record<string, unknown> | undefined;
@@ -90,6 +95,8 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
     const tokenToUse = updateData.apiToken ?? storedToken;
     const tokenMissing = !tokenToUse;
 
+    let verify: Awaited<ReturnType<typeof this.verifyConnection>> | undefined;
+    
     if (tokenMissing) {
       updateData.verificationStatus = VerificationStatus.INVALID;
       updateData.lastVerifiedAt = new Date();
@@ -111,25 +118,25 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
       }
       
       if (decryptedToken) {
-        const verify = await this.verifyConnection({
+        verify = await this.verifyConnection({
           hostUrl: hostUrlToUse,
           username: usernameToUse,
           apiToken: decryptedToken,
           useCrumb,
           crumbPath
         });
-        updateData.verificationStatus = verify.isValid ? VerificationStatus.VALID : VerificationStatus.INVALID;
+        updateData.verificationStatus = verify.success ? VerificationStatus.VALID : VerificationStatus.INVALID;
         updateData.lastVerifiedAt = new Date();
-        updateData.verificationError = verify.isValid ? null : verify.message;
+        updateData.verificationError = verify.success ? null : verify.message;
         
         // Only re-encrypt and store if a new token was provided in the update
         // If token was not provided (partial update), keep the existing stored token unchanged
         // This matches the pattern used by GitHub Actions and other integrations
-        if (verify.isValid && updateData.apiToken) {
+        if (verify.success && updateData.apiToken) {
           // New token was provided, re-encrypt it for storage
           updateData.apiToken = encryptForStorage(decryptedToken);
 
-        } else if (verify.isValid) {
+        } else if (verify.success) {
           // Token was not provided (partial update), don't change the stored token
           console.log('[Jenkins Update] Token not provided, keeping existing stored token unchanged');
         }
@@ -139,7 +146,10 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
     const wasInvalid = updateData.verificationStatus === VerificationStatus.INVALID;
     if (wasInvalid) {
       const errorMessage = updateData.verificationError ?? ERROR_MESSAGES.JENKINS_VERIFY_FAILED;
-      throw new Error(errorMessage);
+      const code = (verify && verify.success === false) ? verify.errorCode : 'verification_failed';
+      const statusCode = (verify && verify.success === false) ? verify.statusCode : 400;
+      const details = (verify && verify.success === false) ? verify.details : undefined;
+      throw createErrorWithCode(errorMessage, code, statusCode, details);
     }
     return this.toSafe(updated as any);
   };
@@ -147,7 +157,7 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
   delete = async (tenantId: string): Promise<void> => {
     const existing = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
     if (!existing) {
-      throw new Error(ERROR_MESSAGES.JENKINS_NOT_FOUND);
+      throw createErrorWithCode(ERROR_MESSAGES.JENKINS_NOT_FOUND, 'INTEGRATION_NOT_FOUND', 404);
     }
     await this.repository.delete(existing.id);
   };

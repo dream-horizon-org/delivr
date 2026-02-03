@@ -2,6 +2,11 @@ import { Request, Response } from "express";
 import { HTTP_STATUS, RESPONSE_STATUS } from "~constants/http";
 import { ERROR_MESSAGES } from "../constants";
 import { formatErrorMessage } from "~utils/error.utils";
+import {
+  successResponse,
+  simpleErrorResponse,
+  notFoundResponse
+} from "~utils/response.utils";
 import { getStorage } from "../../../../storage/storage-instance";
 import type { CICDConfigService } from "../../../../services/integrations/ci-cd/config/config.service";
 import { CICD_CONFIG_ERROR_MESSAGES } from "../../../../services/integrations/ci-cd/config/config.constants";
@@ -16,18 +21,16 @@ export const triggerWorkflowByConfig = async (req: Request, res: Response): Prom
 
   const missingInputs = !platform || !workflowType;
   if (missingInputs) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: RESPONSE_STATUS.FAILURE,
-      error: ERROR_MESSAGES.WORKFLOW_SELECTION_REQUIRED
-    });
+    return res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.WORKFLOW_SELECTION_REQUIRED, 'missing_required_fields')
+    );
   }
 
   const missingTenantId = !tenantId;
   if (missingTenantId) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: RESPONSE_STATUS.FAILURE,
-      error: ERROR_MESSAGES.TENANT_ID_REQUIRED
-    });
+    return res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.TENANT_ID_REQUIRED, 'tenant_id_required')
+    );
   }
 
   try {
@@ -42,38 +45,36 @@ export const triggerWorkflowByConfig = async (req: Request, res: Response): Prom
       jobParameters
     });
 
-    return res.status(HTTP_STATUS.CREATED).json({
-      success: RESPONSE_STATUS.SUCCESS,
-      queueLocation: result.queueLocation,
-      workflowId: result.workflowId,
-      providerType: result.providerType
-    });
-  } catch (e: unknown) {
+    return res.status(HTTP_STATUS.CREATED).json(
+      successResponse({
+        queueLocation: result.queueLocation,
+        workflowId: result.workflowId,
+        providerType: result.providerType
+      })
+    );
+  } catch (error) {
     // Handle specific service errors with appropriate HTTP status codes
-    const errorMessage = e instanceof Error ? e.message : String(e);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     
     const isNotFound = errorMessage === CICD_CONFIG_ERROR_MESSAGES.CONFIG_NOT_FOUND ||
                        errorMessage === CICD_CONFIG_ERROR_MESSAGES.NO_MATCHING_WORKFLOW;
     if (isNotFound) {
-      return res.status(HTTP_STATUS.NOT_FOUND).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: errorMessage
-      });
+      return res.status(HTTP_STATUS.NOT_FOUND).json(
+        simpleErrorResponse(errorMessage, 'not_found')
+      );
     }
 
     const isBadRequest = errorMessage === CICD_CONFIG_ERROR_MESSAGES.MULTIPLE_WORKFLOWS_FOUND ||
                          errorMessage === CICD_CONFIG_ERROR_MESSAGES.TRIGGER_NOT_SUPPORTED;
     if (isBadRequest) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: errorMessage
-      });
+      return res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse(errorMessage, 'bad_request')
+      );
     }
 
-    const message = formatErrorMessage(e, ERROR_MESSAGES.CONFIG_TRIGGER_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: RESPONSE_STATUS.FAILURE,
-      error: message
-    });
+    const message = formatErrorMessage(error, ERROR_MESSAGES.CONFIG_TRIGGER_FAILED);
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse(message, 'trigger_failed')
+    );
   }
 };

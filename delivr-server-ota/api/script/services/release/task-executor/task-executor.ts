@@ -57,6 +57,18 @@ export interface TaskExecutionResult {
   externalId?: string | null;
   externalData?: Record<string, unknown>;
   error?: string;
+  details?: {
+    errorCode?: string;
+    message?: string;
+    taskType?: string;
+    taskId?: string;
+    failedPlatforms?: Array<{
+      platform: string;
+      error: string;
+      errorCode: string;
+      statusCode: number;
+    }>;
+  };
 }
 
 /**
@@ -684,18 +696,32 @@ export class TaskExecutor {
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorCode = (error as any).code || 'task_execution_failed';
+      const statusCode = (error as any).statusCode || 500;
+      const failedPlatforms = (error as any).failedPlatforms;
+      
       console.error(`[TaskExecutor] ❌ Task ${task.taskType} (${task.id}) FAILED with error:`, errorMessage);
+      console.error(`[TaskExecutor] Error code: ${errorCode}, Status: ${statusCode}`);
       if (error instanceof Error && error.stack) {
         console.error(`[TaskExecutor] Stack trace:`, error.stack);
       }
       
-      // Update task status to FAILED
+      // Update task status to FAILED with structured error
+      const externalData: Record<string, any> = {
+        errorCode: errorCode,
+        message: errorMessage,
+        statusCode: statusCode,
+        timestamp: new Date().toISOString()
+      };
+      
+      // Include failedPlatforms array if present (for multi-platform tasks)
+      if (failedPlatforms && Array.isArray(failedPlatforms)) {
+        externalData.failedPlatforms = failedPlatforms;
+      }
+      
       await this.releaseTaskRepo.update(task.id, {
         taskStatus: TaskStatus.FAILED,
-        externalData: {
-          error: errorMessage,
-          timestamp: new Date().toISOString()
-        }
+        externalData: externalData
       });
 
       // PAUSE release (not ARCHIVE) - allows recovery after fix
@@ -720,9 +746,22 @@ export class TaskExecutor {
       // Send TASK_FAILED notification
       await this.notifyTaskFailure(context, task, errorMessage);
 
+      const resultDetails: Record<string, any> = {
+        errorCode: errorCode,
+        message: errorMessage,
+        taskType: task.taskType,
+        taskId: task.id
+      };
+      
+      // Include failedPlatforms array if present (for multi-platform tasks)
+      if (failedPlatforms && Array.isArray(failedPlatforms)) {
+        resultDetails.failedPlatforms = failedPlatforms;
+      }
+
       return {
         success: false,
-        error: errorMessage
+        error: errorMessage,
+        details: resultDetails
       };
     }
   }
@@ -799,6 +838,394 @@ export class TaskExecutor {
   }
 
   /**
+   * Map SCM provider errors to user-friendly messages with error codes
+   * 
+   * Handles GitHub API errors and maps them to structured error objects
+   * with appropriate error codes and status codes
+   * 
+   * @param error - Original error from SCM provider
+   * @param releaseBranch - Release branch name (for context in error message)
+   * @param baseBranch - Base branch name (for context in error message)
+   * @returns Mapped error with code and statusCode properties
+   */
+  private mapSCMError(error: any, releaseBranch: string, baseBranch: string): Error {
+    const status = error.status || error.statusCode || 0;
+    const message = error.message || String(error);
+    
+    let userMessage: string;
+    let errorCode: string;
+    let statusCode: number;
+    
+    // GitHub API error mapping
+    if (status === 404) {
+      // Base branch not found
+      if (message.includes('getRef') || message.includes(baseBranch)) {
+        userMessage = `Base branch '${baseBranch}' not found in repository`;
+        errorCode = 'base_branch_not_found';
+        statusCode = 404;
+      } else {
+        userMessage = 'Repository or branch not found';
+        errorCode = 'resource_not_found';
+        statusCode = 404;
+      }
+    } else if (status === 422) {
+      // Branch already exists OR invalid branch name
+      if (message.includes('already exists') || message.includes('Reference already exists')) {
+        userMessage = `Branch '${releaseBranch}' already exists`;
+        errorCode = 'branch_already_exists';
+        statusCode = 409; // Conflict
+      } else if (message.includes('Reference update failed')) {
+        userMessage = `Failed to create branch '${releaseBranch}'. Branch may already exist or name is invalid`;
+        errorCode = 'branch_creation_failed';
+        statusCode = 422;
+      } else {
+        userMessage = `Invalid branch name '${releaseBranch}'`;
+        errorCode = 'invalid_branch_name';
+        statusCode = 400;
+      }
+    } else if (status === 401) {
+      userMessage = 'GitHub authentication failed. Access token may be expired or invalid';
+      errorCode = 'auth_failed';
+      statusCode = 401;
+    } else if (status === 403) {
+      userMessage = 'Insufficient permissions to create branch in repository';
+      errorCode = 'insufficient_permissions';
+      statusCode = 403;
+    } else if (status === 429) {
+      userMessage = 'GitHub API rate limit exceeded. Please try again later';
+      errorCode = 'rate_limit_exceeded';
+      statusCode = 429;
+    } else if (message.includes('timeout') || message.includes('ETIMEDOUT') || message.includes('ECONNRESET')) {
+      userMessage = 'Network timeout connecting to GitHub';
+      errorCode = 'network_timeout';
+      statusCode = 504;
+    } else {
+      // Generic error
+      userMessage = `Failed to fork branch: ${message}`;
+      errorCode = 'branch_fork_failed';
+      statusCode = 500;
+    }
+    
+    const mappedError = new Error(userMessage);
+    (mappedError as any).code = errorCode;
+    (mappedError as any).statusCode = statusCode;
+    (mappedError as any).originalError = error;
+    
+    return mappedError;
+  }
+
+  /**
+   * Map PM service errors to user-friendly messages with error codes
+   * 
+   * Handles JIRA/project management API errors and maps them to structured error objects
+   * with appropriate error codes and status codes
+   * 
+   * @param error - Original error from PM service or provider
+   * @param platform - Optional platform name for context in error message
+   * @returns Mapped error with code and statusCode properties
+   */
+  private mapPMError(error: any, platform?: string): Error {
+    const message = error.message || String(error);
+    const status = error.status || error.statusCode || 0;
+    
+    let userMessage: string;
+    let errorCode: string;
+    let statusCode: number;
+    
+    // Service-level errors (from PM service)
+    if (message.includes('Configuration is not active')) {
+      userMessage = 'Project management configuration is disabled';
+      errorCode = 'config_not_active';
+      statusCode = 400;
+    } else if (message.includes('Integration is not enabled')) {
+      userMessage = 'Project management integration is disabled';
+      errorCode = 'integration_not_enabled';
+      statusCode = 400;
+    } else if (message.includes('Config not found') || message.includes('CONFIG_NOT_FOUND') || message.includes('configuration not found')) {
+      userMessage = 'Project management configuration not found';
+      errorCode = 'config_not_found';
+      statusCode = 404;
+    } else if (message.includes('Integration not found') || message.includes('INTEGRATION_NOT_FOUND') || message.includes('integration not found')) {
+      userMessage = 'Project management integration not found';
+      errorCode = 'integration_not_found';
+      statusCode = 404;
+    } else if (message.includes('No configuration found for platform')) {
+      userMessage = platform
+        ? `No project management configuration found for platform ${platform}`
+        : 'No platform configuration found';
+      errorCode = 'platform_config_not_found';
+      statusCode = 404;
+    }
+    
+    // JIRA API errors (from JIRA client)
+    else if (status === 401 || message.includes('401') || message.includes('authentication') || message.includes('Unauthorized')) {
+      userMessage = platform 
+        ? `JIRA authentication failed for ${platform} project`
+        : 'JIRA authentication failed. API token may be expired or invalid';
+      errorCode = 'jira_auth_failed';
+      statusCode = 401;
+    } else if (status === 403 || message.includes('403') || message.includes('Forbidden')) {
+      userMessage = platform
+        ? `Insufficient JIRA permissions for ${platform} project`
+        : 'Insufficient permissions to create JIRA tickets';
+      errorCode = 'jira_insufficient_permissions';
+      statusCode = 403;
+    } else if (status === 404 || message.includes('404') || message.includes('Not Found') || message.includes('project not found')) {
+      userMessage = platform
+        ? `JIRA project not found for ${platform}`
+        : 'JIRA project not found';
+      errorCode = 'jira_project_not_found';
+      statusCode = 404;
+    } else if (status === 400 || message.includes('400') || message.includes('Bad Request') || message.includes('invalid')) {
+      userMessage = 'Invalid JIRA ticket parameters (check issue type, priority, or required fields)';
+      errorCode = 'jira_invalid_params';
+      statusCode = 400;
+    } else if (status === 429 || message.includes('429') || message.includes('rate limit')) {
+      userMessage = 'JIRA API rate limit exceeded. Please try again later';
+      errorCode = 'jira_rate_limit';
+      statusCode = 429;
+    } else if ((status >= 500 && status < 600) || message.includes('service unavailable') || message.includes('5')) {
+      userMessage = 'JIRA service temporarily unavailable. Please try again later';
+      errorCode = 'jira_service_unavailable';
+      statusCode = 503;
+    } else if (message.includes('timeout') || message.includes('ETIMEDOUT') || message.includes('ECONNRESET')) {
+      userMessage = 'Network timeout connecting to JIRA';
+      errorCode = 'jira_network_timeout';
+      statusCode = 504;
+    }
+    
+    // Generic fallback
+    else {
+      userMessage = platform
+        ? `Failed to create ticket for ${platform}: ${message}`
+        : `Failed to create tickets: ${message}`;
+      errorCode = 'ticket_creation_failed';
+      statusCode = 500;
+    }
+    
+    const mappedError = new Error(userMessage);
+    (mappedError as any).code = errorCode;
+    (mappedError as any).statusCode = statusCode;
+    (mappedError as any).originalError = error;
+    (mappedError as any).platform = platform;
+    
+    return mappedError;
+  }
+
+  /**
+   * Map Test Management service errors to user-friendly messages with error codes
+   * 
+   * Handles Checkmate/test management API errors and maps them to structured error objects
+   * with appropriate error codes and status codes
+   * 
+   * @param error - Original error from test management service or provider
+   * @param platform - Optional platform name for context in error message
+   * @returns Mapped error with code and statusCode properties
+   */
+  private mapTestManagementError(error: any, platform?: string): Error {
+    const message = error.message || String(error);
+    const status = error.status || error.statusCode || 0;
+    
+    let userMessage: string;
+    let errorCode: string;
+    let statusCode: number;
+    
+    // Service-level errors (from test management service)
+    if (message.includes('Config not found') || message.includes('config not found') || message.includes('CONFIG_NOT_FOUND')) {
+      userMessage = 'Test management configuration not found';
+      errorCode = 'test_config_not_found';
+      statusCode = 404;
+    } else if (message.includes('Integration not found') || message.includes('integration not found') || message.includes('INTEGRATION_NOT_FOUND')) {
+      userMessage = 'Test management integration not found';
+      errorCode = 'test_integration_not_found';
+      statusCode = 404;
+    } else if (message.includes('Platform not found in config')) {
+      userMessage = platform
+        ? `No test management configuration found for platform ${platform}`
+        : 'Platform not found in test management configuration';
+      errorCode = 'test_platform_config_not_found';
+      statusCode = 404;
+    }
+    
+    // Checkmate-specific errors
+    else if (message.includes('projectId is required') || message.includes('PROJECT_ID_REQUIRED')) {
+      userMessage = 'Checkmate project ID is required but not configured';
+      errorCode = 'checkmate_project_id_required';
+      statusCode = 400;
+    }
+    
+    // Checkmate API errors (from error.status or parsing message)
+    else if (status === 401 || message.includes('401') || message.includes('Unauthorized')) {
+      userMessage = platform 
+        ? `Checkmate authentication failed for ${platform} project`
+        : 'Checkmate authentication failed. Auth token may be expired or invalid';
+      errorCode = 'checkmate_auth_failed';
+      statusCode = 401;
+    } else if (status === 403 || message.includes('403') || message.includes('Forbidden')) {
+      userMessage = platform
+        ? `Insufficient Checkmate permissions for ${platform} project`
+        : 'Insufficient permissions to create Checkmate test runs';
+      errorCode = 'checkmate_insufficient_permissions';
+      statusCode = 403;
+    } else if (status === 404 || message.includes('404') || message.includes('Not Found')) {
+      userMessage = platform
+        ? `Checkmate project not found for ${platform}`
+        : 'Checkmate project not found';
+      errorCode = 'checkmate_project_not_found';
+      statusCode = 404;
+    } else if (status === 400 || message.includes('400') || message.includes('Bad Request')) {
+      userMessage = 'Invalid Checkmate test run parameters (check project ID, sections, or filters)';
+      errorCode = 'checkmate_invalid_params';
+      statusCode = 400;
+    } else if (status === 429 || message.includes('429') || message.includes('rate limit')) {
+      userMessage = 'Checkmate API rate limit exceeded. Please try again later';
+      errorCode = 'checkmate_rate_limit';
+      statusCode = 429;
+    } else if ((status >= 500 && status < 600) || message.includes('service unavailable') || message.includes('Checkmate API error: 5')) {
+      userMessage = 'Checkmate service temporarily unavailable. Please try again later';
+      errorCode = 'checkmate_service_unavailable';
+      statusCode = 503;
+    } else if (message.includes('timeout') || message.includes('ETIMEDOUT') || message.includes('ECONNRESET')) {
+      userMessage = 'Network timeout connecting to Checkmate';
+      errorCode = 'checkmate_network_timeout';
+      statusCode = 504;
+    }
+    
+    // Generic fallback
+    else {
+      userMessage = platform
+        ? `Failed to create test run for ${platform}: ${message}`
+        : `Failed to create test runs: ${message}`;
+      errorCode = 'test_run_creation_failed';
+      statusCode = 500;
+    }
+    
+    const mappedError = new Error(userMessage);
+    (mappedError as any).code = errorCode;
+    (mappedError as any).statusCode = statusCode;
+    (mappedError as any).originalError = error;
+    (mappedError as any).platform = platform;
+    
+    return mappedError;
+  }
+
+  /**
+   * Map CI/CD service errors to user-friendly messages with error codes
+   * Handles both GitHub Actions and Jenkins errors
+   */
+  private mapCICDError(error: any, platform?: string): Error {
+    const message = error.message || String(error);
+    const status = error.status || error.statusCode || 0;
+    
+    let userMessage: string;
+    let errorCode: string;
+    let statusCode: number;
+    
+    // CI/CD Config Service errors
+    if (message.includes('CI/CD config not found') || message.includes('CONFIG_NOT_FOUND')) {
+      userMessage = 'CI/CD configuration not found';
+      errorCode = 'cicd_config_not_found';
+      statusCode = 404;
+    } else if (message.includes('No matching workflow found')) {
+      userMessage = platform
+        ? `No CI/CD workflow configured for ${platform} platform`
+        : 'No matching CI/CD workflow found';
+      errorCode = 'cicd_workflow_not_found';
+      statusCode = 404;
+    } else if (message.includes('Multiple workflows found')) {
+      userMessage = 'Multiple CI/CD workflows found - configuration is ambiguous';
+      errorCode = 'cicd_multiple_workflows';
+      statusCode = 400;
+    } else if (message.includes('CI/CD integration not found') || message.includes('INTEGRATION_NOT_FOUND')) {
+      userMessage = 'CI/CD integration not found';
+      errorCode = 'cicd_integration_not_found';
+      statusCode = 404;
+    }
+    
+    // GitHub Actions specific errors
+    else if (message.includes('GHA_NO_TOKEN_AVAILABLE') || message.includes('No token available')) {
+      userMessage = 'GitHub access token not available or expired';
+      errorCode = 'gha_no_token';
+      statusCode = 401;
+    } else if (message.includes('GHA_INVALID_WORKFLOW_URL') || message.includes('Invalid workflow URL')) {
+      userMessage = 'Invalid GitHub Actions workflow URL';
+      errorCode = 'gha_invalid_workflow_url';
+      statusCode = 400;
+    } else if (status === 401 || message.includes('401') || message.includes('Unauthorized')) {
+      userMessage = platform
+        ? `GitHub authentication failed for ${platform} workflow`
+        : 'GitHub authentication failed';
+      errorCode = 'gha_auth_failed';
+      statusCode = 401;
+    } else if (status === 404 || message.includes('404') || message.includes('Not Found')) {
+      userMessage = platform
+        ? `GitHub workflow not found for ${platform}`
+        : 'GitHub workflow or repository not found';
+      errorCode = 'gha_workflow_not_found';
+      statusCode = 404;
+    } else if (status === 403 || message.includes('403') || message.includes('rate limit')) {
+      userMessage = 'GitHub API rate limit exceeded. Please try again later';
+      errorCode = 'gha_rate_limit';
+      statusCode = 429;
+    } else if (status === 422 || message.includes('422') || message.includes('workflow_dispatch')) {
+      userMessage = 'GitHub workflow dispatch failed. Workflow file may not have workflow_dispatch trigger';
+      errorCode = 'gha_dispatch_failed';
+      statusCode = 422;
+    }
+    
+    // Jenkins specific errors
+    else if (message.includes('JENKINS_BASIC_REQUIRED') || message.includes('Basic auth required')) {
+      userMessage = 'Jenkins requires Basic authentication (username + API token)';
+      errorCode = 'jenkins_basic_required';
+      statusCode = 400;
+    } else if (message.includes('JENKINS_HOST_MISMATCH') || message.includes('Host mismatch')) {
+      userMessage = 'Jenkins job URL does not match integration host URL';
+      errorCode = 'jenkins_host_mismatch';
+      statusCode = 400;
+    } else if (message.includes('Jenkins credentials not found')) {
+      userMessage = 'Jenkins credentials not found';
+      errorCode = 'jenkins_credentials_not_found';
+      statusCode = 404;
+    } else if (message.includes('Jenkins') && (status === 401 || message.includes('401'))) {
+      userMessage = platform
+        ? `Jenkins authentication failed for ${platform} job`
+        : 'Jenkins authentication failed';
+      errorCode = 'jenkins_auth_failed';
+      statusCode = 401;
+    } else if (message.includes('Jenkins') && (status === 404 || message.includes('404'))) {
+      userMessage = platform
+        ? `Jenkins job not found for ${platform}`
+        : 'Jenkins job not found';
+      errorCode = 'jenkins_job_not_found';
+      statusCode = 404;
+    }
+    
+    // Network/timeout errors
+    else if (message.includes('timeout') || message.includes('ETIMEDOUT') || message.includes('ECONNRESET')) {
+      userMessage = 'Network timeout connecting to CI/CD service';
+      errorCode = 'cicd_network_timeout';
+      statusCode = 504;
+    }
+    
+    // Generic fallback
+    else {
+      userMessage = platform
+        ? `Failed to trigger build workflow for ${platform}: ${message}`
+        : `Failed to trigger build workflow: ${message}`;
+      errorCode = 'cicd_trigger_failed';
+      statusCode = 500;
+    }
+    
+    const mappedError = new Error(userMessage);
+    (mappedError as any).code = errorCode;
+    (mappedError as any).statusCode = statusCode;
+    (mappedError as any).originalError = error;
+    (mappedError as any).platform = platform;
+    
+    return mappedError;
+  }
+
+  /**
    * Execute FORK_BRANCH task (Category B)
    * 
    * Creates a new release branch from base branch using SCM integration.
@@ -810,8 +1237,12 @@ export class TaskExecutor {
   ): Promise<Record<string, unknown>> {
     const { release, tenantId, platformTargetMappings } = context;
 
+    // 1. Check SCM service availability
     if (!this.scmService) {
-      throw new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
+      const error = new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
+      (error as any).code = 'scm_not_available';
+      (error as any).statusCode = 503;
+      throw error;
     }
 
     // Use the branch name stored in the database (set during release creation)
@@ -820,12 +1251,26 @@ export class TaskExecutor {
 (platformTargetMappings)}`;
     const baseBranch = release.baseBranch || 'master';
 
-    // Call SCM integration
-    await this.scmService.forkOutBranch(
-      tenantId,
-      releaseBranch,
-      baseBranch
-    );
+    // 2. Validate branch names
+    if (!releaseBranch || releaseBranch.trim() === '') {
+      const error = new Error('Release branch name cannot be empty');
+      (error as any).code = 'invalid_branch_name';
+      (error as any).statusCode = 400;
+      throw error;
+    }
+
+    // 3. Call SCM integration with enhanced error handling
+    try {
+      await this.scmService.forkOutBranch(
+        tenantId,
+        releaseBranch,
+        baseBranch
+      );
+    } catch (error: any) {
+      // Map SCM errors to user-friendly messages
+      const mappedError = this.mapSCMError(error, releaseBranch, baseBranch);
+      throw mappedError;
+    }
 
     // Note: Branch is already set during release creation (release.branch)
     // Update lastUpdatedByAccountId to track this operation
@@ -880,11 +1325,14 @@ export class TaskExecutor {
 
     // PM integration must be configured if this task exists
     if (!pmConfigId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.PM_INTEGRATION_NOT_CONFIGURED);
+      const error = new Error(RELEASE_ERROR_MESSAGES.PM_INTEGRATION_NOT_CONFIGURED);
+      (error as any).code = 'pm_not_configured';
+      (error as any).statusCode = 400;
+      throw error;
     }
 
     const ticketIds: string[] = [];
-    const failedPlatforms: Array<{ platform: string; error: string }> = [];
+    const failedPlatforms: Array<{ platform: string; error: string; errorCode: string; statusCode: number }> = [];
 
     // Create ticket for EACH platform and store result in mapping
     
@@ -898,45 +1346,76 @@ export class TaskExecutor {
         continue;
       }
       
-      // Call PM service for this platform
-      const results = await this.pmTicketService.createTickets({
-        pmConfigId: pmConfigId,
-        tickets: [{
-          platform: platformName as Platform,
-          title: `Release ${mapping.version} - ${platformName}`,
-          description: `Release ${mapping.version} planned for ${release.targetReleaseDate}`
-        }]
-      });
+      try {
+        // Call PM service for this platform
+        const results = await this.pmTicketService.createTickets({
+          pmConfigId: pmConfigId,
+          tickets: [{
+            platform: platformName as Platform,
+            title: `Release ${mapping.version} - ${platformName}`,
+            description: `Release ${mapping.version} planned for ${release.targetReleaseDate}`
+          }]
+        });
 
-      // Get the ticket ID for this platform
-      const ticketResult = results[platformName as Platform];
-      const ticketId = ticketResult?.ticketKey;
+        // Get the ticket ID for this platform
+        const ticketResult = results[platformName as Platform];
+        const ticketId = ticketResult?.ticketKey;
 
-      if (ticketId) {
-        ticketIds.push(ticketId);
+        if (ticketId) {
+          ticketIds.push(ticketId);
 
-        // Update the mapping record with the ticket ID
-        if (PlatformTargetMappingModel) {
-          await PlatformTargetMappingModel.update(
-            { projectManagementRunId: ticketId },
-            { where: { id: mapping.id } }
-          );
+          // Update the mapping record with the ticket ID
+          if (PlatformTargetMappingModel) {
+            await PlatformTargetMappingModel.update(
+              { projectManagementRunId: ticketId },
+              { where: { id: mapping.id } }
+            );
+          }
+        } else {
+          // Track failed platform - map error from PM service response
+          const errorMessage = ticketResult?.error ?? 'Failed to create ticket - no ticket ID returned';
+          const mappedError = this.mapPMError(new Error(errorMessage), platformName);
+          failedPlatforms.push({ 
+            platform: platformName, 
+            error: mappedError.message,
+            errorCode: (mappedError as any).code,
+            statusCode: (mappedError as any).statusCode
+          });
         }
-      } else {
-        // Track failed platform (same pattern as BUILD tasks)
-        const error = ticketResult?.error ?? 'Failed to create ticket - no ticket ID returned';
-        failedPlatforms.push({ platform: platformName, error });
+      } catch (error: any) {
+        // Catch service-level errors (config not found, integration disabled, etc.)
+        const mappedError = this.mapPMError(error, platformName);
+        failedPlatforms.push({ 
+          platform: platformName, 
+          error: mappedError.message,
+          errorCode: (mappedError as any).code,
+          statusCode: (mappedError as any).statusCode
+        });
       }
     }
 
     // Fail if ANY platform failed (same as getTaskBuildStatus pattern)
     if (failedPlatforms.length > 0) {
+      const platformNames = failedPlatforms.map(f => f.platform).join(', ');
       const failureDetails = failedPlatforms
         .map(f => `${f.platform}: ${f.error}`)
         .join('; ');
-      throw new Error(
-        `Failed to create tickets for ${failedPlatforms.length}/${platformMappings.length} platforms. ${failureDetails}`
+      
+      // Find most severe status code (lower = more severe for 4xx, but 500+ always wins)
+      const mostSevereStatus = failedPlatforms.reduce((worst, current) => {
+        if (current.statusCode >= 500) return current.statusCode;  // Server errors always worst
+        if (worst >= 500) return worst;
+        return Math.min(worst, current.statusCode);
+      }, 500);
+      
+      const error = new Error(
+        `Failed to create tickets for platforms [${platformNames}]. ${failureDetails}`
       );
+      (error as any).code = 'partial_ticket_creation_failed';
+      (error as any).statusCode = mostSevereStatus;
+      (error as any).failedPlatforms = failedPlatforms;  // ✅ Structured platform details
+      
+      throw error;
     }
     
     // Category A: Return comma-separated ticket IDs
@@ -974,15 +1453,21 @@ export class TaskExecutor {
     
     // 3. Test management must be configured if this task exists
     if (!testConfigId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.TEST_MANAGEMENT_NOT_CONFIGURED);
+      const error = new Error(RELEASE_ERROR_MESSAGES.TEST_MANAGEMENT_NOT_CONFIGURED);
+      (error as any).code = 'test_not_configured';
+      (error as any).statusCode = 400;
+      throw error;
     }
     
     if (!this.testRunService) {
-      throw new Error(RELEASE_ERROR_MESSAGES.TEST_PLATFORM_NOT_AVAILABLE);
+      const error = new Error(RELEASE_ERROR_MESSAGES.TEST_PLATFORM_NOT_AVAILABLE);
+      (error as any).code = 'test_service_not_available';
+      (error as any).statusCode = 503;
+      throw error;
     }
 
     const runIds: string[] = [];
-    const failedPlatforms: Array<{ platform: string; error: string }> = [];
+    const failedPlatforms: Array<{ platform: string; error: string; errorCode: string; statusCode: number }> = [];
 
     // Create test run for EACH platform and store result in mapping
     for (const mapping of platformMappings) {
@@ -995,44 +1480,75 @@ export class TaskExecutor {
         continue;
       }
       
-      // Call service with specific platform filter to avoid creating duplicate runs
-      const results = await this.testRunService.createTestRuns({
-        testManagementConfigId: testConfigId,
-        runName: `Release ${mapping.version} - ${platformName} Test Suite`,
-        platforms: [platformName as TestPlatform]
-      });
-      
-      // Get the run ID for this platform
-      const platformResult = results[platformName as keyof typeof results];
-      const runId = platformResult && 'runId' in platformResult ? platformResult.runId : null;
+      try {
+        // Call service with specific platform filter to avoid creating duplicate runs
+        const results = await this.testRunService.createTestRuns({
+          testManagementConfigId: testConfigId,
+          runName: `Release ${mapping.version} - ${platformName} Test Suite`,
+          platforms: [platformName as TestPlatform]
+        });
+        
+        // Get the run ID for this platform
+        const platformResult = results[platformName as keyof typeof results];
+        const runId = platformResult && 'runId' in platformResult ? platformResult.runId : null;
 
-      if (runId) {
-        runIds.push(runId);
+        if (runId) {
+          runIds.push(runId);
 
-        // Update the mapping record with the run ID
-        if (PlatformTargetMappingModel) {
-          await PlatformTargetMappingModel.update(
-            { testManagementRunId: runId },
-            { where: { id: mapping.id } }
-          );
+          // Update the mapping record with the run ID
+          if (PlatformTargetMappingModel) {
+            await PlatformTargetMappingModel.update(
+              { testManagementRunId: runId },
+              { where: { id: mapping.id } }
+            );
+          }
+        } else {
+          // Track failed platform - map error from test run service response
+          const errorMessage = platformResult && 'error' in platformResult 
+            ? platformResult.error 
+            : 'Failed to create test run - no run ID returned';
+          const mappedError = this.mapTestManagementError(new Error(errorMessage), platformName);
+          failedPlatforms.push({ 
+            platform: platformName, 
+            error: mappedError.message,
+            errorCode: (mappedError as any).code,
+            statusCode: (mappedError as any).statusCode
+          });
         }
-      } else {
-        // Track failed platform (same pattern as BUILD tasks)
-        const error = platformResult && 'error' in platformResult 
-          ? platformResult.error 
-          : 'Failed to create test run - no run ID returned';
-        failedPlatforms.push({ platform: platformName, error });
+      } catch (error: any) {
+        // Catch service-level errors (config not found, integration disabled, etc.)
+        const mappedError = this.mapTestManagementError(error, platformName);
+        failedPlatforms.push({ 
+          platform: platformName, 
+          error: mappedError.message,
+          errorCode: (mappedError as any).code,
+          statusCode: (mappedError as any).statusCode
+        });
       }
     }
 
     // Fail if ANY platform failed (same as getTaskBuildStatus pattern)
     if (failedPlatforms.length > 0) {
+      const platformNames = failedPlatforms.map(f => f.platform).join(', ');
       const failureDetails = failedPlatforms
         .map(f => `${f.platform}: ${f.error}`)
         .join('; ');
-      throw new Error(
-        `Failed to create test runs for ${failedPlatforms.length}/${platformMappings.length} platforms. ${failureDetails}`
+      
+      // Find most severe status code (lower = more severe for 4xx, but 500+ always wins)
+      const mostSevereStatus = failedPlatforms.reduce((worst, current) => {
+        if (current.statusCode >= 500) return current.statusCode;  // Server errors always worst
+        if (worst >= 500) return worst;
+        return Math.min(worst, current.statusCode);
+      }, 500);
+      
+      const error = new Error(
+        `Failed to create test runs for platforms [${platformNames}]. ${failureDetails}`
       );
+      (error as any).code = 'partial_test_run_creation_failed';
+      (error as any).statusCode = mostSevereStatus;
+      (error as any).failedPlatforms = failedPlatforms;  // ✅ Structured platform details
+      
+      throw error;
     }
     
     return runIds.length > 0 ? runIds.join(',') : 'no-runs-created';
@@ -1184,16 +1700,23 @@ export class TaskExecutor {
     const ciConfigId = releaseConfig.ciConfigId;
 
     if (!ciConfigId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
+      const error = new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
+      (error as any).code = 'cicd_not_configured';
+      (error as any).statusCode = 400;
+      throw error;
     }
 
     const BuildModel = this.sequelize.models.Build;
 
     if (!BuildModel) {
-      throw new Error(RELEASE_ERROR_MESSAGES.REQUIRED_MODELS_NOT_FOUND_BUILD);
+      const error = new Error(RELEASE_ERROR_MESSAGES.REQUIRED_MODELS_NOT_FOUND_BUILD);
+      (error as any).code = 'build_model_not_found';
+      (error as any).statusCode = 500;
+      throw error;
     }
 
     const buildIds: string[] = [];
+    const failedPlatforms: Array<{ platform: string; error: string; errorCode: string; statusCode: number }> = [];
 
     for (const mapping of platformMappings) {
       const platformName = mapping.platform;
@@ -1252,14 +1775,40 @@ export class TaskExecutor {
         });
 
         buildIds.push(buildId);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[TaskExecutor] Failed to trigger pre-regression build workflow for platform ${platformName}:`, errorMessage);
-        if (error instanceof Error && error.stack) {
-          console.error(`[TaskExecutor] Stack trace:`, error.stack);
-        }
-        throw new Error(`Failed to trigger pre-regression build workflow for platform ${platformName}: ${errorMessage}`);
+      } catch (error: any) {
+        // Map error and continue with other platforms
+        const mappedError = this.mapCICDError(error, platformName);
+        failedPlatforms.push({ 
+          platform: platformName, 
+          error: mappedError.message,
+          errorCode: (mappedError as any).code,
+          statusCode: (mappedError as any).statusCode
+        });
       }
+    }
+
+    // Fail if ANY platform failed
+    if (failedPlatforms.length > 0) {
+      const platformNames = failedPlatforms.map(f => f.platform).join(', ');
+      const failureDetails = failedPlatforms
+        .map(f => `${f.platform}: ${f.error}`)
+        .join('; ');
+      
+      // Find most severe status code (lower = more severe for 4xx, but 500+ always wins)
+      const mostSevereStatus = failedPlatforms.reduce((worst, current) => {
+        if (current.statusCode >= 500) return current.statusCode;  // Server errors always worst
+        if (worst >= 500) return worst;
+        return Math.min(worst, current.statusCode);
+      }, 500);
+      
+      const error = new Error(
+        `Failed to trigger builds for platforms [${platformNames}]. ${failureDetails}`
+      );
+      (error as any).code = 'partial_build_trigger_failed';
+      (error as any).statusCode = mostSevereStatus;
+      (error as any).failedPlatforms = failedPlatforms;
+      
+      throw error;
     }
 
     // CI/CD Mode: Set task to AWAITING_CALLBACK - waiting for CI/CD pipeline callback
@@ -1284,37 +1833,53 @@ export class TaskExecutor {
   ): Promise<Record<string, unknown>> {
     const { release, tenantId: _tenantId, task } = context;
 
+    // 1. Check test service availability
     if (!this.testRunService) {
-      throw new Error(RELEASE_ERROR_MESSAGES.TEST_PLATFORM_NOT_AVAILABLE);
+      const error = new Error(RELEASE_ERROR_MESSAGES.TEST_PLATFORM_NOT_AVAILABLE);
+      (error as any).code = 'test_service_not_available';
+      (error as any).statusCode = 503;
+      throw error;
     }
 
-    // Get suite ID from previous CREATE_TEST_SUITE task
+    // 2. Get suite ID from previous CREATE_TEST_SUITE task
     const testSuiteTask = await this.releaseTaskRepo.findByTaskType(
       context.releaseId,
       TaskType.CREATE_TEST_SUITE
     );
 
     if (!testSuiteTask || !testSuiteTask.externalId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.TEST_SUITE_NOT_FOUND);
+      const error = new Error(RELEASE_ERROR_MESSAGES.TEST_SUITE_NOT_FOUND);
+      (error as any).code = 'test_suite_not_found';
+      (error as any).statusCode = 404;
+      throw error;
     }
 
     const runId = testSuiteTask.externalId;
 
-    // 1. Look up ReleaseConfiguration
+    // 3. Look up ReleaseConfiguration
     const config = await this.getReleaseConfig(release.releaseConfigId);
     
-    // 2. Extract test management config ID
+    // 4. Extract test management config ID
     const testConfigId = config.testManagementConfigId;
     
     if (!testConfigId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.TEST_MANAGEMENT_NOT_CONFIGURED);
+      const error = new Error(RELEASE_ERROR_MESSAGES.TEST_MANAGEMENT_NOT_CONFIGURED);
+      (error as any).code = 'test_config_not_found';
+      (error as any).statusCode = 404;
+      throw error;
     }
 
-    // 3. Reset test run - service returns ResetTestRunResponse
-    await this.testRunService.resetTestRun({
-      runId: runId,
-      testManagementConfigId: testConfigId
-    });
+    // 5. Reset test run with error mapping
+    try {
+      await this.testRunService.resetTestRun({
+        runId: runId,
+        testManagementConfigId: testConfigId
+      });
+    } catch (error: any) {
+      // Map Checkmate/Test Management API errors to structured format
+      const mappedError = this.mapTestManagementError(error);
+      throw mappedError;
+    }
 
     // Category B: Return raw object
     return {
@@ -1325,11 +1890,6 @@ export class TaskExecutor {
     };
   }
 
-  /**
-   * Execute CREATE_RC_TAG task
-   * 
-   * Creates an RC (Release Candidate) tag for the regression cycle.
-   */
   /**
    * Execute CREATE_RC_TAG task (Category B)
    * 
@@ -1342,44 +1902,67 @@ export class TaskExecutor {
   ): Promise<Record<string, unknown>> {
     const { release, tenantId, task, platformTargetMappings } = context;
 
+    // 1. Check SCM service availability
     if (!this.scmService) {
-      throw new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
+      const error = new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
+      (error as any).code = 'scm_not_available';
+      (error as any).statusCode = 503;
+      throw error;
     }
 
-    // Get cycle tag from task's regression cycle
+    // 2. Validate regression cycle ID
     if (!task.regressionId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_ID_NOT_FOUND);
+      const error = new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_ID_NOT_FOUND);
+      (error as any).code = 'regression_id_not_found';
+      (error as any).statusCode = 400;
+      throw error;
     }
 
-    // Get regression cycle to get cycleTag
+    // 3. Get regression cycle model
     const RegressionCycleModel = this.sequelize.models.RegressionCycle;
 
     if (!RegressionCycleModel) {
-        throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_MODEL_NOT_FOUND);
+      const error = new Error(RELEASE_ERROR_MESSAGES.REGRESSION_MODEL_NOT_FOUND);
+      (error as any).code = 'regression_model_not_found';
+      (error as any).statusCode = 500;
+      throw error;
     }
 
+    // 4. Fetch regression cycle
     const cycle = await RegressionCycleModel.findByPk(task.regressionId);
     if (!cycle) {
-      throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_NOT_FOUND(task.regressionId));
+      const error = new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_NOT_FOUND(task.regressionId));
+      (error as any).code = 'regression_cycle_not_found';
+      (error as any).statusCode = 404;
+      throw error;
     }
 
+    // 5. Validate cycle tag
     const cycleTag = (cycle as any).cycleTag;
     if (!cycleTag) {
-        throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_TAG_NOT_FOUND(task.regressionId));
+      const error = new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_TAG_NOT_FOUND(task.regressionId));
+      (error as any).code = 'cycle_tag_not_found';
+      (error as any).statusCode = 404;
+      throw error;
     }
 
-    const version = generatePlatformVersionString
-(platformTargetMappings);
+    const version = generatePlatformVersionString(platformTargetMappings);
     const releaseBranch = release.branch || `release/v${version}`;
 
-    // Create RC tag - integration returns tag name
-    await this.scmService.createReleaseTag(
-      tenantId,
-      releaseBranch,
-      cycleTag,
-      undefined, // targets (not needed for RC tags)
-      version
-    );
+    // 6. Create RC tag with error mapping
+    try {
+      await this.scmService.createReleaseTag(
+        tenantId,
+        releaseBranch,
+        cycleTag,
+        undefined, // targets (not needed for RC tags)
+        version
+      );
+    } catch (error: any) {
+      // Map SCM errors for tag creation
+      const mappedError = this.mapSCMError(error, cycleTag, releaseBranch);
+      throw mappedError;
+    }
 
     // Category B: Return raw object
     return {
@@ -1392,11 +1975,6 @@ export class TaskExecutor {
   }
 
   /**
-   * Execute CREATE_RELEASE_NOTES task
-   * 
-   * Generates release notes for the regression cycle.
-   */
-  /**
    * Execute CREATE_RELEASE_NOTES task (Category B)
    * 
    * Creates release notes for regression cycle.
@@ -1408,48 +1986,72 @@ export class TaskExecutor {
   ): Promise<Record<string, unknown>> {
     const { release, tenantId, task, platformTargetMappings } = context;
 
+    // 1. Check SCM service availability
     if (!this.scmService) {
-      throw new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
+      const error = new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
+      (error as any).code = 'scm_not_available';
+      (error as any).statusCode = 503;
+      throw error;
     }
 
-    // Get current RC tag
+    // 2. Validate regression cycle ID
     if (!task.regressionId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_ID_NOT_FOUND);
+      const error = new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_ID_NOT_FOUND);
+      (error as any).code = 'regression_id_not_found';
+      (error as any).statusCode = 400;
+      throw error;
     }
 
+    // 3. Get regression cycle model
     const RegressionCycleModel = this.sequelize.models.RegressionCycle;
 
     if (!RegressionCycleModel) {
-        throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_MODEL_NOT_FOUND);
+      const error = new Error(RELEASE_ERROR_MESSAGES.REGRESSION_MODEL_NOT_FOUND);
+      (error as any).code = 'regression_model_not_found';
+      (error as any).statusCode = 500;
+      throw error;
     }
 
+    // 4. Fetch regression cycle
     const cycle = await RegressionCycleModel.findByPk(task.regressionId);
     if (!cycle) {
-      throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_NOT_FOUND(task.regressionId));
+      const error = new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_NOT_FOUND(task.regressionId));
+      (error as any).code = 'regression_cycle_not_found';
+      (error as any).statusCode = 404;
+      throw error;
     }
 
+    // 5. Validate current tag
     const currentTag = (cycle as any).cycleTag;
     if (!currentTag) {
-        throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_TAG_NOT_FOUND(task.regressionId));
+      const error = new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_TAG_NOT_FOUND(task.regressionId));
+      (error as any).code = 'cycle_tag_not_found';
+      (error as any).statusCode = 404;
+      throw error;
     }
 
-    // Get previous tag (from previous cycle or base release)
-    // ✅ Use regressionCycleRepository from storage (passed via constructor) - actively initialized, always available
+    // 6. Get previous tag (from previous cycle or base release)
     let previousTag: string | undefined;
     const previousCycle = await this.regressionCycleRepo.findPrevious(context.releaseId);
     if (previousCycle && previousCycle.length > 0) {
       previousTag = previousCycle[0].cycleTag || undefined;
     }
 
-    // Create release notes - integration returns notes content (string)
-    const notes = await this.scmService.createReleaseNotes(
-      tenantId,
-      currentTag,
-      previousTag,
-      generatePlatformVersionString
-(platformTargetMappings),
-      undefined // parentTargets (not needed for regression notes)
-    );
+    // 7. Create release notes with error mapping
+    let notes: string;
+    try {
+      notes = await this.scmService.createReleaseNotes(
+        tenantId,
+        currentTag,
+        previousTag,
+        generatePlatformVersionString(platformTargetMappings),
+        undefined // parentTargets (not needed for regression notes)
+      );
+    } catch (error: any) {
+      // Map SCM errors for release notes creation
+      const mappedError = this.mapSCMError(error, currentTag, previousTag || 'base');
+      throw mappedError;
+    }
 
     // Category B: Return raw object
     return {
@@ -1482,8 +2084,12 @@ export class TaskExecutor {
   ): Promise<string> {
     const { release, tenantId, task } = context;
 
+    // 1. Validate regression cycle ID
     if (!task.regressionId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_ID_NOT_FOUND);
+      const error = new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_ID_NOT_FOUND);
+      (error as any).code = 'regression_id_not_found';
+      (error as any).statusCode = 400;
+      throw error;
     }
 
     const platformMappings = context.platformTargetMappings;
@@ -1616,16 +2222,23 @@ export class TaskExecutor {
     const ciConfigId = releaseConfig.ciConfigId;
 
     if (!ciConfigId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
+      const error = new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
+      (error as any).code = 'cicd_not_configured';
+      (error as any).statusCode = 400;
+      throw error;
     }
 
     const BuildModel = this.sequelize.models.Build;
 
     if (!BuildModel) {
-      throw new Error(RELEASE_ERROR_MESSAGES.REQUIRED_MODELS_NOT_FOUND_BUILD);
+      const error = new Error(RELEASE_ERROR_MESSAGES.REQUIRED_MODELS_NOT_FOUND_BUILD);
+      (error as any).code = 'build_model_not_found';
+      (error as any).statusCode = 500;
+      throw error;
     }
 
     const buildIds: string[] = [];
+    const failedPlatforms: Array<{ platform: string; error: string; errorCode: string; statusCode: number }> = [];
 
     for (const mapping of platformMappings) {
       const platformName = mapping.platform;
@@ -1684,14 +2297,40 @@ export class TaskExecutor {
         });
 
         buildIds.push(buildId);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[TaskExecutor] Failed to trigger regression build workflow for platform ${platformName}:`, errorMessage);
-        if (error instanceof Error && error.stack) {
-          console.error(`[TaskExecutor] Stack trace:`, error.stack);
-        }
-        throw new Error(`Failed to trigger regression build workflow for platform ${platformName}: ${errorMessage}`);
+      } catch (error: any) {
+        // Map error and continue with other platforms
+        const mappedError = this.mapCICDError(error, platformName);
+        failedPlatforms.push({ 
+          platform: platformName, 
+          error: mappedError.message,
+          errorCode: (mappedError as any).code,
+          statusCode: (mappedError as any).statusCode
+        });
       }
+    }
+
+    // Fail if ANY platform failed
+    if (failedPlatforms.length > 0) {
+      const platformNames = failedPlatforms.map(f => f.platform).join(', ');
+      const failureDetails = failedPlatforms
+        .map(f => `${f.platform}: ${f.error}`)
+        .join('; ');
+      
+      // Find most severe status code
+      const mostSevereStatus = failedPlatforms.reduce((worst, current) => {
+        if (current.statusCode >= 500) return current.statusCode;
+        if (worst >= 500) return worst;
+        return Math.min(worst, current.statusCode);
+      }, 500);
+      
+      const error = new Error(
+        `Failed to trigger regression builds for platforms [${platformNames}]. ${failureDetails}`
+      );
+      (error as any).code = 'partial_regression_build_trigger_failed';
+      (error as any).statusCode = mostSevereStatus;
+      (error as any).failedPlatforms = failedPlatforms;
+      
+      throw error;
     }
 
     // CI/CD Mode: Set task to AWAITING_CALLBACK - waiting for CI/CD pipeline callback
@@ -1715,29 +2354,36 @@ export class TaskExecutor {
   ): Promise<string> {
     const { release, tenantId, task } = context;
 
+    // 1. Validate regression cycle ID
     if (!task.regressionId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_ID_NOT_FOUND);
+      const error = new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_ID_NOT_FOUND);
+      (error as any).code = 'regression_id_not_found';
+      (error as any).statusCode = 400;
+      throw error;
     }
 
-    // Get release configuration
+    // 2. Get release configuration
     const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
     const ciConfigId = releaseConfig.ciConfigId;
     
-    // Get platforms from platformTargetMappings (new schema uses ENUMs)
+    // 3. Get platforms from platformTargetMappings
     const platformMappings = context.platformTargetMappings;
     if (platformMappings.length === 0) {
-      // No platforms configured - return empty success
       return '';
     }
 
-    // CI/CD config must be configured if this task exists
+    // 4. Validate CI/CD config
     if (!ciConfigId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
+      const error = new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
+      (error as any).code = 'cicd_not_configured';
+      (error as any).statusCode = 400;
+      throw error;
     }
 
     const runIds: string[] = [];
+    const failedPlatforms: Array<{ platform: string; error: string; errorCode: string; statusCode: number }> = [];
 
-    // Trigger automation for each platform-target mapping
+    // 5. Trigger automation for each platform
     for (const mapping of platformMappings) {
       const platformName = mapping.platform;
 
@@ -1757,14 +2403,40 @@ export class TaskExecutor {
         );
 
         runIds.push(result.queueLocation ?? `run-${Date.now()}`);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[TaskExecutor] Failed to trigger automation build workflow for platform ${platformName}:`, errorMessage);
-        if (error instanceof Error && error.stack) {
-          console.error(`[TaskExecutor] Stack trace:`, error.stack);
-        }
-        throw new Error(`Failed to trigger automation build workflow for platform ${platformName}: ${errorMessage}`);
+      } catch (error: any) {
+        // Map error and continue with other platforms
+        const mappedError = this.mapCICDError(error, platformName);
+        failedPlatforms.push({ 
+          platform: platformName, 
+          error: mappedError.message,
+          errorCode: (mappedError as any).code,
+          statusCode: (mappedError as any).statusCode
+        });
       }
+    }
+
+    // Fail if ANY platform failed
+    if (failedPlatforms.length > 0) {
+      const platformNames = failedPlatforms.map(f => f.platform).join(', ');
+      const failureDetails = failedPlatforms
+        .map(f => `${f.platform}: ${f.error}`)
+        .join('; ');
+      
+      // Find most severe status code
+      const mostSevereStatus = failedPlatforms.reduce((worst, current) => {
+        if (current.statusCode >= 500) return current.statusCode;
+        if (worst >= 500) return worst;
+        return Math.min(worst, current.statusCode);
+      }, 500);
+      
+      const error = new Error(
+        `Failed to trigger automation runs for platforms [${platformNames}]. ${failureDetails}`
+      );
+      (error as any).code = 'partial_automation_trigger_failed';
+      (error as any).statusCode = mostSevereStatus;
+      (error as any).failedPlatforms = failedPlatforms;
+      
+      throw error;
     }
 
     // Category A: Return raw string
@@ -1788,45 +2460,62 @@ export class TaskExecutor {
   ): Promise<Record<string, unknown>> {
     const { release, tenantId: _tenantId, task, platformTargetMappings } = context;
 
+    // 1. Check test service availability
     if (!this.testRunService) {
-      throw new Error(RELEASE_ERROR_MESSAGES.TEST_PLATFORM_NOT_AVAILABLE);
+      const error = new Error(RELEASE_ERROR_MESSAGES.TEST_PLATFORM_NOT_AVAILABLE);
+      (error as any).code = 'test_service_not_available';
+      (error as any).statusCode = 503;
+      throw error;
     }
 
-    // Get first platform from platformTargetMappings
+    // 2. Validate platform targets
     if (!platformTargetMappings || platformTargetMappings.length === 0) {
-      throw new Error('No platform targets configured for release');
+      const error = new Error('No platform targets configured for release');
+      (error as any).code = 'no_platform_targets';
+      (error as any).statusCode = 400;
+      throw error;
     }
     const platform = platformTargetMappings[0].platform as TestPlatform;
 
-    // Get automation run ID from TRIGGER_AUTOMATION_RUNS task
-    // Get all tasks for this regression cycle and find TRIGGER_AUTOMATION_RUNS
+    // 3. Get automation run ID from TRIGGER_AUTOMATION_RUNS task
     const cycleTasks = await this.releaseTaskRepo.findByRegressionCycleId(task.regressionId!);
     
-    // Find the TRIGGER_AUTOMATION_RUNS task for this regression cycle
     const automationTask = cycleTasks.find(t => t.taskType === TaskType.TRIGGER_AUTOMATION_RUNS);
     if (!automationTask || !automationTask.externalId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.AUTOMATION_RUN_NOT_FOUND);
+      const error = new Error(RELEASE_ERROR_MESSAGES.AUTOMATION_RUN_NOT_FOUND);
+      (error as any).code = 'automation_run_not_found';
+      (error as any).statusCode = 404;
+      throw error;
     }
 
-    // Use automation run ID for test status check
     const runId = automationTask.externalId;
     
-    // 1. Look up ReleaseConfiguration
+    // 4. Look up ReleaseConfiguration
     const config = await this.getReleaseConfig(release.releaseConfigId);
     
-    // 2. Extract test management config ID
+    // 5. Extract test management config ID
     const testConfigId = config.testManagementConfigId;
     
     if (!testConfigId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.TEST_MANAGEMENT_NOT_CONFIGURED);
+      const error = new Error(RELEASE_ERROR_MESSAGES.TEST_MANAGEMENT_NOT_CONFIGURED);
+      (error as any).code = 'test_config_not_found';
+      (error as any).statusCode = 404;
+      throw error;
     }
     
-    // 3. Get test status
-    const status = await this.testRunService.getTestStatus({
-      runId: runId,
-      testManagementConfigId: testConfigId,
-      platform: platform
-    });
+    // 6. Get test status with error mapping
+    let status;
+    try {
+      status = await this.testRunService.getTestStatus({
+        runId: runId,
+        testManagementConfigId: testConfigId,
+        platform: platform
+      });
+    } catch (error: any) {
+      // Map test management API errors
+      const mappedError = this.mapTestManagementError(error, platform);
+      throw mappedError;
+    }
 
     // Category B: Return raw object
     return {
@@ -1867,26 +2556,36 @@ export class TaskExecutor {
   ): Promise<Record<string, unknown>> {
     const { release, tenantId } = context;
 
+    // 1. Check SCM service availability
     if (!this.scmService) {
-      throw new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
+      const error = new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
+      (error as any).code = 'scm_not_available';
+      (error as any).statusCode = 503;
+      throw error;
     }
 
-    // Get targets from platformTargetMappings (new schema uses ENUMs)
+    // 2. Get targets from platformTargetMappings
     const platformMappings = context.platformTargetMappings || [];
     const targets: string[] = Array.from(new Set(platformMappings.map(m => m.target)));
 
-    // Create final release tag - integration generates tag from targets + version (returns string)
-    const version = generatePlatformVersionString
-(platformMappings);
-    const tagName = await this.scmService.createReleaseTag(
-      tenantId,
-      release.branch || `release/v${version}`,
-      undefined, // No explicit tagName - let integration generate from targets + version
-      targets,
-      version
-    );
+    // 3. Create final release tag with error mapping
+    const version = generatePlatformVersionString(platformMappings);
+    let tagName: string;
+    try {
+      tagName = await this.scmService.createReleaseTag(
+        tenantId,
+        release.branch || `release/v${version}`,
+        undefined, // No explicit tagName - let integration generate from targets + version
+        targets,
+        version
+      );
+    } catch (error: any) {
+      // Map SCM errors for tag creation
+      const mappedError = this.mapSCMError(error, version, release.branch || `release/v${version}`);
+      throw mappedError;
+    }
 
-    // Update release record with the created tag
+    // 4. Update release record with the created tag
     await this.releaseRepo.update(release.id, {
       releaseTag: tagName
     });
@@ -1921,48 +2620,58 @@ export class TaskExecutor {
   ): Promise<Record<string, unknown>> {
     const { release, tenantId, platformTargetMappings } = context;
 
+    // 1. Check SCM service availability
     if (!this.scmService) {
-      throw new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
+      const error = new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
+      (error as any).code = 'scm_not_available';
+      (error as any).statusCode = 503;
+      throw error;
     }
 
-    // Get current tag from release record (set by CREATE_RELEASE_TAG task)
-    // This matches OG Delivr pattern where releaseTag is stored on the release
+    // 2. Validate release tag
     if (!release.releaseTag) {
-      throw new Error(RELEASE_ERROR_MESSAGES.CREATE_RELEASE_TAG_TASK_MISSING);
+      const error = new Error(RELEASE_ERROR_MESSAGES.CREATE_RELEASE_TAG_TASK_MISSING);
+      (error as any).code = 'release_tag_not_found';
+      (error as any).statusCode = 404;
+      throw error;
     }
 
     const currentTag = release.releaseTag;
 
-    // Get previous tag from parent release (if exists)
-    // This matches OG Delivr pattern: release?.parent?.releaseTag
+    // 3. Get previous tag from parent release (if exists)
     let previousTag: string | undefined = undefined;
 
     if (release.baseReleaseId) {
       const parentRelease = await this.releaseRepo.findById(release.baseReleaseId);
       if (parentRelease && parentRelease.releaseTag) {
-        // Use parent's releaseTag directly (just like OG Delivr)
         previousTag = parentRelease.releaseTag;
       }
     }
 
-    // Create final release notes - returns release notes URL (string)
+    // 4. Create final release notes with error mapping
     const targetDate = release.targetReleaseDate 
       ? (typeof release.targetReleaseDate === 'string' ? new Date(release.targetReleaseDate) : release.targetReleaseDate)
       : new Date();
-    const releaseUrl = await this.scmService.createFinalReleaseNotes(
-      tenantId,
-      currentTag,
-      previousTag,
-      targetDate
-    );
+    let releaseUrl: string;
+    try {
+      releaseUrl = await this.scmService.createFinalReleaseNotes(
+        tenantId,
+        currentTag,
+        previousTag,
+        targetDate
+      );
+    } catch (error: any) {
+      // Map SCM errors for release notes creation
+      const mappedError = this.mapSCMError(error, currentTag, previousTag || 'base');
+      throw mappedError;
+    }
 
     // Category B: Return raw object
     return {
       releaseUrl: releaseUrl,
       currentTag: currentTag,
       previousTag: previousTag ?? null,
-      version: generatePlatformVersionString
-(platformTargetMappings),
+      version: generatePlatformVersionString(platformTargetMappings),
       timestamp: new Date().toISOString()
     };
   }
@@ -1982,12 +2691,15 @@ export class TaskExecutor {
   ): Promise<string> {
     const { release, tenantId, task } = context;
 
-    // Verify iOS platform exists using platformTargetMappings
+    // 1. Verify iOS platform exists using platformTargetMappings
     const platformMappings = context.platformTargetMappings;
     const hasIOS = platformMappings.some(m => m.platform === BUILD_PLATFORM.IOS);
 
     if (!hasIOS) {
-        throw new Error(RELEASE_ERROR_MESSAGES.IOS_PLATFORM_REQUIRED);
+      const error = new Error(RELEASE_ERROR_MESSAGES.IOS_PLATFORM_REQUIRED);
+      (error as any).code = 'ios_platform_required';
+      (error as any).statusCode = 400;
+      throw error;
     }
 
     // Get iOS mapping for version
@@ -2056,7 +2768,10 @@ export class TaskExecutor {
         // For iOS TestFlight, buildNumber must be the testflightNumber
         const hasTestflightNumber = iosUpload.testflightNumber !== null && iosUpload.testflightNumber !== undefined;
         if (!hasTestflightNumber) {
-          throw new Error(RELEASE_ERROR_MESSAGES.TESTFLIGHT_NUMBER_REQUIRED);
+          const error = new Error(RELEASE_ERROR_MESSAGES.TESTFLIGHT_NUMBER_REQUIRED);
+          (error as any).code = 'testflight_number_required';
+          (error as any).statusCode = 400;
+          throw error;
         }
         const buildNumber = iosUpload.testflightNumber;
 
@@ -2111,18 +2826,24 @@ export class TaskExecutor {
     const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
     const ciConfigId = releaseConfig.ciConfigId;
 
-    // CI/CD config must be configured if this task exists
+    // 2. Validate CI/CD config
     if (!ciConfigId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
+      const error = new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
+      (error as any).code = 'cicd_not_configured';
+      (error as any).statusCode = 400;
+      throw error;
     }
 
     const BuildModel = this.sequelize.models.Build;
 
     if (!BuildModel) {
-      throw new Error(RELEASE_ERROR_MESSAGES.REQUIRED_MODELS_NOT_FOUND_BUILD);
+      const error = new Error(RELEASE_ERROR_MESSAGES.REQUIRED_MODELS_NOT_FOUND_BUILD);
+      (error as any).code = 'build_model_not_found';
+      (error as any).statusCode = 500;
+      throw error;
     }
 
-    // Create TestFlight build for iOS platform
+    // 3. Create TestFlight build with error mapping
     try {
       const result = await this.triggerWorkflowByConfigId(
         ciConfigId,
@@ -2157,13 +2878,10 @@ export class TaskExecutor {
         workflowStatus: WORKFLOW_STATUS.PENDING,
         taskId: task.id
       });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[TaskExecutor] Failed to trigger TestFlight build workflow:`, errorMessage);
-      if (error instanceof Error && error.stack) {
-        console.error(`[TaskExecutor] Stack trace:`, error.stack);
-      }
-      throw new Error(`Failed to trigger TestFlight build workflow: ${errorMessage}`);
+    } catch (error: any) {
+      // Map CI/CD errors for TestFlight build
+      const mappedError = this.mapCICDError(error, BUILD_PLATFORM.IOS);
+      throw mappedError;
     }
 
     // CI/CD Mode: Set task to AWAITING_CALLBACK - waiting for CI/CD pipeline callback
@@ -2191,12 +2909,15 @@ export class TaskExecutor {
   ): Promise<string> {
     const { release, tenantId, task } = context;
 
-    // Verify ANDROID platform exists using platformTargetMappings
+    // 1. Verify ANDROID platform exists using platformTargetMappings
     const platformMappings = context.platformTargetMappings;
     const hasAndroid = platformMappings.some(m => m.platform === BUILD_PLATFORM.ANDROID);
 
     if (!hasAndroid) {
-      throw new Error('CREATE_AAB_BUILD task requires ANDROID platform, but no ANDROID platform found');
+      const error = new Error('CREATE_AAB_BUILD task requires ANDROID platform, but no ANDROID platform found');
+      (error as any).code = 'android_platform_required';
+      (error as any).statusCode = 400;
+      throw error;
     }
 
     // Get ANDROID mapping for version
@@ -2266,7 +2987,10 @@ export class TaskExecutor {
         const versionCode = extractVersionCodeFromInternalTrackLink(androidUpload.internalTrackLink);
         const hasVersionCode = versionCode !== null;
         if (!hasVersionCode) {
-          throw new Error(RELEASE_ERROR_MESSAGES.AAB_VERSION_CODE_REQUIRED);
+          const error = new Error(RELEASE_ERROR_MESSAGES.AAB_VERSION_CODE_REQUIRED);
+          (error as any).code = 'aab_version_code_required';
+          (error as any).statusCode = 400;
+          throw error;
         }
         const buildNumber = versionCode;
 
@@ -2322,18 +3046,24 @@ export class TaskExecutor {
     const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
     const ciConfigId = releaseConfig.ciConfigId;
 
-    // CI/CD config must be configured if this task exists
+    // 2. Validate CI/CD config
     if (!ciConfigId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
+      const error = new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
+      (error as any).code = 'cicd_not_configured';
+      (error as any).statusCode = 400;
+      throw error;
     }
 
     const BuildModel = this.sequelize.models.Build;
 
     if (!BuildModel) {
-      throw new Error(RELEASE_ERROR_MESSAGES.REQUIRED_MODELS_NOT_FOUND_BUILD);
+      const error = new Error(RELEASE_ERROR_MESSAGES.REQUIRED_MODELS_NOT_FOUND_BUILD);
+      (error as any).code = 'build_model_not_found';
+      (error as any).statusCode = 500;
+      throw error;
     }
 
-    // Create AAB build for Android platform
+    // 3. Create AAB build with error mapping
     try {
       const result = await this.triggerWorkflowByConfigId(
         ciConfigId,
@@ -2368,13 +3098,10 @@ export class TaskExecutor {
         workflowStatus: WORKFLOW_STATUS.PENDING,
         taskId: task.id
       });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[TaskExecutor] Failed to trigger AAB build workflow:`, errorMessage);
-      if (error instanceof Error && error.stack) {
-        console.error(`[TaskExecutor] Stack trace:`, error.stack);
-      }
-      throw new Error(`Failed to trigger AAB build workflow: ${errorMessage}`);
+    } catch (error: any) {
+      // Map CI/CD errors for AAB build
+      const mappedError = this.mapCICDError(error, BUILD_PLATFORM.ANDROID);
+      throw mappedError;
     }
 
     // CI/CD Mode: Set task to AWAITING_CALLBACK - waiting for CI/CD pipeline callback

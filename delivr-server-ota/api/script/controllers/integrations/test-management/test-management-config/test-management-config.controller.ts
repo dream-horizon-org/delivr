@@ -6,16 +6,25 @@
 import type { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
 import type { TestManagementConfigService } from '~services/integrations/test-management/test-management-config';
-import type { CreateTestManagementConfigDto } from '~types/integrations/test-management/test-management-config';
-import { errorResponse, getErrorStatusCode, notFoundResponse, successMessageResponse, successResponse, validationErrorResponse } from '~utils/response.utils';
+import type { CreateTestManagementConfigDto, UpdateTestManagementConfigDto, PlatformConfiguration } from '~types/integrations/test-management/test-management-config';
+import {
+  getErrorStatusCode,
+  successMessageResponse,
+  successResponse,
+  notFoundResponse,
+  forbiddenResponse,
+  simpleErrorResponse,
+  detailedErrorResponse,
+  buildValidationErrorResponse
+} from '~utils/response.utils';
+import { hasErrorCode } from '~utils/error.utils';
 import { TEST_MANAGEMENT_ERROR_MESSAGES, TEST_MANAGEMENT_SUCCESS_MESSAGES } from '../constants';
 import {
-  validateConfigName,
-  validateIntegrationId,
-  validatePassThresholdPercent,
-  validatePlatformConfigurations,
-  validateTenantId
+  validateTenantId,
+  validateCreateConfig,
+  validateUpdateConfig
 } from './test-management-config.validation';
+import { getStorage } from '~storage/storage-instance';
 
 type AuthenticatedRequest = Request & {
   user?: {
@@ -31,54 +40,70 @@ const createConfigHandler = (service: TestManagementConfigService) =>
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const { tenantId } = req.params;
-      const { integrationId, name, passThresholdPercent, platformConfigurations } = req.body;
 
-      const tenantIdError = validateTenantId(tenantId);
-      if (tenantIdError) {
+      // Validate with Yup schema
+      const validationResult = await validateCreateConfig({
+        tenantId,
+        ...req.body
+      });
+
+      // If validation failed, send error response
+      if (validationResult.success === false) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('tenantId', tenantIdError)
+          buildValidationErrorResponse('Request validation failed', validationResult.errors)
         );
         return;
       }
 
-      const integrationIdError = validateIntegrationId(integrationId);
-      if (integrationIdError) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('integrationId', integrationIdError)
-        );
-        return;
-      }
+      const validated = validationResult.data;
 
-      const nameError = validateConfigName(name);
-      if (nameError) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('name', nameError)
-        );
-        return;
-      }
-
-      const thresholdError = validatePassThresholdPercent(passThresholdPercent);
-      if (thresholdError) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('passThresholdPercent', thresholdError)
-        );
-        return;
-      }
-
-      const platformConfigsError = validatePlatformConfigurations(platformConfigurations);
-      if (platformConfigsError) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('platformConfigurations', platformConfigsError)
-        );
-        return;
+      // Check integration existence and enabled state
+      const storage = getStorage();
+      const integrationService = (storage as any).testManagementIntegrationService;
+      
+      if (integrationService) {
+        try {
+          const integration = await integrationService.getIntegrationById(validated.integrationId);
+          
+          if (!integration) {
+            res.status(HTTP_STATUS.NOT_FOUND).json(
+              notFoundResponse('Integration', 'integration_not_found')
+            );
+            return;
+          }
+          
+          // Check if integration belongs to tenant
+          if (integration.tenantId !== tenantId) {
+            res.status(HTTP_STATUS.FORBIDDEN).json(
+              forbiddenResponse('Integration does not belong to this tenant', 'integration_access_denied')
+            );
+            return;
+          }
+          
+          // Check if integration is enabled
+          if (integration.isEnabled === false) {
+            res.status(HTTP_STATUS.BAD_REQUEST).json(
+              simpleErrorResponse('Enable the integration before creating configurations', 'integration_disabled')
+            );
+            return;
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Failed to verify integration';
+          const errorCode = hasErrorCode(error) ? error.code : 'integration_verification_failed';
+          
+          res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+            detailedErrorResponse(message, errorCode, [message])
+          );
+          return;
+        }
       }
 
       const data: CreateTestManagementConfigDto = {
-        tenantId,
-        integrationId,
-        name,
-        passThresholdPercent,
-        platformConfigurations,
+        tenantId: validated.tenantId,
+        integrationId: validated.integrationId,
+        name: validated.name,
+        passThresholdPercent: validated.passThresholdPercent,
+        platformConfigurations: validated.platformConfigurations,
         createdByAccountId: req.user?.id
       };
 
@@ -86,9 +111,14 @@ const createConfigHandler = (service: TestManagementConfigService) =>
 
       res.status(HTTP_STATUS.CREATED).json(successResponse(config));
     } catch (error) {
+      console.error('[Test Management] Failed to create config:', error);
+
+      const message = error instanceof Error ? error.message : TEST_MANAGEMENT_ERROR_MESSAGES.CREATE_CONFIG_FAILED;
       const statusCode = getErrorStatusCode(error);
+      const errorCode = hasErrorCode(error) ? error.code : 'config_create_failed';
+      
       res.status(statusCode).json(
-        errorResponse(error, TEST_MANAGEMENT_ERROR_MESSAGES.CREATE_CONFIG_FAILED)
+        detailedErrorResponse(message, errorCode, [message])
       );
     }
   };
@@ -105,16 +135,19 @@ const getConfigByIdHandler = (service: TestManagementConfigService) =>
 
       if (!config) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
-          notFoundResponse('Test management config')
+          notFoundResponse('Configuration', 'config_not_found')
         );
         return;
       }
 
       res.status(HTTP_STATUS.OK).json(successResponse(config));
     } catch (error) {
+      const message = error instanceof Error ? error.message : TEST_MANAGEMENT_ERROR_MESSAGES.GET_CONFIG_FAILED;
       const statusCode = getErrorStatusCode(error);
+      const errorCode = hasErrorCode(error) ? error.code : 'config_fetch_failed';
+      
       res.status(statusCode).json(
-        errorResponse(error, TEST_MANAGEMENT_ERROR_MESSAGES.GET_CONFIG_FAILED)
+        detailedErrorResponse(message, errorCode, [message])
       );
     }
   };
@@ -131,7 +164,7 @@ const listConfigsByTenantHandler = (service: TestManagementConfigService) =>
       const tenantIdError = validateTenantId(tenantId);
       if (tenantIdError) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('tenantId', tenantIdError)
+          simpleErrorResponse(tenantIdError, 'invalid_tenant_id')
         );
         return;
       }
@@ -140,9 +173,12 @@ const listConfigsByTenantHandler = (service: TestManagementConfigService) =>
 
       res.status(HTTP_STATUS.OK).json(successResponse(configs));
     } catch (error) {
+      const message = error instanceof Error ? error.message : TEST_MANAGEMENT_ERROR_MESSAGES.LIST_CONFIGS_FAILED;
       const statusCode = getErrorStatusCode(error);
+      const errorCode = hasErrorCode(error) ? error.code : 'config_list_failed';
+      
       res.status(statusCode).json(
-        errorResponse(error, TEST_MANAGEMENT_ERROR_MESSAGES.LIST_CONFIGS_FAILED)
+        detailedErrorResponse(message, errorCode, [message])
       );
     }
   };
@@ -154,56 +190,46 @@ const updateConfigHandler = (service: TestManagementConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const { name, passThresholdPercent, platformConfigurations } = req.body;
 
-      if (name !== undefined) {
-        const nameError = validateConfigName(name);
-        if (nameError) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('name', nameError)
-          );
-          return;
-        }
+      // Validate with Yup schema
+      const validationResult = await validateUpdateConfig(req.body);
+
+      // If validation failed, send error response
+      if (validationResult.success === false) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          buildValidationErrorResponse('Request validation failed', validationResult.errors)
+        );
+        return;
       }
 
-      if (passThresholdPercent !== undefined) {
-        const thresholdError = validatePassThresholdPercent(passThresholdPercent);
-        if (thresholdError) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('passThresholdPercent', thresholdError)
-          );
-          return;
-        }
-      }
+      const validated = validationResult.data;
 
-      if (platformConfigurations !== undefined) {
-        const platformConfigsError = validatePlatformConfigurations(platformConfigurations);
-        if (platformConfigsError) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('platformConfigurations', platformConfigsError)
-          );
-          return;
-        }
-      }
+      // Build update DTO from validated data
+      const updateData: UpdateTestManagementConfigDto = {
+        name: validated.name,
+        passThresholdPercent: validated.passThresholdPercent,
+        platformConfigurations: validated.platformConfigurations
+      };
 
-      const config = await service.updateConfig(id, {
-        name,
-        passThresholdPercent,
-        platformConfigurations
-      });
+      const config = await service.updateConfig(id, updateData);
 
       if (!config) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
-          notFoundResponse('Test management config')
+          notFoundResponse('Configuration', 'config_not_found')
         );
         return;
       }
 
       res.status(HTTP_STATUS.OK).json(successResponse(config));
     } catch (error) {
+      console.error('[Test Management] Failed to update config:', error);
+
+      const message = error instanceof Error ? error.message : TEST_MANAGEMENT_ERROR_MESSAGES.UPDATE_CONFIG_FAILED;
       const statusCode = getErrorStatusCode(error);
+      const errorCode = hasErrorCode(error) ? error.code : 'config_update_failed';
+      
       res.status(statusCode).json(
-        errorResponse(error, TEST_MANAGEMENT_ERROR_MESSAGES.UPDATE_CONFIG_FAILED)
+        detailedErrorResponse(message, errorCode, [message])
       );
     }
   };
@@ -220,7 +246,7 @@ const deleteConfigHandler = (service: TestManagementConfigService) =>
 
       if (!deleted) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
-          notFoundResponse('Test management config')
+          notFoundResponse('Configuration', 'config_not_found')
         );
         return;
       }
@@ -229,9 +255,12 @@ const deleteConfigHandler = (service: TestManagementConfigService) =>
         successMessageResponse(TEST_MANAGEMENT_SUCCESS_MESSAGES.CONFIG_DELETED)
       );
     } catch (error) {
+      const message = error instanceof Error ? error.message : TEST_MANAGEMENT_ERROR_MESSAGES.DELETE_CONFIG_FAILED;
       const statusCode = getErrorStatusCode(error);
+      const errorCode = hasErrorCode(error) ? error.code : 'config_delete_failed';
+      
       res.status(statusCode).json(
-        errorResponse(error, TEST_MANAGEMENT_ERROR_MESSAGES.DELETE_CONFIG_FAILED)
+        detailedErrorResponse(message, errorCode, [message])
       );
     }
   };

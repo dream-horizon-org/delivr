@@ -4,20 +4,25 @@ import type { ProjectManagementConfigService } from '~services/integrations/proj
 import { PROJECT_MANAGEMENT_ERROR_MESSAGES, PROJECT_MANAGEMENT_SUCCESS_MESSAGES } from '~services/integrations/project-management';
 import type {
   CreateProjectManagementConfigDto,
-  UpdateProjectManagementConfigDto
+  UpdateProjectManagementConfigDto,
+  PlatformConfiguration
 } from '~types/integrations/project-management';
 import {
-  errorResponse,
   getErrorStatusCode,
-  notFoundResponse,
   successMessageResponse,
   successResponse,
-  validationErrorResponse
+  notFoundResponse,
+  forbiddenResponse,
+  simpleErrorResponse,
+  detailedErrorResponse,
+  buildValidationErrorResponse
 } from '~utils/response.utils';
+import { hasErrorCode } from '~utils/error.utils';
 import {
-  validateConfigName,
-  validatePlatformConfigurations
+  validateCreateConfig,
+  validateUpdateConfig
 } from './configuration.validation';
+import { getStorage } from '~storage/storage-instance';
 
 type AuthenticatedRequest = Request & {
   user?: {
@@ -35,36 +40,70 @@ const createConfigHandler = (service: ProjectManagementConfigService) =>
       const { tenantId } = req.params;
       const { integrationId, name, description, platformConfigurations } = req.body;
 
-      // Validate name
-      const nameError = validateConfigName(name);
-      if (nameError) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(validationErrorResponse('name', nameError));
-        return;
-      }
+      // Validate with Yup schema
+      const validationResult = await validateCreateConfig({
+        name,
+        integrationId,
+        platformConfigurations
+      });
 
-      // Validate integrationId
-      if (typeof integrationId !== 'string' || !integrationId) {
+      // If validation failed, send error response
+      if (validationResult.success === false) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('integrationId', 'Integration ID is required')
+          buildValidationErrorResponse('Request validation failed', validationResult.errors)
         );
         return;
       }
 
-      // Validate platform configurations
-      const platformError = validatePlatformConfigurations(platformConfigurations);
-      if (platformError) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('platformConfigurations', platformError)
-        );
-        return;
+      const validated = validationResult.data;
+
+      // Check integration existence and enabled state
+      const storage = getStorage();
+      const integrationService = (storage as any).projectManagementIntegrationService;
+      
+      if (integrationService) {
+        try {
+          const integration = await integrationService.getIntegration(validated.integrationId);
+          
+          if (!integration) {
+            res.status(HTTP_STATUS.NOT_FOUND).json(
+              notFoundResponse('Integration', 'integration_not_found')
+            );
+            return;
+          }
+          
+          // Check if integration belongs to tenant
+          if (integration.tenantId !== tenantId) {
+            res.status(HTTP_STATUS.FORBIDDEN).json(
+              forbiddenResponse('Integration does not belong to this tenant', 'integration_access_denied')
+            );
+            return;
+          }
+          
+          // Check if integration is enabled
+          if (integration.isEnabled === false) {
+            res.status(HTTP_STATUS.BAD_REQUEST).json(
+              simpleErrorResponse('Enable the integration before creating configurations', 'integration_disabled')
+            );
+            return;
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Failed to verify integration';
+          const errorCode = hasErrorCode(error) ? error.code : 'integration_verification_failed';
+          
+          res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+            detailedErrorResponse(message, errorCode, [message])
+          );
+          return;
+        }
       }
 
       const data: CreateProjectManagementConfigDto = {
         tenantId,
-        integrationId,
-        name,
+        integrationId: validated.integrationId,
+        name: validated.name,
         description,
-        platformConfigurations,
+        platformConfigurations: validated.platformConfigurations,
         createdByAccountId: req.user?.id
       };
 
@@ -72,8 +111,14 @@ const createConfigHandler = (service: ProjectManagementConfigService) =>
 
       res.status(HTTP_STATUS.CREATED).json(successResponse(config));
     } catch (error) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        errorResponse(error, PROJECT_MANAGEMENT_ERROR_MESSAGES.CREATE_CONFIG_FAILED)
+      console.error('[Project Management] Failed to create config:', error);
+
+      const message = error instanceof Error ? error.message : PROJECT_MANAGEMENT_ERROR_MESSAGES.CREATE_CONFIG_FAILED;
+      const statusCode = getErrorStatusCode(error);
+      const errorCode = hasErrorCode(error) ? error.code : 'config_create_failed';
+      
+      res.status(statusCode).json(
+        detailedErrorResponse(message, errorCode, [message])
       );
     }
   };
@@ -91,9 +136,12 @@ const listConfigsHandler = (service: ProjectManagementConfigService) =>
 
       res.status(HTTP_STATUS.OK).json(successResponse(configs));
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to list project management configurations';
       const statusCode = getErrorStatusCode(error);
+      const errorCode = hasErrorCode(error) ? error.code : 'config_list_failed';
+      
       res.status(statusCode).json(
-        errorResponse(error, 'Failed to list project management configurations')
+        detailedErrorResponse(message, errorCode, [message])
       );
     }
   };
@@ -112,16 +160,19 @@ const getConfigHandler = (service: ProjectManagementConfigService) =>
 
       if (configNotFound) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
-          notFoundResponse('Project management configuration')
+          notFoundResponse('Configuration', 'config_not_found')
         );
         return;
       }
 
       res.status(HTTP_STATUS.OK).json(successResponse(config));
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to get project management configuration';
       const statusCode = getErrorStatusCode(error);
+      const errorCode = hasErrorCode(error) ? error.code : 'config_fetch_failed';
+      
       res.status(statusCode).json(
-        errorResponse(error, 'Failed to get project management configuration')
+        detailedErrorResponse(message, errorCode, [message])
       );
     }
   };
@@ -136,30 +187,26 @@ const updateConfigHandler = (service: ProjectManagementConfigService) =>
       const { configId } = req.params;
       const { name, description, platformConfigurations, isActive } = req.body;
 
-      // Validate name if provided
-      if (name !== undefined) {
-        const nameError = validateConfigName(name);
-        if (nameError) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(validationErrorResponse('name', nameError));
-          return;
-        }
+      // Validate with Yup schema
+      const validationResult = await validateUpdateConfig({
+        name,
+        platformConfigurations
+      });
+
+      // If validation failed, send error response
+      if (validationResult.success === false) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          buildValidationErrorResponse('Request validation failed', validationResult.errors)
+        );
+        return;
       }
 
-      // Validate platform configurations if provided
-      if (platformConfigurations !== undefined) {
-        const platformError = validatePlatformConfigurations(platformConfigurations);
-        if (platformError) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('platformConfigurations', platformError)
-          );
-          return;
-        }
-      }
+      const validated = validationResult.data;
 
       const data: UpdateProjectManagementConfigDto = {
-        name,
+        name: validated.name,
         description,
-        platformConfigurations,
+        platformConfigurations: validated.platformConfigurations,
         isActive
       };
 
@@ -167,15 +214,21 @@ const updateConfigHandler = (service: ProjectManagementConfigService) =>
 
       if (!config) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
-          notFoundResponse('Project management configuration')
+          notFoundResponse('Configuration', 'config_not_found')
         );
         return;
       }
 
       res.status(HTTP_STATUS.OK).json(successResponse(config));
     } catch (error) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        errorResponse(error, PROJECT_MANAGEMENT_ERROR_MESSAGES.UPDATE_CONFIG_FAILED)
+      console.error('[Project Management] Failed to update config:', error);
+
+      const message = error instanceof Error ? error.message : PROJECT_MANAGEMENT_ERROR_MESSAGES.UPDATE_CONFIG_FAILED;
+      const statusCode = getErrorStatusCode(error);
+      const errorCode = hasErrorCode(error) ? error.code : 'config_update_failed';
+      
+      res.status(statusCode).json(
+        detailedErrorResponse(message, errorCode, [message])
       );
     }
   };
@@ -194,7 +247,7 @@ const deleteConfigHandler = (service: ProjectManagementConfigService) =>
 
       if (configNotFound) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
-          notFoundResponse('Project management configuration')
+          notFoundResponse('Configuration', 'config_not_found')
         );
         return;
       }
@@ -203,9 +256,13 @@ const deleteConfigHandler = (service: ProjectManagementConfigService) =>
         successMessageResponse(PROJECT_MANAGEMENT_SUCCESS_MESSAGES.CONFIG_DELETED)
       );
     } catch (error) {
+      console.error('[Project Management] Failed to delete config:', error);
+      const message = error instanceof Error ? error.message : PROJECT_MANAGEMENT_ERROR_MESSAGES.DELETE_CONFIG_FAILED;
       const statusCode = getErrorStatusCode(error);
+      const errorCode = hasErrorCode(error) ? error.code : 'config_delete_failed';
+      
       res.status(statusCode).json(
-        errorResponse(error, PROJECT_MANAGEMENT_ERROR_MESSAGES.DELETE_CONFIG_FAILED)
+        detailedErrorResponse(message, errorCode, [message])
       );
     }
   };
@@ -223,9 +280,13 @@ const verifyConfigHandler = (service: ProjectManagementConfigService) =>
 
       res.status(HTTP_STATUS.OK).json(successResponse(result));
     } catch (error) {
+      console.error('[Project Management] Failed to verify config:', error);
+      const message = error instanceof Error ? error.message : PROJECT_MANAGEMENT_ERROR_MESSAGES.VERIFY_CONFIG_FAILED;
       const statusCode = getErrorStatusCode(error);
+      const errorCode = hasErrorCode(error) ? error.code : 'config_verify_failed';
+      
       res.status(statusCode).json(
-        errorResponse(error, PROJECT_MANAGEMENT_ERROR_MESSAGES.VERIFY_CONFIG_FAILED)
+        detailedErrorResponse(message, errorCode, [message])
       );
     }
   };

@@ -3,67 +3,93 @@
  * Input validation for integration endpoints
  */
 
+import * as yup from 'yup';
+import { validateWithYup } from '~utils/validation.utils';
+import type { ValidationResult } from '~types/validation/validation-result.interface';
+
+/* ==================== YUP VALIDATION SCHEMAS ==================== */
+
 /**
- * Validate bot token format
+ * Yup schema for Slack verification (stateless verify)
  */
-export const validateBotToken = (botToken: unknown): string | null => {
-  if (!botToken) {
-    return 'Bot token is required';
-  }
+const slackVerifySchema = yup.object({
+  botToken: yup
+    .string()
+    .trim()
+    .required('Bot token is required'),
+  _encrypted: yup.boolean().optional()
+});
 
-  if (typeof botToken !== 'string') {
-    return 'Bot token must be a string';
-  }
+/**
+ * Yup schema for Slack CREATE
+ */
+const slackConfigSchema = yup.object({
+  botToken: yup
+    .string()
+    .trim()
+    .required('Bot token is required'),
+  botUserId: yup.string().trim().optional(),
+  workspaceId: yup.string().trim().optional(),
+  workspaceName: yup.string().trim().optional(),
+  _encrypted: yup.boolean().optional()
+});
 
-  if (!botToken.startsWith('xoxb-')) {
-    return 'Invalid Slack bot token format. Must start with "xoxb-"';
-  }
+/**
+ * Yup schema for Slack UPDATE (all fields optional but validated if present)
+ */
+const slackUpdateSchema = yup.object({
+  botToken: yup
+    .string()
+    .trim()
+    .optional()
+    .min(1, 'Bot token cannot be empty if provided'),
+  botUserId: yup
+    .string()
+    .trim()
+    .optional()
+    .min(1, 'Bot user ID cannot be empty if provided'),
+  workspaceId: yup
+    .string()
+    .trim()
+    .optional()
+    .min(1, 'Workspace ID cannot be empty if provided'),
+  workspaceName: yup
+    .string()
+    .trim()
+    .optional()
+    .min(1, 'Workspace name cannot be empty if provided'),
+  _encrypted: yup.boolean().optional()
+});
 
-  return null;
+/**
+ * Validate Slack verify request with Yup
+ * Returns ValidationResult with either validated data or errors
+ * Note: Controller should add "verified: false" to error response
+ */
+export const validateSlackVerifyRequest = async (
+  data: unknown
+): Promise<ValidationResult<yup.InferType<typeof slackVerifySchema>>> => {
+  return validateWithYup(slackVerifySchema, data);
 };
 
 /**
- * Validate workspace ID
+ * Validate Slack config with Yup (for CREATE operations)
+ * Returns ValidationResult with either validated data or errors
  */
-export const validateWorkspaceId = (workspaceId: unknown): string | null => {
-  if (!workspaceId) {
-    return null; // Optional field
-  }
-
-  if (typeof workspaceId !== 'string') {
-    return 'Workspace ID must be a string';
-  }
-
-  return null;
+export const validateSlackConfig = async (
+  data: unknown
+): Promise<ValidationResult<yup.InferType<typeof slackConfigSchema>>> => {
+  return validateWithYup(slackConfigSchema, data);
 };
 
 /**
- * Validate workspace name
+ * Validate Slack config with Yup (for UPDATE operations)
+ * Validates only fields that are present (partial update)
+ * Returns ValidationResult with either validated data or errors
  */
-export const validateWorkspaceName = (workspaceName: unknown): string | null => {
-  if (!workspaceName) {
-    return null; // Optional field
-  }
-
-  if (typeof workspaceName !== 'string') {
-    return 'Workspace name must be a string';
-  }
-
-  return null;
-};
-
-/**
- * Validate bot user ID
- */
-export const validateBotUserId = (botUserId: unknown): string | null => {
-  if (!botUserId) {
-    return null; // Optional field
-  }
-
-  if (typeof botUserId !== 'string') {
-    return 'Bot user ID must be a string';
-  }
-
-  return null;
+export const validateSlackUpdateConfig = async (
+  data: unknown
+): Promise<ValidationResult<yup.InferType<typeof slackUpdateSchema>>> => {
+  return validateWithYup(slackUpdateSchema, data);
 };
 

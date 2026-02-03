@@ -26,7 +26,7 @@ export abstract class ConnectionService<TCreateInput> {
   abstract get(tenantId: string): Promise<SafeCICDIntegration | null>;
   abstract update(tenantId: string, updateData: UpdateCICDIntegrationDto): Promise<SafeCICDIntegration>;
   abstract delete(tenantId: string): Promise<void>;
-  abstract verifyConnection(params: unknown): Promise<{ isValid: boolean; message: string }>;
+  abstract verifyConnection(params: unknown): Promise<{ success: boolean; message: string; statusCode?: number; details?: any }>;
 }
 
 

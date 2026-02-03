@@ -19,11 +19,19 @@ export type JenkinsVerifyParams = {
   crumbPath: string;
 };
 
-export type JenkinsVerifyResult = {
-  isValid: boolean;
-  message: string;
-  details?: unknown;
-};
+export type JenkinsVerifyResult = 
+  | { 
+      success: true; 
+      message: string;
+      details?: Record<string, unknown>;
+    }
+  | { 
+      success: false; 
+      message: string;
+      statusCode: number;
+      errorCode: string;
+      details?: string[];
+    };
 
 export type JenkinsJobParamsRequest = {
   workflowUrl: string;

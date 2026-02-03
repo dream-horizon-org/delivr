@@ -1,112 +1,12 @@
 import { TestManagementProviderType } from '~types/integrations/test-management';
 import { hasProperty } from '~utils/type-guards.utils';
+import * as yup from 'yup';
+import { validateWithYup } from '~utils/validation.utils';
+import type { ValidationResult } from '~types/validation/validation-result.interface';
 
 /**
  * Validation utilities for tenant integration test management
  */
-
-/**
- * Helper: Check if value is a non-empty string
- */
-const isNonEmptyString = (value: unknown): value is string => {
-  return typeof value === 'string' && value.length > 0;
-};
-
-/**
- * Helper: Check if value is a valid URL
- */
-const isValidUrl = (value: string): boolean => {
-  try {
-    new URL(value);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-/**
- * Helper: Validate required string field
- */
-const validateRequiredString = (
-  obj: Record<string, unknown>,
-  field: string,
-  prefix = ''
-): string | null => {
-  const label = prefix ? `${prefix} ${field}` : field;
-  
-  if (!hasProperty(obj, field)) {
-    return `${label} is required`;
-  }
-  
-  if (!isNonEmptyString(obj[field])) {
-    return `${label} must be a non-empty string`;
-  }
-  
-  return null;
-};
-
-/**
- * Helper: Validate optional string field (if present, must be non-empty)
- */
-const validateOptionalString = (
-  obj: Record<string, unknown>,
-  field: string
-): string | null => {
-  if (!hasProperty(obj, field)) return null;
-  
-  return isNonEmptyString(obj[field]) 
-    ? null 
-    : `${field} must be a non-empty string`;
-};
-
-/**
- * Helper: Validate required positive number field
- */
-const validateRequiredPositiveNumber = (
-  obj: Record<string, unknown>,
-  field: string,
-  prefix = ''
-): string | null => {
-  const label = prefix ? `${prefix} ${field}` : field;
-  
-  if (!hasProperty(obj, field)) {
-    return `${label} is required`;
-  }
-  
-  const value = obj[field];
-  
-  if (typeof value !== 'number') {
-    return `${label} must be a number`;
-  }
-  
-  if (value <= 0) {
-    return `${label} must be a positive number`;
-  }
-  
-  return null;
-};
-
-/**
- * Helper: Validate optional positive number field
- */
-const validateOptionalPositiveNumber = (
-  obj: Record<string, unknown>,
-  field: string
-): string | null => {
-  if (!hasProperty(obj, field)) return null;
-  
-  const value = obj[field];
-  
-  if (typeof value !== 'number') {
-    return `${field} must be a number`;
-  }
-  
-  if (value <= 0) {
-    return `${field} must be a positive number`;
-  }
-  
-  return null;
-};
 
 /**
  * Validate provider type
@@ -126,8 +26,10 @@ export const validateProviderType = (value: unknown): string | null => {
 };
 
 /**
- * Validate config structure based on provider type
+ * Validate config structure based on provider type (for non-Checkmate providers)
  * Returns error message if invalid, null if valid
+ * NOTE: Checkmate uses Yup validation
+ * TODO: Implement Yup validation for TESTRAIL and other providers, then remove this function
  */
 export const validateConfigStructure = (
   config: unknown,
@@ -139,40 +41,16 @@ export const validateConfigStructure = (
     return 'config must be a non-null object';
   }
 
-  // Provider-specific validation
-  if (providerType === TestManagementProviderType.CHECKMATE) {
-    return validateCheckmateConfig(config);
-  }
-
+  // Basic validation only - other providers not implemented yet
+  // When implementing TESTRAIL or other providers, use Yup validation instead
   return null;
 };
 
 /**
- * Validate Checkmate-specific config structure
- */
-const validateCheckmateConfig = (config: unknown): string | null => {
-  const configObj = config as Record<string, unknown>;
-
-  // Validate baseUrl
-  const baseUrlError = validateRequiredString(configObj, 'baseUrl', 'Checkmate config');
-  if (baseUrlError) return baseUrlError;
-
-  const baseUrl = String(configObj.baseUrl);
-  if (!isValidUrl(baseUrl)) {
-    return 'Checkmate config baseUrl must be a valid URL';
-  }
-
-  // Validate authToken
-  const authTokenError = validateRequiredString(configObj, 'authToken', 'Checkmate config');
-  if (authTokenError) return authTokenError;
-
-  // Validate orgId
-  return validateRequiredPositiveNumber(configObj, 'orgId', 'Checkmate config');
-};
-
-/**
- * Validate partial config structure (for UPDATE operations)
- * Only validates fields that are present - allows partial updates
+ * Validate partial config structure (for UPDATE operations - non-Checkmate providers)
+ * Currently used as a fallback for providers without Yup validation
+ * NOTE: Checkmate uses Yup validation (validateCheckmateUpdateConfig)
+ * TODO: Implement Yup validation for TESTRAIL and other providers, then remove this function
  */
 export const validatePartialConfigStructure = (
   config: unknown,
@@ -184,38 +62,9 @@ export const validatePartialConfigStructure = (
     return 'config must be a non-null object';
   }
 
-  // Provider-specific validation
-  if (providerType === TestManagementProviderType.CHECKMATE) {
-    return validatePartialCheckmateConfig(config);
-  }
-
+  // Basic validation only - other providers (TESTRAIL, etc.) not implemented yet
+  // When implementing, use Yup validation similar to Checkmate instead of this function
   return null;
-};
-
-/**
- * Validate partial Checkmate config (for UPDATE operations)
- * Only validates fields that are present
- */
-const validatePartialCheckmateConfig = (config: unknown): string | null => {
-  const configObj = config as Record<string, unknown>;
-
-  // Validate baseUrl if provided
-  if (hasProperty(configObj, 'baseUrl')) {
-    const baseUrlError = validateOptionalString(configObj, 'baseUrl');
-    if (baseUrlError) return baseUrlError;
-
-    const baseUrl = String(configObj.baseUrl);
-    if (!isValidUrl(baseUrl)) {
-      return 'baseUrl must be a valid URL';
-    }
-  }
-
-  // Validate authToken if provided
-  const authTokenError = validateOptionalString(configObj, 'authToken');
-  if (authTokenError) return authTokenError;
-
-  // Validate orgId if provided
-  return validateOptionalPositiveNumber(configObj, 'orgId');
 };
 
 /**
@@ -239,3 +88,106 @@ export const validateIntegrationName = (value: unknown): string | null => {
   return null;
 };
 
+/* ==================== YUP VALIDATION SCHEMAS ==================== */
+
+/**
+ * Checkmate config fields schema (reusable for CREATE and UPDATE)
+ */
+const checkmateConfigFieldsSchema = yup.object({
+  baseUrl: yup
+    .string()
+    .trim()
+    .required('Base URL is required')
+    .url('Base URL must be a valid URL (e.g., https://checkmate.example.com)'),
+  authToken: yup
+    .string()
+    .trim()
+    .required('Auth Token is required'),
+  orgId: yup
+    .number()
+    .typeError('Organization ID must be a number')
+    .required('Organization ID is required')
+    .positive('Organization ID must be a positive number')
+});
+
+
+
+/**
+ * Validate Checkmate verify request with Yup
+ * Returns ValidationResult with either validated data or errors
+ * Note: Controller should add "verified: false" to error response
+ */
+export const validateCheckmateVerifyRequest = async (
+  data: unknown
+): Promise<ValidationResult<yup.InferType<typeof checkmateConfigFieldsSchema>>> => {
+  return validateWithYup(checkmateConfigFieldsSchema, data);
+};
+
+/**
+ * Validate Checkmate config with Yup (for CREATE operations)
+ * Returns ValidationResult with either validated data or errors
+ */
+export const validateCheckmateConfig = async (
+  config: unknown
+): Promise<ValidationResult<yup.InferType<typeof checkmateConfigFieldsSchema>>> => {
+  return validateWithYup(checkmateConfigFieldsSchema, config);
+};
+
+/**
+ * Yup schema for Checkmate UPDATE (all fields optional but validated if present)
+ */
+const checkmateUpdateConfigSchema = yup.object({
+  baseUrl: yup
+    .string()
+    .trim()
+    .optional()
+    .min(1, 'Base URL cannot be empty if provided')
+    .url('Base URL must be a valid URL (e.g., https://checkmate.example.com)'),
+  authToken: yup
+    .string()
+    .trim()
+    .optional()
+    .min(1, 'Auth Token cannot be empty if provided'),
+  orgId: yup
+    .number()
+    .typeError('Organization ID must be a number')
+    .optional()
+    .positive('Organization ID must be a positive number')
+    .integer('Organization ID must be an integer')
+});
+
+/**
+ * Validate Checkmate config with Yup (for UPDATE operations)
+ * Validates only fields that are present (partial update)
+ * Returns ValidationResult with either validated data or errors
+ */
+export const validateCheckmateUpdateConfig = async (
+  config: unknown
+): Promise<ValidationResult<yup.InferType<typeof checkmateUpdateConfigSchema>>> => {
+  return validateWithYup(checkmateUpdateConfigSchema, config);
+};
+
+/**
+ * Unified validation for VERIFY operation
+ * Currently only CHECKMATE is implemented with Yup validation
+ * Returns ValidationResult or passes through for non-Checkmate providers
+ * TODO: Implement Yup validation for TESTRAIL and other providers
+ */
+export const validateVerifyRequest = async (
+  body: any,
+  providerType: TestManagementProviderType
+): Promise<ValidationResult<any> | { success: true; data: any }> => {
+  // CHECKMATE: Use Yup validation
+  if (providerType === TestManagementProviderType.CHECKMATE) {
+    const validationResult = await validateCheckmateVerifyRequest(body.config);
+    if (!validationResult.success) {
+      return validationResult;
+    }
+    return { success: true, data: { config: validationResult.data } };
+  }
+
+  // OTHER PROVIDERS (TESTRAIL, etc.): Not implemented yet, just pass through
+  // When implementing, create Yup schemas similar to Checkmate
+  const { config } = body;
+  return { success: true, data: { config } };
+};

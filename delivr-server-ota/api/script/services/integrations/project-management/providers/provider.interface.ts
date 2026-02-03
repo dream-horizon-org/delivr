@@ -36,6 +36,24 @@ export type TicketStatusResult = {
 };
 
 /**
+ * Additional details for validation errors
+ */
+export type ValidationResultDetails = {
+  errorCode?: string;
+  message?: string;
+  [key: string]: unknown;
+};
+
+/**
+ * Validation result with detailed error information
+ */
+export type ValidationResult = {
+  isValid: boolean;
+  message: string;
+  details?: ValidationResultDetails;
+};
+
+/**
  * Main provider interface
  * All project management providers must implement this
  */
@@ -44,8 +62,11 @@ export interface IProjectManagementProvider {
 
   /**
    * Validate provider configuration (credentials, connectivity)
+   * Returns ValidationResult with detailed error information
    */
-  validateConfig(config: ProjectManagementIntegrationConfig): Promise<boolean>;
+  validateConfig(
+    config: ProjectManagementIntegrationConfig
+  ): Promise<ValidationResult>;
 
   /**
    * Create a new ticket/issue

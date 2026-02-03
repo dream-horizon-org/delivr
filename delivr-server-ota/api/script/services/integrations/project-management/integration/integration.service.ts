@@ -31,12 +31,14 @@ export class ProjectManagementIntegrationService {
   ): Promise<ProjectManagementIntegration> {
     // Validate credentials before saving
     const provider = ProviderFactory.getProvider(data.providerType);
-    const isValidConfig = await provider.validateConfig(data.config);
+    const validationResult = await provider.validateConfig(data.config);
     
-    if (!isValidConfig) {
-      throw new Error(
-        `${PROJECT_MANAGEMENT_ERROR_MESSAGES.INVALID_CONFIG}: Failed to connect to ${data.providerType}. Please check your credentials (baseUrl, apiToken, email) and try again.`
-      );
+    if (!validationResult.isValid) {
+      const error = new Error(validationResult.message) as Error & { 
+        details?: { errorCode?: string; message?: string; [key: string]: unknown };
+      };
+      error.details = validationResult.details;
+      throw error;
     }
     
     // Create integration with VALID status since we validated before creating
@@ -84,12 +86,14 @@ export class ProjectManagementIntegrationService {
       // ALWAYS validate the merged config when config is being updated
       // This ensures users can't save broken credentials (wrong baseUrl, email, token, etc.)
       const provider = ProviderFactory.getProvider(integration.providerType);
-      const isValidConfig = await provider.validateConfig(mergedConfig);
+      const validationResult = await provider.validateConfig(mergedConfig);
 
-      if (!isValidConfig) {
-        throw new Error(
-          `${PROJECT_MANAGEMENT_ERROR_MESSAGES.INVALID_CONFIG}: Failed to connect to ${integration.providerType}. Please check your credentials and try again.`
-        );
+      if (!validationResult.isValid) {
+        const error = new Error(validationResult.message) as Error & { 
+          details?: { errorCode?: string; message?: string; [key: string]: unknown };
+        };
+        error.details = validationResult.details;
+        throw error;
       }
     }
 
@@ -122,21 +126,20 @@ export class ProjectManagementIntegrationService {
 
     try {
       const provider = ProviderFactory.getProvider(integration.providerType);
-      const isValid = await provider.validateConfig(integration.config);
+      const validationResult = await provider.validateConfig(integration.config);
 
-      const status = isValid ? VerificationStatus.VALID : VerificationStatus.INVALID;
+      const status = validationResult.isValid ? VerificationStatus.VALID : VerificationStatus.INVALID;
 
       // Update verification status in DB
       await this.repository.updateVerificationStatus(integrationId, status);
 
       return {
-        success: isValid,
+        success: validationResult.isValid,
         status,
-        message: isValid
-          ? 'Integration verified successfully'
-          : 'Failed to verify integration'
+        message: validationResult.message,
+        ...(validationResult.details && { details: validationResult.details })
       };
-    } catch (error) {
+    } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error occurred';
 
