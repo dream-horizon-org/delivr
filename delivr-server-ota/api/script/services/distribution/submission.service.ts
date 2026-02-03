@@ -3027,7 +3027,7 @@ export class SubmissionService {
     validateIntegrationStatus(integration);
 
     // Step 5: Create Google service (decrypts credentials, generates access token)
-    let googleService: GooglePlayStoreService;
+    let googleService: GooglePlayStoreService | MockGooglePlayStoreService;
     try {
       googleService = await createGoogleServiceFromIntegration(integration.id);
     } catch (error) {
@@ -3236,7 +3236,7 @@ export class SubmissionService {
     validateIntegrationStatus(integration);
 
     // Step 5: Create Google service (decrypts credentials, generates access token)
-    let googleService: GooglePlayStoreService;
+    let googleService: GooglePlayStoreService | MockGooglePlayStoreService;
     try {
       googleService = await createGoogleServiceFromIntegration(integration.id);
     } catch (error) {
@@ -3777,7 +3777,7 @@ export class SubmissionService {
   validateIntegrationStatus(integration);
 
   // Step 3: Create Google service (decrypts credentials, generates access token)
-  let googleService: GooglePlayStoreService;
+  let googleService: GooglePlayStoreService | MockGooglePlayStoreService;
   try {
     googleService = await createGoogleServiceFromIntegration(integration.id);
   } catch (error) {
