@@ -26,6 +26,7 @@ import {
   hasTestFlightBuildVerificationService,
   StorageWithReleaseServices
 } from '../../types/release/storage-with-services.interface';
+import { EntityType } from '../../models/activity-log/activity-log.interface';
 
 /**
  * Verify TestFlight Build and Stage for Task Consumption
@@ -176,22 +177,26 @@ export const verifyTestFlightBuild = async (req: Request, res: Response): Promis
 
     // Log activity for TestFlight verification
     const accountId = (req as any).user?.id;
-    if (accountId && storageWithServices.releaseActivityLogService) {
+    if (accountId && storageWithServices.unifiedActivityLogService) {
       try {
-        await storageWithServices.releaseActivityLogService.registerActivityLogs(
-          releaseId,
-          accountId,
-          new Date(),
-          'TESTFLIGHT_BUILD_VERIFIED',
-          null, // No previous value for verification
-          {
-            uploadId: upload.id,
-            platform,
-            stage: uploadStage,
-            testflightNumber: testflightBuildNumber,
-            version: verificationResult.data?.version
-          }
-        );
+        const release = await storageWithServices.releaseRetrievalService.getReleaseById(releaseId);
+        if (release) {
+          await storageWithServices.unifiedActivityLogService.registerActivityLog({
+            entityType: EntityType.RELEASE,
+            entityId: releaseId,
+            tenantId: release.tenantId,
+            updatedBy: accountId,
+            type: 'TESTFLIGHT_BUILD_VERIFIED',
+            previousValue: null,
+            newValue: {
+              uploadId: upload.id,
+              platform,
+              stage: uploadStage,
+              testflightNumber: testflightBuildNumber,
+              version: verificationResult.data?.version
+            }
+          });
+        }
       } catch (logError) {
         console.error(`[TestFlight Verification] Failed to log activity:`, logError);
         // Don't fail the verification if activity logging fails

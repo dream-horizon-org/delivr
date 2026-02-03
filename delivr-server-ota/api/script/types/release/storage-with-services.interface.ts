@@ -10,7 +10,7 @@ import type { ReleaseCreationService } from '../../services/release/release-crea
 import type { ReleaseRetrievalService } from '../../services/release/release-retrieval.service';
 import type { ReleaseStatusService } from '../../services/release/release-status.service';
 import type { ReleaseUpdateService } from '../../services/release/release-update.service';
-import type { ReleaseActivityLogService } from '../../services/release/release-activity-log.service';
+import type { UnifiedActivityLogService } from '../../services/activity-log';
 import type { ReleaseNotificationService } from '../../services/release-notification/release-notification.service';
 import type { BuildArtifactService } from '../../services/release/build/build-artifact.service';
 import type { BuildNotificationService } from '../../services/release/build/build-notification.service';
@@ -43,7 +43,7 @@ export type StorageWithReleaseServices = storageTypes.Storage & {
   releaseRetrievalService: ReleaseRetrievalService;
   releaseStatusService: ReleaseStatusService;
   releaseUpdateService: ReleaseUpdateService;
-  releaseActivityLogService: ReleaseActivityLogService;
+  unifiedActivityLogService: UnifiedActivityLogService;  // Unified activity log service for all entities
   releaseNotificationService: ReleaseNotificationService;
   buildArtifactService: BuildArtifactService;
   buildNotificationService: BuildNotificationService;

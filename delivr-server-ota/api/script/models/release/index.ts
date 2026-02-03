@@ -25,9 +25,6 @@ export type { PlatformAttributes, PlatformModelType } from './platform.sequelize
 export { createTargetModel } from './target.sequelize.model';
 export type { TargetAttributes, TargetModelType } from './target.sequelize.model';
 
-export { createActivityLogModel } from './activity-log.sequelize.model';
-export type { ActivityLogAttributes, ActivityLogModelType } from './activity-log.sequelize.model';
-
 export { createBuildModel } from './build.sequelize.model';
 export type { BuildAttributes, BuildModelType } from './build.sequelize.model';
 
@@ -49,7 +46,6 @@ export { StateHistoryRepository } from './state-history.repository';
 export { ReleasePlatformTargetMappingRepository } from './release-platform-target-mapping.repository';
 export { PlatformRepository } from './platform.repository';
 export { TargetRepository } from './target.repository';
-export { ActivityLogRepository } from './activity-log.repository';
 export { RegressionCycleRepository } from './regression-cycle.repository';
 export { BuildRepository } from './build.repository';
 export type { Build, CreateBuildDto, UpdateBuildDto } from './build.repository';
@@ -79,7 +75,5 @@ export type {
   CreateReleaseTaskDto,
   UpdateReleaseTaskDto,
   StateHistory,
-  CreateStateHistoryDto,
-  ActivityLog,
-  CreateActivityLogDto
+  CreateStateHistoryDto
 } from './release.interface';

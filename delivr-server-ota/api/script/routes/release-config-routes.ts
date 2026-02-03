@@ -5,7 +5,8 @@
 
 import { Router } from 'express';
 import { createReleaseConfigController } from '~controllers/release-configs';
-import type { ReleaseConfigService, ReleaseConfigActivityLogService } from '~services/release-configs';
+import type { ReleaseConfigService } from '~services/release-configs';
+import type { UnifiedActivityLogService } from '~services/activity-log';
 import * as tenantPermissions from '../middleware/tenant-permissions';
 import { Storage } from '../storage/storage';
 
@@ -14,11 +15,11 @@ import { Storage } from '../storage/storage';
  */
 export const createReleaseConfigRoutes = (
   service: ReleaseConfigService,
-  activityLogService: ReleaseConfigActivityLogService,
-  storage: Storage
+  storage: Storage,
+  unifiedActivityLogService: UnifiedActivityLogService
 ): Router => {
   const router = Router();
-  const controller = createReleaseConfigController(service, activityLogService);
+  const controller = createReleaseConfigController(service, unifiedActivityLogService);
 
   // Create release config
   router.post(

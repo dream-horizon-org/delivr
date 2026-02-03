@@ -174,8 +174,8 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     const s3Storage = storage;
     const releaseConfigRoutes = createReleaseConfigRoutes(
       s3Storage.releaseConfigService,
-      s3Storage.releaseConfigActivityLogService,
-      storage
+      storage,
+      s3Storage.unifiedActivityLogService
     );
     router.use(releaseConfigRoutes);
     console.log('[Release Management] Release Config routes mounted successfully');

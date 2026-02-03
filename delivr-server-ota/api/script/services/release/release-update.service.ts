@@ -8,7 +8,8 @@ import { CronJobRepository } from '../../models/release/cron-job.repository';
 import { ReleaseTaskRepository } from '../../models/release/release-task.repository';
 import { BuildRepository } from '../../models/release/build.repository';
 import { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
-import { ReleaseActivityLogService } from './release-activity-log.service';
+import { UnifiedActivityLogService } from '../activity-log';
+import { EntityType } from '~models/activity-log/activity-log.interface';
 import { RegressionCycleRepository } from '../../models/release/regression-cycle.repository';
 import { UpdateReleaseRequestBody } from '../../types/release/release.interface';
 import { 
@@ -76,7 +77,7 @@ export class ReleaseUpdateService {
     private readonly releaseRepository: ReleaseRepository,
     private readonly cronJobRepository: CronJobRepository,
     private readonly platformMappingRepository: ReleasePlatformTargetMappingRepository,
-    private readonly activityLogService: ReleaseActivityLogService,
+    private readonly unifiedActivityLogService: UnifiedActivityLogService,
     private readonly cronJobService: CronJobService,
     private readonly taskRepository: ReleaseTaskRepository,  // ✅ Required - actively initialized in aws-storage.ts
     private readonly buildRepository: BuildRepository,  // ✅ Required - actively initialized in aws-storage.ts
@@ -84,6 +85,31 @@ export class ReleaseUpdateService {
     private readonly releaseConfigService: ReleaseConfigService,  // ✅ Required for pre-regression workflow validation
     private readonly releaseNotificationService?: ReleaseNotificationService  // Can be undefined if notifications not configured
   ) {}
+
+  /**
+   * Helper method to log activity using unified service
+   */
+  private async logActivity(
+    releaseId: string,
+    accountId: string,
+    type: string,
+    previousValue: Record<string, any> | null,
+    newValue: Record<string, any> | null
+  ): Promise<void> {
+    // Get release to get tenantId
+    const release = await this.releaseRepository.findById(releaseId);
+    if (release) {
+      await this.unifiedActivityLogService.registerActivityLog({
+        entityType: EntityType.RELEASE,
+        entityId: releaseId,
+        tenantId: release.tenantId,
+        updatedBy: accountId,
+        type,
+        previousValue,
+        newValue
+      });
+    }
+  }
 
   // Repository getters for manual upload flow
   // ✅ Repositories are required - actively initialized in aws-storage.ts, no null checks needed
@@ -224,10 +250,9 @@ export class ReleaseUpdateService {
       };
       
       // Log activity
-      await this.activityLogService.registerActivityLogs(
+      await this.logActivity(
         releaseId,
         accountId,
-        now,
         'RELEASE',
         previousReleaseValues,
         newReleaseValues
@@ -355,10 +380,9 @@ export class ReleaseUpdateService {
       
       // Log changes only if actually changed (ADDED if oldMapping is null, UPDATED if exists)
       if (hasChanged) {
-        await this.activityLogService.registerActivityLogs(
+        await this.logActivity(
           releaseId,
           accountId,
-          now,
           'PLATFORM_TARGET',
           oldComparable,
           newComparable
@@ -375,10 +399,9 @@ export class ReleaseUpdateService {
         await this.platformMappingRepository.delete(oldMapping.id);
         
         // Log deletion with only comparable fields
-        await this.activityLogService.registerActivityLogs(
+        await this.logActivity(
           releaseId,
           accountId,
-          now,
           'PLATFORM_TARGET',
           extractComparableFields(oldMapping),
           null         // null = DELETED
@@ -451,10 +474,9 @@ export class ReleaseUpdateService {
       
       // Only log if values actually changed
       if (hasChanged) {
-        await this.activityLogService.registerActivityLogs(
+        await this.logActivity(
           releaseId,
           accountId,
-          now,
           'CRONCONFIG',
           oldCronConfig ?? null,
           mergedCronConfig
@@ -499,10 +521,9 @@ export class ReleaseUpdateService {
         if (hasChanged) {
           // Log: UPDATED (both exist), ADDED (only new), DELETED (only old)
           console.log(`[ReleaseUpdateService] Regression updated: ${oldJson} → ${newJson}`);
-          await this.activityLogService.registerActivityLogs(
+          await this.logActivity(
             releaseId,
             accountId,
-            now,
             'REGRESSION',
             oldRegression,
             newRegression
@@ -745,28 +766,25 @@ export class ReleaseUpdateService {
     );
 
     // Register activity log for task retry
-    if (this.activityLogService) {
-      try {
-        await this.activityLogService.registerActivityLogs(
-          task.releaseId,
-          accountId,
-          new Date(),
-          'TASK_RETRIED',
-          {
-            taskId,
-            taskType: task.taskType,
-            taskStatus: previousStatus
-          },
-          {
-            taskId,
-            taskType: task.taskType,
-            taskStatus: TaskStatus.PENDING
-          }
-        );
-      } catch (error) {
-        console.error(`[ReleaseUpdateService] Failed to log task retry activity:`, error);
-        // Don't fail the retry if activity logging fails
-      }
+    try {
+      await this.logActivity(
+        task.releaseId,
+        accountId,
+        'TASK_RETRIED',
+        {
+          taskId,
+          taskType: task.taskType,
+          taskStatus: previousStatus
+        },
+        {
+          taskId,
+          taskType: task.taskType,
+          taskStatus: TaskStatus.PENDING
+        }
+      );
+    } catch (error) {
+      console.error(`[ReleaseUpdateService] Failed to log task retry activity:`, error);
+      // Don't fail the retry if activity logging fails
     }
 
     return {

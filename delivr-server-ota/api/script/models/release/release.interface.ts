@@ -438,24 +438,3 @@ export interface RegressionSlot {
   config: RegressionSlotConfig;
 }
 
-// --- Activity Log ---
-
-export interface ActivityLog {
-  id: string;
-  releaseId: string;
-  type: string;
-  previousValue: any; // JSON object
-  newValue: any; // JSON object
-  updatedAt: Date;
-  updatedBy: string; // Account ID of user who made the change
-  updatedByAccount?: AccountDetails | null; // Populated account details (similar to releasePilot)
-}
-
-export interface CreateActivityLogDto {
-  id: string;
-  releaseId: string;
-  type: string;
-  previousValue?: any | null;
-  newValue?: any | null;
-  updatedBy: string;
-}

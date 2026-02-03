@@ -41,7 +41,6 @@ const upload = multer({
     fileSize: 500 * 1024 * 1024 // 500MB limit
   }
 });
-import type { ReleaseActivityLogService } from "../../services/release/release-activity-log.service";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
@@ -96,7 +95,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     storageWithServices.releaseRetrievalService,
     storageWithServices.releaseStatusService,
     storageWithServices.releaseUpdateService,
-    storageWithServices.releaseActivityLogService,
+    storageWithServices.unifiedActivityLogService,  // Use unified service only
     cronJobService,
     manualUploadService  // ✅ Always provided - actively initialized
   );
@@ -475,7 +474,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     (storage as any).commConfigService &&
     (storage as any).messagingService &&
     (storage as any).releaseNotificationRepository &&
-    storageWithServices.releaseActivityLogService &&
+    storageWithServices.unifiedActivityLogService &&
     storageWithServices.releaseStatusService &&
     storageWithServices.releaseTaskRepository
   ) {
@@ -489,7 +488,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
       (storage as any).commConfigService,
       (storage as any).messagingService,
       (storage as any).releaseNotificationRepository,
-      storageWithServices.releaseActivityLogService,
+      storageWithServices.unifiedActivityLogService,
       storageWithServices.releaseStatusService,
       storageWithServices.releaseTaskRepository,
       (storage as any).projectManagementTicketService,

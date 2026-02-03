@@ -29,7 +29,8 @@ import { validateReleaseCreation, validatePreRegressionWorkflows } from './relea
 import { createStage1Tasks } from '../../utils/task-creation';
 import { checkIntegrationAvailability } from '../../utils/integration-availability.utils';
 import type { CronJobService } from './cron-job/cron-job.service';
-import { ReleaseActivityLogService } from './release-activity-log.service';
+import { UnifiedActivityLogService } from '../activity-log';
+import { EntityType } from '~models/activity-log/activity-log.interface';
 
 export class ReleaseCreationService {
   private cronJobService: CronJobService | null = null;
@@ -43,7 +44,7 @@ export class ReleaseCreationService {
     private readonly storage: storageTypes.Storage,
     private readonly releaseConfigService: ReleaseConfigService,
     private readonly releaseVersionService: ReleaseVersionService,
-    private readonly activityLogService: ReleaseActivityLogService
+    private readonly unifiedActivityLogService: UnifiedActivityLogService
   ) {}
 
   /**
@@ -144,13 +145,15 @@ export class ReleaseCreationService {
     });
 
     // Log release creation activity
-    await this.activityLogService.registerActivityLogs(
-      id,
-      payload.accountId,
-      new Date(),
-      'RELEASE_CREATED',
-      null, // No previous value for creation
-      {
+    // Register release creation activity log
+    await this.unifiedActivityLogService.registerActivityLog({
+      entityType: EntityType.RELEASE,
+      entityId: id,
+      tenantId: payload.tenantId,
+      updatedBy: payload.accountId,
+      type: 'RELEASE_CREATED',
+      previousValue: null,
+      newValue: {
         releaseId,
         type: payload.type,
         branch: payload.branch,
@@ -159,7 +162,7 @@ export class ReleaseCreationService {
         targetReleaseDate: payload.targetReleaseDate,
         releasePilotAccountId: payload.releasePilotAccountId?.trim() || payload.accountId
       }
-    );
+    });
 
     // Step 6: Link platform-target combinations to release
     await this.linkPlatformTargetsToRelease(id, payload.platformTargets);

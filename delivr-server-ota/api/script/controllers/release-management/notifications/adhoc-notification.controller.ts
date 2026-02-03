@@ -4,7 +4,8 @@ import type { ReleaseConfigService } from '~services/release-configs';
 import type { CommConfigService } from '~services/integrations/comm/comm-config';
 import type { MessagingService } from '~services/integrations/comm/messaging/messaging.service';
 import type { ReleaseNotificationRepository } from '~models/release-notification';
-import type { ReleaseActivityLogService } from '~services/release/release-activity-log.service';
+import type { UnifiedActivityLogService } from '~services/activity-log';
+import { EntityType } from '~models/activity-log/activity-log.interface';
 import type { ReleaseStatusService } from '~services/release/release-status.service';
 import type { ReleaseTaskRepository } from '~models/release';
 import type { ProjectManagementTicketService } from '~services/integrations/project-management';
@@ -40,7 +41,7 @@ export class AdHocNotificationController {
     private readonly commConfigService: CommConfigService,
     private readonly messagingService: MessagingService,
     private readonly notificationRepository: ReleaseNotificationRepository,
-    private readonly activityLogService: ReleaseActivityLogService,
+    private readonly unifiedActivityLogService: UnifiedActivityLogService,
     private readonly releaseStatusService: ReleaseStatusService,
     private readonly releaseTaskRepository: ReleaseTaskRepository,
     private readonly pmTicketService: ProjectManagementTicketService,
@@ -216,20 +217,21 @@ export class AdHocNotificationController {
 
       // Step 8: Log activity
       if (userId) {
-        await this.activityLogService.registerActivityLogs(
-          releaseId,
-          userId,
-          new Date(),
-          ADHOC_NOTIFICATION_ACTIVITY_LOG_TYPE,
-          null,
-          {
+        await this.unifiedActivityLogService.registerActivityLog({
+          entityType: EntityType.RELEASE,
+          entityId: releaseId,
+          tenantId: release.tenantId,
+          updatedBy: userId,
+          type: ADHOC_NOTIFICATION_ACTIVITY_LOG_TYPE,
+          previousValue: null,
+          newValue: {
             notificationId: notification.id,
             type: 'custom',
             message: trimmedMessage,
             channels: channelNames,
             channelIds: channelIds
           }
-        );
+        });
       }
 
       // Step 9: Build response
@@ -435,13 +437,14 @@ export class AdHocNotificationController {
 
       // Log activity
       if (userId) {
-        await this.activityLogService.registerActivityLogs(
-          releaseId,
-          userId,
-          new Date(),
-          ADHOC_NOTIFICATION_ACTIVITY_LOG_TYPE,
-          null,
-          {
+        await this.unifiedActivityLogService.registerActivityLog({
+          entityType: EntityType.RELEASE,
+          entityId: releaseId,
+          tenantId: release.tenantId,
+          updatedBy: userId,
+          type: ADHOC_NOTIFICATION_ACTIVITY_LOG_TYPE,
+          previousValue: null,
+          newValue: {
             notificationId: notification.id,
             type: 'template',
             messageType: 'test-results-summary',
@@ -449,7 +452,7 @@ export class AdHocNotificationController {
             channels: channels.map(ch => ch.name),
             channelIds: channels.map(ch => ch.id)
           }
-        );
+        });
       }
 
       const channelNames = channels.map(ch => `#${ch.name}`);
@@ -535,13 +538,14 @@ export class AdHocNotificationController {
 
     // Log activity
     if (userId) {
-      await this.activityLogService.registerActivityLogs(
-        releaseId,
-        userId,
-        new Date(),
-        ADHOC_NOTIFICATION_ACTIVITY_LOG_TYPE,
-        null,
-        {
+      await this.unifiedActivityLogService.registerActivityLog({
+        entityType: EntityType.RELEASE,
+        entityId: releaseId,
+        tenantId: release.tenantId,
+        updatedBy: userId,
+        type: ADHOC_NOTIFICATION_ACTIVITY_LOG_TYPE,
+        previousValue: null,
+        newValue: {
           notificationId: notification.id,
           type: 'template',
           messageType: 'test-results-summary',
@@ -549,7 +553,7 @@ export class AdHocNotificationController {
           channels: channels.map(ch => ch.name),
           channelIds: channelIds
         }
-      );
+      });
     }
 
     const channelNames = channels.map(ch => `#${ch.name}`);
@@ -785,13 +789,14 @@ export class AdHocNotificationController {
 
       // Step 8: Log activity
       if (userId) {
-        await this.activityLogService.registerActivityLogs(
-          releaseId,
-          userId,
-          new Date(),
-          ADHOC_NOTIFICATION_ACTIVITY_LOG_TYPE,
-          null,
-          {
+        await this.unifiedActivityLogService.registerActivityLog({
+          entityType: EntityType.RELEASE,
+          entityId: releaseId,
+          tenantId: release.tenantId,
+          updatedBy: userId,
+          type: ADHOC_NOTIFICATION_ACTIVITY_LOG_TYPE,
+          previousValue: null,
+          newValue: {
             notificationId: notification.id,
             type: 'template',
             messageType: 'manual-build-upload-reminder',
@@ -799,7 +804,7 @@ export class AdHocNotificationController {
             channels: channels.map(ch => ch.name),
             channelIds: channelIds
           }
-        );
+        });
       }
 
       // Step 9: Build response
@@ -962,13 +967,14 @@ export class AdHocNotificationController {
 
       // Step 9: Log activity
       if (userId) {
-        await this.activityLogService.registerActivityLogs(
-          releaseId,
-          userId,
-          new Date(),
-          ADHOC_NOTIFICATION_ACTIVITY_LOG_TYPE,
-          null,
-          {
+        await this.unifiedActivityLogService.registerActivityLog({
+          entityType: EntityType.RELEASE,
+          entityId: releaseId,
+          tenantId: release.tenantId,
+          updatedBy: userId,
+          type: ADHOC_NOTIFICATION_ACTIVITY_LOG_TYPE,
+          previousValue: null,
+          newValue: {
             notificationId: notification.id,
             type: 'template',
             messageType: 'project-management-approval',
@@ -976,7 +982,7 @@ export class AdHocNotificationController {
             channelIds: channels.map(ch => ch.id),
             ticketsCount: links.length
           }
-        );
+        });
       }
 
       // Step 10: Build response
@@ -1013,7 +1019,7 @@ export function createAdHocNotificationController(
   commConfigService: CommConfigService,
   messagingService: MessagingService,
   notificationRepository: ReleaseNotificationRepository,
-  activityLogService: ReleaseActivityLogService,
+  unifiedActivityLogService: UnifiedActivityLogService,
   releaseStatusService: ReleaseStatusService,
   releaseTaskRepository: ReleaseTaskRepository,
   pmTicketService: ProjectManagementTicketService,
@@ -1025,7 +1031,7 @@ export function createAdHocNotificationController(
     commConfigService,
     messagingService,
     notificationRepository,
-    activityLogService,
+    unifiedActivityLogService,
     releaseStatusService,
     releaseTaskRepository,
     pmTicketService,

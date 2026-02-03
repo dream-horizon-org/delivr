@@ -36,7 +36,8 @@ import {
 import { createScopedLogger } from '~utils/logger.utils';
 const log = createScopedLogger('CronJobService');
 import type { ReleaseStatusService } from '../release-status.service';
-import type { ReleaseActivityLogService } from '../release-activity-log.service';
+import type { UnifiedActivityLogService } from '../../activity-log';
+import { EntityType } from '~models/activity-log/activity-log.interface';
 import type { DistributionService } from '../../distribution/distribution.service';
 
 export class CronJobService {
@@ -51,7 +52,7 @@ export class CronJobService {
     private readonly storage: Storage,
     private readonly releaseUploadsRepo: ReleaseUploadsRepository,  // ✅ Required - actively initialized in aws-storage.ts
     private readonly cronicleService: CronicleService | null,  // ✅ Can be null if Cronicle not configured, but actively initialized
-    private readonly activityLogService: ReleaseActivityLogService,  // ✅ Required - actively initialized in aws-storage.ts
+    private readonly unifiedActivityLogService: UnifiedActivityLogService,  // ✅ Required - unified activity log service
     private readonly distributionService: DistributionService  // ✅ Required - actively initialized in aws-storage.ts
   ) {}
 
@@ -307,19 +308,21 @@ export class CronJobService {
     console.log(`[CronJobService] Stage 3 triggered for release ${releaseId} (approved by: ${approvedBy})`);
 
     // Register activity log (use approvedBy as updatedBy)
-    if (this.activityLogService) {
-      try {
-        await this.activityLogService.registerActivityLogs(
-          releaseId,
-          approvedBy,
-          new Date(),
-          'REGRESSION_STAGE_APPROVAL',
-          { currentActiveStage: 'REGRESSION' },
-          { currentActiveStage: 'PRE_RELEASE' }
-        );
-      } catch (error) {
-        console.error(`[CronJobService] Failed to log stage 3 approval activity:`, error);
+    try {
+      const release = await this.releaseRepo.findById(releaseId);
+      if (release) {
+        await this.unifiedActivityLogService.registerActivityLog({
+          entityType: EntityType.RELEASE,
+          entityId: releaseId,
+          tenantId: release.tenantId,
+          updatedBy: approvedBy,
+          type: 'REGRESSION_STAGE_APPROVAL',
+          previousValue: { currentActiveStage: 'REGRESSION' },
+          newValue: { currentActiveStage: 'PRE_RELEASE' }
+        });
       }
+    } catch (error) {
+      console.error(`[CronJobService] Failed to log stage 3 approval activity:`, error);
     }
 
     return {
@@ -407,19 +410,21 @@ export class CronJobService {
     log.info('Stage 4 triggered for release', { releaseId, approvedBy });
 
     // Register activity log for pre-release stage approval
-    if (this.activityLogService) {
-      try {
-        await this.activityLogService.registerActivityLogs(
-          releaseId,
-          approvedBy,
-          new Date(),
-          'PRE_RELEASE_STAGE_APPROVAL',
-          { currentActiveStage: 'PRE_RELEASE' },
-          { currentActiveStage: 'DISTRIBUTION' }
-        );
-      } catch (error) {
-        console.error(`[CronJobService] Failed to log stage 4 approval activity:`, error);
+    try {
+      const release = await this.releaseRepo.findById(releaseId);
+      if (release) {
+        await this.unifiedActivityLogService.registerActivityLog({
+          entityType: EntityType.RELEASE,
+          entityId: releaseId,
+          tenantId: release.tenantId,
+          updatedBy: approvedBy,
+          type: 'PRE_RELEASE_STAGE_APPROVAL',
+          previousValue: { currentActiveStage: 'PRE_RELEASE' },
+          newValue: { currentActiveStage: 'DISTRIBUTION' }
+        });
       }
+    } catch (error) {
+      console.error(`[CronJobService] Failed to log stage 4 approval activity:`, error);
     }
 
     // Create distribution from release after cron is marked complete
@@ -506,19 +511,21 @@ export class CronJobService {
     log.info('Release archived successfully', { releaseId });
 
     // Register activity log
-    if (this.activityLogService) {
-      try {
-        await this.activityLogService.registerActivityLogs(
-          releaseId,
-          accountId,
-          new Date(),
-          'RELEASE_ARCHIVED',
-          { status: previousStatus },
-          { status: 'ARCHIVED' }
-        );
-      } catch (error) {
-        console.error(`[CronJobService] Failed to log archive activity:`, error);
+    try {
+      const release = await this.releaseRepo.findById(releaseId);
+      if (release) {
+        await this.unifiedActivityLogService.registerActivityLog({
+          entityType: EntityType.RELEASE,
+          entityId: releaseId,
+          tenantId: release.tenantId,
+          updatedBy: accountId,
+          type: 'RELEASE_ARCHIVED',
+          previousValue: { status: previousStatus },
+          newValue: { status: 'ARCHIVED' }
+        });
       }
+    } catch (error) {
+      console.error(`[CronJobService] Failed to log archive activity:`, error);
     }
 
     // Get and update cron job (if exists)
@@ -727,19 +734,21 @@ export class CronJobService {
     console.log(`[CronJobService] Release ${releaseId} paused by user (pauseType = USER_REQUESTED)`);
 
     // Register activity log
-    if (this.activityLogService) {
-      try {
-        await this.activityLogService.registerActivityLogs(
-          releaseId,
-          accountId,
-          new Date(),
-          'PAUSE_RELEASE',
-          { pauseType: oldPauseType },
-          { pauseType: PauseType.USER_REQUESTED }
-        );
-      } catch (error) {
-        console.error(`[CronJobService] Failed to log pause activity:`, error);
+    try {
+      const release = await this.releaseRepo.findById(releaseId);
+      if (release) {
+        await this.unifiedActivityLogService.registerActivityLog({
+          entityType: EntityType.RELEASE,
+          entityId: releaseId,
+          tenantId: release.tenantId,
+          updatedBy: accountId,
+          type: 'PAUSE_RELEASE',
+          previousValue: { pauseType: oldPauseType },
+          newValue: { pauseType: PauseType.USER_REQUESTED }
+        });
       }
+    } catch (error) {
+      console.error(`[CronJobService] Failed to log pause activity:`, error);
     }
 
     return {
@@ -843,19 +852,21 @@ export class CronJobService {
     console.log(`[CronJobService] Release ${releaseId} resumed (pauseType = NONE)`);
 
     // Register activity log
-    if (this.activityLogService) {
-      try {
-        await this.activityLogService.registerActivityLogs(
-          releaseId,
-          accountId,
-          new Date(),
-          'RESUME_RELEASE',
-          { pauseType: oldPauseType },
-          { pauseType: PauseType.NONE }
-        );
-      } catch (error) {
-        console.error(`[CronJobService] Failed to log resume activity:`, error);
+    try {
+      const release = await this.releaseRepo.findById(releaseId);
+      if (release) {
+        await this.unifiedActivityLogService.registerActivityLog({
+          entityType: EntityType.RELEASE,
+          entityId: releaseId,
+          tenantId: release.tenantId,
+          updatedBy: accountId,
+          type: 'RESUME_RELEASE',
+          previousValue: { pauseType: oldPauseType },
+          newValue: { pauseType: PauseType.NONE }
+        });
       }
+    } catch (error) {
+      console.error(`[CronJobService] Failed to log resume activity:`, error);
     }
 
     return {

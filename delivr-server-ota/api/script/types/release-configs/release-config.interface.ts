@@ -316,29 +316,5 @@ export type ServiceResult<T> = {
 // ACTIVITY LOG TYPES
 // ============================================================================
 
-/**
- * Release Config Activity Log
- */
-export interface ReleaseConfigActivityLog {
-  id: string;
-  releaseConfigId: string;
-  type: string;
-  previousValue: any; // JSON object
-  newValue: any; // JSON object
-  updatedAt: Date;
-  updatedBy: string;
-}
-
-/**
- * DTO for creating release config activity log
- */
-export interface CreateReleaseConfigActivityLogDto {
-  id: string;
-  releaseConfigId: string;
-  type: string;
-  previousValue?: any | null;
-  newValue?: any | null;
-  updatedBy: string;
-}
 
 

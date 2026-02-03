@@ -4,7 +4,7 @@
  */
 
 import * as shortid from 'shortid';
-import { ReleaseConfigRepository, ReleaseConfigActivityLogRepository } from '~models/release-configs';
+import { ReleaseConfigRepository } from '~models/release-configs';
 import type { ReleaseRetrievalService } from '~services/release/release-retrieval.service';
 import type {
   CreateReleaseConfigDto,
@@ -31,7 +31,8 @@ import type { CreateTestManagementConfigDto } from '~types/integrations/test-man
 import type { CICDConfigService } from '../integrations/ci-cd/config/config.service';
 import type { CommConfigService } from '../integrations/comm/comm-config/comm-config.service';
 import type { ProjectManagementConfigService } from '~services/integrations/project-management/configuration';
-import type { ReleaseConfigActivityLogService } from './release-config-activity-log.service';
+import type { UnifiedActivityLogService } from '../activity-log';
+import { EntityType } from '~models/activity-log/activity-log.interface';
 import type { ReleaseScheduleService } from '~services/release-schedules';
 import type { StoreIntegrationController } from '~storage/integrations/store/store-controller';
 import { StoreType, IntegrationStatus } from '~storage/integrations/store/store-types';
@@ -48,13 +49,12 @@ export class ReleaseConfigService {
 
   constructor(
     private readonly configRepo: ReleaseConfigRepository,
+    private readonly unifiedActivityLogService: UnifiedActivityLogService,
     private readonly releaseScheduleService?: ReleaseScheduleService,
     private readonly cicdConfigService?: CICDConfigService,
     private readonly testManagementConfigService?: TestManagementConfigService,
     private readonly commConfigService?: CommConfigService,
     private readonly projectManagementConfigService?: ProjectManagementConfigService,
-    private readonly activityLogService?: ReleaseConfigActivityLogService,
-    private readonly activityLogRepository?: ReleaseConfigActivityLogRepository,
     private readonly storeIntegrationController?: StoreIntegrationController
   ) {}
 
@@ -64,6 +64,31 @@ export class ReleaseConfigService {
    */
   setReleaseRetrievalService(service: ReleaseRetrievalService): void {
     this.releaseRetrievalService = service;
+  }
+
+  /**
+   * Helper method to log activity using unified service
+   */
+  private async logConfigActivity(
+    configId: string,
+    accountId: string,
+    type: string,
+    previousValue: Record<string, any> | null,
+    newValue: Record<string, any> | null
+  ): Promise<void> {
+    // Get config to get tenantId
+    const config = await this.configRepo.findById(configId);
+    if (config) {
+      await this.unifiedActivityLogService.registerActivityLog({
+        entityType: EntityType.CONFIGURATION,
+        entityId: configId,
+        tenantId: config.tenantId,
+        updatedBy: accountId,
+        type,
+        previousValue,
+        newValue
+      });
+    }
   }
 
   /**
@@ -755,37 +780,35 @@ export class ReleaseConfigService {
     if (data.isActive !== undefined) configUpdate.isActive = data.isActive;
 
     // Log base config changes BEFORE integration updates (excluding scheduling)
-    if (this.activityLogService) {
-      const previousValue: Record<string, any> = {};
-      const newValue: Record<string, any> = {};
+    const previousValue: Record<string, any> = {};
+    const newValue: Record<string, any> = {};
 
-      // Build previous and new values from configUpdate keys (excluding scheduling)
-      const baseFields = ['name', 'description', 'releaseType', 'platformTargets', 'baseBranch', 
-                          'hasManualBuildUpload', 'isDefault', 'isActive'];
-      
-      for (const field of baseFields) {
-        if (field in configUpdate) {
-          previousValue[field] = existingConfig[field as keyof ReleaseConfiguration];
-          newValue[field] = configUpdate[field as keyof UpdateReleaseConfigDto];
-        }
+    // Build previous and new values from configUpdate keys (excluding scheduling)
+    const baseFields = ['name', 'description', 'releaseType', 'platformTargets', 'baseBranch', 
+                        'hasManualBuildUpload', 'isDefault', 'isActive'];
+    
+    for (const field of baseFields) {
+      if (field in configUpdate) {
+        previousValue[field] = existingConfig[field as keyof ReleaseConfiguration];
+        newValue[field] = configUpdate[field as keyof UpdateReleaseConfigDto];
       }
+    }
 
-      // Log changes if any base fields were updated
-      const hasBaseFieldUpdates = Object.keys(previousValue).length > 0;
-      if (hasBaseFieldUpdates) {
-        await this.activityLogService.registerConfigActivityLogs(
-          id,
-          currentUserId,
-          new Date(),
-          'RELEASE_CONFIG',
-          previousValue,
-          newValue
-        );
-      }
+    // Log changes if any base fields were updated
+    const hasBaseFieldUpdates = Object.keys(previousValue).length > 0;
+    if (hasBaseFieldUpdates) {
+      await this.logConfigActivity(
+        id,
+        currentUserId,
+        'RELEASE_CONFIG',
+        previousValue,
+        newValue
+      );
+    }
 
-      // Log release schedule changes separately
-      // Note: releaseSchedule is managed via ReleaseScheduleService but we log changes here
-      if ('releaseSchedule' in configUpdate) {
+    // Log release schedule changes separately
+    // Note: releaseSchedule is managed via ReleaseScheduleService but we log changes here
+    if ('releaseSchedule' in configUpdate) {
         const previousSchedule = (existingConfig as any).releaseSchedule;
         const newSchedule = (configUpdate as any).releaseSchedule;
         
@@ -805,10 +828,9 @@ export class ReleaseConfigService {
         }
         
         // Log base schedule fields (without regression slots)
-        await this.activityLogService.registerConfigActivityLogs(
+        await this.logConfigActivity(
           id,
           currentUserId,
-          new Date(),
           'SCHEDULE',
           { releaseSchedule: previousScheduleWithoutSlots },
           { releaseSchedule: newScheduleWithoutSlots }
@@ -835,10 +857,9 @@ export class ReleaseConfigService {
           const newStr = newSlot ? JSON.stringify(newSlot) : null;
           
           if (prevStr !== newStr) {
-            await this.activityLogService.registerConfigActivityLogs(
+            await this.logConfigActivity(
               id,
               currentUserId,
-              new Date(),
               'SCHEDULE',
               prevSlot || null,
               newSlot || null
@@ -846,7 +867,6 @@ export class ReleaseConfigService {
           }
         }
       }
-    }
 
     // Handle integration config IDs (returns null for removal, id for keep/update/create)
     const ciConfigId = await this.handleCiConfigId(existingConfig, data, currentUserId);
@@ -952,11 +972,10 @@ export class ReleaseConfigService {
       }
       
       // Log CI config deletion
-      if (this.activityLogService && previousCiConfig) {
-        await this.activityLogService.registerConfigActivityLogs(
+      if (previousCiConfig) {
+        await this.logConfigActivity(
           existingConfig.id,
           currentUserId,
-          new Date(),
           'CI_CONFIG',
           { workflowIds: previousCiConfig.workflowIds },
           null
@@ -990,11 +1009,10 @@ export class ReleaseConfigService {
       await this.updateCiConfig(providedConfigId, existingConfig.tenantId, ciConfig, currentUserId);
       
       // Log CI config update
-      if (this.activityLogService && previousCiConfig) {
-        await this.activityLogService.registerConfigActivityLogs(
+      if (previousCiConfig) {
+        await this.logConfigActivity(
           existingConfig.id,
           currentUserId,
-          new Date(),
           'CI_CONFIG',
           { workflowIds: previousCiConfig.workflowIds },
           { workflowIds: ciConfig.workflows || [] }
@@ -1015,11 +1033,10 @@ export class ReleaseConfigService {
     const newConfigId = await this.createCiConfig(existingConfig.tenantId, ciConfig, currentUserId);
     
     // Log CI config creation
-    if (this.activityLogService && newConfigId) {
-      await this.activityLogService.registerConfigActivityLogs(
+    if (newConfigId) {
+      await this.logConfigActivity(
         existingConfig.id,
         currentUserId,
-        new Date(),
         'CI_CONFIG',
         null,
         { workflowIds: ciConfig.workflows || [] }
@@ -1119,11 +1136,10 @@ export class ReleaseConfigService {
       }
       
       // Log test management config deletion (single row with all data)
-      if (this.activityLogService && previousTestMgmtConfig) {
-        await this.activityLogService.registerConfigActivityLogs(
+      if (previousTestMgmtConfig) {
+        await this.logConfigActivity(
           existingConfig.id,
           currentUserId,
-          new Date(),
           'TEST_MANAGEMENT_CONFIG',
           { 
             name: previousTestMgmtConfig.name,
@@ -1166,7 +1182,7 @@ export class ReleaseConfigService {
       );
       
       // Log test management config update
-      if (this.activityLogService && previousTestMgmtConfig) {
+      if (previousTestMgmtConfig) {
         // Log base fields (name, passThresholdPercent) if changed
         const baseFieldChanges: Record<string, any> = {};
         const baseFieldNewValues: Record<string, any> = {};
@@ -1181,10 +1197,9 @@ export class ReleaseConfigService {
         }
         
         if (Object.keys(baseFieldChanges).length > 0) {
-          await this.activityLogService.registerConfigActivityLogs(
+          await this.logConfigActivity(
             existingConfig.id,
             currentUserId,
-            new Date(),
             'TEST_MANAGEMENT_CONFIG',
             baseFieldChanges,
             baseFieldNewValues
@@ -1220,10 +1235,9 @@ export class ReleaseConfigService {
             const newStr = newPlatform ? JSON.stringify(newPlatform.parameters) : null;
             
             if (prevStr !== newStr) {
-              await this.activityLogService.registerConfigActivityLogs(
+              await this.logConfigActivity(
                 existingConfig.id,
                 currentUserId,
-                new Date(),
                 'TEST_MANAGEMENT_CONFIG',
                 prevPlatform ? { platform: prevPlatform.platform, parameters: prevPlatform.parameters } : null,
                 newPlatform ? { platform: newPlatform.platform, parameters: newPlatform.parameters } : null
@@ -1252,11 +1266,10 @@ export class ReleaseConfigService {
     );
     
     // Log test management config creation (single row with all data)
-    if (this.activityLogService && newConfigId) {
-      await this.activityLogService.registerConfigActivityLogs(
+    if (newConfigId) {
+      await this.logConfigActivity(
         existingConfig.id,
         currentUserId,
-        new Date(),
         'TEST_MANAGEMENT_CONFIG',
         null,
         { 
@@ -1404,11 +1417,10 @@ export class ReleaseConfigService {
       }
       
       // Log project management config deletion (single row with all data)
-      if (this.activityLogService && previousPmConfig) {
-        await this.activityLogService.registerConfigActivityLogs(
+      if (previousPmConfig) {
+        await this.logConfigActivity(
           existingConfig.id,
           currentUserId,
-          new Date(),
           'PROJECT_MANAGEMENT_CONFIG',
           { 
             name: previousPmConfig.name,
@@ -1452,7 +1464,7 @@ export class ReleaseConfigService {
       );
       
       // Log project management config update
-      if (this.activityLogService && previousPmConfig) {
+      if (previousPmConfig) {
         // Log base fields if changed
         const baseFieldChanges: Record<string, any> = {};
         const baseFieldNewValues: Record<string, any> = {};
@@ -1471,10 +1483,9 @@ export class ReleaseConfigService {
         }
         
         if (Object.keys(baseFieldChanges).length > 0) {
-          await this.activityLogService.registerConfigActivityLogs(
+          await this.logConfigActivity(
             existingConfig.id,
             currentUserId,
-            new Date(),
             'PROJECT_MANAGEMENT_CONFIG',
             baseFieldChanges,
             baseFieldNewValues
@@ -1510,10 +1521,9 @@ export class ReleaseConfigService {
             const newStr = newPlatform ? JSON.stringify(newPlatform) : null;
             
             if (prevStr !== newStr) {
-              await this.activityLogService.registerConfigActivityLogs(
+              await this.logConfigActivity(
                 existingConfig.id,
                 currentUserId,
-                new Date(),
                 'PROJECT_MANAGEMENT_CONFIG',
                 prevPlatform || null,
                 newPlatform || null
@@ -1542,11 +1552,10 @@ export class ReleaseConfigService {
     );
     
     // Log project management config creation (single row with all data)
-    if (this.activityLogService && newConfigId) {
-      await this.activityLogService.registerConfigActivityLogs(
+    if (newConfigId) {
+      await this.logConfigActivity(
         existingConfig.id,
         currentUserId,
-        new Date(),
         'PROJECT_MANAGEMENT_CONFIG',
         null,
         { 
@@ -1695,11 +1704,10 @@ export class ReleaseConfigService {
       }
       
       // Log communication config deletion
-      if (this.activityLogService && previousCommsConfig) {
-        await this.activityLogService.registerConfigActivityLogs(
+      if (previousCommsConfig) {
+        await this.logConfigActivity(
           existingConfig.id,
           currentUserId,
-          new Date(),
           'COMMUNICATION_CONFIG',
           { channelData: previousCommsConfig.channelData },
           null
@@ -1738,11 +1746,10 @@ export class ReleaseConfigService {
       );
       
       // Log communication config update
-      if (this.activityLogService && previousCommsConfig) {
-        await this.activityLogService.registerConfigActivityLogs(
+      if (previousCommsConfig) {
+        await this.logConfigActivity(
           existingConfig.id,
           currentUserId,
-          new Date(),
           'COMMUNICATION_CONFIG',
           { channelData: previousCommsConfig.channelData },
           { channelData: commsData.channelData }
@@ -1767,11 +1774,10 @@ export class ReleaseConfigService {
     );
     
     // Log communication config creation
-    if (this.activityLogService && newConfigId) {
-      await this.activityLogService.registerConfigActivityLogs(
+    if (newConfigId) {
+      await this.logConfigActivity(
         existingConfig.id,
         currentUserId,
-        new Date(),
         'COMMUNICATION_CONFIG',
         null,
         { channelData: commsData.channelData }
@@ -2030,12 +2036,10 @@ export class ReleaseConfigService {
     // Delete associated integration configs before deleting the release config
     await this.cascadeDeleteIntegrationConfigs(config);
 
-    // Delete activity logs (Note: Database has ON DELETE CASCADE, but explicit deletion for clarity)
-    if (this.activityLogRepository) {
-      console.log('[deleteConfig] Deleting activity logs for config:', id);
-      await this.activityLogRepository.deleteByReleaseConfigId(id);
-      console.log('[deleteConfig] Activity logs deleted successfully');
-    }
+    // Delete activity logs from unified table
+    console.log('[deleteConfig] Deleting activity logs for config:', id);
+    await this.unifiedActivityLogService.deleteActivityLogs(id, EntityType.CONFIGURATION);
+    console.log('[deleteConfig] Activity logs deleted successfully');
 
     return this.configRepo.delete(id);
   }

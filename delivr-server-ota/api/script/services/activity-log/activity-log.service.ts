@@ -1,17 +1,19 @@
-import { ActivityLogRepository } from '~models/release/activity-log.repository';
+import { UnifiedActivityLogRepository } from '~models/activity-log/activity-log.repository';
+import { EntityType, UnifiedActivityLog } from '~models/activity-log/activity-log.interface';
 import { v4 as uuidv4 } from 'uuid';
 import type * as storageTypes from '../../storage/storage';
 import type { AccountDetails } from '../../types/release/release.interface';
 import { getAccountDetails as getAccountDetailsUtil } from '../../utils/account.utils';
 
 /**
- * Service for registering activity logs
- * Single method that compares previous and new values and logs changes
+ * Unified Activity Log Service
+ * Single service for registering and retrieving activity logs across all entity types
+ * (releases, configurations, integrations, distributions, etc.)
  */
-export class ReleaseActivityLogService {
+export class UnifiedActivityLogService {
   
   constructor(
-    private readonly activityLogRepository: ActivityLogRepository,
+    private readonly activityLogRepository: UnifiedActivityLogRepository,
     private readonly storage: storageTypes.Storage
   ) {}
   
@@ -19,57 +21,64 @@ export class ReleaseActivityLogService {
    * Register activity log by comparing previous and new values
    * Detects changes, makes values consistent, and inserts into database
    * 
-   * @param releaseId - The release ID
-   * @param updatedByAccountId - Account ID of the user making the update
-   * @param updatedAt - Timestamp of the update
-   * @param type - High-level field name/type (RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG)
-   * @param previousValue - Value before update (can be object or null)
-   * @param newValue - Value after update (can be object or null)
+   * @param params - Activity log parameters
+   * @param params.entityType - Type of entity (RELEASE, CONFIGURATION, etc.)
+   * @param params.entityId - ID of the entity (releaseId, configId, etc.)
+   * @param params.tenantId - Tenant ID for data isolation
+   * @param params.updatedBy - Account ID of the user making the update
+   * @param params.type - High-level field name/type (RELEASE, PLATFORM_TARGET, CI_CONFIG, etc.)
+   * @param params.previousValue - Value before update (can be object or null)
+   * @param params.newValue - Value after update (can be object or null)
    */
-  async registerActivityLogs(
-    releaseId: string,
-    updatedByAccountId: string,
-    updatedAt: Date,
-    type: string,
-    previousValue: Record<string, any> | null,
-    newValue: Record<string, any> | null
-  ): Promise<void> {
+  async registerActivityLog(params: {
+    entityType: EntityType;
+    entityId: string;
+    tenantId: string;
+    updatedBy: string;
+    type: string;
+    previousValue: Record<string, any> | null;
+    newValue: Record<string, any> | null;
+  }): Promise<void> {
     
     try {
       // Handle ADDED case (previousValue is null)
-      const isAdded = !previousValue && newValue;
+      const isAdded = !params.previousValue && params.newValue;
       if (isAdded) {
-        const consistentNewValue = this.makeValueConsistent(newValue);
+        const consistentNewValue = this.makeValueConsistent(params.newValue);
         
         await this.activityLogRepository.create({
           id: uuidv4(),
-          releaseId,
-          type,
+          entityType: params.entityType,
+          entityId: params.entityId,
+          tenantId: params.tenantId,
+          type: params.type,
           previousValue: null,
           newValue: consistentNewValue,
-          updatedBy: updatedByAccountId
+          updatedBy: params.updatedBy
         });
         return;
       }
       
       // Handle REMOVED case (newValue is null)
-      const isRemoved = previousValue && !newValue;
+      const isRemoved = params.previousValue && !params.newValue;
       if (isRemoved) {
-        const consistentPreviousValue = this.makeValueConsistent(previousValue);
+        const consistentPreviousValue = this.makeValueConsistent(params.previousValue);
         
         await this.activityLogRepository.create({
           id: uuidv4(),
-          releaseId,
-          type,
+          entityType: params.entityType,
+          entityId: params.entityId,
+          tenantId: params.tenantId,
+          type: params.type,
           previousValue: consistentPreviousValue,
           newValue: null,
-          updatedBy: updatedByAccountId
+          updatedBy: params.updatedBy
         });
         return;
       }
       
       // Handle UPDATED case (compare and log only changed fields)
-      const hasBothValues = previousValue && newValue;
+      const hasBothValues = params.previousValue && params.newValue;
       if (hasBothValues) {
         const changedFields: string[] = [];
         const changedPreviousValue: Record<string, any> = {};
@@ -77,14 +86,14 @@ export class ReleaseActivityLogService {
         
         // Get all unique keys from both objects
         const allKeys = new Set([
-          ...Object.keys(previousValue),
-          ...Object.keys(newValue)
+          ...Object.keys(params.previousValue),
+          ...Object.keys(params.newValue)
         ]);
         
         // Compare each field
         for (const key of allKeys) {
-          const oldVal = previousValue[key];
-          const newVal = newValue[key];
+          const oldVal = params.previousValue[key];
+          const newVal = params.newValue[key];
           
           // For objects/arrays, compare JSON strings
           const oldValStr = typeof oldVal === 'object'
@@ -110,11 +119,13 @@ export class ReleaseActivityLogService {
           
           await this.activityLogRepository.create({
             id: uuidv4(),
-            releaseId,
-            type,
+            entityType: params.entityType,
+            entityId: params.entityId,
+            tenantId: params.tenantId,
+            type: params.type,
             previousValue: consistentPreviousValue,
             newValue: consistentNewValue,
-            updatedBy: updatedByAccountId
+            updatedBy: params.updatedBy
           });
         }
       }
@@ -125,13 +136,23 @@ export class ReleaseActivityLogService {
   }
   
   /**
-   * Get all activity logs for a release
+   * Get all activity logs for a specific entity
    * 
-   * @param releaseId - The release ID
-   * @returns Array of activity logs for the release with populated updatedBy account details
+   * @param entityType - Type of entity (RELEASE, CONFIGURATION, etc.)
+   * @param entityId - ID of the entity
+   * @param enrichAccountDetails - Whether to populate account details (default: true)
+   * @returns Array of activity logs with optional account details enrichment
    */
-  async getActivityLogs(releaseId: string) {
-    const logs = await this.activityLogRepository.findByReleaseId(releaseId);
+  async getActivityLogs(
+    entityType: EntityType,
+    entityId: string,
+    enrichAccountDetails: boolean = true
+  ): Promise<UnifiedActivityLog[]> {
+    const logs = await this.activityLogRepository.findByEntity(entityType, entityId);
+    
+    if (!enrichAccountDetails) {
+      return logs;
+    }
     
     // Populate updatedBy with account details for each log
     const logsWithAccountDetails = await Promise.all(
@@ -152,7 +173,6 @@ export class ReleaseActivityLogService {
         
         return {
           ...log,
-          updatedAt: log.updatedAt instanceof Date ? log.updatedAt.toISOString() : log.updatedAt, // Convert Date to ISO string
           updatedBy: log.updatedBy, // Keep the account ID
           updatedByAccount: accountDetails, // Add populated account details
           newValue: enrichedNewValue // Replace approvedBy with email if present
@@ -163,8 +183,56 @@ export class ReleaseActivityLogService {
     return logsWithAccountDetails;
   }
 
+  /**
+   * Get activity logs by tenant with optional filtering
+   * 
+   * @param tenantId - Tenant ID
+   * @param options - Optional filtering and pagination options
+   * @returns Array of activity logs for the tenant
+   */
+  async getActivityLogsByTenant(
+    tenantId: string,
+    options?: {
+      entityType?: EntityType;
+      limit?: number;
+      offset?: number;
+      enrichAccountDetails?: boolean;
+    }
+  ): Promise<UnifiedActivityLog[]> {
+    const logs = await this.activityLogRepository.findByTenant(tenantId, {
+      entityType: options?.entityType,
+      limit: options?.limit,
+      offset: options?.offset
+    });
+
+    if (!options?.enrichAccountDetails) {
+      return logs;
+    }
+
+    // Populate account details if requested
+    const logsWithAccountDetails = await Promise.all(
+      logs.map(async (log) => {
+        const accountDetails = await this.getAccountDetails(log.updatedBy);
+        return {
+          ...log,
+          updatedBy: log.updatedBy,
+          updatedByAccount: accountDetails
+        };
+      })
+    );
+
+    return logsWithAccountDetails;
+  }
+
+  /**
+   * Delete all activity logs for a specific entity
+   */
+  async deleteActivityLogs(entityId: string, entityType: EntityType): Promise<void> {
+    await this.activityLogRepository.deleteByEntity(entityType, entityId);
+  }
+
   private async getAccountDetails(accountId: string | null): Promise<AccountDetails | null> {
-    return getAccountDetailsUtil(this.storage, accountId, 'Activity Log Service');
+    return getAccountDetailsUtil(this.storage, accountId, 'Unified Activity Log Service');
   }
 
   /**

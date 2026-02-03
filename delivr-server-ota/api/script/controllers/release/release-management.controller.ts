@@ -15,7 +15,8 @@ import { ManualUploadService } from '../../services/release/manual-upload.servic
 import { UploadStage } from '../../models/release/release-uploads.sequelize.model';
 import { PlatformName } from '../../models/release/release.interface';
 import { HTTP_STATUS } from '../../constants/http';
-import { ReleaseActivityLogService } from '../../services/release/release-activity-log.service';
+import { UnifiedActivityLogService } from '../../services/activity-log';
+import { EntityType } from '../../models/activity-log/activity-log.interface';
 import type { 
   CreateReleaseRequestBody,
   CreateReleasePayload,
@@ -36,14 +37,14 @@ export class ReleaseManagementController {
   private updateService: ReleaseUpdateService;
   private cronJobService: CronJobService;
   private manualUploadService: ManualUploadService;  // ✅ Required - actively initialized in aws-storage.ts
-  private activityLogService: ReleaseActivityLogService;
+  private unifiedActivityLogService: UnifiedActivityLogService;
 
   constructor(
     creationService: ReleaseCreationService,
     retrievalService: ReleaseRetrievalService,
     statusService: ReleaseStatusService,
     updateService: ReleaseUpdateService,
-    activityLogService: ReleaseActivityLogService,
+    unifiedActivityLogService: UnifiedActivityLogService,
     cronJobService: CronJobService,
     manualUploadService: ManualUploadService  // ✅ Required - actively initialized in aws-storage.ts
   ) {
@@ -53,7 +54,7 @@ export class ReleaseManagementController {
     this.updateService = updateService;
     this.cronJobService = cronJobService;
     this.manualUploadService = manualUploadService;  // ✅ Active initialization - no lazy initialization
-    this.activityLogService = activityLogService;
+    this.unifiedActivityLogService = unifiedActivityLogService;
   }
 
   /**
@@ -680,8 +681,8 @@ export class ReleaseManagementController {
         });
       }
 
-      // Delegate to service layer
-      const logs = await this.activityLogService.getActivityLogs(releaseId);
+      // Get logs from unified service
+      const logs = await this.unifiedActivityLogService.getActivityLogs(EntityType.RELEASE, releaseId);
 
       return res.status(200).json({
         success: true,
@@ -899,22 +900,26 @@ export class ReleaseManagementController {
       }
 
       // Register activity log for manual build upload
-      if (this.activityLogService) {
+      if (this.unifiedActivityLogService) {
         try {
-          await this.activityLogService.registerActivityLogs(
-            releaseId,
-            accountId,
-            new Date(),
-            'MANUAL_BUILD_UPLOADED',
-            null, // No previous value for upload
-            {
-              uploadId: result.uploadId,
-              platform: result.platform,
-              stage: result.stage,
-              filename: originalFilename,
-              allPlatformsReady: result.allPlatformsReady
-            }
-          );
+          const release = await this.retrievalService.getReleaseById(releaseId);
+          if (release) {
+            await this.unifiedActivityLogService.registerActivityLog({
+              entityType: EntityType.RELEASE,
+              entityId: releaseId,
+              tenantId: release.tenantId,
+              updatedBy: accountId,
+              type: 'MANUAL_BUILD_UPLOADED',
+              previousValue: null,
+              newValue: {
+                uploadId: result.uploadId,
+                platform: result.platform,
+                stage: result.stage,
+                filename: originalFilename,
+                allPlatformsReady: result.allPlatformsReady
+              }
+            });
+          }
         } catch (error) {
           console.error(`[Upload Manual Build] Failed to log activity:`, error);
           // Don't fail the upload if activity logging fails

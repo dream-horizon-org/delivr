@@ -6,7 +6,8 @@
 import type { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
 import type { ReleaseConfigService } from '~services/release-configs';
-import type { ReleaseConfigActivityLogService } from '~services/release-configs';
+import type { UnifiedActivityLogService } from '~services/activity-log';
+import { EntityType } from '~models/activity-log/activity-log.interface';
 import type { CreateReleaseConfigRequest } from '~types/release-configs';
 import type { PlatformTargetMappingAttributes } from '~models/release';
 import { errorResponse, getErrorStatusCode, notFoundResponse, successResponse, validationErrorResponse } from '~utils/response.utils';
@@ -307,7 +308,9 @@ const deleteConfigHandler = (service: ReleaseConfigService) =>
 /**
  * Handler: Get activity logs for a release config
  */
-const getActivityLogsHandler = (activityLogService: ReleaseConfigActivityLogService) =>
+const getActivityLogsHandler = (
+  unifiedActivityLogService: UnifiedActivityLogService
+) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { configId } = req.params;
@@ -319,8 +322,8 @@ const getActivityLogsHandler = (activityLogService: ReleaseConfigActivityLogServ
         return;
       }
 
-      // Delegate to activity log service directly
-      const logs = await activityLogService.getActivityLogs(configId);
+      // Get logs from unified service
+      const logs = await unifiedActivityLogService.getActivityLogs(EntityType.CONFIGURATION, configId);
 
       res.status(HTTP_STATUS.OK).json(
         successResponse(logs)
@@ -339,13 +342,13 @@ const getActivityLogsHandler = (activityLogService: ReleaseConfigActivityLogServ
  */
 export const createReleaseConfigController = (
   service: ReleaseConfigService,
-  activityLogService: ReleaseConfigActivityLogService
+  unifiedActivityLogService: UnifiedActivityLogService
 ) => ({
   createConfig: createConfigHandler(service),
   getConfigById: getConfigByIdHandler(service),
   listConfigsByTenant: listConfigsByTenantHandler(service),
   updateConfig: updateConfigHandler(service),
   deleteConfig: deleteConfigHandler(service),
-  getActivityLogs: getActivityLogsHandler(activityLogService)
+  getActivityLogs: getActivityLogsHandler(unifiedActivityLogService)
 });
 
