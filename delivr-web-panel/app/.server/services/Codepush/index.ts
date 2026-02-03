@@ -136,7 +136,7 @@ class Codepush {
     const headers: Omit<AppsRequest, "userId"> = data;
 
     return this.__client.delete<null, AxiosResponse<DeleteTenantResponse>>(
-      `/tenants/${encodeURIComponent(data.tenant)}`,
+      `/apps/${encodeURIComponent(data.tenant)}`,
       {
         headers,
       }
@@ -523,6 +523,52 @@ class Codepush {
 
     return this.__client.get<TenantInfoResponse>(
       `/apps/${data.appId}`,
+      { headers }
+    );
+  }
+
+  /**
+   * Update an app (displayName, name, description).
+   * PUT /apps/:appId
+   */
+  async updateApp(data: {
+    userId: string;
+    appId: string;
+    body: {
+      displayName?: string;
+      name?: string;
+      description?: string;
+    };
+  }) {
+    const headers = {
+      userId: data.userId,
+      app: data.appId,
+    };
+
+    return this.__client.put<Record<string, unknown>>(
+      `/apps/${encodeURIComponent(data.appId)}`,
+      data.body,
+      { headers }
+    );
+  }
+
+  /**
+   * Configure platform targets for an app (replace all).
+   * PUT /apps/:appId/platform-targets
+   */
+  async putPlatformTargets(data: {
+    userId: string;
+    appId: string;
+    platformTargets: Array<{ platform: string; target: string }>;
+  }) {
+    const headers = {
+      userId: data.userId,
+      app: data.appId,
+    };
+
+    return this.__client.put<Record<string, unknown>>(
+      `/apps/${encodeURIComponent(data.appId)}/platform-targets`,
+      { platformTargets: data.platformTargets },
       { headers }
     );
   }

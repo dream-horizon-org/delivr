@@ -78,7 +78,7 @@ export function ConfigurationWizard({
     createDefaultConfig(appId), // initialData - always default
     isEditMode && existingConfig ? existingConfig : undefined // existingData - only in edit mode (skips draft loading)
   );
-  console.log("config", config);
+  // console.log("config", config);
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);

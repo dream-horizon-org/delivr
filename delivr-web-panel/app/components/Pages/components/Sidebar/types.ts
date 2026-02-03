@@ -9,18 +9,9 @@ export type App = {
   role?: string;
 };
 
-/**
- * Organization type (legacy - kept for backward compatibility)
- * @deprecated Use App instead
- */
-export type Organization = {
-  id: string;
-  orgName: string;
-  isAdmin: boolean;
-};
 
 export type SidebarProps = {
-  organizations: App[] | Organization[]; // Accept both for backward compatibility
+  organizations: App[];
   currentOrgId?: string;
   currentAppId?: string;
   userEmail: string;

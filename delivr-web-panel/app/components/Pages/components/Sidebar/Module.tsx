@@ -9,13 +9,13 @@ import {
 import { useLocation, Link } from "@remix-run/react";
 import { IconChevronRight } from "@tabler/icons-react";
 import type { ModuleConfig } from "./navigation-data";
-import type { Organization } from "./types";
+import type { App } from "./types";
 import { SubItems } from "./SubItems";
 import { DOTACustomContent } from "./DOTACustomContent";
 
 interface ModuleProps {
   module: ModuleConfig;
-  org: Organization;
+  org: App;
   currentAppId?: string;
   userEmail: string;
   isExpanded: boolean;

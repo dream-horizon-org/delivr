@@ -3,12 +3,12 @@ import {
   Button,
   TextInput,
   Text,
-  Box,
   useMantineTheme,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { IconBuilding } from "@tabler/icons-react";
 import { useState } from "react";
+import { useNavigate } from "@remix-run/react";
 import { showSuccessToast, showErrorToast } from "~/utils/toast";
 import { PROJECT_MESSAGES } from "~/constants/toast-messages"; // Keep PROJECT_MESSAGES for now (can be updated to APP_MESSAGES later)
 
@@ -19,6 +19,7 @@ type CreateAppModalProps = {
 export function CreateAppModal({ onSuccess }: CreateAppModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const theme = useMantineTheme();
+  const navigate = useNavigate();
 
   const form = useForm<{ appName: string }>({
     mode: "controlled",
@@ -78,6 +79,11 @@ export function CreateAppModal({ onSuccess }: CreateAppModalProps) {
 
       showSuccessToast(PROJECT_MESSAGES.CREATE_SUCCESS);
 
+      const json = await response.json() as { data?: { app?: { id?: string } }; app?: { id?: string } };
+      const createdAppId = json?.data?.app?.id ?? json?.app?.id;
+      if (createdAppId) {
+        navigate(`/dashboard/${createdAppId}/onboarding`);
+      }
       onSuccess();
     } catch (error: any) {
       const errorMessage = error.message || PROJECT_MESSAGES.CREATE_ERROR.message;

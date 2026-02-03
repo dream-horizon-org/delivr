@@ -288,32 +288,32 @@ export const APP_MESSAGES = {
 
 export const PROJECT_MESSAGES = {
   CREATE_SUCCESS: {
-    title: 'Project Created',
-    message: 'Project has been created successfully',
+    title: 'App Created',
+    message: 'App has been created successfully',
   },
   CREATE_ERROR: {
-    title: 'Failed to Create Project',
-    message: 'Unable to create the project. Please try again.',
+    title: 'Failed to Create App',
+    message: 'Unable to create the app. Please try again.',
   },
   CREATE_CONFLICT: {
-    title: 'Project Already Exists',
-    message: 'A project with this name already exists. Please choose a different name.',
+    title: 'App Already Exists',
+    message: 'A app with this name already exists. Please choose a different name.',
   },
   UPDATE_SUCCESS: {
-    title: 'Project Updated',
-    message: 'Project has been updated successfully',
+    title: 'App Updated',
+    message: 'App has been updated successfully',
   },
   UPDATE_ERROR: {
-    title: 'Failed to Update Project',
-    message: 'Unable to update the project. Please try again.',
+    title: 'Failed to Update App',
+    message: 'Unable to update the app. Please try again.',
   },
   DELETE_SUCCESS: {
-    title: 'Project Deleted',
-    message: 'Project has been deleted successfully',
+    title: 'App Deleted',
+    message: 'App has been deleted successfully',
   },
   DELETE_ERROR: {
-    title: 'Failed to Delete Project',
-    message: 'Unable to delete the project. Please try again.',
+    title: 'Failed to Delete App',
+    message: 'Unable to delete the app. Please try again.',
   },
 } as const;
 

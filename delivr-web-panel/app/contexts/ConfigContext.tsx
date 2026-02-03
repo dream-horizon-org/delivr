@@ -57,6 +57,10 @@ interface ConfigContextValue {
   // Selectors - Platforms & Targets
   getAvailablePlatforms: () => PlatformOption[];
   getAvailableTargets: (platformId?: string) => TargetOption[]; // If platformId provided, filters by platform
+  /** Platforms configured for this app (from app platform targets). Use for app-scoped dropdowns. */
+  getEnabledPlatforms: () => PlatformOption[];
+  /** Targets configured for this app, optionally filtered by platform. Use for app-scoped dropdowns. */
+  getEnabledTargets: (platformId?: string) => TargetOption[];
   isPlatformEnabled: (platformId: string) => boolean;
   isTargetEnabled: (targetId: string) => boolean;
   
@@ -168,7 +172,7 @@ export function ConfigProvider({
     const integrations = systemMetadata.releaseManagement.integrations;
     
     // Get connected integrations to merge displayName
-    const connectedIntegrations = tenantConfig?.releaseManagement?.connectedIntegrations;
+    const connectedIntegrations = tenantConfig?.connectedIntegrations;
     
     // Helper to merge displayName from connected integration
     const enrichWithDisplayName = (provider: IntegrationProvider): IntegrationProvider => {
@@ -212,9 +216,8 @@ export function ConfigProvider({
   }, [systemMetadata, tenantConfig]);
   
   const getConnectedIntegrations = useCallback((category?: string): ConnectedIntegration[] => {
-    if (!tenantConfig?.releaseManagement?.connectedIntegrations) return [];
-    //console.log('[ConfigContext] Connected integrations :' + "category" + category, tenantConfig?.releaseManagement?.connectedIntegrations);
-    const connected = tenantConfig.releaseManagement.connectedIntegrations;
+    if (!tenantConfig?.connectedIntegrations) return [];
+    const connected = tenantConfig.connectedIntegrations;
     
    
     
@@ -260,12 +263,28 @@ export function ConfigProvider({
     return allTargets.filter(target => platform.applicableTargets.includes(target.id));
   }, [systemMetadata]);
   
+  const getEnabledPlatforms = useCallback((): PlatformOption[] => {
+    if (!systemMetadata || !tenantConfig?.enabledPlatforms?.length) return [];
+    const enabled = tenantConfig.enabledPlatforms;
+    return systemMetadata.releaseManagement.platforms.filter(p => enabled.includes(p.id));
+  }, [systemMetadata, tenantConfig]);
+  
+  const getEnabledTargets = useCallback((platformId?: string): TargetOption[] => {
+    if (!systemMetadata || !tenantConfig?.enabledTargets?.length) return [];
+    const enabled = tenantConfig.enabledTargets;
+    const allTargets = systemMetadata.releaseManagement.targets.filter(t => enabled.includes(t.id));
+    if (!platformId) return allTargets;
+    const platform = systemMetadata.releaseManagement.platforms.find(p => p.id === platformId);
+    if (!platform) return [];
+    return allTargets.filter(t => platform.applicableTargets.includes(t.id));
+  }, [systemMetadata, tenantConfig]);
+  
   const isTargetEnabled = useCallback((targetId: string): boolean => {
-    return tenantConfig?.releaseManagement?.enabledTargets?.includes(targetId) || false;
+    return tenantConfig?.enabledTargets?.includes(targetId) || false;
   }, [tenantConfig]);
   
   const isPlatformEnabled = useCallback((platformId: string): boolean => {
-    return tenantConfig?.releaseManagement?.enabledPlatforms?.includes(platformId) || false;
+    return tenantConfig?.enabledPlatforms?.includes(platformId) || false;
   }, [tenantConfig]);
   
   const getReleaseTypes = useCallback((): ReleaseTypeOption[] => {
@@ -273,7 +292,7 @@ export function ConfigProvider({
   }, [systemMetadata]);
   
   const isReleaseTypeAllowed = useCallback((releaseTypeId: string): boolean => {
-    return tenantConfig?.releaseManagement?.allowedReleaseTypes?.includes(releaseTypeId) || false;
+    return tenantConfig?.allowedReleaseTypes?.includes(releaseTypeId) || false;
   }, [tenantConfig]);
   
   const getReleaseStages = useCallback((): ReleaseStageOption[] => {
@@ -327,6 +346,8 @@ export function ConfigProvider({
     isIntegrationConnected,
     getAvailablePlatforms,
     getAvailableTargets,
+    getEnabledPlatforms,
+    getEnabledTargets,
     isPlatformEnabled,
     isTargetEnabled,
     getReleaseTypes,

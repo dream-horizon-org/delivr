@@ -41,7 +41,6 @@ export const getAppList = async (): Promise<App[]> => {
   
   // Backend returns both apps and organisations for backward compatibility
   const apps = result.data.apps || result.data.organisations || [];
-  
   return apps.map((item) => {
     // Backend returns "Owner" | "Editor" | "Viewer"
     let role: AppLevelRole;

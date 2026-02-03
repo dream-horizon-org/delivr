@@ -13,7 +13,8 @@ import { apiGet, getApiErrorMessage } from '~/utils/api-client';
 import { ConfigProvider } from '~/contexts/ConfigContext';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import type { App } from '~/.server/services/Codepush/types';
-import type { TenantConfig, SystemMetadataBackend } from '~/types/system-metadata';
+import type { User } from '~/.server/services/Auth/auth.interface';
+import type { TenantConfig, SystemMetadataBackend, AppSetupStatus } from '~/types/system-metadata';
 import {
   DEFAULT_EMPTY_CONNECTED_INTEGRATIONS,
   DEFAULT_RELEASE_MANAGEMENT,
@@ -27,12 +28,16 @@ export const loader = authenticateLoaderRequest(async ({ request, params, user }
   }
 
   try {
-    // Fetch app info via BFF API route (using new /apps endpoint)
+    // Fetch app info via BFF API route (new shape: app, platformTargets, integrations, allowedReleaseTypes, setupStatus)
     const apiUrl = new URL(request.url);
-    const result = await apiGet<{ 
-      app?: App; 
-      organisation?: App; // Legacy field, now uses App type
-      appDistributions?: any[] 
+    const result = await apiGet<{
+      app?: { id: string; displayName?: string; [key: string]: unknown };
+      organisation?: { id: string; displayName?: string; [key: string]: unknown };
+      platformTargets?: Array<{ platform: string; target: string }>;
+      integrations?: Record<string, unknown>;
+      allowedReleaseTypes?: string[];
+      setupStatus?: AppSetupStatus;
+      appDistributions?: unknown[];
     }>(
       `${apiUrl.origin}/api/v1/apps/${appId}`,
       {
@@ -41,45 +46,70 @@ export const loader = authenticateLoaderRequest(async ({ request, params, user }
         },
       }
     );
-    
-    // Handle both new format (app) and legacy format (organisation)
-    // Both now use the App type, so we can use either
-    const app = result.data?.app || result.data?.organisation || null;
 
-    if (!app) {
+    const data = result.data;
+    const appPayload = data?.app ?? data?.organisation ?? null;
+    if (!appPayload || typeof appPayload !== 'object') {
       throw new Error('App not found in response');
     }
 
-    // Extract app config from app response (check both app and organisation for backward compatibility)
-    const config = result.data?.app?.releaseManagement?.config || result.data?.organisation?.releaseManagement?.config;
-    const initialAppConfig: TenantConfig | null = config
-      ? {
-          appId,
-          organization: {
-            id: app.id,
-            name: app.displayName,
-          },
-          releaseManagement: {
-            connectedIntegrations:
-              config.connectedIntegrations ?? DEFAULT_EMPTY_CONNECTED_INTEGRATIONS,
-            enabledPlatforms:
-              config.enabledPlatforms ?? DEFAULT_RELEASE_MANAGEMENT.enabledPlatforms,
-            enabledTargets:
-              config.enabledTargets ?? DEFAULT_RELEASE_MANAGEMENT.enabledTargets,
-            allowedReleaseTypes:
-              config.allowedReleaseTypes ??
-              DEFAULT_RELEASE_MANAGEMENT.allowedReleaseTypes,
-          },
-        }
-      : null;
+    const platformTargets: Array<{ platform: string; target: string }> = Array.isArray(data?.platformTargets)
+      ? data.platformTargets
+      : [];
+
+    const setupStatus = data?.setupStatus as AppSetupStatus | undefined;
+
+    const enabledPlatforms = platformTargets.length > 0 ? [...new Set(platformTargets.map((pt) => pt.platform))] : [];
+    const enabledTargets = platformTargets.length > 0 ? [...new Set(platformTargets.map((pt) => pt.target))] : [];
+    const hasDotaTarget = platformTargets.some((pt) => pt.target === 'DOTA');
+
+    const connectedIntegrations =
+      (data?.integrations as TenantConfig['connectedIntegrations']) ??
+      DEFAULT_EMPTY_CONNECTED_INTEGRATIONS;
+    const allowedReleaseTypes =
+      (data?.allowedReleaseTypes as string[] | undefined) ?? DEFAULT_RELEASE_MANAGEMENT.allowedReleaseTypes;
+
+    const initialAppConfig: TenantConfig | null = {
+      appId,
+      organization: { id: '', name: '' },
+      connectedIntegrations,
+      enabledPlatforms,
+      enabledTargets,
+      allowedReleaseTypes,
+      hasDotaTarget,
+    };
+
+    const app = appPayload as App;
+
+    // Gate: redirect to onboarding when setup not complete, or to releases when on onboarding but already complete
+    const url = new URL(request.url);
+    const pathname = url.pathname;
+    const isOnboardingPath = pathname.includes('/onboarding');
+
+    if (setupStatus) {
+      if (!setupStatus.completed && !isOnboardingPath) {
+        const stepParam = typeof setupStatus.step === 'number' ? `?step=${setupStatus.step}` : '';
+        throw new Response(null, {
+          status: 302,
+          headers: { Location: `/dashboard/${appId}/onboarding${stepParam}` },
+        });
+      }
+      if (setupStatus.completed && isOnboardingPath) {
+        throw new Response(null, {
+          status: 302,
+          headers: { Location: `/dashboard/${appId}/releases` },
+        });
+      }
+    }
 
     // Return with no-cache headers to ensure fresh data
     return json({
       appId,
       app,
       user,
+      platformTargets,
       initialAppConfig,
-      // Legacy fields for backward compatibility // Use app if organisation not present
+      setupStatus: setupStatus ?? null,
     }, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, private',
@@ -88,6 +118,10 @@ export const loader = authenticateLoaderRequest(async ({ request, params, user }
       }
     });
   } catch (error) {
+    // Rethrow redirect Responses (e.g. to onboarding) so Remix can perform the redirect
+    if (error instanceof Response) {
+      throw error;
+    }
     const errorMessage = getApiErrorMessage(error, 'Failed to load app');
     console.error('[AppLayout] Error loading app info:', errorMessage);
     throw new Response(errorMessage, { status: 500 });
@@ -97,9 +131,10 @@ export const loader = authenticateLoaderRequest(async ({ request, params, user }
 export type AppLayoutLoaderData = {
   appId: string;
   app: App;
-  user: any;
+  user: User;
+  platformTargets: Array<{ platform: string; target: string }>;
   initialAppConfig: TenantConfig | null;
-  // Legacy fields for backward compatibility
+  setupStatus: AppSetupStatus | null;
 };
 
 /**
@@ -114,11 +149,23 @@ export type OrgLayoutLoaderData = AppLayoutLoaderData;
  * const { app } = useRouteLoaderData<AppLayoutLoaderData>('routes/dashboard.$org');
  */
 /**
- * Control revalidation behavior for parent route
- * ONLY revalidate on navigation - never on actions from child routes
- * Uses the same strategy as the root dashboard route
+ * Control revalidation behavior for app layout route.
+ * Revalidate on navigation OR when explicitly triggered (e.g. sidebar save name/platform targets)
+ * so GET /api/v1/apps/:appId is refetched and UI reflects immediately.
  */
-export { shouldRevalidate } from './dashboard';
+export function shouldRevalidate({
+  currentUrl,
+  nextUrl,
+  defaultReason,
+}: {
+  currentUrl: URL;
+  nextUrl: URL;
+  defaultReason: string;
+}): boolean {
+  if (currentUrl.pathname !== nextUrl.pathname) return true;
+  if (defaultReason === 'revalidate') return true;
+  return false;
+}
 
 export default function AppLayout() {
   const { appId, initialAppConfig } = useLoaderData<AppLayoutLoaderData>();

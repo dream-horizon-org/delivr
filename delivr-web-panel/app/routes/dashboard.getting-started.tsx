@@ -10,21 +10,16 @@ import {
   Group,
 } from "@mantine/core";
 import { IconBuildingSkyscraper, IconCheck } from "@tabler/icons-react";
-import { useNavigate } from "@remix-run/react";
-import { route } from "routes-gen";
 import { CreateAppModal } from "~/components/Pages/components/AppsPage/components/CreateAppModal";
 import { ACTION_EVENTS, actions } from "~/utils/event-emitter";
 
 export default function GettingStartedPage() {
   const theme = useMantineTheme();
-  const navigate = useNavigate();
 
   const handleAppCreated = () => {
-    // Trigger app list refetch
+    // Trigger app list refetch so sidebar app list updates
     actions.trigger(ACTION_EVENTS.REFETCH_ORGS); // Keep event name for backward compatibility
-    
-    // Redirect to dashboard to show apps list
-    navigate(route("/dashboard"));
+    // Do not navigate here: CreateAppModal already navigates to /dashboard/:appId/onboarding
   };
 
   return (

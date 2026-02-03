@@ -203,29 +203,31 @@ export interface SystemMetadata {
 
 export interface TenantConfig {
   appId: string;
+  /** Empty when no org: { id: '', name: '' } */
   organization: {
     id: string;
     name: string;
   };
-  releaseManagement: {
-    // Connected integrations by category
-    connectedIntegrations: {
-      SOURCE_CONTROL: ConnectedIntegration[];
-      COMMUNICATION: ConnectedIntegration[];
-      CI_CD: ConnectedIntegration[];
-      TEST_MANAGEMENT: ConnectedIntegration[];
-      PROJECT_MANAGEMENT: ConnectedIntegration[];
-      APP_DISTRIBUTION: ConnectedIntegration[];
-    };
-    
-    // Enabled platforms for this tenant
-    enabledPlatforms: string[]; // e.g., ["ANDROID", "IOS"]
-    
-    // Enabled targets for this tenant
-    enabledTargets: string[]; // e.g., ["APP_STORE", "PLAY_STORE", "WEB"]
-    
-    // Allowed release types for this tenant
-    allowedReleaseTypes: string[];
+  connectedIntegrations: {
+    SOURCE_CONTROL: ConnectedIntegration[];
+    COMMUNICATION: ConnectedIntegration[];
+    CI_CD: ConnectedIntegration[];
+    TEST_MANAGEMENT: ConnectedIntegration[];
+    PROJECT_MANAGEMENT: ConnectedIntegration[];
+    APP_DISTRIBUTION: ConnectedIntegration[];
   };
+  enabledPlatforms: string[];
+  enabledTargets: string[];
+  allowedReleaseTypes: string[];
+  /** True when app has DOTA as a configured target (for showing DOTA tab) */
+  hasDotaTarget?: boolean;
+}
+
+/** Setup status computed by backend from SCM + platform targets (no DB persistence). */
+export interface AppSetupStatus {
+  hasScm: boolean;
+  hasPlatformTargets: boolean;
+  step: number | 'done';
+  completed: boolean;
 }
 
