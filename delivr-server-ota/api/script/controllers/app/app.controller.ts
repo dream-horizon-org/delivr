@@ -6,7 +6,7 @@
 import type { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
 import type { AppService } from '~services/app/app.service';
-import type { UpdateAppRequest } from '~types/app.types';
+import type { CreateAppRequest, UpdateAppRequest } from '~types/app.types';
 import {
   errorResponse,
   getErrorStatusCode,
@@ -27,7 +27,7 @@ type AuthenticatedRequest = Request & {
  * Create a new app
  * POST /apps
  */
-const createAppHandler = (appService: AppService, storage: any) =>
+const createAppHandler = (appService: AppService, _storage: any) =>
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const accountId = req.user?.id;
@@ -40,7 +40,6 @@ const createAppHandler = (appService: AppService, storage: any) =>
 
       const { name, displayName } = req.body;
 
-      // Validate required fields
       if (!name && !displayName) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('name', 'Name or displayName is required')
@@ -48,32 +47,26 @@ const createAppHandler = (appService: AppService, storage: any) =>
         return;
       }
 
-      // For now, orgId is null (will be set when Organizations are implemented)
-      // We'll use the storage method which handles collaborator creation
       const orgId = null; // TODO: Get from request context when Organizations are implemented
-      console.log('orgId', orgId);
-      // Use storage.addOrgApp for now (handles collaborator creation)
-      // This maintains backward compatibility with existing flow
-      const createdApp = await storage.addOrgApp(accountId, {
-        id: undefined, // Will be generated
-        displayName: displayName || name,
-        role: 'Owner',
-        createdBy: accountId,
-        createdTime: Date.now()
-      });
+      const appData: CreateAppRequest = {
+        name: displayName ?? name ?? '',
+        displayName: displayName ?? name,
+        organizationId: orgId ?? ''
+      };
 
-      // If we want to use AppService in the future, we can do:
-      // const appData: CreateAppRequest = {
-      //   name: name || displayName || '',
-      //   displayName: displayName || name,
-      //   description,
-      //   organizationId: orgId || ''
-      // };
-      // const app = await appService.createApp(orgId || '', appData, accountId);
-      // Then create collaborator via storage.addOrgAppCollaborator
+      const createdApp = await appService.createApp(orgId ?? '', appData, accountId);
+
+      const appPayload = {
+        id: createdApp.id,
+        displayName: createdApp.displayName ?? createdApp.name,
+        name: createdApp.name,
+        role: 'Owner',
+        createdBy: createdApp.createdBy,
+        createdTime: createdApp.createdAt instanceof Date ? createdApp.createdAt.getTime() : Date.now()
+      };
 
       res.status(HTTP_STATUS.CREATED).json(
-        successResponse({ app: createdApp }, 'App created successfully')
+        successResponse({ app: appPayload }, 'App created successfully')
       );
     } catch (error) {
       const statusCode = getErrorStatusCode(error);
@@ -96,38 +89,43 @@ const getAppHandler = (appService: AppService, storage: any) =>
       const accountId = (req as AuthenticatedRequest).user?.id;
       const orgId = null; // TODO: Get from request context when Organizations are implemented
 
-      let base: Record<string, unknown>;
-      const app = await appService.getApp(orgId || '', appId);
-
-      if (app) {
-        base = { ...app } as Record<string, unknown>;
-      } else if (accountId && storage?.getOrgApps) {
-        const orgApps = await storage.getOrgApps(accountId);
-        const tenant = orgApps?.find((t: { id: string }) => t.id === appId);
-        if (!tenant) {
-          res.status(HTTP_STATUS.NOT_FOUND).json(notFoundResponse('App'));
-          return;
-        }
-        base = { ...tenant } as Record<string, unknown>;
-      } else {
+      const app = await appService.getApp(orgId ?? '', appId, accountId);
+      if (!app) {
         res.status(HTTP_STATUS.NOT_FOUND).json(notFoundResponse('App'));
         return;
       }
+
+      // Core app fields only (no nested platformTargets, setupStatus, or releaseManagement)
+      const appCore = {
+        id: app.id,
+        name: app.name,
+        displayName: app.displayName,
+        organizationId: app.organizationId,
+        description: app.description,
+        isActive: app.isActive,
+        createdBy: app.createdBy,
+        createdAt: app.createdAt,
+        updatedAt: app.updatedAt,
+      };
 
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
 
-      let platformTargets: unknown[] = [];
+      let platformTargetsFull: Array<{ platform: string; target: string; [key: string]: unknown }> = [];
       const appPlatformTargetService = (storage as any).appPlatformTargetService;
       if (appPlatformTargetService) {
         try {
           const result = await appPlatformTargetService.getPlatformTargets(appId, true);
-          platformTargets = result ?? [];
+          platformTargetsFull = (result ?? []) as Array<{ platform: string; target: string; [key: string]: unknown }>;
         } catch (_err) {
           // keep default []
         }
       }
+
+      const platformTargetsMinimal: Array<{ platform: string; target: string }> = platformTargetsFull.map(
+        (pt) => ({ platform: pt.platform, target: pt.target })
+      );
 
       const scmController = (storage as any).scmController;
       const commIntegrationRepository = (storage as any).commIntegrationRepository;
@@ -172,19 +170,32 @@ const getAppHandler = (appService: AppService, storage: any) =>
         testManagementIntegrations,
         projectManagementIntegrations,
         storeIntegrations,
-        storage
+        storage,
+        platformTargetsMinimal
       );
 
-      const appPayload = {
-        ...base,
-        platformTargets,
-        releaseManagement: {
-          config: tenantConfig,
-        },
+      const hasScm = (scmIntegrations?.length ?? 0) > 0;
+      const hasPlatformTargets = platformTargetsMinimal.length > 0;
+      const setupCompleted = hasPlatformTargets;
+      const setupStep: number | 'done' = !hasPlatformTargets ? 3 : 'done';
+      const setupStatus = {
+        hasScm,
+        hasPlatformTargets,
+        step: setupStep,
+        completed: setupCompleted,
       };
 
+      // Single flat shape: app (core only), platformTargets (minimal), integrations, allowedReleaseTypes, setupStatus.
+      // enabledPlatforms, enabledTargets, hasDotaTarget are derived on the frontend from platformTargets.
       res.status(HTTP_STATUS.OK).json(
-        successResponse({ app: appPayload, organisation: appPayload })
+        successResponse({
+          app: appCore,
+          organisation: appCore,
+          platformTargets: platformTargetsMinimal,
+          integrations: tenantConfig.connectedIntegrations,
+          allowedReleaseTypes: tenantConfig.allowedReleaseTypes,
+          setupStatus,
+        })
       );
     } catch (error) {
       const statusCode = getErrorStatusCode(error);
@@ -198,7 +209,7 @@ const getAppHandler = (appService: AppService, storage: any) =>
  * List all apps for the authenticated user
  * GET /apps
  */
-const listAppsHandler = (appService: AppService, storage: any) =>
+const listAppsHandler = (appService: AppService, _storage: any) =>
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const accountId = req.user?.id;
@@ -209,16 +220,11 @@ const listAppsHandler = (appService: AppService, storage: any) =>
         return;
       }
 
-      // For now, use storage.getOrgApps (maintains backward compatibility)
-      // This returns apps where user is a collaborator
-      const apps = await storage.getOrgApps(accountId);
-
-      // If we want to use AppService in the future:
-      // const orgId = null; // TODO: Get from request context
-      // const apps = await appService.listApps(orgId || '');
+      const orgId = null; // TODO: Get from request context when Organizations are implemented
+      const apps = await appService.listApps(orgId ?? '', accountId);
 
       res.status(HTTP_STATUS.OK).json(
-        successResponse({ apps, organisations: apps }) // Maintain backward compatibility
+        successResponse({ apps, organisations: apps })
       );
     } catch (error) {
       const statusCode = getErrorStatusCode(error);
@@ -247,7 +253,7 @@ const updateAppHandler = (appService: AppService) =>
         ...(description !== undefined && { description })
       };
 
-      const updatedApp = await appService.updateApp(orgId || '', appId, updates);
+      const updatedApp = await appService.updateApp(orgId ?? '', appId, updates);
 
       if (!updatedApp) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
@@ -271,7 +277,7 @@ const updateAppHandler = (appService: AppService) =>
  * Delete an app
  * DELETE /apps/:appId
  */
-const deleteAppHandler = (appService: AppService, storage: any) =>
+const deleteAppHandler = (appService: AppService, _storage: any) =>
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const { appId } = req.params;
@@ -283,17 +289,12 @@ const deleteAppHandler = (appService: AppService, storage: any) =>
         return;
       }
 
-      // For now, use storage.removeOrgApp (maintains backward compatibility)
-      // This handles permission checks and cleanup
-      await storage.removeOrgApp(accountId, appId);
-
-      // If we want to use AppService in the future:
-      // const orgId = null; // TODO: Get from request context
-      // const deleted = await appService.deleteApp(orgId || '', appId);
-      // if (!deleted) {
-      //   res.status(HTTP_STATUS.NOT_FOUND).json(notFoundResponse('App'));
-      //   return;
-      // }
+      const orgId = null; // TODO: Get from request context when Organizations are implemented
+      const deleted = await appService.deleteApp(orgId ?? '', appId, accountId);
+      if (!deleted) {
+        res.status(HTTP_STATUS.NOT_FOUND).json(notFoundResponse('App'));
+        return;
+      }
 
       res.status(HTTP_STATUS.OK).json(
         successResponse(undefined, 'App deleted successfully')

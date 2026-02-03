@@ -6,13 +6,11 @@
 export enum Platform {
   ANDROID = 'ANDROID',
   IOS = 'IOS',
-  WEB = 'WEB',
 }
 
 export enum Target {
   PLAY_STORE = 'PLAY_STORE',
   APP_STORE = 'APP_STORE',
-  WEB = 'WEB',
   DOTA = 'DOTA',
 }
 

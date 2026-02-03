@@ -1073,11 +1073,12 @@ export class S3Storage implements storage.Storage {
           this.appPlatformTargetRepository = new AppPlatformTargetRepository(this.sequelize);
           console.log("App Platform Target Repository initialized");
           
-          // Initialize App Services
+          // Initialize App Services (pass this for collaborator creation and delete delegation)
           this.appService = new AppService(
             this.appRepository,
             this.appPlatformTargetRepository,
-            this.sequelize
+            this.sequelize,
+            this
           );
           console.log("App Service initialized");
           

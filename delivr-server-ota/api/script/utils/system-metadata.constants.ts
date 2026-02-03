@@ -15,13 +15,13 @@ export const SYSTEM_PLATFORMS = {
   ANDROID: {
     id: PlatformName.ANDROID,
     name: 'Android',
-    applicableTargets: [TargetName.PLAY_STORE],
+    applicableTargets: [TargetName.PLAY_STORE, TargetName.DOTA],
     isAvailable: true,
   },
   IOS: {
     id: PlatformName.IOS,
     name: 'iOS',
-    applicableTargets: [TargetName.APP_STORE],
+    applicableTargets: [TargetName.APP_STORE, TargetName.DOTA],
     isAvailable: false,
     status: 'COMING_SOON' as const,
   },
@@ -42,6 +42,11 @@ export const SYSTEM_TARGETS = {
     name: 'App Store',
     isAvailable: false,
     status: 'COMING_SOON' as const,
+  },
+  DOTA: {
+    id: TargetName.DOTA,
+    name: 'Over-the-Air',
+    isAvailable: true,
   },
 } as const;
 

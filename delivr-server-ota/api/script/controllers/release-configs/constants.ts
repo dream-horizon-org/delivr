@@ -8,13 +8,13 @@ import type { PlatformTargetMappingAttributes } from '~models/release';
  * Valid platform values for release configurations
  * Derived from PlatformTargetMappingAttributes.platform type
  */
-export const VALID_PLATFORMS: readonly PlatformTargetMappingAttributes['platform'][] = ['IOS', 'ANDROID', 'WEB'] as const;
+export const VALID_PLATFORMS: readonly PlatformTargetMappingAttributes['platform'][] = ['IOS', 'ANDROID'] as const;
 
 /**
  * Valid target values for release configurations
- * Derived from PlatformTargetMappingAttributes.target type
+ * Derived from PlatformTargetMappingAttributes.target type (WEB not supported yet)
  */
-export const VALID_TARGETS: readonly PlatformTargetMappingAttributes['target'][] = ['WEB', 'PLAY_STORE', 'APP_STORE'] as const;
+export const VALID_TARGETS: readonly PlatformTargetMappingAttributes['target'][] = ['PLAY_STORE', 'APP_STORE', 'DOTA'] as const;
 
 export const RELEASE_CONFIG_ERROR_MESSAGES = {
   CREATE_CONFIG_FAILED: 'Failed to create release configuration',

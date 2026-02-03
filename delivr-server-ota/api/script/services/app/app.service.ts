@@ -16,45 +16,56 @@ import type {
   ConfigurePlatformTargetsRequest
 } from '~types/app-platform-target.types';
 import type { Sequelize } from 'sequelize';
+import type { Storage } from '~storage/storage';
 
 export class AppService {
   constructor(
     private readonly appRepository: AppRepository,
     private readonly appPlatformTargetRepository: AppPlatformTargetRepository,
-    private readonly sequelize: Sequelize
+    private readonly sequelize: Sequelize,
+    private readonly storage?: Storage
   ) {}
 
   /**
-   * Create a new app
-   * Note: Collaborator creation is handled by storage layer methods (e.g., storage.addOrgApp)
+   * Normalize organizationId so null and '' are treated as the same "no org".
+   */
+  private normalizeOrgId(value: string | null | undefined): string {
+    return value ?? '';
+  }
+
+  /**
+   * Create a new app and add creator as Owner collaborator when storage is available.
    */
   async createApp(
     orgId: string,
     appData: CreateAppRequest,
     accountId: string
   ): Promise<AppWithPlatformTargets> {
-    // Validate organizationId matches
-    if (appData.organizationId && appData.organizationId !== orgId) {
+    const effectiveOrgId = this.normalizeOrgId(orgId);
+    if (appData.organizationId && this.normalizeOrgId(appData.organizationId) !== effectiveOrgId) {
       throw new Error(`Organization ID mismatch: expected ${orgId}, got ${appData.organizationId}`);
     }
 
-    // Generate app ID
     const appId = uuidv4();
-
-    // Create the app
     const app = await this.appRepository.create({
       id: appId,
       name: appData.name,
       displayName: appData.displayName,
       description: appData.description,
-      organizationId: orgId,
+      organizationId: effectiveOrgId,
       createdBy: accountId
     });
 
-    // Note: Collaborator creation should be handled by the caller using storage methods
-    // This keeps the service focused on app management only
+    if (this.storage) {
+      try {
+        const account = await this.storage.getAccount(accountId);
+        await this.storage.addOrgAppCollaborator(appId, account.email, 'Owner');
+      } catch (err) {
+        // Log but do not fail create; caller may add collaborator separately
+        console.warn('[AppService.createApp] Failed to add creator as collaborator:', err);
+      }
+    }
 
-    // Return app with empty platform targets (can be configured later)
     return {
       ...app,
       platformTargets: []
@@ -62,26 +73,61 @@ export class AppService {
   }
 
   /**
-   * Get app by ID
+   * Get app by ID. When app not in App table and accountId + storage provided, fallback to getOrgApps (migration).
    */
-  async getApp(orgId: string, appId: string): Promise<AppWithPlatformTargets | null> {
-    const app = await this.appRepository.findByIdWithPlatformTargets(appId);
-    
-    // Validate app belongs to organization
-    if (app && app.organizationId !== orgId) {
+  async getApp(orgId: string, appId: string, accountId?: string): Promise<AppWithPlatformTargets | null> {
+    let app = await this.appRepository.findByIdWithPlatformTargets(appId);
+    const effectiveOrgId = this.normalizeOrgId(orgId);
+    const appOrgId = this.normalizeOrgId(app?.organizationId);
+
+    if (app && appOrgId !== effectiveOrgId) {
       return null;
     }
-    
+
+    if (!app && accountId && this.storage?.getOrgApps) {
+      const orgApps = await this.storage.getOrgApps(accountId);
+      const orgApp = orgApps?.find((t) => t.id === appId);
+      if (orgApp) {
+        app = {
+          id: orgApp.id,
+          name: orgApp.displayName ?? orgApp.id,
+          organizationId: null,
+          displayName: orgApp.displayName,
+          isActive: true,
+          createdBy: orgApp.createdBy,
+          createdAt: new Date(orgApp.createdTime ?? Date.now()),
+          updatedAt: new Date(orgApp.createdTime ?? Date.now()),
+          platformTargets: []
+        };
+      }
+    }
+
     return app;
   }
 
   /**
-   * List all apps for an organization
+   * List all apps for an organization. For "no org" (effectiveOrgId === ''), when accountId is provided
+   * uses storage.getOrgApps to return only apps the user can see; otherwise uses findByOrganizationIdOrNull.
    */
-  async listApps(orgId: string): Promise<AppWithPlatformTargets[]> {
-    const apps = await this.appRepository.findByOrganizationId(orgId);
-    
-    // Fetch platform targets for each app
+  async listApps(orgId: string, accountId?: string): Promise<AppWithPlatformTargets[]> {
+    const effectiveOrgId = this.normalizeOrgId(orgId);
+
+    let apps: AppAttributes[];
+    if (effectiveOrgId === '') {
+      if (accountId && this.storage?.getOrgApps) {
+        const orgApps = await this.storage.getOrgApps(accountId);
+        const results: (AppWithPlatformTargets & { role?: string })[] = [];
+        for (const orgApp of orgApps) {
+          const full = await this.getApp('', orgApp.id, accountId);
+          if (full) results.push({ ...full, role: orgApp.role });
+        }
+        return results;
+      }
+      apps = await this.appRepository.findByOrganizationIdOrNull();
+    } else {
+      apps = await this.appRepository.findByOrganizationId(effectiveOrgId);
+    }
+
     const appsWithTargets = await Promise.all(
       apps.map(async (app) => {
         const platformTargets = await this.appPlatformTargetRepository.findByAppId(app.id, true);
@@ -123,9 +169,11 @@ export class AppService {
     appId: string,
     updates: UpdateAppRequest
   ): Promise<AppAttributes | null> {
-    // Validate app belongs to organization
     const app = await this.appRepository.findById(appId);
-    if (!app || app.organizationId !== orgId) {
+    const effectiveOrgId = this.normalizeOrgId(orgId);
+    const appOrgId = this.normalizeOrgId(app?.organizationId);
+
+    if (!app || appOrgId !== effectiveOrgId) {
       return null;
     }
 
@@ -133,29 +181,27 @@ export class AppService {
   }
 
   /**
-   * Delete an app
-   * Note: This will cascade delete related entities (collaborators, platform targets, etc.)
-   * Collaborators are handled by database cascade or storage layer methods
+   * Delete an app. When storage is available, delegates to storage.removeOrgApp (soft-delete + DOTA cleanup).
+   * Otherwise performs in-service delete (platform targets then hard delete).
    */
-  async deleteApp(orgId: string, appId: string): Promise<boolean> {
-    // Validate app belongs to organization
+  async deleteApp(orgId: string, appId: string, accountId: string): Promise<boolean> {
     const app = await this.appRepository.findById(appId);
-    if (!app || app.organizationId !== orgId) {
+    const effectiveOrgId = this.normalizeOrgId(orgId);
+    const appOrgId = this.normalizeOrgId(app?.organizationId);
+
+    if (!app || appOrgId !== effectiveOrgId) {
       return false;
     }
 
-    // Check for dependencies (releases, integrations, etc.)
-    // For now, we'll allow deletion - cascade will handle related data
-    
-    // Delete platform targets first
+    if (this.storage?.removeOrgApp) {
+      await this.storage.removeOrgApp(accountId, appId);
+      return true;
+    }
+
     const platformTargets = await this.appPlatformTargetRepository.findByAppId(appId);
     for (const pt of platformTargets) {
       await this.appPlatformTargetRepository.delete(pt.id);
     }
-
-    // Note: Collaborator deletion is handled by database cascade or storage layer methods
-
-    // Delete the app
     return await this.appRepository.delete(appId);
   }
 
@@ -177,12 +223,8 @@ export class AppService {
     // Configure platform targets
     await this.appPlatformTargetRepository.configureForApp(appId, platformTargets);
 
-    // Return app with updated platform targets
-    // Note: getApp now requires orgId, but we can get it from the app we just fetched
-    if (!app.organizationId) {
-      throw new Error(`App ${appId} does not have an organization ID`);
-    }
-    const updatedApp = await this.getApp(app.organizationId, appId);
+    // Return app with updated platform targets (use normalized orgId for getApp)
+    const updatedApp = await this.getApp(this.normalizeOrgId(app.organizationId), appId);
     if (!updatedApp) {
       throw new Error(`Failed to retrieve app after platform target configuration: ${appId}`);
     }

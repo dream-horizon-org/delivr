@@ -237,15 +237,13 @@ export class AppPlatformTargetService {
     platform: AppPlatformTargetAttributes['platform'],
     target: AppPlatformTargetAttributes['target']
   ): void {
-    // Valid combinations:
+    // Valid combinations (WEB not supported yet):
     // ANDROID -> PLAY_STORE, DOTA
     // IOS -> APP_STORE, TESTFLIGHT, FIREBASE, DOTA
-    // WEB -> WEB, DOTA
 
     const validCombinations: Record<string, string[]> = {
       ANDROID: ['PLAY_STORE', 'DOTA'],
       IOS: ['APP_STORE', 'TESTFLIGHT', 'FIREBASE', 'DOTA'],
-      WEB: ['WEB', 'DOTA']
     };
 
     const validTargets = validCombinations[platform];

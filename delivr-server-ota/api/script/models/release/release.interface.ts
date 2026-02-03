@@ -18,7 +18,8 @@ export enum PlatformName {
 export enum TargetName {
   WEB = 'WEB',
   PLAY_STORE = 'PLAY_STORE',
-  APP_STORE = 'APP_STORE'
+  APP_STORE = 'APP_STORE',
+  DOTA = 'DOTA'
 }
 
 export enum ReleaseType {
@@ -262,7 +263,7 @@ export interface ReleasePlatformTargetMapping {
   id: string;
   releaseId: string;
   platform: 'ANDROID' | 'IOS' | 'WEB';
-  target: 'WEB' | 'PLAY_STORE' | 'APP_STORE';
+  target: 'WEB' | 'PLAY_STORE' | 'APP_STORE' | 'DOTA';
   version: string;
   projectManagementRunId: string | null;
   testManagementRunId: string | null;
@@ -274,7 +275,7 @@ export interface CreateReleasePlatformTargetMappingDto {
   id: string;
   releaseId: string;
   platform: 'ANDROID' | 'IOS' | 'WEB';
-  target: 'WEB' | 'PLAY_STORE' | 'APP_STORE';
+  target: 'WEB' | 'PLAY_STORE' | 'APP_STORE' | 'DOTA';
   version: string;
   projectManagementRunId?: string | null;
   testManagementRunId?: string | null;

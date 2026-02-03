@@ -3,6 +3,7 @@
  * Data access layer for App entity (renamed from Tenant)
  */
 
+import { Op } from 'sequelize';
 import type { Sequelize } from 'sequelize';
 import type {
   AppAttributes,
@@ -66,6 +67,21 @@ export class AppRepository {
   findByOrganizationId = async (organizationId: string): Promise<AppAttributes[]> => {
     const apps = await this.getModel().findAll({
       where: { organizationId },
+      order: [['createdAt', 'DESC']]
+    });
+
+    return apps.map((app) => this.toPlainObject(app));
+  };
+
+  /**
+   * Find apps where organizationId is null or '' (no org).
+   */
+  findByOrganizationIdOrNull = async (): Promise<AppAttributes[]> => {
+    const apps = await this.getModel().findAll({
+      where: {
+        isActive: true,
+        [Op.or]: [{ organizationId: null }, { organizationId: '' }]
+      },
       order: [['createdAt', 'DESC']]
     });
 

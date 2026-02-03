@@ -9,8 +9,6 @@ import {
   INTEGRATION_CONNECTION_STATUS,
   INTEGRATION_VERIFICATION_STATUS,
   PROVIDER_ID,
-  TENANT_PLATFORMS,
-  TENANT_TARGETS,
   TENANT_RELEASE_TYPES,
   SYSTEM_USER,
 } from './tenant-metadata.constants';
@@ -387,7 +385,9 @@ export async function transformAppDistributionIntegrationsForConfig(
 }
 
 /**
- * Build tenant config response
+ * Build tenant config response.
+ * enabledPlatforms and enabledTargets are derived from app's configured platform targets (appPlatformTargets).
+ * If appPlatformTargets is empty, fallback to empty arrays (no WEB; app has not completed onboarding).
  */
 export async function buildAppConfig(
   scmIntegrations: any[],
@@ -396,7 +396,8 @@ export async function buildAppConfig(
   testManagementIntegrations: any[],
   projectManagementIntegrations: any[],
   storeIntegrations: any[],
-  storage: storageTypes.Storage
+  storage: storageTypes.Storage,
+  appPlatformTargets: Array<{ platform: string; target: string }> = []
 ): Promise<TenantConfigResponse> {
   const [
     transformedScmIntegrations,
@@ -414,6 +415,15 @@ export async function buildAppConfig(
     transformAppDistributionIntegrationsForConfig(storeIntegrations, storage)
   ]);
 
+  const enabledPlatforms =
+    appPlatformTargets.length > 0
+      ? [...new Set(appPlatformTargets.map((pt) => pt.platform))]
+      : [];
+  const enabledTargets =
+    appPlatformTargets.length > 0
+      ? [...new Set(appPlatformTargets.map((pt) => pt.target))]
+      : [];
+
   return {
     connectedIntegrations: {
       SOURCE_CONTROL: transformedScmIntegrations,
@@ -423,9 +433,9 @@ export async function buildAppConfig(
       PROJECT_MANAGEMENT: transformedProjectManagementIntegrations,
       APP_DISTRIBUTION: transformedStoreIntegrations,
     },
-    enabledPlatforms: [TENANT_PLATFORMS.ANDROID, TENANT_PLATFORMS.IOS], // TODO: Make this dynamic based on tenant settings
-    enabledTargets: [TENANT_TARGETS.APP_STORE, TENANT_TARGETS.PLAY_STORE, TENANT_TARGETS.WEB], // TODO: Make this dynamic
-    allowedReleaseTypes: [TENANT_RELEASE_TYPES.MINOR, TENANT_RELEASE_TYPES.HOTFIX, TENANT_RELEASE_TYPES.MAJOR], // TODO: Make this dynamic
+    enabledPlatforms,
+    enabledTargets,
+    allowedReleaseTypes: [TENANT_RELEASE_TYPES.MINOR, TENANT_RELEASE_TYPES.HOTFIX, TENANT_RELEASE_TYPES.MAJOR],
   };
 }
 

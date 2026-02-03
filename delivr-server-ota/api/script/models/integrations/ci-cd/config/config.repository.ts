@@ -1,4 +1,4 @@
-import type { AppCICDConfig, TenantCICDConfig } from '~types/integrations/ci-cd/config.interface';
+import type { AppCICDConfig } from '~types/integrations/ci-cd/config.interface';
 import type { CICDConfigModelType } from './config.sequelize.model';
 
 export class CICDConfigRepository {
@@ -33,12 +33,6 @@ export class CICDConfigRepository {
     });
     return records.map(r => this.toPlainObject(r));
   };
-
-  /**
-   * @deprecated Use findByApp instead
-   * Kept for backward compatibility
-   */
-  findByApp = this.findByApp;
 
   update = async (
     id: string,

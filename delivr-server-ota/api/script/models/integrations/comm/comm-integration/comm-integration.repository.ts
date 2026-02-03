@@ -8,7 +8,6 @@ import type {
   UpdateSlackIntegrationDto,
   SlackIntegrationFilters,
   AppCommunicationIntegration,
-  TenantCommunicationIntegration,
   SafeSlackIntegration
 } from '~types/integrations/comm/comm-integration';
 import type { CommIntegrationModelType } from './comm-integration.sequelize.model';
@@ -144,12 +143,6 @@ export class CommIntegrationRepository {
 
     return this.toPlainObject(integration, includeToken);
   };
-
-  /**
-   * @deprecated Use findByApp instead
-   * Kept for backward compatibility
-   */
-  findByApp = this.findByApp;
 
   /**
    * Find integration by workspace

@@ -174,7 +174,7 @@ export const createReleaseUploadModel = (sequelize: Sequelize): typeof ReleaseUp
       modelName: 'ReleaseUpload',
       timestamps: true,
       indexes: [
-        { fields: ['appId'] },
+        // Note: Index on appId omitted so sync succeeds when table exists without appId (add via migration first, then add this index)
         { fields: ['releaseId'] },
         { fields: ['releaseId', 'stage'] },
         { fields: ['releaseId', 'platform', 'stage'] },

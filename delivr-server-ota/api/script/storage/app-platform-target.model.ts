@@ -24,11 +24,11 @@ export function createAppPlatformTargetModel(sequelize: Sequelize) {
         },
       },
       platform: {
-        type: DataTypes.ENUM('ANDROID', 'IOS', 'WEB'),
+        type: DataTypes.ENUM('ANDROID', 'IOS'),
         allowNull: false,
       },
       target: {
-        type: DataTypes.ENUM('PLAY_STORE', 'APP_STORE', 'WEB', 'DOTA'),
+        type: DataTypes.ENUM('PLAY_STORE', 'APP_STORE', 'DOTA'),
         allowNull: false,
       },
       isActive: {

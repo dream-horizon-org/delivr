@@ -62,17 +62,16 @@ export const PROVIDER_ID = {
 export const TENANT_PLATFORMS = {
   ANDROID: PlatformName.ANDROID,
   IOS: PlatformName.IOS,
-  WEB: PlatformName.WEB,
 } as const;
 
 // ============================================================================
-// TARGETS
+// TARGETS (WEB not supported yet)
 // ============================================================================
 
 export const TENANT_TARGETS = {
   APP_STORE: TargetName.APP_STORE,
   PLAY_STORE: TargetName.PLAY_STORE,
-  WEB: TargetName.WEB,
+  DOTA: TargetName.DOTA,
 } as const;
 
 // ============================================================================
