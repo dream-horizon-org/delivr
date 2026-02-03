@@ -18,7 +18,12 @@
  * - iOS: application/json (TestFlight build number only)
  */
 
-import { json, unstable_parseMultipartFormData } from '@remix-run/node';
+import {
+  json,
+  unstable_composeUploadHandlers,
+  unstable_createMemoryUploadHandler,
+  unstable_parseMultipartFormData,
+} from '@remix-run/node';
 import { DistributionService } from '~/.server/services/Distribution';
 import {
     ERROR_MESSAGES,
@@ -80,23 +85,30 @@ function validateVersion(version: unknown): boolean {
 }
 
 /**
- * Upload handler for AAB file (Android only)
- * Note: Implementation depends on your file storage solution (S3, local, etc.)
+ * Upload handler for AAB file only (Android resubmission).
+ * Text fields (platform, version, rolloutPercentage, etc.) are handled by the memory handler
+ * so they remain strings in the parsed FormData.
  */
-const uploadHandler: import('@remix-run/node').UploadHandler = async ({ data, filename }) => {
-  // This is a placeholder - actual implementation would upload to S3 or similar
-  // For now, we'll collect the data and return a File object
+const aabFileUploadHandler: import('@remix-run/node').UploadHandler = async ({
+  name,
+  data,
+  filename,
+}) => {
+  if (name !== 'aabFile' || !filename) {
+    return undefined;
+  }
   const chunks: Uint8Array[] = [];
   for await (const chunk of data) {
     chunks.push(chunk);
   }
-  
-  // In production, upload to S3 and return the S3 key or URL
-  // For now, return a mock file reference
-  // Convert Uint8Array[] to Blob first to satisfy type requirements
   const blob = new Blob(chunks as BlobPart[], { type: 'application/octet-stream' });
-  return new File([blob], filename ?? 'upload.aab', { type: 'application/octet-stream' });
+  return new File([blob], filename, { type: 'application/octet-stream' });
 };
+
+const uploadHandler = unstable_composeUploadHandlers(
+  aabFileUploadHandler,
+  unstable_createMemoryUploadHandler()
+);
 
 /**
  * POST - Create new submission (resubmission after rejection/cancellation)

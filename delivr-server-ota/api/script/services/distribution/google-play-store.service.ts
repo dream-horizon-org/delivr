@@ -3,6 +3,7 @@ import { getStorage } from '../../storage/storage-instance';
 import { StoreCredentialController, StoreIntegrationController } from '../../storage/integrations/store/store-controller';
 import { decryptFromStorage } from '../../utils/encryption';
 import { PLAY_STORE_UPLOAD_CONSTANTS } from '../../constants/store';
+import { MockGooglePlayStoreService } from './google-play-store.mock';
 
 const { GoogleAuth } = require('google-auth-library');
 
@@ -235,17 +236,48 @@ export class GooglePlayStoreService {
       // Don't throw - edit will expire automatically
     }
   }
+
+  /**
+   * No-op for real API: edit already exists when created via API.
+   * Used by resubmission flow when mock: real createEdit + upload bundle, then mock update/validate/commit
+   * need a session for that real editId; real service does not need to do anything.
+   */
+  ensureEditSession(_editId: string): void {
+    // No-op: edit already exists on Google when created via createEdit
+  }
 }
+
+/**
+ * Check if mock mode is enabled via environment variable
+ */
+const isGooglePlayMockMode = (): boolean => {
+  const mockEnv = process.env.MOCK_GOOGLE_PLAY_API ?? 'false';
+  return mockEnv.toLowerCase() === 'true';
+};
 
 /**
  * Factory function to create GooglePlayStoreService from store integration
  * 
  * @param integrationId - The ID of the store integration
- * @returns GooglePlayStoreService instance with credentials loaded from database
+ * @returns GooglePlayStoreService or MockGooglePlayStoreService instance based on MOCK_GOOGLE_PLAY_API env var
  */
 export async function createGoogleServiceFromIntegration(
   integrationId: string
-): Promise<GooglePlayStoreService> {
+): Promise<GooglePlayStoreService | MockGooglePlayStoreService> {
+  // Check if mock mode is enabled
+  const mockEnabled = isGooglePlayMockMode();
+  if (mockEnabled) {
+    console.log('[GoogleServiceFactory] MOCK_GOOGLE_PLAY_API=true - Using mock Google Play service');
+    
+    const storeIntegrationController = getStoreIntegrationController();
+    const integration = await storeIntegrationController.findById(integrationId);
+    const packageName = integration?.appIdentifier ?? 'com.example.app';
+    
+    return new MockGooglePlayStoreService('mock-access-token', packageName);
+  }
+
+  console.log('[GoogleServiceFactory] MOCK_GOOGLE_PLAY_API=false - Using production Google Play API');
+  
   const credentialController = getCredentialController();
   const storeIntegrationController = getStoreIntegrationController();
   
@@ -341,4 +373,3 @@ export async function createGoogleServiceFromIntegration(
 
   return new GooglePlayStoreService(tokenResponse.token, integration.appIdentifier);
 }
-
