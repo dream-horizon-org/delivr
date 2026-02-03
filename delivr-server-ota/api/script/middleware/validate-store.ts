@@ -2,6 +2,8 @@ import { NextFunction, Request, Response } from 'express';
 import * as yup from 'yup';
 import { HTTP_STATUS } from '../constants/http';
 import { ERROR_MESSAGES, PLAY_STORE_UPLOAD_ERROR_MESSAGES } from '../constants/store';
+import type { ValidationResult } from '~types/validation/validation-result.interface';
+import { validationErrorsResponse, simpleErrorResponse } from '../utils/response.utils';
 import { 
   StoreType as _StoreType, 
   DefaultTrack,
@@ -114,6 +116,10 @@ const appStoreVerifySchema = yup.object({
     defaultLocale: yup
       .string()
       .trim()
+      .optional(),
+    
+    _encrypted: yup
+      .boolean()
       .optional()
   }).required('payload is required')
 });
@@ -192,6 +198,10 @@ const appStoreUpdateSchema = yup.object({
       .trim()
       .optional()
       .min(1, 'Default locale cannot be empty if provided'),
+
+    _encrypted: yup
+      .boolean()
+      .optional(),
 
     // Play Store fields (also optional in App Store update)
     serviceAccountJson: yup.object().optional(),
@@ -272,7 +282,11 @@ const playStoreVerifySchema = yup.object({
       
       private_key: yup
         .string()
-        .required('Service account private_key is required')
+        .required('Service account private_key is required'),
+      
+      _encrypted: yup
+        .boolean()
+        .optional()
     }).required('serviceAccountJson is required'),
     
     defaultTrack: yup
@@ -324,7 +338,10 @@ const playStoreUpdateSchema = yup.object({
       private_key: yup
         .string()
         .optional()
-        .min(1, 'Private key cannot be empty if provided')
+        .min(1, 'Private key cannot be empty if provided'),
+      _encrypted: yup
+        .boolean()
+        .optional()
     }).optional(),
     
     defaultTrack: yup
@@ -336,19 +353,19 @@ const playStoreUpdateSchema = yup.object({
 
 /**
  * Helper function to validate with Yup and format errors
+ * Returns ValidationResult for middleware to handle responses
  */
 async function validateWithYup<T>(
   schema: yup.Schema<T>,
-  data: unknown,
-  res: Response
-): Promise<T | null> {
+  data: unknown
+): Promise<ValidationResult<T>> {
   try {
     const validated = await schema.validate(data, {
       abortEarly: false,
       stripUnknown: true
     });
-    return validated;
-  } catch (error) {
+    return { success: true, data: validated };
+  } catch (error: unknown) {
     if (error instanceof yup.ValidationError) {
       // Group errors by field
       const errorsByField = new Map<string, string[]>();
@@ -361,27 +378,17 @@ async function validateWithYup<T>(
         errorsByField.get(field)!.push(err.message);
       });
 
-      // Convert to array format
-      const details = Array.from(errorsByField.entries()).map(([field, messages]) => ({
+      // Convert to ValidationError array format
+      const errors = Array.from(errorsByField.entries()).map(([field, messages]) => ({
         field,
         messages
       }));
 
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        verified: false,
-        error: "Request validation failed", // Generic error for top-level
-        details: details // Specific field errors for frontend to parse
-      });
-      return null;
+      return { success: false, errors };
     }
     
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      error: 'Validation error occurred',
-      details: []
-    });
-    return null;
+    // Unexpected error - rethrow to be handled by caller
+    throw error;
   }
 }
 
@@ -400,10 +407,9 @@ export const validateTenantId = (req: Request, res: Response, next: NextFunction
   const tenantId = req.params.tenantId;
   const isTenantIdInvalid = !isNonEmptyString(tenantId);
   if (isTenantIdInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-      success: false, 
-      error: ERROR_MESSAGES.TENANT_ID_REQUIRED 
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.TENANT_ID_REQUIRED, 'validation_failed')
+    );
     return;
   }
   next();
@@ -413,10 +419,9 @@ export const validateIntegrationId = (req: Request, res: Response, next: NextFun
   const integrationId = req.params.integrationId;
   const isIntegrationIdInvalid = !isNonEmptyString(integrationId);
   if (isIntegrationIdInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-      success: false, 
-      error: 'integrationId is required in path parameters' 
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('integrationId is required in path parameters', 'validation_failed')
+    );
     return;
   }
   next();
@@ -441,11 +446,9 @@ export const validateConnectStoreBody = async (
 
   // Quick check if storeType exists to determine validation strategy
   if (!storeType || typeof storeType !== 'string') {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-      success: false,
-      verified: false,
-      message: 'storeType is required',
-      details: [{ field: 'storeType', messages: ['storeType is required'] }]
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      ...validationErrorsResponse('storeType is required', [{ field: 'storeType', errorCode: 'validation_failed', messages: ['storeType is required'] }]),
+      verified: false
     });
     return;
   }
@@ -456,35 +459,44 @@ export const validateConnectStoreBody = async (
 
   // Use Yup validation for App Store
   if (isAppStore) {
-    const validated = await validateWithYup(appStoreVerifySchema, req.body, res);
-    if (!validated) {
-      return; // Response already sent by validateWithYup
+    const validationResult = await validateWithYup(appStoreVerifySchema, req.body);
+    if (validationResult.success === false) {
+      const errorsWithCode = validationResult.errors.map(err => ({ ...err, errorCode: 'validation_failed' }));
+      res.status(HTTP_STATUS.BAD_REQUEST).json({
+        ...validationErrorsResponse('Request validation failed', errorsWithCode),
+        verified: false
+      });
+      return;
     }
     
     // Update req.body with validated and trimmed data
-    req.body = validated;
+    req.body = validationResult.data;
     next();
     return;
   }
 
   // Use Yup validation for Play Store
   if (isPlayStore) {
-    const validated = await validateWithYup(playStoreVerifySchema, req.body, res);
-    if (!validated) {
-      return; // Response already sent by validateWithYup
+    const validationResult = await validateWithYup(playStoreVerifySchema, req.body);
+    if (validationResult.success === false) {
+      const errorsWithCode = validationResult.errors.map(err => ({ ...err, errorCode: 'validation_failed' }));
+      res.status(HTTP_STATUS.BAD_REQUEST).json({
+        ...validationErrorsResponse('Request validation failed', errorsWithCode),
+        verified: false
+      });
+      return;
     }
     
     // Update req.body with validated and trimmed data
-    req.body = validated;
+    req.body = validationResult.data;
     next();
     return;
   }
 
   // If not App Store or Play Store, return error
-  res.status(HTTP_STATUS.BAD_REQUEST).json({
-    success: false,
-    error: 'Invalid storeType. Must be app_store, testflight, or play_store',
-  });
+  res.status(HTTP_STATUS.BAD_REQUEST).json(
+    simpleErrorResponse('Invalid storeType. Must be app_store, testflight, or play_store', 'validation_failed')
+  );
   return;
 };
 
@@ -497,10 +509,9 @@ export const validateGetPlatformStoreTypesQuery = (
   
   const isPlatformMissing = !platform;
   if (isPlatformMissing) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: 'platform query parameter is required (e.g., ?platform=ANDROID or ?platform=ANDROID,IOS)',
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('platform query parameter is required (e.g., ?platform=ANDROID or ?platform=ANDROID,IOS)', 'validation_failed')
+    );
     return;
   }
 
@@ -512,19 +523,17 @@ export const validateGetPlatformStoreTypesQuery = (
   } else if (typeof platform === 'string') {
     platforms = platform.split(',').map(p => p.trim());
   } else {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: 'platform must be a string or array (e.g., ?platform=ANDROID,IOS)',
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('platform must be a string or array (e.g., ?platform=ANDROID,IOS)', 'validation_failed')
+    );
     return;
   }
 
   const isPlatformsEmpty = platforms.length === 0;
   if (isPlatformsEmpty) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: 'At least one platform is required (e.g., ?platform=ANDROID or ?platform=ANDROID,IOS)',
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('At least one platform is required (e.g., ?platform=ANDROID or ?platform=ANDROID,IOS)', 'validation_failed')
+    );
     return;
   }
 
@@ -542,10 +551,9 @@ export const validateGetPlatformStoreTypesQuery = (
 
   const hasInvalidPlatforms = invalidPlatforms.length > 0;
   if (hasInvalidPlatforms) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: `Invalid platform(s): ${invalidPlatforms.join(', ')}. Must be one of: ANDROID, IOS`,
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(`Invalid platform(s): ${invalidPlatforms.join(', ')}. Must be one of: ANDROID, IOS`, 'validation_failed')
+    );
     return;
   }
 
@@ -561,19 +569,17 @@ export const validateRevokeStoreIntegrationsQuery = (
   
   const isStoreTypeMissing = !storeType || typeof storeType !== 'string';
   if (isStoreTypeMissing) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: ERROR_MESSAGES.STORE_TYPE_REQUIRED,
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.STORE_TYPE_REQUIRED, 'validation_failed')
+    );
     return;
   }
 
   const isPlatformMissing = !platform || typeof platform !== 'string';
   if (isPlatformMissing) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: 'platform query parameter is required (e.g., ?platform=ANDROID or ?platform=IOS)',
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('platform query parameter is required (e.g., ?platform=ANDROID or ?platform=IOS)', 'validation_failed')
+    );
     return;
   }
 
@@ -581,10 +587,9 @@ export const validateRevokeStoreIntegrationsQuery = (
   const validStoreTypes = ['app_store', 'play_store', 'testflight', 'microsoft_store', 'firebase'];
   const isValidStoreType = validStoreTypes.includes(storeType.toLowerCase());
   if (!isValidStoreType) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-      success: false, 
-      error: ERROR_MESSAGES.INVALID_STORE_TYPE 
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.INVALID_STORE_TYPE, 'validation_failed')
+    );
     return;
   }
 
@@ -592,10 +597,9 @@ export const validateRevokeStoreIntegrationsQuery = (
   const platformUpper = platform.toUpperCase();
   const isValidPlatform = platformUpper === 'ANDROID' || platformUpper === 'IOS';
   if (!isValidPlatform) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: 'platform must be either ANDROID or IOS (case-insensitive)',
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('platform must be either ANDROID or IOS (case-insensitive)', 'validation_failed')
+    );
     return;
   }
 
@@ -622,10 +626,9 @@ export const validatePatchStoreBody = (req: Request, res: Response, next: NextFu
     if (isUserIdInvalid) missingFields.push('userId');
 
     const errorMessage = `Missing required fields: ${missingFields.join(', ')}`;
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-      success: false, 
-      error: errorMessage 
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(errorMessage, 'validation_failed')
+    );
     return;
   }
 
@@ -633,10 +636,9 @@ export const validatePatchStoreBody = (req: Request, res: Response, next: NextFu
   const platformUpper = platform.toUpperCase();
   const isValidPlatform = platformUpper === 'ANDROID' || platformUpper === 'IOS';
   if (!isValidPlatform) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-      success: false, 
-      error: 'platform must be either ANDROID or IOS (case-insensitive)' 
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('platform must be either ANDROID or IOS (case-insensitive)', 'validation_failed')
+    );
     return;
   }
 
@@ -644,10 +646,9 @@ export const validatePatchStoreBody = (req: Request, res: Response, next: NextFu
   const validStoreTypes = ['app_store', 'play_store', 'testflight', 'microsoft_store', 'firebase'];
   const isValidStoreType = validStoreTypes.includes(storeType.toLowerCase());
   if (!isValidStoreType) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-      success: false, 
-      error: ERROR_MESSAGES.INVALID_STORE_TYPE 
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.INVALID_STORE_TYPE, 'validation_failed')
+    );
     return;
   }
 
@@ -656,10 +657,9 @@ export const validatePatchStoreBody = (req: Request, res: Response, next: NextFu
   if (isPayloadProvided) {
     const isPayloadInvalid = payload !== null && typeof payload !== 'object';
     if (isPayloadInvalid) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-        success: false, 
-        error: 'payload must be an object if provided (can be empty object {})' 
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse('payload must be an object if provided (can be empty object {})', 'validation_failed')
+      );
       return;
     }
 
@@ -679,44 +679,39 @@ export const validatePatchStoreBody = (req: Request, res: Response, next: NextFu
         
         // For PATCH: Validate individual credential fields if present, but don't require all
         if (appStorePayload.issuerId !== undefined && !isNonEmptyString(appStorePayload.issuerId)) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-            success: false, 
-            error: 'payload.issuerId must be a non-empty string if provided' 
-          });
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            simpleErrorResponse('payload.issuerId must be a non-empty string if provided', 'validation_failed')
+          );
           return;
         }
         
         if (appStorePayload.keyId !== undefined && !isNonEmptyString(appStorePayload.keyId)) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-            success: false, 
-            error: 'payload.keyId must be a non-empty string if provided' 
-          });
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            simpleErrorResponse('payload.keyId must be a non-empty string if provided', 'validation_failed')
+          );
           return;
         }
         
         if (appStorePayload.privateKeyPem !== undefined && !isNonEmptyString(appStorePayload.privateKeyPem)) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-            success: false, 
-            error: 'payload.privateKeyPem must be a non-empty string if provided' 
-          });
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            simpleErrorResponse('payload.privateKeyPem must be a non-empty string if provided', 'validation_failed')
+          );
           return;
         }
 
         // Validate displayName if provided
         if (appStorePayload.displayName !== undefined && !isNonEmptyString(appStorePayload.displayName)) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-            success: false, 
-            error: 'payload.displayName must be a non-empty string if provided' 
-          });
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            simpleErrorResponse('payload.displayName must be a non-empty string if provided', 'validation_failed')
+          );
           return;
         }
 
         // Validate appIdentifier if provided
         if (appStorePayload.appIdentifier !== undefined && !isNonEmptyString(appStorePayload.appIdentifier)) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-            success: false, 
-            error: 'payload.appIdentifier must be a non-empty string if provided' 
-          });
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            simpleErrorResponse('payload.appIdentifier must be a non-empty string if provided', 'validation_failed')
+          );
           return;
         }
       }
@@ -732,10 +727,9 @@ export const validatePatchStoreBody = (req: Request, res: Response, next: NextFu
             typeof playStorePayload.serviceAccountJson !== 'object';
 
           if (isServiceAccountInvalid) {
-            res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-              success: false, 
-              error: 'payload.serviceAccountJson must be an object if provided' 
-            });
+            res.status(HTTP_STATUS.BAD_REQUEST).json(
+              simpleErrorResponse('payload.serviceAccountJson must be an object if provided', 'validation_failed')
+            );
             return;
           }
 
@@ -743,31 +737,27 @@ export const validatePatchStoreBody = (req: Request, res: Response, next: NextFu
           // But don't require all fields - user might only want to update other fields
           const serviceAccountJson = playStorePayload.serviceAccountJson;
           if (serviceAccountJson.type !== undefined && !isNonEmptyString(serviceAccountJson.type)) {
-            res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-              success: false, 
-              error: 'payload.serviceAccountJson.type must be a non-empty string if provided' 
-            });
+            res.status(HTTP_STATUS.BAD_REQUEST).json(
+              simpleErrorResponse('payload.serviceAccountJson.type must be a non-empty string if provided', 'validation_failed')
+            );
             return;
           }
           if (serviceAccountJson.project_id !== undefined && !isNonEmptyString(serviceAccountJson.project_id)) {
-            res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-              success: false, 
-              error: 'payload.serviceAccountJson.project_id must be a non-empty string if provided' 
-            });
+            res.status(HTTP_STATUS.BAD_REQUEST).json(
+              simpleErrorResponse('payload.serviceAccountJson.project_id must be a non-empty string if provided', 'validation_failed')
+            );
             return;
           }
           if (serviceAccountJson.client_email !== undefined && !isNonEmptyString(serviceAccountJson.client_email)) {
-            res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-              success: false, 
-              error: 'payload.serviceAccountJson.client_email must be a non-empty string if provided' 
-            });
+            res.status(HTTP_STATUS.BAD_REQUEST).json(
+              simpleErrorResponse('payload.serviceAccountJson.client_email must be a non-empty string if provided', 'validation_failed')
+            );
             return;
           }
           if (serviceAccountJson.private_key !== undefined && !isNonEmptyString(serviceAccountJson.private_key)) {
-            res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-              success: false, 
-              error: 'payload.serviceAccountJson.private_key must be a non-empty string if provided' 
-            });
+            res.status(HTTP_STATUS.BAD_REQUEST).json(
+              simpleErrorResponse('payload.serviceAccountJson.private_key must be a non-empty string if provided', 'validation_failed')
+            );
             return;
           }
         }
@@ -780,29 +770,26 @@ export const validatePatchStoreBody = (req: Request, res: Response, next: NextFu
           
           if (!trackIsValid) {
             const errorMessage = getInvalidTrackErrorMessage(mappedStoreType, mappedTrack);
-            res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-              success: false, 
-              error: errorMessage 
-            });
+            res.status(HTTP_STATUS.BAD_REQUEST).json(
+              simpleErrorResponse(errorMessage, 'validation_failed')
+            );
             return;
           }
         }
 
         // Validate displayName if provided
         if (playStorePayload.displayName !== undefined && !isNonEmptyString(playStorePayload.displayName)) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-            success: false, 
-            error: 'payload.displayName must be a non-empty string if provided' 
-          });
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            simpleErrorResponse('payload.displayName must be a non-empty string if provided', 'validation_failed')
+          );
           return;
         }
 
         // Validate appIdentifier if provided
         if (playStorePayload.appIdentifier !== undefined && !isNonEmptyString(playStorePayload.appIdentifier)) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-            success: false, 
-            error: 'payload.appIdentifier must be a non-empty string if provided' 
-          });
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            simpleErrorResponse('payload.appIdentifier must be a non-empty string if provided', 'validation_failed')
+          );
           return;
         }
       }
@@ -822,10 +809,9 @@ export const validatePatchStoreBodyByIntegrationId = async (
     const { integrationId } = req.params;
     
     if (!integrationId) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        error: 'integrationId is required in path parameters'
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse('integrationId is required in path parameters', 'validation_failed')
+      );
       return;
     }
 
@@ -833,20 +819,18 @@ export const validatePatchStoreBodyByIntegrationId = async (
     const storeController = (storage as any).storeIntegrationController;
     
     if (!storeController) {
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        error: 'Store controller not available'
-      });
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+        simpleErrorResponse('Store controller not available', 'internal_error')
+      );
       return;
     }
 
     const integration = await storeController.findById(integrationId);
     
     if (!integration) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({
-        success: false,
-        error: 'Integration not found'
-      });
+      res.status(HTTP_STATUS.NOT_FOUND).json(
+        simpleErrorResponse('Integration not found', 'not_found')
+      );
       return;
     }
 
@@ -861,28 +845,31 @@ export const validatePatchStoreBodyByIntegrationId = async (
     } else if (isPlayStoreType) {
       schema = playStoreUpdateSchema;
     } else {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        error: `Unsupported store type: ${integration.storeType}`
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse(`Unsupported store type: ${integration.storeType}`, 'validation_failed')
+      );
       return;
     }
 
     // Use Yup validation - all fields optional but validated if present
-    const validated = await validateWithYup(schema, req.body, res);
-    if (!validated) {
-      return; // Response already sent by validateWithYup
+    const validationResult = await validateWithYup(schema, req.body);
+    if (validationResult.success === false) {
+      const errorsWithCode = validationResult.errors.map(err => ({ ...err, errorCode: 'validation_failed' }));
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        validationErrorsResponse('Request validation failed', errorsWithCode)
+      );
+      return;
     }
     
     // Update req.body with validated and trimmed data
-    req.body = validated;
+    req.body = validationResult.data;
     next();
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[validatePatchStoreBodyByIntegrationId] Error:', error);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      error: 'Failed to validate request'
-    });
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse('Failed to validate request', 'internal_error')
+    );
+    return;
   }
 };
 
@@ -902,30 +889,27 @@ export const validatePlayStoreUploadBody = (req: Request, res: Response, next: N
   // Validate tenantId
   const isTenantIdInvalid = !isNonEmptyString(tenantId);
   if (isTenantIdInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: ERROR_MESSAGES.TENANT_ID_REQUIRED,
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.TENANT_ID_REQUIRED, 'validation_failed')
+    );
     return;
   }
 
   // Validate releaseId
   const isReleaseIdInvalid = !isNonEmptyString(releaseId);
   if (isReleaseIdInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: 'releaseId is required',
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('releaseId is required', 'validation_failed')
+    );
     return;
   }
 
   // Validate storeType
   const isStoreTypeInvalid = !isNonEmptyString(storeType);
   if (isStoreTypeInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: ERROR_MESSAGES.STORE_TYPE_REQUIRED,
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.STORE_TYPE_REQUIRED, 'validation_failed')
+    );
     return;
   }
 
@@ -933,20 +917,18 @@ export const validatePlayStoreUploadBody = (req: Request, res: Response, next: N
   const storeTypeLower = storeType.toLowerCase();
   const isPlayStore = storeTypeLower === 'play_store';
   if (!isPlayStore) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: 'storeType must be "play_store" for AAB upload',
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('storeType must be "play_store" for AAB upload', 'validation_failed')
+    );
     return;
   }
 
   // Validate platform
   const isPlatformInvalid = !isNonEmptyString(platform);
   if (isPlatformInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: 'platform is required',
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('platform is required', 'validation_failed')
+    );
     return;
   }
 
@@ -954,20 +936,18 @@ export const validatePlayStoreUploadBody = (req: Request, res: Response, next: N
   const platformUpper = platform.toUpperCase();
   const isAndroid = platformUpper === 'ANDROID';
   if (!isAndroid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: 'platform must be "ANDROID" for Play Store upload',
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('platform must be "ANDROID" for Play Store upload', 'validation_failed')
+    );
     return;
   }
 
   // Validate versionName
   const isVersionNameInvalid = !isNonEmptyString(versionName);
   if (isVersionNameInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: PLAY_STORE_UPLOAD_ERROR_MESSAGES.VERSION_NAME_REQUIRED,
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(PLAY_STORE_UPLOAD_ERROR_MESSAGES.VERSION_NAME_REQUIRED, 'validation_failed')
+    );
     return;
   }
 
@@ -975,10 +955,9 @@ export const validatePlayStoreUploadBody = (req: Request, res: Response, next: N
   if (releaseNotes !== undefined && releaseNotes !== null) {
     const isReleaseNotesInvalid = typeof releaseNotes !== 'string';
     if (isReleaseNotesInvalid) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        error: 'releaseNotes must be a string if provided',
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse('releaseNotes must be a string if provided', 'validation_failed')
+      );
       return;
     }
   }
@@ -987,10 +966,9 @@ export const validatePlayStoreUploadBody = (req: Request, res: Response, next: N
   const files = req.files as Express.Multer.File[] | undefined;
   const filesMissing = !files || !Array.isArray(files) || files.length === 0;
   if (filesMissing) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: PLAY_STORE_UPLOAD_ERROR_MESSAGES.AAB_FILE_REQUIRED,
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(PLAY_STORE_UPLOAD_ERROR_MESSAGES.AAB_FILE_REQUIRED, 'validation_failed')
+    );
     return;
   }
 
@@ -1002,20 +980,18 @@ export const validatePlayStoreUploadBody = (req: Request, res: Response, next: N
 
   const aabFileMissing = !aabFile;
   if (aabFileMissing) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: PLAY_STORE_UPLOAD_ERROR_MESSAGES.INVALID_AAB_FILE,
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(PLAY_STORE_UPLOAD_ERROR_MESSAGES.INVALID_AAB_FILE, 'validation_failed')
+    );
     return;
   }
 
   // Validate file has buffer
   const bufferMissing = !aabFile.buffer || !Buffer.isBuffer(aabFile.buffer);
   if (bufferMissing) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: PLAY_STORE_UPLOAD_ERROR_MESSAGES.INVALID_AAB_FILE,
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(PLAY_STORE_UPLOAD_ERROR_MESSAGES.INVALID_AAB_FILE, 'validation_failed')
+    );
     return;
   }
 
@@ -1038,20 +1014,18 @@ export const validatePlayStoreListingsQuery = (req: Request, res: Response, next
   // Validate tenantId
   const isTenantIdInvalid = !isNonEmptyString(tenantId);
   if (isTenantIdInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: ERROR_MESSAGES.TENANT_ID_REQUIRED,
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.TENANT_ID_REQUIRED, 'validation_failed')
+    );
     return;
   }
 
   // Validate storeType
   const isStoreTypeInvalid = !isNonEmptyString(storeType);
   if (isStoreTypeInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: ERROR_MESSAGES.STORE_TYPE_REQUIRED,
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.STORE_TYPE_REQUIRED, 'validation_failed')
+    );
     return;
   }
 
@@ -1059,20 +1033,18 @@ export const validatePlayStoreListingsQuery = (req: Request, res: Response, next
   const storeTypeLower = storeType.toLowerCase();
   const isPlayStore = storeTypeLower === 'play_store';
   if (!isPlayStore) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: `storeType must be "play_store" for listings (maps to ${STORE_TYPE.PLAY_STORE})`,
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(`storeType must be "play_store" for listings (maps to ${STORE_TYPE.PLAY_STORE})`, 'validation_failed')
+    );
     return;
   }
 
   // Validate platform
   const isPlatformInvalid = !isNonEmptyString(platform);
   if (isPlatformInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: 'platform is required',
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('platform is required', 'validation_failed')
+    );
     return;
   }
 
@@ -1080,10 +1052,9 @@ export const validatePlayStoreListingsQuery = (req: Request, res: Response, next
   const platformUpper = platform.toUpperCase();
   const isAndroid = platformUpper === BUILD_PLATFORM.ANDROID;
   if (!isAndroid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: `platform must be "${BUILD_PLATFORM.ANDROID}" for Play Store listings`,
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(`platform must be "${BUILD_PLATFORM.ANDROID}" for Play Store listings`, 'validation_failed')
+    );
     return;
   }
 
@@ -1103,20 +1074,18 @@ export const validatePlayStoreProductionStateQuery = (req: Request, res: Respons
   // Validate submissionId
   const isSubmissionIdInvalid = !isNonEmptyString(submissionId);
   if (isSubmissionIdInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: 'submissionId is required',
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('submissionId is required', 'validation_failed')
+    );
     return;
   }
 
   // Validate platform
   const isPlatformInvalid = !isNonEmptyString(platform);
   if (isPlatformInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: 'platform is required',
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('platform is required', 'validation_failed')
+    );
     return;
   }
 
@@ -1124,20 +1093,18 @@ export const validatePlayStoreProductionStateQuery = (req: Request, res: Respons
   const platformUpper = platform.toUpperCase();
   const isAndroid = platformUpper === BUILD_PLATFORM.ANDROID;
   if (!isAndroid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: `platform must be "${BUILD_PLATFORM.ANDROID}" for Play Store production state`,
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(`platform must be "${BUILD_PLATFORM.ANDROID}" for Play Store production state`, 'validation_failed')
+    );
     return;
   }
 
   // Validate storeType
   const isStoreTypeInvalid = !isNonEmptyString(storeType);
   if (isStoreTypeInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: 'storeType is required',
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('storeType is required', 'validation_failed')
+    );
     return;
   }
 
@@ -1145,10 +1112,9 @@ export const validatePlayStoreProductionStateQuery = (req: Request, res: Respons
   const storeTypeLower = storeType.toLowerCase();
   const isPlayStore = storeTypeLower === 'play_store';
   if (!isPlayStore) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: 'storeType must be "play_store" for Play Store production state',
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('storeType must be "play_store" for Play Store production state', 'validation_failed')
+    );
     return;
   }
 

@@ -4,12 +4,23 @@ import type { UpdateCICDIntegrationDto, SafeCICDIntegration } from "~types/integ
 import { PROVIDER_DEFAULTS, HEADERS } from "../constants";
 import { decryptIfEncrypted, decryptFields, encryptForStorage } from "~utils/encryption";
 
+interface GitHubActionsVerifyBody {
+  apiToken: string;
+  _encrypted?: boolean;
+}
+
+interface GitHubActionsCreateBody {
+  displayName?: string;
+  apiToken: string;
+}
+
 export const createGitHubActionsConnectionAdapter = (): ConnectionAdapter => {
   const service = new GitHubActionsConnectionService();
 
   const verify: ConnectionAdapter["verify"] = async (body) => {
-    const apiToken = body.apiToken as string;
-    const _encrypted = body._encrypted as boolean | undefined;
+    // Validated by middleware, safe to cast
+    const typedBody = body as unknown as GitHubActionsVerifyBody;
+    const { apiToken, _encrypted } = typedBody;
     
     // Decrypt apiToken if encrypted from frontend
     const decryptedToken = _encrypted 
@@ -29,8 +40,9 @@ export const createGitHubActionsConnectionAdapter = (): ConnectionAdapter => {
   // prepareVerifyOnUpdate removed; update handled via service.update
 
   const create: ConnectionAdapter["create"] = async (tenantId, accountId, body) => {
-    const displayName = body.displayName as string | undefined;
-    const apiToken = body.apiToken as string;
+    // Validated by middleware, safe to cast
+    const typedBody = body as unknown as GitHubActionsCreateBody;
+    const { displayName, apiToken } = typedBody;
     
     // Double-layer encryption: Decrypt frontend-encrypted value, then encrypt with backend storage key
     const { decrypted: decryptedData } = decryptFields({ apiToken }, ['apiToken']);

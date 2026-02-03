@@ -6,15 +6,21 @@
 import type { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
 import type { CommIntegrationService } from '~services/integrations/comm/comm-integration';
-import type { CreateOrUpdateIntegrationDto } from '~types/integrations/comm';
+import type { CreateOrUpdateIntegrationDto, UpdateSlackIntegrationDto } from '~types/integrations/comm';
+import { CommType } from '~services/integrations/comm';
+import { CommunicationType } from '~types/integrations/comm';
 import {
   errorResponse,
   getErrorStatusCode,
   notFoundResponse,
   successMessageResponse,
   successResponse,
-  validationErrorResponse
+  validationErrorResponse,
+  detailedErrorResponse,
+  forbiddenResponse,
+  buildValidationErrorResponse
 } from '~utils/response.utils';
+import { hasErrorCode } from '~utils/error.utils';
 import { decryptIfEncrypted, decryptFields, encryptForStorage, decryptFromStorage, isBackendEncrypted } from '~utils/encryption';
 import { 
   COMM_INTEGRATION_ERROR_MESSAGES, 
@@ -35,45 +41,56 @@ const verifyTokenHandler = (service: CommIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       // Use Yup validation
-      const validated = await validateSlackVerifyRequest(req.body, res);
-      if (!validated) {
-        return; // Response already sent
+      const validationResult = await validateSlackVerifyRequest(req.body);
+      if (validationResult.success === false) {
+        // Add "verified: false" for verify endpoint
+        const errorResponse = buildValidationErrorResponse('Request validation failed', validationResult.errors);
+        res.status(HTTP_STATUS.BAD_REQUEST).json({
+          ...errorResponse,
+          verified: false
+        });
+        return;
       }
+
+      const validated = validationResult.data;
       
       const decryptedToken = validated._encrypted 
         ? decryptIfEncrypted(validated.botToken, 'botToken')
         : validated.botToken;
 
-      const verificationResult = await service.verifyCredentials('SLACK' as any, decryptedToken);
+      const verificationResult = await service.verifyCredentials(CommType.SLACK, decryptedToken);
 
       // Return proper status codes
       if (verificationResult.success) {
         res.status(HTTP_STATUS.OK).json({
-          success: true,
-          verified: true,
-          message: verificationResult.message,
-          workspaceId: verificationResult.workspaceId,
-          workspaceName: verificationResult.workspaceName,
-          botUserId: verificationResult.botUserId,
-          ...(verificationResult.details && { details: verificationResult.details })
+          ...successResponse({
+            verified: true,
+            workspaceId: verificationResult.workspaceId,
+            workspaceName: verificationResult.workspaceName,
+            botUserId: verificationResult.botUserId
+          }),
+          message: verificationResult.message  // If needed
         });
       } else {
         // Read statusCode from result
         const statusCode = verificationResult.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
         res.status(statusCode).json({
-          success: false,
-          verified: false,
-          error: verificationResult.message,
-          ...(verificationResult.details && { details: verificationResult.details })
+          ...detailedErrorResponse(
+            verificationResult.message,
+            verificationResult.details?.errorCode || 'verification_failed',
+            [verificationResult.message]
+          ),
+          verified: false  // Add custom field if needed
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const statusCode = getErrorStatusCode(error);
+      const errorCode = hasErrorCode(error) ? error.code : 'verification_failed';
+      const errorMessage = error instanceof Error ? error.message : COMM_INTEGRATION_ERROR_MESSAGES.VERIFY_TOKEN_FAILED;
+      
       res.status(statusCode).json({
-        success: false,
-        verified: false,
-        error: error.message || COMM_INTEGRATION_ERROR_MESSAGES.VERIFY_TOKEN_FAILED,
-        ...(error.details && { details: error.details })
+        ...detailedErrorResponse(errorMessage, errorCode, [errorMessage]),
+        verified: false
       });
     }
   };
@@ -85,16 +102,21 @@ const verifyTokenHandler = (service: CommIntegrationService) =>
 const fetchChannelsHandler = (service: CommIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
     // Use Yup validation
-    const validated = await validateSlackVerifyRequest(req.body, res);
-    if (!validated) {
-      return; // Response already sent
+    const validationResult = await validateSlackVerifyRequest(req.body);
+    if (validationResult.success === false) {
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        buildValidationErrorResponse('Request validation failed', validationResult.errors)
+      );
+      return;
     }
+
+    const validated = validationResult.data;
 
     const decryptedToken = validated._encrypted 
       ? decryptIfEncrypted(validated.botToken, 'botToken')
       : validated.botToken;
 
-    const result = await service.fetchChannels('SLACK' as any, decryptedToken);
+    const result = await service.fetchChannels(CommType.SLACK, decryptedToken);
 
     if (result.success) {
       res.status(HTTP_STATUS.OK).json(successResponse({
@@ -114,11 +136,13 @@ const fetchChannelsHandler = (service: CommIntegrationService) =>
         statusCode = HTTP_STATUS.SERVICE_UNAVAILABLE;
       }
 
-      res.status(statusCode).json({
-        success: false,
-        error: result.message,
-        ...(result.details && { details: result.details })
-      });
+      res.status(statusCode).json(
+        detailedErrorResponse(
+          result.message,
+          result.details?.errorCode || 'fetch_channels_failed',
+          [result.message]
+        )
+      );
     }
   };
 
@@ -153,7 +177,7 @@ const fetchChannelsByIntegrationIdHandler = (service: CommIntegrationService) =>
       // Validate that integration belongs to the tenant
       if (integration.tenantId !== tenantId) {
         res.status(HTTP_STATUS.FORBIDDEN).json(
-          errorResponse(new Error('Integration does not belong to this tenant'), 'Access denied')
+          forbiddenResponse('Integration does not belong to this tenant', 'integration_access_denied')
         );
         return;
       }
@@ -163,7 +187,11 @@ const fetchChannelsByIntegrationIdHandler = (service: CommIntegrationService) =>
 
       if (!botToken) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          errorResponse(new Error('Bot token not found in integration'), 'Integration is missing bot token')
+          detailedErrorResponse(
+            'Integration is missing bot token',
+            'missing_bot_token',
+            ['Bot token not found in integration']
+          )
         );
         return;
       }
@@ -175,7 +203,7 @@ const fetchChannelsByIntegrationIdHandler = (service: CommIntegrationService) =>
         : botToken;  // Already plaintext (repository successfully decrypted it)
 
       // Fetch channels using the decrypted token
-      const result = await service.fetchChannels('SLACK' as any, decryptedToken);
+      const result = await service.fetchChannels(CommType.SLACK, decryptedToken);
 
       if (result.success) {
         res.status(HTTP_STATUS.OK).json(successResponse({
@@ -195,11 +223,13 @@ const fetchChannelsByIntegrationIdHandler = (service: CommIntegrationService) =>
           statusCode = HTTP_STATUS.SERVICE_UNAVAILABLE;
         }
 
-        res.status(statusCode).json({
-          success: false,
-          error: result.message,
-          ...(result.details && { details: result.details })
-        });
+        res.status(statusCode).json(
+          detailedErrorResponse(
+            result.message,
+            result.details?.errorCode || 'fetch_channels_failed',
+            [result.message]
+          )
+        );
       }
     } catch (error) {
       const statusCode = getErrorStatusCode(error);
@@ -225,10 +255,15 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
       const { tenantId } = req.params;
       
       // Use Yup validation
-      const validated = await validateSlackConfig(req.body, res);
-      if (!validated) {
-        return; // Response already sent
+      const validationResult = await validateSlackConfig(req.body);
+      if (validationResult.success === false) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          buildValidationErrorResponse('Request validation failed', validationResult.errors)
+        );
+        return;
       }
+
+      const validated = validationResult.data;
 
       // Double-layer encryption: Decrypt frontend-encrypted value (if encrypted), then encrypt with backend storage key
       const decryptedToken = validated._encrypted 
@@ -263,7 +298,7 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
         isNew = false;
       } else {
         // Create new - store backend-encrypted value
-        result = await service.createIntegration(tenantId, 'SLACK' as any, {
+        result = await service.createIntegration(tenantId, CommunicationType.SLACK, {
           botToken: decryptedToken,
           botUserId: validated.botUserId,
           workspaceId: validated.workspaceId,
@@ -279,13 +314,14 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
         : COMM_INTEGRATION_SUCCESS_MESSAGES.INTEGRATION_UPDATED;
 
       res.status(statusCode).json(successResponse(result, message));
-    } catch (error: any) {
+    } catch (error: unknown) {
       const statusCode = getErrorStatusCode(error);
-      res.status(statusCode).json({
-        success: false,
-        error: error.message || COMM_INTEGRATION_ERROR_MESSAGES.CREATE_INTEGRATION_FAILED,
-        ...(error.details && { details: error.details })
-      });
+      const errorCode = hasErrorCode(error) ? error.code : 'integration_create_failed';
+      const errorMessage = error instanceof Error ? error.message : COMM_INTEGRATION_ERROR_MESSAGES.CREATE_INTEGRATION_FAILED;
+      
+      res.status(statusCode).json(
+        detailedErrorResponse(errorMessage, errorCode, [errorMessage])
+      );
     }
   };
 
@@ -402,34 +438,41 @@ const verifyIntegrationHandler = (service: CommIntegrationService) =>
         : botToken;  // Already plaintext (repository successfully decrypted it) or undefined
       
       // Verify using the decrypted token
-      const verificationResult = await service.verifyCredentials('SLACK' as any, decryptedToken);
+      const verificationResult = await service.verifyCredentials(CommType.SLACK, decryptedToken);
 
       // Return proper status codes
       if (verificationResult.success) {
         res.status(HTTP_STATUS.OK).json({
-          success: true,
-          verified: true,
-          message: verificationResult.message,
-          workspaceId: verificationResult.workspaceId,
-          workspaceName: verificationResult.workspaceName,
-          botUserId: verificationResult.botUserId,
-          ...(verificationResult.details && { details: verificationResult.details })
+          ...successResponse({
+            verified: true,
+            workspace: {
+              id: verificationResult.workspaceId,
+              name: verificationResult.workspaceName
+            },
+            botUserId: verificationResult.botUserId,
+            ...(verificationResult.details && { details: verificationResult.details })
+          }),
+          message: verificationResult.message
         });
       } else {
-        res.status(HTTP_STATUS.BAD_REQUEST).json({
-          success: false,
-          verified: false,
-          error: verificationResult.message,
-          ...(verificationResult.details && { details: verificationResult.details })
+        const statusCode = verificationResult.statusCode || HTTP_STATUS.BAD_REQUEST;
+        res.status(statusCode).json({
+          ...detailedErrorResponse(
+            verificationResult.message,
+            verificationResult.details?.errorCode || 'verification_failed',
+            [verificationResult.message]
+          ),
+          verified: false
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const statusCode = getErrorStatusCode(error);
+      const errorCode = hasErrorCode(error) ? error.code : 'verification_failed';
+      const errorMessage = error instanceof Error ? error.message : COMM_INTEGRATION_ERROR_MESSAGES.VERIFY_TOKEN_FAILED;
+      
       res.status(statusCode).json({
-        success: false,
-        verified: false,
-        error: error.message || COMM_INTEGRATION_ERROR_MESSAGES.VERIFY_TOKEN_FAILED,
-        ...(error.details && { details: error.details })
+        ...detailedErrorResponse(errorMessage, errorCode, [errorMessage]),
+        verified: false
       });
     }
   };
@@ -444,13 +487,18 @@ const updateIntegrationHandler = (service: CommIntegrationService) =>
       const { tenantId } = req.params;
       
       // Use Yup validation
-      const validated = await validateSlackUpdateConfig(req.body, res);
-      if (!validated) {
-        return; // Response already sent
+      const validationResult = await validateSlackUpdateConfig(req.body);
+      if (validationResult.success === false) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          buildValidationErrorResponse('Request validation failed', validationResult.errors)
+        );
+        return;
       }
 
+      const validated = validationResult.data;
+
       // Double-layer encryption: Decrypt frontend-encrypted value (if encrypted), then encrypt with backend storage key
-      const updateData: any = {};
+      const updateData: UpdateSlackIntegrationDto = {};
       if (validated.botToken) {
         const decryptedToken = validated._encrypted 
           ? decryptFields({ botToken: validated.botToken }, ['botToken']).decrypted.botToken
@@ -466,13 +514,14 @@ const updateIntegrationHandler = (service: CommIntegrationService) =>
       res.status(HTTP_STATUS.OK).json(
         successResponse(updated, COMM_INTEGRATION_SUCCESS_MESSAGES.INTEGRATION_UPDATED)
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       const statusCode = getErrorStatusCode(error);
-      res.status(statusCode).json({
-        success: false,
-        error: error.message || COMM_INTEGRATION_ERROR_MESSAGES.UPDATE_INTEGRATION_FAILED,
-        ...(error.details && { details: error.details })
-      });
+      const errorCode = hasErrorCode(error) ? error.code : 'integration_update_failed';
+      const errorMessage = error instanceof Error ? error.message : COMM_INTEGRATION_ERROR_MESSAGES.UPDATE_INTEGRATION_FAILED;
+      
+      res.status(statusCode).json(
+        detailedErrorResponse(errorMessage, errorCode, [errorMessage])
+      );
     }
   };
 

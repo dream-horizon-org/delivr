@@ -34,7 +34,9 @@ export class ProjectManagementIntegrationService {
     const validationResult = await provider.validateConfig(data.config);
     
     if (!validationResult.isValid) {
-      const error: any = new Error(validationResult.message);
+      const error = new Error(validationResult.message) as Error & { 
+        details?: { errorCode?: string; message?: string; [key: string]: unknown };
+      };
       error.details = validationResult.details;
       throw error;
     }
@@ -87,7 +89,9 @@ export class ProjectManagementIntegrationService {
       const validationResult = await provider.validateConfig(mergedConfig);
 
       if (!validationResult.isValid) {
-        const error: any = new Error(validationResult.message);
+        const error = new Error(validationResult.message) as Error & { 
+          details?: { errorCode?: string; message?: string; [key: string]: unknown };
+        };
         error.details = validationResult.details;
         throw error;
       }
@@ -135,7 +139,7 @@ export class ProjectManagementIntegrationService {
         message: validationResult.message,
         ...(validationResult.details && { details: validationResult.details })
       };
-    } catch (error) {
+    } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error occurred';
 

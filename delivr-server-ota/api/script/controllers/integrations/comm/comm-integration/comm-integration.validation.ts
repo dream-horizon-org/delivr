@@ -4,71 +4,10 @@
  */
 
 import * as yup from 'yup';
-import type { Response } from 'express';
-import { HTTP_STATUS } from '~constants/http';
+import { validateWithYup } from '~utils/validation.utils';
+import type { ValidationResult } from '~types/validation/validation-result.interface';
 
 /* ==================== YUP VALIDATION SCHEMAS ==================== */
-
-/**
- * Generic Yup validation helper
- * Validates data against schema and returns formatted errors
- * @param includeVerifiedField - Whether to include "verified" field in error response (true for verify operations only)
- */
-async function validateWithYup<T>(
-  schema: yup.Schema<T>,
-  data: unknown,
-  res: Response,
-  includeVerifiedField: boolean = false
-): Promise<T | null> {
-  try {
-    const validated = await schema.validate(data, {
-      abortEarly: false,
-      stripUnknown: true
-    });
-    return validated;
-  } catch (error) {
-    if (error instanceof yup.ValidationError) {
-      const errorsByField = new Map<string, string[]>();
-      error.inner.forEach((err) => {
-        const field = err.path || 'unknown';
-        if (!errorsByField.has(field)) {
-          errorsByField.set(field, []);
-        }
-        errorsByField.get(field)!.push(err.message);
-      });
-      const details = Array.from(errorsByField.entries()).map(([field, messages]) => ({
-        field,
-        messages
-      }));
-      
-      const errorResponse: any = {
-        success: false,
-        error: 'Request validation failed',
-        details: details
-      };
-      
-      if (includeVerifiedField) {
-        errorResponse.verified = false;
-      }
-      
-      res.status(HTTP_STATUS.BAD_REQUEST).json(errorResponse);
-      return null;
-    }
-    
-    const errorResponse: any = {
-      success: false,
-      error: 'Validation error occurred',
-      details: []
-    };
-    
-    if (includeVerifiedField) {
-      errorResponse.verified = false;
-    }
-    
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(errorResponse);
-    return null;
-  }
-}
 
 /**
  * Yup schema for Slack verification (stateless verify)
@@ -124,35 +63,33 @@ const slackUpdateSchema = yup.object({
 
 /**
  * Validate Slack verify request with Yup
- * Includes "verified: false" in error responses
+ * Returns ValidationResult with either validated data or errors
+ * Note: Controller should add "verified: false" to error response
  */
 export const validateSlackVerifyRequest = async (
-  data: unknown,
-  res: Response
-): Promise<yup.InferType<typeof slackVerifySchema> | null> => {
-  return validateWithYup(slackVerifySchema, data, res, true); // true = include "verified" field
+  data: unknown
+): Promise<ValidationResult<yup.InferType<typeof slackVerifySchema>>> => {
+  return validateWithYup(slackVerifySchema, data);
 };
 
 /**
  * Validate Slack config with Yup (for CREATE operations)
- * Does NOT include "verified" field in error responses
+ * Returns ValidationResult with either validated data or errors
  */
 export const validateSlackConfig = async (
-  data: unknown,
-  res: Response
-): Promise<yup.InferType<typeof slackConfigSchema> | null> => {
-  return validateWithYup(slackConfigSchema, data, res, false); // false = no "verified" field
+  data: unknown
+): Promise<ValidationResult<yup.InferType<typeof slackConfigSchema>>> => {
+  return validateWithYup(slackConfigSchema, data);
 };
 
 /**
  * Validate Slack config with Yup (for UPDATE operations)
  * Validates only fields that are present (partial update)
- * Does NOT include "verified" field in error responses
+ * Returns ValidationResult with either validated data or errors
  */
 export const validateSlackUpdateConfig = async (
-  data: unknown,
-  res: Response
-): Promise<yup.InferType<typeof slackUpdateSchema> | null> => {
-  return validateWithYup(slackUpdateSchema, data, res, false); // false = no "verified" field
+  data: unknown
+): Promise<ValidationResult<yup.InferType<typeof slackUpdateSchema>>> => {
+  return validateWithYup(slackUpdateSchema, data);
 };
 

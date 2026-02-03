@@ -34,10 +34,8 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
             success: false,
             message: 'Invalid GitHub token. Please verify your token is correct.',
             statusCode: 401,
-            details: {
-              errorCode: 'invalid_credentials',
-              message: 'Generate a new personal access token or fine-grained token from GitHub → Settings → Developer settings → Tokens'
-            }
+            errorCode: 'invalid_credentials',
+            details: ['Generate a new personal access token or fine-grained token from GitHub → Settings → Developer settings → Tokens']
           };
         }
         
@@ -46,10 +44,8 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
             success: false,
             message: 'GitHub token is valid but lacks required permissions.',
             statusCode: 403,
-            details: {
-              errorCode: 'insufficient_permissions',
-              message: 'Ensure your token has the following scopes: repo, workflow, read:org'
-            }
+            errorCode: 'insufficient_permissions',
+            details: ['Ensure your token has the following scopes: repo, workflow, read:org']
           };
         }
         
@@ -58,10 +54,8 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
             success: false,
             message: 'GitHub API endpoint not found. Please verify the API base URL.',
             statusCode: 404,
-            details: {
-              errorCode: 'api_not_found',
-              message: 'Check that you are using the correct GitHub API endpoint (https://api.github.com)'
-            }
+            errorCode: 'api_not_found',
+            details: ['Check that you are using the correct GitHub API endpoint (https://api.github.com)']
           };
         }
         
@@ -70,10 +64,8 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
             success: false,
             message: `GitHub service temporarily unavailable (${status}). Please try again later.`,
             statusCode: 503,
-            details: {
-              errorCode: 'service_unavailable',
-              message: 'GitHub servers are experiencing issues. This is not a token problem - retry in a few minutes.'
-            }
+            errorCode: 'service_unavailable',
+            details: ['GitHub servers are experiencing issues. This is not a token problem - retry in a few minutes.']
           };
         }
         
@@ -81,10 +73,8 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
           success: false,
           message: `GitHub API error (${status}): ${statusText}`,
           statusCode: status,
-          details: {
-            errorCode: 'api_error',
-            message: statusText
-          }
+          errorCode: 'api_error',
+          details: [statusText]
         };
       }
       
@@ -96,10 +86,8 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
           success: false,
           message: 'Connection timeout. Please check your GitHub token and try again.',
           statusCode: 408,
-          details: {
-            errorCode: 'timeout',
-            message: 'The request took too long to complete. Verify GitHub API is accessible and responding'
-          }
+          errorCode: 'timeout',
+          details: ['The request took too long to complete. Verify GitHub API is accessible and responding']
         };
       }
       
@@ -108,10 +96,8 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
         success: false,
         message: `Connection failed: ${errorMessage}`,
         statusCode: 503,
-        details: {
-          errorCode: 'network_error',
-          message: 'Unable to reach GitHub API. Check your internet connection and try again'
-        }
+        errorCode: 'network_error',
+        details: ['Unable to reach GitHub API. Check your internet connection and try again']
       };
     }
   };

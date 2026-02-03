@@ -15,6 +15,14 @@ import {
 } from "../../../../storage/integrations/scm/scm-types";
 import fetch from "node-fetch";
 import { decryptIfEncrypted, decryptFields, encryptForStorage } from "../../../../utils/encryption";
+import { HTTP_STATUS } from "../../../../constants/http";
+import {
+  successResponse,
+  successMessageResponse,
+  notFoundResponse,
+  simpleErrorResponse,
+  detailedErrorResponse
+} from "../../../../utils/response.utils";
 
 // ============================================================================
 // TYPES
@@ -37,6 +45,30 @@ interface GitHubRepo {
   };
   [key: string]: any;
 }
+
+/**
+ * SCM Verification Result - Discriminated Union
+ * Similar to CI/CD VerifyResult pattern
+ */
+export type SCMVerifyResult = 
+  | { 
+      success: true; 
+      message: string;
+      details?: {
+        user?: string;
+        repository?: string;
+        defaultBranch?: string;
+        private?: boolean;
+        permissions?: Record<string, unknown>;
+      };
+    }
+  | { 
+      success: false; 
+      message: string;
+      statusCode: number;
+      errorCode: string;
+      details?: string[];
+    };
 
 // ============================================================================
 // HELPERS
@@ -79,31 +111,31 @@ export async function verifyGitHubConnection(
     const verificationResult = await verifyGitHub(owner, repo, decryptedToken);
 
     // Return error if verification fails
-    if (!verificationResult.success) {
-      // Read statusCode from result
-      const statusCode = verificationResult.statusCode || 500;
-      return res.status(statusCode).json({
-        success: false,
-        verified: false,
-        error: verificationResult.message,
-        details: verificationResult.details
+    if (verificationResult.success === false) {
+      return res.status(verificationResult.statusCode).json({
+        ...detailedErrorResponse(
+          verificationResult.message, 
+          verificationResult.errorCode, 
+          verificationResult.details || [verificationResult.message]
+        ),
+        verified: false
       });
     }
 
     // Return 200 if verification succeeds
-    return res.status(200).json({
-      success: true,
-      verified: true,
-      message: verificationResult.message,
-      details: verificationResult.details
+    return res.status(HTTP_STATUS.OK).json({
+      ...successResponse({
+        verified: true,
+        ...verificationResult.details
+      }),
+      message: verificationResult.message
     });
-  } catch (error: any) {
-    console.error(`[GitHub] Error verifying ${owner}/${repo}:`, error.message);
-    return res.status(400).json({
-      success: false,
-      verified: false,
-      error: error.message || "Failed to verify connection",
-      details: { message : error.message }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to verify connection";
+    console.error(`[GitHub] Error verifying ${owner}/${repo}:`, errorMessage);
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      ...detailedErrorResponse(errorMessage, 'verification_error', [errorMessage]),
+      verified: false
     });
   }
 }
@@ -138,14 +170,14 @@ export async function createGitHubConnection(
 
   const verificationResult = await verifyGitHub(owner, repo, decryptedToken);
 
-  if (!verificationResult.success) {
-    // Read statusCode from result
-    const statusCode = verificationResult.statusCode || 500;
-    return res.status(statusCode).json({
-      success: false,
-      verified: false,
-      error: verificationResult.message,
-      details: verificationResult.details
+  if (verificationResult.success === false) {
+    return res.status(verificationResult.statusCode).json({
+      ...detailedErrorResponse(
+        verificationResult.message, 
+        verificationResult.errorCode, 
+        verificationResult.details || [verificationResult.message]
+      ),
+      verified: false
     });
   }
   
@@ -180,11 +212,9 @@ export async function createGitHubConnection(
 
       const updated = await scmController.update(existing.id, updateData);
       
-      return res.status(200).json({
-        success: true,
-        message: "GitHub integration updated successfully",
-        integration: sanitizeSCMResponse(updated)
-      });
+      return res.status(HTTP_STATUS.OK).json(
+        successResponse(sanitizeSCMResponse(updated), "GitHub integration updated successfully")
+      );
     } else {
       const createData: CreateSCMIntegrationDto = {
         tenantId,
@@ -205,22 +235,16 @@ export async function createGitHubConnection(
 
       const created = await scmController.create(createData);
       
-      return res.status(201).json({
-        success: true,
-        message: "GitHub integration created successfully",
-        integration: sanitizeSCMResponse(created)
-      });
+      return res.status(HTTP_STATUS.CREATED).json(
+        successResponse(sanitizeSCMResponse(created), "GitHub integration created successfully")
+      );
     }
-  } catch (error: any) {
-    console.error(`[GitHub] Error saving integration:`, error.message);
-    return res.status(500).json({
-      success: false,
-      error: "Failed to save GitHub integration",
-      details: { 
-        errorCode: 'internal_error',
-        message: error.message 
-      },
-    });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to save GitHub integration";
+    console.error(`[GitHub] Error saving integration:`, errorMessage);
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      detailedErrorResponse("Failed to save GitHub integration", 'internal_error', [errorMessage])
+    );
   }
 }
 
@@ -239,30 +263,20 @@ export async function getGitHubConnection(
     const integration = await scmController.findActiveByTenant(tenantId);
 
     if (!integration || integration.scmType !== 'GITHUB') {
-      return res.status(404).json({
-        success: false,
-        error: "No GitHub integration found for this tenant",
-        details: {
-          errorCode: 'integration_not_found',
-          message: 'Set up a GitHub integration first'
-        }
-      });
+      return res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse("GitHub integration", 'integration_not_found')
+      );
     }
 
-    return res.status(200).json({
-      success: true,
-      integration: sanitizeSCMResponse(integration)
-    });
-  } catch (error: any) {
-    console.error(`[GitHub] Error fetching integration:`, error.message);
-    return res.status(500).json({
-      success: false,
-      error: "Failed to fetch GitHub integration",
-      details: { 
-        errorCode: 'internal_error',
-        message: error.message  
-      },
-    });
+    return res.status(HTTP_STATUS.OK).json(
+      successResponse(sanitizeSCMResponse(integration))
+    );
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to fetch GitHub integration";
+    console.error(`[GitHub] Error fetching integration:`, errorMessage);
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      detailedErrorResponse("Failed to fetch GitHub integration", 'internal_error', [errorMessage])
+    );
   }
 }
 
@@ -282,10 +296,9 @@ export async function updateGitHubConnection(
     const existing = await scmController.findActiveByTenant(tenantId);
 
     if (!existing || existing.scmType !== 'GITHUB') {
-      return res.status(404).json({
-        success: false,
-        error: "No GitHub integration found for this tenant"
-      });
+      return res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse("GitHub integration", 'integration_not_found')
+      );
     }
 
     // Double-layer encryption: Decrypt frontend-encrypted values, then encrypt with backend storage key
@@ -296,10 +309,9 @@ export async function updateGitHubConnection(
     
 
     if((isOwnerUpdated || isRepoUpdated)&& !(isTokenUpdated)) {
-      return res.status(400).json({
-        success: false,
-        error: "accessToken is required when updating owner or repo",
-      });
+      return res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse("accessToken is required when updating owner or repo", 'missing_token')
+      );
     }
     if (isOwnerUpdated || isRepoUpdated || isTokenUpdated) {
       const ownerToVerify  =processedUpdateData.owner ?? existing.owner;
@@ -311,14 +323,14 @@ export async function updateGitHubConnection(
 
       const verificationResult = await verifyGitHub(ownerToVerify, repoToVerify, tokenToVerify);
 
-      if (!verificationResult.success) {
-        // Read statusCode from result
-        const statusCode = verificationResult.statusCode || 500;
-        return res.status(statusCode).json({
-          success: false,
-          verified: false,
-          error: verificationResult.message,
-          details: verificationResult.details
+      if (verificationResult.success === false) {
+        return res.status(verificationResult.statusCode).json({
+          ...detailedErrorResponse(
+            verificationResult.message, 
+            verificationResult.errorCode, 
+            verificationResult.details || [verificationResult.message]
+          ),
+          verified: false
         });
       }
 
@@ -337,21 +349,15 @@ export async function updateGitHubConnection(
     // Store backend-encrypted values in database
     const updated = await scmController.update(existing.id, processedUpdateData);
 
-    return res.status(200).json({
-      success: true,
-      message: "GitHub integration updated successfully",
-      integration: sanitizeSCMResponse(updated)
-    });
-  } catch (error: any) {
-    console.error(`[GitHub] Error updating integration:`, error.message);
-    return res.status(500).json({
-      success: false,
-      error: "Failed to update GitHub integration",
-      details: { 
-        errorCode: 'internal_error',
-        message: error.message 
-      },
-    });
+    return res.status(HTTP_STATUS.OK).json(
+      successResponse(sanitizeSCMResponse(updated), "GitHub integration updated successfully")
+    );
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to update GitHub integration";
+    console.error(`[GitHub] Error updating integration:`, errorMessage);
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      detailedErrorResponse("Failed to update GitHub integration", 'internal_error', [errorMessage])
+    );
   }
 }
 
@@ -370,32 +376,22 @@ export async function deleteGitHubConnection(
     const existing = await scmController.findActiveByTenant(tenantId);
 
     if (!existing || existing.scmType !== 'GITHUB') {
-      return res.status(404).json({
-        success: false,
-        error: "No GitHub integration found for this tenant",
-        details: {
-          errorCode: 'integration_not_found',
-          message: 'No GitHub integration exists to delete'
-        }
-      });
+      return res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse("GitHub integration", 'integration_not_found')
+      );
     }
 
     await scmController.hardDelete(existing.id);
 
-    return res.status(200).json({
-      success: true,
-      message: "GitHub integration deleted successfully"
-    });
-  } catch (error: any) {
-    console.error(`[GitHub] Error deleting integration:`, error.message);
-    return res.status(500).json({
-      success: false,
-      error: "Failed to delete GitHub integration",
-      details: { 
-        errorCode: 'internal_error',
-        message: error.message 
-      },
-    });
+    return res.status(HTTP_STATUS.OK).json(
+      successMessageResponse("GitHub integration deleted successfully")
+    );
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to delete GitHub integration";
+    console.error(`[GitHub] Error deleting integration:`, errorMessage);
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      detailedErrorResponse("Failed to delete GitHub integration", 'internal_error', [errorMessage])
+    );
   }
 }
 
@@ -414,25 +410,15 @@ export async function fetchGitHubBranches(
     const integration = await scmController.findActiveByTenantWithTokens(tenantId);
 
     if (!integration || integration.scmType !== 'GITHUB') {
-      return res.status(404).json({
-        success: false,
-        error: "No GitHub integration found for this tenant",
-        details: {
-          errorCode: 'integration_not_found',
-          message: 'Set up a GitHub integration first'
-        }
-      });
+      return res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse("GitHub integration", 'integration_not_found')
+      );
     }
 
     if (!integration.accessToken) {
-      return res.status(500).json({
-        success: false,
-        error: "GitHub integration is missing access token",
-        details: {
-          errorCode: 'missing_credentials',
-          message: 'Integration is missing access token. Update the integration with a valid token.'
-        }
-      });
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+        simpleErrorResponse("GitHub integration is missing access token", 'missing_credentials')
+      );
     }
     
     // Token is already decrypted by findActiveByTenantWithTokens (decryptFromStorage)
@@ -443,21 +429,17 @@ export async function fetchGitHubBranches(
       integration.accessToken
     );
 
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       branches,
       defaultBranch: integration.defaultBranch
     });
-  } catch (error: any) {
-    console.error(`[GitHub] Error fetching branches:`, error.message);
-    return res.status(500).json({
-      success: false,
-      error: "Failed to fetch branches",
-      details: { 
-        errorCode: 'api_error',
-        message: error.message 
-      },
-    });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to fetch branches";
+    console.error(`[GitHub] Error fetching branches:`, errorMessage);
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      detailedErrorResponse("Failed to fetch branches", 'api_error', [errorMessage])
+    );
   }
 }
 
@@ -469,16 +451,7 @@ async function verifyGitHub(
   owner: string, 
   repo: string, 
   accessToken: string
-): Promise<{
-  success: boolean;
-  message: string;
-  statusCode?: number;
-  details?: {
-    errorCode?: string;
-    message?: string;
-    [key: string]: any;
-  };
-}> {
+): Promise<SCMVerifyResult> {
   try {
     // Verify token by getting authenticated user
     const userResponse = await fetch('https://api.github.com/user', {
@@ -496,10 +469,8 @@ async function verifyGitHub(
         success: false,
         message: `Invalid GitHub token: ${userResponse.status} ${userResponse.statusText}`,
         statusCode: userResponse.status === 401 ? 401 : 500,
-        details: { 
-          errorCode: userResponse.status === 401 ? 'invalid_credentials' : 'api_error',
-          message: errorText 
-        },
+        errorCode: userResponse.status === 401 ? 'invalid_credentials' : 'api_error',
+        details: [errorText]
       };
     }
 
@@ -521,10 +492,8 @@ async function verifyGitHub(
           success: false,
           message: `Repository ${owner}/${repo} not found or access denied`,
           statusCode: 404,
-          details: { 
-            errorCode: 'repository_not_found',
-            message: `Repository ${owner}/${repo} not found or access denied` 
-          }
+          errorCode: 'repository_not_found',
+          details: [`Repository ${owner}/${repo} not found or access denied`]
         };
       }
       
@@ -533,10 +502,8 @@ async function verifyGitHub(
         success: false,
         message: `Failed to access repository: ${repoResponse.status} ${repoResponse.statusText}`,
         statusCode: repoResponse.status,
-        details: { 
-          errorCode: 'api_error',
-          message: errorText 
-        },
+        errorCode: 'api_error',
+        details: [errorText]
       };
     }
 
@@ -548,11 +515,8 @@ async function verifyGitHub(
         success: false,
         message: 'Token does not have sufficient permissions for this repository',
         statusCode: 403,
-        details: { 
-          errorCode: 'insufficient_permissions',
-          message: 'Token needs at least pull or push permissions for this repository',
-          permissions 
-        },
+        errorCode: 'insufficient_permissions',
+        details: ['Token needs at least pull or push permissions for this repository']
       };
     }
 
@@ -567,16 +531,15 @@ async function verifyGitHub(
         permissions
       }
     };
-  } catch (error: any) {
-    console.error(`[GitHub] Verification error for ${owner}/${repo}:`, error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[GitHub] Verification error for ${owner}/${repo}:`, errorMessage);
     return {
       success: false,
-      message: `Connection failed: ${error.message}`,
+      message: `Connection failed: ${errorMessage}`,
       statusCode: 503,
-      details: { 
-        errorCode: 'network_error',
-        message: error.message 
-      },
+      errorCode: 'network_error',
+      details: [errorMessage]
     };
   }
 }
@@ -635,8 +598,9 @@ async function fetchBranchesFromGitHub(
       protected: branch.protected || false,
       default: branch.name === defaultBranch
     }));
-  } catch (error: any) {
-    console.error(`[GitHub] Error fetching branches:`, error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[GitHub] Error fetching branches:`, errorMessage);
     throw error;
   }
 }

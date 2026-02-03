@@ -6,7 +6,8 @@ import type {
   CreateTicketParams,
   IProjectManagementProvider,
   TicketResult,
-  TicketStatusResult
+  TicketStatusResult,
+  ValidationResult
 } from '../provider.interface';
 import { JiraClient } from './jira.client';
 import type { JiraIntegrationConfig, JiraMetadataResult } from './jira.interface';
@@ -51,7 +52,7 @@ export class JiraProvider implements IProjectManagementProvider {
    */
   async validateConfig(
     config: ProjectManagementIntegrationConfig
-  ): Promise<{ isValid: boolean; message: string; details?: any }> {
+  ): Promise<ValidationResult> {
     try {
       if (!this.isJiraConfig(config)) {
         return {
@@ -197,8 +198,10 @@ export class JiraProvider implements IProjectManagementProvider {
         success: true,
         data
       };
-    } catch (error: any) {
-      const status = error.status || 500;
+    } catch (error) {
+      const status = (error && typeof error === 'object' && 'status' in error && typeof (error as { status?: number }).status === 'number')
+        ? (error as { status: number }).status
+        : 500;
       return {
         success: false,
         message: this.getMetadataErrorMessage(status, 'fetch projects'),

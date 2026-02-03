@@ -3,10 +3,9 @@
  */
 
 import * as yup from 'yup';
-import type { Response } from 'express';
-import { HTTP_STATUS } from '~constants/http';
+import { validateWithYup } from '~utils/validation.utils';
+import type { ValidationResult } from '~types/validation/validation-result.interface';
 import { ProjectManagementProviderType } from '~types/integrations/project-management';
-import { validationErrorResponse } from '~utils/response.utils';
 import {
   INTEGRATION_NAME_MIN_LENGTH,
   INTEGRATION_NAME_MAX_LENGTH,
@@ -56,22 +55,22 @@ export const validateProviderType = (providerType: unknown): string | null => {
 /**
  * Unified validation for VERIFY operation
  * Currently only JIRA is implemented with Yup validation
+ * Returns ValidationResult or passes through for non-Jira providers
  * TODO: Implement Yup validation for LINEAR and other providers
  */
 export const validateVerifyRequest = async (
   body: any,
-  providerType: ProjectManagementProviderType,
-  res: Response
-): Promise<any | null> => {
+  providerType: ProjectManagementProviderType
+): Promise<ValidationResult<any> | { success: true; data: any }> => {
   // JIRA: Use Yup validation
   if (providerType.toUpperCase() === ProjectManagementProviderType.JIRA) {
-    return await validateJiraVerifyRequest(body, res);
+    return await validateJiraVerifyRequest(body);
   }
 
   // OTHER PROVIDERS (LINEAR, etc.): Not implemented yet, just pass through
   // When implementing, create Yup schemas similar to Jira
   const { config } = body;
-  return { config };
+  return { success: true, data: { config } };
 };
 
 /**
@@ -93,69 +92,6 @@ export const validatePartialConfigStructure = (
 };
 
 /* ==================== YUP VALIDATION SCHEMAS ==================== */
-
-/**
- * Generic Yup validation helper
- * Validates data against schema and returns formatted errors
- * @param includeVerifiedField - Whether to include "verified" field in error response (true for verify operations only)
- */
-async function validateWithYup<T>(
-  schema: yup.Schema<T>,
-  data: unknown,
-  res: Response,
-  includeVerifiedField: boolean = false
-): Promise<T | null> {
-  try {
-    const validated = await schema.validate(data, {
-      abortEarly: false,
-      stripUnknown: true
-    });
-    return validated;
-  } catch (error) {
-    if (error instanceof yup.ValidationError) {
-      const errorsByField = new Map<string, string[]>();
-      error.inner.forEach((err) => {
-        const field = err.path || 'unknown';
-        if (!errorsByField.has(field)) {
-          errorsByField.set(field, []);
-        }
-        errorsByField.get(field)!.push(err.message);
-      });
-      const details = Array.from(errorsByField.entries()).map(([field, messages]) => ({
-        field,
-        messages
-      }));
-      
-      const errorResponse: any = {
-        success: false,
-        error: 'Request validation failed',
-        details: details
-      };
-      
-      // Only include "verified: false" for verify operations
-      if (includeVerifiedField) {
-        errorResponse.verified = false;
-      }
-      
-      res.status(HTTP_STATUS.BAD_REQUEST).json(errorResponse);
-      return null;
-    }
-    
-    const errorResponse: any = {
-      success: false,
-      error: 'Validation error occurred',
-      details: []
-    };
-    
-    // Only include "verified: false" for verify operations
-    if (includeVerifiedField) {
-      errorResponse.verified = false;
-    }
-    
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(errorResponse);
-    return null;
-  }
-}
 
 /**
  * Shared Yup schema for Jira config fields
@@ -211,24 +147,23 @@ const jiraVerifySchema = yup.object({
 
 /**
  * Validate Jira verify request with Yup
- * Includes "verified: false" in error responses
+ * Returns ValidationResult with either validated data or errors
+ * Note: Controller should add "verified: false" to error response
  */
 export const validateJiraVerifyRequest = async (
-  data: unknown,
-  res: Response
-): Promise<yup.InferType<typeof jiraVerifySchema> | null> => {
-  return validateWithYup(jiraVerifySchema, data, res, true); // true = include "verified" field
+  data: unknown
+): Promise<ValidationResult<yup.InferType<typeof jiraVerifySchema>>> => {
+  return validateWithYup(jiraVerifySchema, data);
 };
 
 /**
  * Validate Jira config with Yup (for CREATE operations)
- * Does NOT include "verified" field in error responses
+ * Returns ValidationResult with either validated data or errors
  */
 export const validateJiraConfig = async (
-  config: unknown,
-  res: Response
-): Promise<yup.InferType<typeof jiraConfigFieldsSchema> | null> => {
-  return validateWithYup(jiraConfigFieldsSchema, config, res, false); // false = no "verified" field
+  config: unknown
+): Promise<ValidationResult<yup.InferType<typeof jiraConfigFieldsSchema>>> => {
+  return validateWithYup(jiraConfigFieldsSchema, config);
 };
 
 /**
@@ -271,11 +206,10 @@ const jiraUpdateConfigSchema = yup.object({
 /**
  * Validate Jira config with Yup (for UPDATE operations)
  * Validates only fields that are present (partial update)
- * Does NOT include "verified" field in error responses
+ * Returns ValidationResult with either validated data or errors
  */
 export const validateJiraUpdateConfig = async (
-  config: unknown,
-  res: Response
-): Promise<yup.InferType<typeof jiraUpdateConfigSchema> | null> => {
-  return validateWithYup(jiraUpdateConfigSchema, config, res, false); // false = no "verified" field
+  config: unknown
+): Promise<ValidationResult<yup.InferType<typeof jiraUpdateConfigSchema>>> => {
+  return validateWithYup(jiraUpdateConfigSchema, config);
 };

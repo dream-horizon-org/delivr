@@ -3,13 +3,32 @@
  */
 
 import * as yup from 'yup';
-import type { Response } from 'express';
-import { HTTP_STATUS } from '~constants/http';
-import { isValidPlatform } from '~types/integrations/project-management';
+import { validateWithYup } from '~utils/validation.utils';
+import type { ValidationResult } from '~types/validation/validation-result.interface';
+import { isValidPlatform, Platform, type PlatformConfiguration } from '~types/integrations/project-management';
 import {
   CONFIG_NAME_MIN_LENGTH,
   CONFIG_NAME_MAX_LENGTH
 } from './configuration.constants';
+
+/**
+ * Validated configuration data for CREATE operation
+ * Platform is transformed to enum by Yup schema
+ */
+export type ValidatedCreateConfig = {
+  name: string;
+  integrationId: string;
+  platformConfigurations: PlatformConfiguration[];
+};
+
+/**
+ * Validated configuration data for UPDATE operation
+ * Platform is transformed to enum by Yup schema
+ */
+export type ValidatedUpdateConfig = {
+  name?: string;
+  platformConfigurations?: PlatformConfiguration[];
+};
 
 /**
  * Field error structure for detailed validation feedback
@@ -17,48 +36,6 @@ import {
 export type FieldError = {
   field: string;
   message: string;
-};
-
-/**
- * Generic Yup validation helper
- * Validates data against a Yup schema and sends error response if validation fails
- * Returns validated data or null (automatically sends error response)
- */
-const validateWithYup = async <T>(
-  schema: yup.Schema<T>,
-  data: unknown,
-  res: Response
-): Promise<T | null> => {
-  try {
-    const validated = await schema.validate(data, { abortEarly: false });
-    return validated;
-  } catch (error) {
-    if (error instanceof yup.ValidationError) {
-      // Group errors by field
-      const errorsByField = new Map<string, string[]>();
-      error.inner.forEach((err) => {
-        const field = err.path || 'unknown';
-        if (!errorsByField.has(field)) {
-          errorsByField.set(field, []);
-        }
-        errorsByField.get(field)!.push(err.message);
-      });
-
-      // Convert to array format with messages (plural)
-      const details = Array.from(errorsByField.entries()).map(([field, messages]) => ({
-        field,
-        messages
-      }));
-
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        error: 'Request validation failed',
-        details
-      });
-      return null;
-    }
-    throw error;
-  }
 };
 
 /**
@@ -70,7 +47,8 @@ const platformConfigSchema = yup.object({
     .required('Platform is required')
     .test('valid-platform', 'Invalid platform', (value) => {
       return value ? isValidPlatform(value) : false;
-    }),
+    })
+    .transform((value) => value as Platform),
   parameters: yup.object({
     projectKey: yup
       .string()
@@ -110,7 +88,7 @@ const projectManagementConfigCreateSchema = yup.object({
     .test('unique-platforms', 'Duplicate platform detected. Each platform can only be configured once.', function(value) {
       if (!value || value.length === 0) return true;
       
-      const platforms = value.map((v: any) => v.platform);
+      const platforms = value.map((v) => (v as { platform: string }).platform);
       const uniquePlatforms = new Set(platforms);
       
       if (platforms.length !== uniquePlatforms.size) {
@@ -150,7 +128,7 @@ const projectManagementConfigUpdateSchema = yup.object({
     .test('unique-platforms', 'Duplicate platform detected. Each platform can only be configured once.', function(value) {
       if (!value || value.length === 0) return true;
       
-      const platforms = value.map((v: any) => v.platform);
+      const platforms = value.map((v) => (v as { platform: string }).platform);
       const uniquePlatforms = new Set(platforms);
       
       if (platforms.length !== uniquePlatforms.size) {
@@ -173,23 +151,25 @@ const projectManagementConfigUpdateSchema = yup.object({
 
 /**
  * Validate configuration for CREATE operation with Yup
- * Returns validated data or null (sends error response automatically)
+ * Returns ValidationResult with either validated data or errors
  */
 export const validateCreateConfig = async (
-  data: unknown,
-  res: Response
-): Promise<yup.InferType<typeof projectManagementConfigCreateSchema> | null> => {
-  return validateWithYup(projectManagementConfigCreateSchema, data, res);
+  data: unknown
+): Promise<ValidationResult<ValidatedCreateConfig>> => {
+  const result = await validateWithYup(projectManagementConfigCreateSchema, data);
+  // Type assertion is safe because Yup transform converts string to Platform enum
+  return result as ValidationResult<ValidatedCreateConfig>;
 };
 
 /**
  * Validate configuration for UPDATE operation with Yup
- * Returns validated data or null (sends error response automatically)
+ * Returns ValidationResult with either validated data or errors
  */
 export const validateUpdateConfig = async (
-  data: unknown,
-  res: Response
-): Promise<yup.InferType<typeof projectManagementConfigUpdateSchema> | null> => {
-  return validateWithYup(projectManagementConfigUpdateSchema, data, res);
+  data: unknown
+): Promise<ValidationResult<ValidatedUpdateConfig>> => {
+  const result = await validateWithYup(projectManagementConfigUpdateSchema, data);
+  // Type assertion is safe because Yup transform converts string to Platform enum
+  return result as ValidationResult<ValidatedUpdateConfig>;
 };
 

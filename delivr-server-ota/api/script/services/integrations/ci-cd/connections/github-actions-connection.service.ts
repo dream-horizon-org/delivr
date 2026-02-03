@@ -5,6 +5,7 @@ import type { GitHubActionsProviderContract, GHAVerifyParams } from '../provider
 import { ERROR_MESSAGES, HEADERS, PROVIDER_DEFAULTS } from '../../../../controllers/integrations/ci-cd/constants';
 import * as shortid from 'shortid';
 import { decryptFromStorage } from '~utils/encryption';
+import { createErrorWithCode } from '~utils/error.utils';
 
 type CreateInput = {
   displayName?: string;
@@ -12,7 +13,7 @@ type CreateInput = {
 };
 
 export class GitHubActionsConnectionService extends ConnectionService<CreateInput> {
-  verifyConnection = async (params: GHAVerifyParams): Promise<{ success: boolean; message: string; statusCode?: number; details?: any }> => {
+  verifyConnection = async (params: GHAVerifyParams) => {
     const provider = await ProviderFactory.getProvider(CICDProviderType.GITHUB_ACTIONS);
     const gha = provider as GitHubActionsProviderContract;
     return gha.verifyConnection(params);
@@ -21,7 +22,7 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
   create = async (tenantId: string, accountId: string, input: CreateInput): Promise<SafeCICDIntegration> => {
     const existing = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
     if (existing) {
-      throw new Error(ERROR_MESSAGES.GHA_ALREADY_EXISTS);
+      throw createErrorWithCode(ERROR_MESSAGES.GHA_ALREADY_EXISTS, 'DUPLICATE_INTEGRATION', 409);
     }
     
     // Decrypt token for verification
@@ -41,10 +42,8 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
       timeoutMs: Number(process.env.GHA_VERIFY_TIMEOUT_MS || 6000)
     });
     
-    if (!verify.success) {
-      const error: any = new Error(verify.message);
-      error.details = verify.details;
-      throw error;
+    if (verify.success === false) {
+      throw createErrorWithCode(verify.message, verify.errorCode, verify.statusCode, verify.details);
     }
     
     // Store the ORIGINAL (encrypted) token in database
@@ -74,7 +73,7 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
   update = async (tenantId: string, updateData: UpdateCICDIntegrationDto): Promise<SafeCICDIntegration> => {
     const existing = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
     if (!existing) {
-      throw new Error(ERROR_MESSAGES.GHA_NOT_FOUND);
+      throw createErrorWithCode(ERROR_MESSAGES.GHA_NOT_FOUND, 'INTEGRATION_NOT_FOUND', 404);
     }
 
     // Always verify on update
@@ -83,7 +82,7 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
     const tokenToCheck: string | undefined = updateData.apiToken ?? storedToken;
     const tokenMissing = !tokenToCheck;
     
-    let verify: { success: boolean; message: string; statusCode?: number; details?: any } | undefined;
+    let verify: Awaited<ReturnType<typeof this.verifyConnection>> | undefined;
     
     if (tokenMissing) {
       updateData.verificationStatus = VerificationStatus.INVALID;
@@ -123,10 +122,10 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
     const wasInvalid = updateData.verificationStatus === VerificationStatus.INVALID;
     if (wasInvalid) {
       const errorMessage = updateData.verificationError ?? ERROR_MESSAGES.FAILED_VERIFY_GHA;
-      const error: any = new Error(errorMessage);
-      // Try to attach details if available (from verification result)
-      error.details = verify?.details;
-      throw error;
+      const code = (verify && verify.success === false) ? verify.errorCode : 'verification_failed';
+      const statusCode = (verify && verify.success === false) ? verify.statusCode : 400;
+      const details = (verify && verify.success === false) ? verify.details : undefined;
+      throw createErrorWithCode(errorMessage, code, statusCode, details);
     }
     return this.toSafe(updated as any);
   };
@@ -134,7 +133,7 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
   delete = async (tenantId: string): Promise<void> => {
     const existing = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
     if (!existing) {
-      throw new Error(ERROR_MESSAGES.GHA_NOT_FOUND);
+      throw createErrorWithCode(ERROR_MESSAGES.GHA_NOT_FOUND, 'INTEGRATION_NOT_FOUND', 404);
     }
     await this.repository.delete(existing.id);
   };

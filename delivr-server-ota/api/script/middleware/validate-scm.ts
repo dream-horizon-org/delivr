@@ -6,6 +6,8 @@
 import { NextFunction, Request, Response } from 'express';
 import { HTTP_STATUS } from '../constants/http';
 import * as yup from 'yup';
+import type { ValidationResult } from '~types/validation/validation-result.interface';
+import { validationErrorsResponse, simpleErrorResponse } from '../utils/response.utils';
 
 // ============================================================================
 // HELPERS
@@ -217,16 +219,15 @@ const githubUpdateSchema = yup.object({
 
 async function validateWithYup<T>(
   schema: yup.Schema<T>,
-  data: unknown,
-  res: Response
-): Promise<T | null> {
+  data: unknown
+): Promise<ValidationResult<T>> {
   try {
     const validated = await schema.validate(data, {
       abortEarly: false,
       stripUnknown: true
     });
-    return validated;
-  } catch (error) {
+    return { success: true, data: validated };
+  } catch (error: unknown) {
     if (error instanceof yup.ValidationError) {
       // Group errors by field
       const errorsByField = new Map<string, string[]>();
@@ -239,27 +240,17 @@ async function validateWithYup<T>(
         errorsByField.get(field)!.push(err.message);
       });
 
-      // Convert to array format
-      const details = Array.from(errorsByField.entries()).map(([field, messages]) => ({
+      // Convert to ValidationError array format
+      const errors = Array.from(errorsByField.entries()).map(([field, messages]) => ({
         field,
         messages
       }));
 
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        verified: false,
-        error: "Request validation failed", // Generic error for top-level
-        details: details // Specific field errors for frontend to parse
-      });
-      return null;
+      return { success: false, errors };
     }
     
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      error: 'Validation error occurred',
-      details: []
-    });
-    return null;
+    // Unexpected error - rethrow to be handled by caller
+    throw error;
   }
 }
 
@@ -272,10 +263,9 @@ export const validateTenantId = (req: Request, res: Response, next: NextFunction
   const isTenantIdInvalid = !isNonEmptyString(tenantId);
   
   if (isTenantIdInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-      success: false, 
-      error: 'tenantId is required' 
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('tenantId is required', 'validation_failed')
+    );
     return;
   }
   
@@ -291,11 +281,17 @@ export const validateGitHubVerifyBody = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const validated = await validateWithYup(githubVerifySchema, req.body, res);
-  if (validated) {
-    req.body = validated;  // ✅ Replace with trimmed values
-    next();
+  const validationResult = await validateWithYup(githubVerifySchema, req.body);
+  if (validationResult.success === false) {
+    const errorsWithCode = validationResult.errors.map(err => ({ ...err, errorCode: 'validation_failed' }));
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      ...validationErrorsResponse('Request validation failed', errorsWithCode),
+      verified: false
+    });
+    return;
   }
+  req.body = validationResult.data;  // ✅ Replace with trimmed values
+  next();
 };
 
 export const validateCreateGitHubBody = async (
@@ -303,11 +299,16 @@ export const validateCreateGitHubBody = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const validated = await validateWithYup(githubCreateSchema, req.body, res);
-  if (validated) {
-    req.body = validated;  // ✅ Replace with trimmed values
-  next();
+  const validationResult = await validateWithYup(githubCreateSchema, req.body);
+  if (validationResult.success === false) {
+    const errorsWithCode = validationResult.errors.map(err => ({ ...err, errorCode: 'validation_failed' }));
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      validationErrorsResponse('Request validation failed', errorsWithCode)
+    );
+    return;
   }
+  req.body = validationResult.data;  // ✅ Replace with trimmed values
+  next();
 };
 
 export const validateUpdateGitHubBody = async (
@@ -315,11 +316,16 @@ export const validateUpdateGitHubBody = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const validated = await validateWithYup(githubUpdateSchema, req.body, res);
-  if (validated) {
-    req.body = validated;  // ✅ Replace with trimmed values
-    next();
+  const validationResult = await validateWithYup(githubUpdateSchema, req.body);
+  if (validationResult.success === false) {
+    const errorsWithCode = validationResult.errors.map(err => ({ ...err, errorCode: 'validation_failed' }));
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      validationErrorsResponse('Request validation failed', errorsWithCode)
+    );
+    return;
   }
+  req.body = validationResult.data;  // ✅ Replace with trimmed values
+  next();
 };
 
 // ============================================================================
@@ -334,10 +340,9 @@ export const validateGitLabVerifyBody = (req: Request, res: Response, next: Next
   const hasInvalid = isProjectIdInvalid || isTokenInvalid;
   
   if (hasInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-      success: false, 
-      verified: false,
-      error: 'projectId and accessToken are required' 
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      ...simpleErrorResponse('projectId and accessToken are required', 'validation_failed'),
+      verified: false
     });
     return;
   }
@@ -353,10 +358,9 @@ export const validateCreateGitLabBody = (req: Request, res: Response, next: Next
   const hasInvalid = isProjectIdInvalid || isTokenInvalid;
   
   if (hasInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-      success: false, 
-      error: 'projectId and accessToken are required for GitLab integration' 
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('projectId and accessToken are required for GitLab integration', 'validation_failed')
+    );
     return;
   }
   
@@ -376,10 +380,9 @@ export const validateBitbucketVerifyBody = (req: Request, res: Response, next: N
   const hasInvalid = isWorkspaceInvalid || isRepoInvalid || isPasswordInvalid;
   
   if (hasInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-      success: false, 
-      verified: false,
-      error: 'workspace, repoSlug, and appPassword are required' 
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      ...simpleErrorResponse('workspace, repoSlug, and appPassword are required', 'validation_failed'),
+      verified: false
     });
     return;
   }
@@ -396,10 +399,9 @@ export const validateCreateBitbucketBody = (req: Request, res: Response, next: N
   const hasInvalid = isWorkspaceInvalid || isRepoInvalid || isPasswordInvalid;
   
   if (hasInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-      success: false, 
-      error: 'workspace, repoSlug, and appPassword are required for Bitbucket integration' 
-    });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse('workspace, repoSlug, and appPassword are required for Bitbucket integration', 'validation_failed')
+    );
     return;
   }
   

@@ -60,12 +60,21 @@ export interface TestStatusResult {
 }
 
 /**
+ * Additional details for validation errors
+ */
+export type ValidationResultDetails = {
+  errorCode?: string;
+  message?: string;
+  [key: string]: unknown;
+};
+
+/**
  * Validation result with detailed error information
  */
 export type ValidationResult = {
   isValid: boolean;
   message: string;
-  details?: any;
+  details?: ValidationResultDetails;
 };
 
 /**

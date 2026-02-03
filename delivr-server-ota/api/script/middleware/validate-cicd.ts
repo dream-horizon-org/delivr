@@ -3,6 +3,8 @@ import { HTTP_STATUS } from '~constants/http';
 import { ERROR_MESSAGES, PROVIDER_DEFAULTS } from '../controllers/integrations/ci-cd/constants';
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 import * as yup from 'yup';
+import type { ValidationResult } from '~types/validation/validation-result.interface';
+import { validationErrorsResponse, simpleErrorResponse } from '../utils/response.utils';
 
 /**
  * CI/CD validation middleware
@@ -30,22 +32,19 @@ const isNonEmptyString = (value: unknown): value is string => {
 
 /**
  * Generic Yup validation helper
- * Validates data against schema and returns formatted errors
- * @param includeVerifiedField - Whether to include "verified" field in error response (true for verify operations only)
+ * Validates data against schema and returns ValidationResult
  */
 async function validateWithYup<T>(
   schema: yup.Schema<T>,
-  data: unknown,
-  res: Response,
-  includeVerifiedField: boolean = false
-): Promise<T | null> {
+  data: unknown
+): Promise<ValidationResult<T>> {
   try {
     const validated = await schema.validate(data, {
       abortEarly: false,
       stripUnknown: true
     });
-    return validated;
-  } catch (error) {
+    return { success: true, data: validated };
+  } catch (error: unknown) {
     if (error instanceof yup.ValidationError) {
       const errorsByField = new Map<string, string[]>();
       error.inner.forEach((err) => {
@@ -55,37 +54,16 @@ async function validateWithYup<T>(
         }
         errorsByField.get(field)!.push(err.message);
       });
-      const details = Array.from(errorsByField.entries()).map(([field, messages]) => ({
+      const errors = Array.from(errorsByField.entries()).map(([field, messages]) => ({
         field,
         messages
       }));
       
-      const errorResponse: any = {
-        success: false,
-        error: 'Request validation failed',
-        details: details
-      };
-      
-      if (includeVerifiedField) {
-        errorResponse.verified = false;
-      }
-      
-      res.status(HTTP_STATUS.BAD_REQUEST).json(errorResponse);
-      return null;
+      return { success: false, errors };
     }
     
-    const errorResponse: any = {
-      success: false,
-      error: 'Validation error occurred',
-      details: []
-    };
-    
-    if (includeVerifiedField) {
-      errorResponse.verified = false;
-    }
-    
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(errorResponse);
-    return null;
+    // Unexpected error - rethrow to be handled by caller
+    throw error;
   }
 }
 
@@ -231,7 +209,10 @@ export const validateTenantId = (req: Request, res: Response, next: NextFunction
   const tenantId = req.params.tenantId;
   const isTenantIdInvalid = !isNonEmptyString(tenantId);
   if (isTenantIdInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ verified: false, message: 'tenantId is required' });
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      ...simpleErrorResponse('tenantId is required', 'validation_failed'),
+      verified: false
+    });
     return;
   }
   next();
@@ -245,11 +226,16 @@ export const validateJenkinsVerifyBody = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const validated = await validateWithYup(jenkinsVerifySchema, req.body, res, true);
-  if (validated) {
-    req.body = validated;  // ✅ Replace with trimmed values
-    next();
+  const validationResult = await validateWithYup(jenkinsVerifySchema, req.body);
+  if (validationResult.success === false) {
+    const errorsWithCode = validationResult.errors.map(err => ({ ...err, errorCode: 'validation_failed' }));
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      validationErrorsResponse('Request validation failed', errorsWithCode)
+    );
+    return;
   }
+  req.body = validationResult.data;  // ✅ Replace with trimmed values
+  next();
 };
 
 /**
@@ -259,7 +245,10 @@ export const validateJenkinsJobParamsBody = (req: Request, res: Response, next: 
   const { workflowUrl } = req.body || {};
   const isWorkflowUrlMissing = !isNonEmptyString(workflowUrl);
   if (isWorkflowUrlMissing) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, parameters: [], error: ERROR_MESSAGES.JENKINS_WORKFLOW_URL_REQUIRED });
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      ...simpleErrorResponse(ERROR_MESSAGES.JENKINS_WORKFLOW_URL_REQUIRED, 'validation_failed'),
+      parameters: []
+    });
     return;
   }
   next();
@@ -272,7 +261,9 @@ export const validateJenkinsQueueBody = (req: Request, res: Response, next: Next
   const { queueUrl } = req.body || {};
   const isQueueUrlMissing = !isNonEmptyString(queueUrl);
   if (isQueueUrlMissing) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.JENKINS_NO_QUEUE_URL });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.JENKINS_NO_QUEUE_URL, 'validation_failed')
+    );
     return;
   }
   next();
@@ -285,7 +276,9 @@ export const validateJenkinsQueueQuery = (req: Request, res: Response, next: Nex
   const queueUrl = req.query.queueUrl;
   const isQueueUrlMissing = !isNonEmptyString(typeof queueUrl === 'string' ? queueUrl : '');
   if (isQueueUrlMissing) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.JENKINS_NO_QUEUE_URL });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.JENKINS_NO_QUEUE_URL, 'validation_failed')
+    );
     return;
   }
   next();
@@ -299,11 +292,16 @@ export const validateCreateJenkinsBody = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const validated = await validateWithYup(jenkinsCreateSchema, req.body, res, false);
-  if (validated) {
-    req.body = validated;  // ✅ Replace with trimmed values
-    next();
+  const validationResult = await validateWithYup(jenkinsCreateSchema, req.body);
+  if (validationResult.success === false) {
+    const errorsWithCode = validationResult.errors.map(err => ({ ...err, errorCode: 'validation_failed' }));
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      validationErrorsResponse('Request validation failed', errorsWithCode)
+    );
+    return;
   }
+  req.body = validationResult.data;  // ✅ Replace with trimmed values
+  next();
 };
 
 /**
@@ -315,7 +313,9 @@ export const validateCreateWorkflowBody = (req: Request, res: Response, next: Ne
   const missing = required.filter((k) => !isNonEmptyString(body[k]));
   const hasMissing = missing.length > 0;
   if (hasMissing) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.WORKFLOW_CREATE_REQUIRED });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.WORKFLOW_CREATE_REQUIRED, 'validation_failed')
+    );
     return;
   }
   next();
@@ -329,11 +329,16 @@ export const validateUpdateJenkinsBody = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const validated = await validateWithYup(jenkinsUpdateSchema, req.body, res, false);
-  if (validated) {
-    req.body = validated;  // ✅ Replace with trimmed values
-    next();
+  const validationResult = await validateWithYup(jenkinsUpdateSchema, req.body);
+  if (validationResult.success === false) {
+    const errorsWithCode = validationResult.errors.map(err => ({ ...err, errorCode: 'validation_failed' }));
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      validationErrorsResponse('Request validation failed', errorsWithCode)
+    );
+    return;
   }
+  req.body = validationResult.data;  // ✅ Replace with trimmed values
+  next();
 };
 
 /**
@@ -344,11 +349,16 @@ export const validateGHAVerifyBody = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const validated = await validateWithYup(githubActionsVerifySchema, req.body, res, true);
-  if (validated) {
-    req.body = validated;  // ✅ Replace with trimmed values
-    next();
+  const validationResult = await validateWithYup(githubActionsVerifySchema, req.body);
+  if (validationResult.success === false) {
+    const errorsWithCode = validationResult.errors.map(err => ({ ...err, errorCode: 'validation_failed' }));
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      validationErrorsResponse('Request validation failed', errorsWithCode)
+    );
+    return;
   }
+  req.body = validationResult.data;  // ✅ Replace with trimmed values
+  next();
 };
 
 /**
@@ -359,11 +369,16 @@ export const validateCreateGHABody = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const validated = await validateWithYup(githubActionsCreateSchema, req.body, res, false);
-  if (validated) {
-    req.body = validated;  // ✅ Replace with trimmed values
-    next();
+  const validationResult = await validateWithYup(githubActionsCreateSchema, req.body);
+  if (validationResult.success === false) {
+    const errorsWithCode = validationResult.errors.map(err => ({ ...err, errorCode: 'validation_failed' }));
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      validationErrorsResponse('Request validation failed', errorsWithCode)
+    );
+    return;
   }
+  req.body = validationResult.data;  // ✅ Replace with trimmed values
+  next();
 };
 
 /**
@@ -374,11 +389,16 @@ export const validateUpdateGHABody = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const validated = await validateWithYup(githubActionsUpdateSchema, req.body, res, false);
-  if (validated) {
-    req.body = validated;  // ✅ Replace with trimmed values
-    next();
+  const validationResult = await validateWithYup(githubActionsUpdateSchema, req.body);
+  if (validationResult.success === false) {
+    const errorsWithCode = validationResult.errors.map(err => ({ ...err, errorCode: 'validation_failed' }));
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      validationErrorsResponse('Request validation failed', errorsWithCode)
+    );
+    return;
   }
+  req.body = validationResult.data;  // ✅ Replace with trimmed values
+  next();
 };
 
 /**
@@ -392,7 +412,9 @@ export const validateProviderTypeParam = (req: Request, res: Response, next: Nex
   const isGha = provider === CICDProviderType.GITHUB_ACTIONS;
   const isSupported = isJenkins || isGha;
   if (!isSupported) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.OPERATION_NOT_SUPPORTED, 'validation_failed')
+    );
     return;
   }
   next();
@@ -413,7 +435,9 @@ export const validateConnectionVerifyBody = async (req: Request, res: Response, 
   if (isGha) {
     return validateGHAVerifyBody(req, res, next);
   }
-  res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED });
+  res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.OPERATION_NOT_SUPPORTED, 'validation_failed')
+    );
 };
 
 /**
@@ -431,7 +455,9 @@ export const validateConnectionCreateBody = async (req: Request, res: Response, 
   if (isGha) {
     return validateCreateGHABody(req, res, next);
   }
-  res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED });
+  res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.OPERATION_NOT_SUPPORTED, 'validation_failed')
+    );
 };
 
 /**
@@ -453,7 +479,9 @@ export const validateIntegrationIdParam = (req: Request, res: Response, next: Ne
   const integrationId = req.params.integrationId;
   const invalid = !isNonEmptyString(integrationId);
   if (invalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.WORKFLOW_INTEGRATION_INVALID });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.WORKFLOW_INTEGRATION_INVALID, 'validation_failed')
+    );
     return;
   }
   next();
@@ -466,7 +494,9 @@ export const validateConfigIdParam = (req: Request, res: Response, next: NextFun
   const configId = req.params.configId;
   const invalid = !isNonEmptyString(configId);
   if (invalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.CONFIG_FETCH_FAILED });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.CONFIG_FETCH_FAILED, 'validation_failed')
+    );
     return;
   }
   next();
@@ -480,7 +510,9 @@ export const validateWorkflowParamFetchBody = (req: Request, res: Response, next
   const hasWorkflowUrl = isNonEmptyString(workflowUrl);
   const neitherProvided = !hasWorkflowUrl;
   if (neitherProvided) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.WORKFLOW_MIN_PARAMS_REQUIRED });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.WORKFLOW_MIN_PARAMS_REQUIRED, 'validation_failed')
+    );
     return;
   }
   next();
@@ -496,7 +528,9 @@ export const validateWorkflowTriggerBody = (req: Request, res: Response, next: N
   const hasTypeAndPlatform = isNonEmptyString(workflowType) && isNonEmptyString(platform);
   const invalid = !hasWorkflowId && !hasTypeAndPlatform;
   if (invalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.WORKFLOW_SELECTION_REQUIRED });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.WORKFLOW_SELECTION_REQUIRED, 'validation_failed')
+    );
     return;
   }
   next();
@@ -511,7 +545,9 @@ export const validateWorkflowRunStatusBody = (req: Request, res: Response, next:
   const hasOwnerRepoId = isNonEmptyString(owner) && isNonEmptyString(repo) && isNonEmptyString(runId);
   const invalid = !hasRunUrl && !hasOwnerRepoId;
   if (invalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.GHA_RUN_IDENTIFIERS_REQUIRED });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.GHA_RUN_IDENTIFIERS_REQUIRED, 'validation_failed')
+    );
     return;
   }
   next();
@@ -532,7 +568,9 @@ export const validateWorkflowRunStatusQuery = (req: Request, res: Response, next
     isNonEmptyString(typeof runId === 'string' ? runId : '');
   const invalid = !hasRunUrl && !hasOwnerRepoId;
   if (invalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.GHA_RUN_IDENTIFIERS_REQUIRED });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.GHA_RUN_IDENTIFIERS_REQUIRED, 'validation_failed')
+    );
     return;
   }
   next();
@@ -551,7 +589,9 @@ export const validateConfigWorkflowTriggerBody = (req: Request, res: Response, n
   const hasWorkflowType = isNonEmptyString(workflowType);
   const invalid = !hasPlatform || !hasWorkflowType;
   if (invalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.WORKFLOW_SELECTION_REQUIRED });
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.WORKFLOW_SELECTION_REQUIRED, 'validation_failed')
+    );
     return;
   }
   next();

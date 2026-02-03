@@ -1,61 +1,112 @@
 import { Request, Response } from "express";
 import { HTTP_STATUS, RESPONSE_STATUS } from "~constants/http";
 import { ERROR_MESSAGES } from "../constants";
-import { formatErrorMessage } from "~utils/error.utils";
-import { getErrorStatusCode } from "~utils/response.utils";
+import { formatErrorMessage, hasErrorCode } from "~utils/error.utils";
+import {
+  getErrorStatusCode,
+  successResponse,
+  successMessageResponse,
+  validationErrorsResponse,
+  detailedErrorResponse,
+  unauthorizedResponse,
+  notFoundResponse,
+  buildValidationErrorResponse
+} from "~utils/response.utils";
 import { getStorage } from "../../../../storage/storage-instance";
 import type { CICDConfigService } from "../../../../services/integrations/ci-cd/config/config.service";
-import { validateCreateConfig, validateUpdateConfig } from "../../../../services/integrations/ci-cd/config/config.validation";
+import { validateCreateConfig, validateUpdateConfig } from "~services/integrations/ci-cd/config/config.validation";
+import type { CICDIntegrationRepository } from "~models/integrations/ci-cd";
+import { VerificationStatus } from "~types/integrations/ci-cd/connection.interface";
 
 /**
  * Helper: Validate workflow integrations
- * Checks that each workflow's integration exists, is enabled, and belongs to tenant
+ * Checks that each workflow's integration exists, is verified, and belongs to tenant
  */
-async function validateWorkflowIntegrations(
-  workflows: any[],
-  tenantId: string,
-  cicdIntegrationRepo: any,
-  res: Response
-): Promise<boolean> {
-  for (let i = 0; i < workflows.length; i++) {
-    const workflow = workflows[i];
+interface WorkflowWithIntegration {
+  integrationId?: string;
+  [key: string]: unknown;
+}
+
+interface ValidateWorkflowIntegrationsParams {
+  workflows: WorkflowWithIntegration[];
+  tenantId: string;
+  cicdIntegrationRepo: CICDIntegrationRepository;
+  res: Response;
+}
+
+async function validateWorkflowIntegrations({
+  workflows,
+  tenantId,
+  cicdIntegrationRepo,
+  res
+}: ValidateWorkflowIntegrationsParams): Promise<boolean> {
+  // Validate all workflows in parallel and collect all errors
+  const validationPromises = workflows.map(async (workflow, i) => {
+    if (!workflow.integrationId) {
+      return {
+        valid: false,
+        error: {
+          field: `workflows[${i}].integrationId`,
+          errorCode: 'integration_id_required',
+          message: 'Integration ID is required'
+        }
+      };
+    }
+    
     const integration = await cicdIntegrationRepo.findById(workflow.integrationId);
     
     if (!integration) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({
-        success: false,
-        error: 'Integration not found',
-        details: {
+      return {
+        valid: false,
+        error: {
+          field: `workflows[${i}].integrationId`,
           errorCode: 'integration_not_found',
-          message: `CI/CD integration not found for workflows[${i}].integrationId`
+          message: 'CI/CD integration not found'
         }
-      });
-      return false;
+      };
     }
     
     if (integration.tenantId !== tenantId) {
-      res.status(HTTP_STATUS.FORBIDDEN).json({
-        success: false,
-        error: 'Access denied',
-        details: {
+      return {
+        valid: false,
+        error: {
+          field: `workflows[${i}].integrationId`,
           errorCode: 'integration_access_denied',
-          message: `Integration does not belong to this tenant for workflows[${i}].integrationId`
+          message: 'Integration does not belong to this tenant'
         }
-      });
-      return false;
+      };
     }
     
-    if (!integration.isEnabled) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        error: 'Integration is disabled',
-        details: {
-          errorCode: 'integration_disabled',
-          message: `CI/CD integration is disabled for workflows[${i}].integrationId`
+    if (integration.verificationStatus !== VerificationStatus.VALID) {
+      return {
+        valid: false,
+        error: {
+          field: `workflows[${i}].integrationId`,
+          errorCode: 'integration_not_verified',
+          message: 'CI/CD integration is not in VALID status'
         }
-      });
-      return false;
+      };
     }
+    
+    return { valid: true, error: null };
+  });
+
+  const results = await Promise.allSettled(validationPromises);
+  
+  // Collect all validation errors
+  const errors = results
+    .filter(r => r.status === 'fulfilled' && !r.value.valid)
+    .map(r => (r as PromiseFulfilledResult<{ valid: boolean; error: any }>).value.error);
+  
+  if (errors.length > 0) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      validationErrorsResponse('Workflow validation failed', errors.map(err => ({
+        field: err.field,
+        errorCode: err.errorCode,
+        messages: [err.message]
+      })))
+    );
+    return false;
   }
   
   return true;
@@ -67,23 +118,23 @@ export const createConfig = async (req: Request, res: Response): Promise<any> =>
   const missingUser = !accountId || typeof accountId !== 'string';
   if (missingUser) {
     // Route: POST /tenants/:tenantId/integrations/ci-cd/configs
-    return res.status(HTTP_STATUS.UNAUTHORIZED).json({
-      success: false,
-      error: 'Unauthorized',
-      details: {
-        errorCode: 'unauthorized',
-        message: 'Authentication required'
-      }
-    });
+    return res.status(HTTP_STATUS.UNAUTHORIZED).json(
+      unauthorizedResponse('Authentication required')
+    );
   }
   
   const body = req.body || {};
   
   // Validate request body using Yup
-  const validated = await validateCreateConfig(body, res, tenantId);
-  if (!validated) {
-    return; // Response already sent by validateWithYup
+  const validationResult = await validateCreateConfig(body, tenantId);
+  if (validationResult.success === false) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      buildValidationErrorResponse('Request validation failed', validationResult.errors)
+    );
+    return;
   }
+
+  const validated = validationResult.data;
 
   try {
     const storage = getStorage();
@@ -92,7 +143,12 @@ export const createConfig = async (req: Request, res: Response): Promise<any> =>
     
     // Validate each workflow's integration exists, is enabled, and belongs to tenant
     const workflows = validated.workflows;
-    const isValid = await validateWorkflowIntegrations(workflows, tenantId, cicdIntegrationRepo, res);
+    const isValid = await validateWorkflowIntegrations({
+      workflows,
+      tenantId,
+      cicdIntegrationRepo,
+      res
+    });
     if (!isValid) {
       return; // Response already sent by validation function
     }
@@ -100,25 +156,27 @@ export const createConfig = async (req: Request, res: Response): Promise<any> =>
     const result = await service.createConfig({
       tenantId,
       createdByAccountId: accountId,
-      workflows: workflows as any
+      workflows: workflows.map(wf => ({
+        ...wf,
+        tenantId,
+        createdByAccountId: accountId
+      }))
     });
     
-    return res.status(HTTP_STATUS.CREATED).json({
-      success: true,
-      configId: result.configId,
-      workflowIds: result.workflowIds
-    });
-  } catch (e: any) {
-    const message = formatErrorMessage(e, ERROR_MESSAGES.CONFIG_CREATE_FAILED);
-    const statusCode = getErrorStatusCode(e);
-    return res.status(statusCode).json({
-      success: false,
-      error: message,
-      details: {
-        errorCode: e.code || 'config_create_failed',
-        message: e.message || 'An unexpected error occurred while creating the configuration'
-      }
-    });
+    return res.status(HTTP_STATUS.CREATED).json(
+      successResponse({
+        configId: result.configId,
+        workflowIds: result.workflowIds
+      })
+    );
+  } catch (error) {
+    const message = formatErrorMessage(error, ERROR_MESSAGES.CONFIG_CREATE_FAILED);
+    const statusCode = getErrorStatusCode(error);
+    const errorCode = hasErrorCode(error) ? error.code : 'config_create_failed';
+    
+    return res.status(statusCode).json(
+      detailedErrorResponse(message, errorCode, [message])
+    );
   }
 };
 
@@ -131,20 +189,17 @@ export const listConfigsByTenant = async (req: Request, res: Response): Promise<
     const storage = getStorage();
     const service = (storage as any).cicdConfigService as CICDConfigService;
     const items = await service.listByTenant(tenantId);
-    return res.status(HTTP_STATUS.OK).json({
-      success: true,
-      configs: items
-    });
-  } catch (e: any) {
-    const message = formatErrorMessage(e, ERROR_MESSAGES.CONFIG_LIST_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      error: message,
-      details: {
-        errorCode: e.code || 'config_list_failed',
-        message: e.message || 'An unexpected error occurred while listing configurations'
-      }
-    });
+    return res.status(HTTP_STATUS.OK).json(
+      successResponse({ configs: items })
+    );
+  } catch (error) {
+    const message = formatErrorMessage(error, ERROR_MESSAGES.CONFIG_LIST_FAILED);
+    const statusCode = getErrorStatusCode(error);
+    const errorCode = hasErrorCode(error) ? error.code : 'config_list_failed';
+    
+    return res.status(statusCode).json(
+      detailedErrorResponse(message, errorCode, [message])
+    );
   }
 };
 
@@ -160,29 +215,21 @@ export const getConfigById = async (req: Request, res: Response): Promise<any> =
     const config = await service.findById(configId);
     const notFound = !config || config.tenantId !== tenantId;
     if (notFound) {
-      return res.status(HTTP_STATUS.NOT_FOUND).json({
-        success: false,
-        error: ERROR_MESSAGES.CONFIG_NOT_FOUND,
-        details: {
-          errorCode: 'config_not_found',
-          message: 'The requested CI/CD configuration does not exist'
-        }
-      });
+      return res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse('CI/CD configuration', 'config_not_found')
+      );
     }
-    return res.status(HTTP_STATUS.OK).json({
-      success: true,
-      config
-    });
-  } catch (e: any) {
-    const message = formatErrorMessage(e, ERROR_MESSAGES.CONFIG_FETCH_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      error: message,
-      details: {
-        errorCode: e.code || 'config_fetch_failed',
-        message: e.message || 'An unexpected error occurred while fetching the configuration'
-      }
-    });
+    return res.status(HTTP_STATUS.OK).json(
+      successResponse({ config })
+    );
+  } catch (error) {
+    const message = formatErrorMessage(error, ERROR_MESSAGES.CONFIG_FETCH_FAILED);
+    const statusCode = getErrorStatusCode(error);
+    const errorCode = hasErrorCode(error) ? error.code : 'config_fetch_failed';
+    
+    return res.status(statusCode).json(
+      detailedErrorResponse(message, errorCode, [message])
+    );
   }
 };
 
@@ -196,10 +243,15 @@ export const updateConfigById = async (req: Request, res: Response): Promise<any
   const accountId = req.user?.id;
 
   // Validate request body using Yup
-  const validated = await validateUpdateConfig(body, res, tenantId);
-  if (!validated) {
-    return; // Response already sent by validateWithYup
+  const validationResult = await validateUpdateConfig(body, tenantId);
+  if (validationResult.success === false) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      buildValidationErrorResponse('Request validation failed', validationResult.errors)
+    );
+    return;
   }
+
+  const validated = validationResult.data;
 
   try {
     const storage = getStorage();
@@ -208,7 +260,12 @@ export const updateConfigById = async (req: Request, res: Response): Promise<any
     
     // Validate each workflow's integration exists, is enabled, and belongs to tenant
     const workflows = validated.workflows;
-    const isValid = await validateWorkflowIntegrations(workflows, tenantId, cicdIntegrationRepo, res);
+    const isValid = await validateWorkflowIntegrations({
+      workflows,
+      tenantId,
+      cicdIntegrationRepo,
+      res
+    });
     if (!isValid) {
       return; // Response already sent by validation function
     }
@@ -217,36 +274,31 @@ export const updateConfigById = async (req: Request, res: Response): Promise<any
       tenantId,
       configId,
       createdByAccountId: accountId,
-      workflows: workflows as any
+      workflows: workflows.map(wf => ({
+        ...wf,
+        tenantId,
+        createdByAccountId: accountId
+      }))
     });
     
     const notFound = !updated;
     if (notFound) {
-      return res.status(HTTP_STATUS.NOT_FOUND).json({
-        success: false,
-        error: ERROR_MESSAGES.CONFIG_NOT_FOUND,
-        details: {
-          errorCode: 'config_not_found',
-          message: 'The requested CI/CD configuration does not exist'
-        }
-      });
+      return res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse('CI/CD configuration', 'config_not_found')
+      );
     }
     
-    return res.status(HTTP_STATUS.OK).json({
-      success: true,
-      config: updated
-    });
-  } catch (e: any) {
-    const message = formatErrorMessage(e, ERROR_MESSAGES.CONFIG_UPDATE_FAILED);
-    const statusCode = getErrorStatusCode(e);
-    return res.status(statusCode).json({
-      success: false,
-      error: message,
-      details: {
-        errorCode: e.code || 'config_update_failed',
-        message: e.message || 'An unexpected error occurred while updating the configuration'
-      }
-    });
+    return res.status(HTTP_STATUS.OK).json(
+      successResponse({ config: updated })
+    );
+  } catch (error) {
+    const message = formatErrorMessage(error, ERROR_MESSAGES.CONFIG_UPDATE_FAILED);
+    const statusCode = getErrorStatusCode(error);
+    const errorCode = hasErrorCode(error) ? error.code : 'config_update_failed';
+    
+    return res.status(statusCode).json(
+      detailedErrorResponse(message, errorCode, [message])
+    );
   }
 };
 
@@ -262,28 +314,21 @@ export const deleteConfigById = async (req: Request, res: Response): Promise<any
     const deleted = await service.deleteConfig(configId, tenantId);
     const notFound = !deleted;
     if (notFound) {
-      return res.status(HTTP_STATUS.NOT_FOUND).json({
-        success: false,
-        error: ERROR_MESSAGES.CONFIG_NOT_FOUND,
-        details: {
-          errorCode: 'config_not_found',
-          message: 'The requested CI/CD configuration does not exist'
-        }
-      });
+      return res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse('CI/CD configuration', 'config_not_found')
+      );
     }
-    return res.status(HTTP_STATUS.OK).json({
-      success: true
-    });
-  } catch (e: any) {
-    const message = formatErrorMessage(e, ERROR_MESSAGES.CONFIG_DELETE_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      error: message,
-      details: {
-        errorCode: e.code || 'config_delete_failed',
-        message: e.message || 'An unexpected error occurred while deleting the configuration'
-      }
-    });
+    return res.status(HTTP_STATUS.OK).json(
+      successMessageResponse('Configuration deleted successfully')
+    );
+  } catch (error) {
+    const message = formatErrorMessage(error, ERROR_MESSAGES.CONFIG_DELETE_FAILED);
+    const statusCode = getErrorStatusCode(error);
+    const errorCode = hasErrorCode(error) ? error.code : 'config_delete_failed';
+    
+    return res.status(statusCode).json(
+      detailedErrorResponse(message, errorCode, [message])
+    );
   }
 };
 

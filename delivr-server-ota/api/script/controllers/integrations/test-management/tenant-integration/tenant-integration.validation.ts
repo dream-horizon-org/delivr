@@ -1,8 +1,8 @@
 import { TestManagementProviderType } from '~types/integrations/test-management';
 import { hasProperty } from '~utils/type-guards.utils';
 import * as yup from 'yup';
-import type { Response } from 'express';
-import { HTTP_STATUS } from '~constants/http';
+import { validateWithYup } from '~utils/validation.utils';
+import type { ValidationResult } from '~types/validation/validation-result.interface';
 
 /**
  * Validation utilities for tenant integration test management
@@ -91,67 +91,6 @@ export const validateIntegrationName = (value: unknown): string | null => {
 /* ==================== YUP VALIDATION SCHEMAS ==================== */
 
 /**
- * Generic Yup validation helper
- * Validates data against schema and returns formatted errors
- * @param includeVerifiedField - Whether to include "verified" field in error response (true for verify operations only)
- */
-async function validateWithYup<T>(
-  schema: yup.Schema<T>,
-  data: unknown,
-  res: Response,
-  includeVerifiedField: boolean = false
-): Promise<T | null> {
-  try {
-    const validated = await schema.validate(data, {
-      abortEarly: false,
-      stripUnknown: true
-    });
-    return validated;
-  } catch (error) {
-    if (error instanceof yup.ValidationError) {
-      const errorsByField = new Map<string, string[]>();
-      error.inner.forEach((err) => {
-        const field = err.path || 'unknown';
-        if (!errorsByField.has(field)) {
-          errorsByField.set(field, []);
-        }
-        errorsByField.get(field)!.push(err.message);
-      });
-      const details = Array.from(errorsByField.entries()).map(([field, messages]) => ({
-        field,
-        messages
-      }));
-      
-      const errorResponse: any = {
-        success: false,
-        error: 'Request validation failed',
-        details: details
-      };
-      
-      if (includeVerifiedField) {
-        errorResponse.verified = false;
-      }
-      
-      res.status(HTTP_STATUS.BAD_REQUEST).json(errorResponse);
-      return null;
-    }
-    
-    const errorResponse: any = {
-      success: false,
-      error: 'Validation error occurred',
-      details: []
-    };
-    
-    if (includeVerifiedField) {
-      errorResponse.verified = false;
-    }
-    
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(errorResponse);
-    return null;
-  }
-}
-
-/**
  * Checkmate config fields schema (reusable for CREATE and UPDATE)
  */
 const checkmateConfigFieldsSchema = yup.object({
@@ -175,24 +114,23 @@ const checkmateConfigFieldsSchema = yup.object({
 
 /**
  * Validate Checkmate verify request with Yup
- * Includes "verified: false" in error responses
+ * Returns ValidationResult with either validated data or errors
+ * Note: Controller should add "verified: false" to error response
  */
 export const validateCheckmateVerifyRequest = async (
-  data: unknown,
-  res: Response
-): Promise<yup.InferType<typeof checkmateConfigFieldsSchema> | null> => {
-  return validateWithYup(checkmateConfigFieldsSchema, data, res, true); // true = include "verified" field
+  data: unknown
+): Promise<ValidationResult<yup.InferType<typeof checkmateConfigFieldsSchema>>> => {
+  return validateWithYup(checkmateConfigFieldsSchema, data);
 };
 
 /**
  * Validate Checkmate config with Yup (for CREATE operations)
- * Does NOT include "verified" field in error responses
+ * Returns ValidationResult with either validated data or errors
  */
 export const validateCheckmateConfig = async (
-  config: unknown,
-  res: Response
-): Promise<yup.InferType<typeof checkmateConfigFieldsSchema> | null> => {
-  return validateWithYup(checkmateConfigFieldsSchema, config, res, false); // false = no "verified" field
+  config: unknown
+): Promise<ValidationResult<yup.InferType<typeof checkmateConfigFieldsSchema>>> => {
+  return validateWithYup(checkmateConfigFieldsSchema, config);
 };
 
 /**
@@ -221,36 +159,35 @@ const checkmateUpdateConfigSchema = yup.object({
 /**
  * Validate Checkmate config with Yup (for UPDATE operations)
  * Validates only fields that are present (partial update)
- * Does NOT include "verified" field in error responses
+ * Returns ValidationResult with either validated data or errors
  */
 export const validateCheckmateUpdateConfig = async (
-  config: unknown,
-  res: Response
-): Promise<yup.InferType<typeof checkmateUpdateConfigSchema> | null> => {
-  return validateWithYup(checkmateUpdateConfigSchema, config, res, false); // false = no "verified" field
+  config: unknown
+): Promise<ValidationResult<yup.InferType<typeof checkmateUpdateConfigSchema>>> => {
+  return validateWithYup(checkmateUpdateConfigSchema, config);
 };
 
 /**
  * Unified validation for VERIFY operation
  * Currently only CHECKMATE is implemented with Yup validation
+ * Returns ValidationResult or passes through for non-Checkmate providers
  * TODO: Implement Yup validation for TESTRAIL and other providers
  */
 export const validateVerifyRequest = async (
   body: any,
-  providerType: TestManagementProviderType,
-  res: Response
-): Promise<any | null> => {
+  providerType: TestManagementProviderType
+): Promise<ValidationResult<any> | { success: true; data: any }> => {
   // CHECKMATE: Use Yup validation
   if (providerType === TestManagementProviderType.CHECKMATE) {
-    const validatedConfig = await validateCheckmateVerifyRequest(body.config, res);
-    if (!validatedConfig) {
-      return null;
+    const validationResult = await validateCheckmateVerifyRequest(body.config);
+    if (!validationResult.success) {
+      return validationResult;
     }
-    return { config: validatedConfig };
+    return { success: true, data: { config: validationResult.data } };
   }
 
   // OTHER PROVIDERS (TESTRAIL, etc.): Not implemented yet, just pass through
   // When implementing, create Yup schemas similar to Checkmate
   const { config } = body;
-  return { config };
+  return { success: true, data: { config } };
 };

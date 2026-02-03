@@ -1,54 +1,26 @@
 import * as yup from 'yup';
-import type { Response } from 'express';
-import { HTTP_STATUS } from '~constants/http';
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 import { CreateWorkflowDto, WorkflowType } from '~types/integrations/ci-cd/workflow.interface';
 import { CICD_CONFIG_ALLOWED_PLATFORMS, CICD_CONFIG_ERROR_MESSAGES } from './config.constants';
 import { fetchWithTimeout, parseGitHubWorkflowUrl } from '../utils/cicd.utils';
 import { getStorage } from '../../../../storage/storage-instance';
 import { ERROR_MESSAGES, HEADERS } from '../../../../controllers/integrations/ci-cd/constants';
+import { validateWithYup } from '~utils/validation.utils';
+import type { ValidationResult } from '~types/validation/validation-result.interface';
 
 type FieldError = { field: string; message: string };
 
 /**
- * Generic Yup validation helper
- * Validates data against schema and sends error response if validation fails
+ * Type for workflow data from request body (before adding server-side fields)
  */
-const validateWithYup = async <T>(
-  schema: yup.Schema<T>,
-  data: unknown,
-  res: Response
-): Promise<T | null> => {
-  try {
-    const validated = await schema.validate(data, { abortEarly: false });
-    return validated;
-  } catch (error) {
-    if (error instanceof yup.ValidationError) {
-      // Group errors by field
-      const errorsByField = new Map<string, string[]>();
-      error.inner.forEach((err) => {
-        const field = err.path || 'unknown';
-        if (!errorsByField.has(field)) {
-          errorsByField.set(field, []);
-        }
-        errorsByField.get(field)!.push(err.message);
-      });
-
-      // Convert to array format with messages (plural)
-      const details = Array.from(errorsByField.entries()).map(([field, messages]) => ({
-        field,
-        messages
-      }));
-
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        error: 'Request validation failed',
-        details
-      });
-      return null;
-    }
-    throw error;
-  }
+export type WorkflowRequestDto = {
+  providerType: CICDProviderType;
+  integrationId: string;
+  displayName: string;
+  workflowUrl: string;
+  platform: string;
+  workflowType: WorkflowType;
+  tenantId?: string;
 };
 
 // Helper functions for GitHub validation
@@ -228,26 +200,30 @@ const createConfigSchema = (tenantId: string) =>
 
 /**
  * Validate workflows for create config
+ * Returns ValidationResult with either validated data or errors
  */
 export const validateCreateConfig = async (
   data: unknown,
-  res: Response,
   tenantId: string
-) => {
+): Promise<ValidationResult<{ workflows: WorkflowRequestDto[] }>> => {
   const schema = createConfigSchema(tenantId);
-  return await validateWithYup(schema, data, res);
+  const result = await validateWithYup(schema, data);
+  // Type assertion is safe here because yup validates all required fields
+  return result as ValidationResult<{ workflows: WorkflowRequestDto[] }>;
 };
 
 /**
  * Validate workflows for update config
+ * Returns ValidationResult with either validated data or errors
  */
 export const validateUpdateConfig = async (
   data: unknown,
-  res: Response,
   tenantId: string
-) => {
+): Promise<ValidationResult<{ workflows: WorkflowRequestDto[] }>> => {
   const schema = createConfigSchema(tenantId);
-  return await validateWithYup(schema, data, res);
+  const result = await validateWithYup(schema, data);
+  // Type assertion is safe here because yup validates all required fields
+  return result as ValidationResult<{ workflows: WorkflowRequestDto[] }>;
 };
 
 

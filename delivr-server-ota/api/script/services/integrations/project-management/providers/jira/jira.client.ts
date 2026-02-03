@@ -35,7 +35,10 @@ export class JiraClient {
       const status = response.status;
 
       // Throw error with detailed status information for caller to handle
-      const error: any = new Error(`JIRA API Error: ${status} - ${errorText}`);
+      const error = new Error(`JIRA API Error: ${status} - ${errorText}`) as Error & { 
+        status?: number; 
+        responseText?: string;
+      };
       error.status = status;
       error.responseText = errorText;
       throw error;
@@ -55,7 +58,7 @@ export class JiraClient {
         success: true,
         message: 'Successfully connected to Jira'
       };
-    } catch (error: any) {
+    } catch (error) {
       const status = error.status;
       const errorText = error.responseText || error.message;
 

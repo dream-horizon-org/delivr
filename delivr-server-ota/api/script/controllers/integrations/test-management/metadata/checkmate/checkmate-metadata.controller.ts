@@ -11,7 +11,7 @@
 import type { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
 import type { CheckmateMetadataService } from '~services/integrations/test-management/metadata/checkmate';
-import { errorResponse, successResponse } from '~utils/response.utils';
+import { successResponse, simpleErrorResponse } from '~utils/response.utils';
 import { validateCheckmateProjectId } from './checkmate-metadata.validation';
 
 export const createCheckmateMetadataController = (metadataService: CheckmateMetadataService) => {
@@ -32,7 +32,7 @@ const getProjectsHandler = (metadataService: CheckmateMetadataService) => async 
 
   if (!integrationId) {
     res.status(HTTP_STATUS.BAD_REQUEST).json(
-      errorResponse('integrationId is required')
+      simpleErrorResponse('integrationId is required', 'missing_integration_id')
     );
     return;
   }
@@ -46,7 +46,9 @@ const getProjectsHandler = (metadataService: CheckmateMetadataService) => async 
   } else {
     const statusCode = result.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     const message = result.message || 'Failed to fetch Checkmate projects';
-    res.status(statusCode).json(errorResponse(message));
+    res.status(statusCode).json(
+      simpleErrorResponse(message, 'fetch_projects_failed')
+    );
   }
 };
 
@@ -60,7 +62,7 @@ const getSectionsHandler = (metadataService: CheckmateMetadataService) => async 
 
   if (!integrationId) {
     res.status(HTTP_STATUS.BAD_REQUEST).json(
-      errorResponse('integrationId is required')
+      simpleErrorResponse('integrationId is required', 'missing_integration_id')
     );
     return;
   }
@@ -68,7 +70,7 @@ const getSectionsHandler = (metadataService: CheckmateMetadataService) => async 
   const projectIdError = validateCheckmateProjectId(projectIdParam);
   if (projectIdError) {
     res.status(HTTP_STATUS.BAD_REQUEST).json(
-      errorResponse(projectIdError)
+      simpleErrorResponse(projectIdError, 'invalid_project_id')
     );
     return;
   }
@@ -83,7 +85,9 @@ const getSectionsHandler = (metadataService: CheckmateMetadataService) => async 
   } else {
     const statusCode = result.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     const message = result.message || 'Failed to fetch Checkmate sections';
-    res.status(statusCode).json(errorResponse(message));
+    res.status(statusCode).json(
+      simpleErrorResponse(message, 'fetch_sections_failed')
+    );
   }
 };
 
@@ -97,7 +101,7 @@ const getLabelsHandler = (metadataService: CheckmateMetadataService) => async (r
 
   if (!integrationId) {
     res.status(HTTP_STATUS.BAD_REQUEST).json(
-      errorResponse('integrationId is required')
+      simpleErrorResponse('integrationId is required', 'missing_integration_id')
     );
     return;
   }
@@ -105,7 +109,7 @@ const getLabelsHandler = (metadataService: CheckmateMetadataService) => async (r
   const projectIdError = validateCheckmateProjectId(projectIdParam);
   if (projectIdError) {
     res.status(HTTP_STATUS.BAD_REQUEST).json(
-      errorResponse(projectIdError)
+      simpleErrorResponse(projectIdError, 'invalid_project_id')
     );
     return;
   }
@@ -120,7 +124,9 @@ const getLabelsHandler = (metadataService: CheckmateMetadataService) => async (r
   } else {
     const statusCode = result.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     const message = result.message || 'Failed to fetch Checkmate labels';
-    res.status(statusCode).json(errorResponse(message));
+    res.status(statusCode).json(
+      simpleErrorResponse(message, 'fetch_labels_failed')
+    );
   }
 };
 
@@ -134,7 +140,7 @@ const getSquadsHandler = (metadataService: CheckmateMetadataService) => async (r
 
   if (!integrationId) {
     res.status(HTTP_STATUS.BAD_REQUEST).json(
-      errorResponse('integrationId is required')
+      simpleErrorResponse('integrationId is required', 'missing_integration_id')
     );
     return;
   }
@@ -142,7 +148,7 @@ const getSquadsHandler = (metadataService: CheckmateMetadataService) => async (r
   const projectIdError = validateCheckmateProjectId(projectIdParam);
   if (projectIdError) {
     res.status(HTTP_STATUS.BAD_REQUEST).json(
-      errorResponse(projectIdError)
+      simpleErrorResponse(projectIdError, 'invalid_project_id')
     );
     return;
   }
@@ -157,7 +163,9 @@ const getSquadsHandler = (metadataService: CheckmateMetadataService) => async (r
   } else {
     const statusCode = result.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     const message = result.message || 'Failed to fetch Checkmate squads';
-    res.status(statusCode).json(errorResponse(message));
+    res.status(statusCode).json(
+      simpleErrorResponse(message, 'fetch_squads_failed')
+    );
   }
 };
 

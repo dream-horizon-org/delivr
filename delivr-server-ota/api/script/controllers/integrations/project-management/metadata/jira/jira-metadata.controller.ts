@@ -11,7 +11,7 @@
 import type { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
 import type { JiraMetadataService } from '~services/integrations/project-management/metadata/jira';
-import { errorResponse, successResponse } from '~utils/response.utils';
+import { successResponse, simpleErrorResponse } from '~utils/response.utils';
 
 export const createJiraMetadataController = (metadataService: JiraMetadataService) => {
   return {
@@ -29,14 +29,14 @@ const getProjectsHandler = (metadataService: JiraMetadataService) => async (req:
 
   if (!integrationId) {
     res.status(HTTP_STATUS.BAD_REQUEST).json(
-      errorResponse('integrationId is required')
+      simpleErrorResponse('integrationId is required', 'missing_integration_id')
     );
     return;
   }
 
   if (!tenantId) {
     res.status(HTTP_STATUS.BAD_REQUEST).json(
-      errorResponse('tenantId is required')
+      simpleErrorResponse('tenantId is required', 'missing_tenant_id')
     );
     return;
   }
@@ -48,7 +48,9 @@ const getProjectsHandler = (metadataService: JiraMetadataService) => async (req:
   } else {
     const statusCode = result.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     const message = result.message || 'Failed to fetch Jira projects';
-    res.status(statusCode).json(errorResponse(message));
+    res.status(statusCode).json(
+      simpleErrorResponse(message, 'fetch_projects_failed')
+    );
   }
 };
 

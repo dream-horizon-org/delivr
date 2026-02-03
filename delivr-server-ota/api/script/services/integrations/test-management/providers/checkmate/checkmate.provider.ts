@@ -11,7 +11,8 @@ import type {
   ITestManagementProvider,
   PlatformTestParameters,
   TestRunResult,
-  TestStatusResult
+  TestStatusResult,
+  ValidationResult
 } from '../provider.interface';
 import {
   CHECKMATE_API_ENDPOINTS,
@@ -98,7 +99,7 @@ export class CheckmateProvider implements ITestManagementProvider {
     if (requestFailed) {
       const errorText = await response.text().catch(() => CHECKMATE_ERROR_MESSAGES.UNKNOWN_ERROR);
       const errorMessage = `${CHECKMATE_ERROR_MESSAGES.API_ERROR_PREFIX}: ${response.status} ${response.statusText} - ${errorText}`;
-      const error: any = new Error(errorMessage);
+      const error = new Error(errorMessage) as Error & { status?: number; responseText?: string };
       error.status = response.status;
       error.responseText = errorText;
       throw error;
@@ -174,7 +175,7 @@ export class CheckmateProvider implements ITestManagementProvider {
   /**
    * Validate Checkmate configuration
    */
-  validateConfig = async (config: TenantTestManagementIntegrationConfig): Promise<{ isValid: boolean; message: string; details?: any }> => {
+  validateConfig = async (config: TenantTestManagementIntegrationConfig): Promise<ValidationResult> => {
     if (!this.isCheckmateConfig(config)) {
       return {
         isValid: false,
@@ -226,9 +227,11 @@ export class CheckmateProvider implements ITestManagementProvider {
         isValid: true,
         message: 'Successfully connected to Checkmate'
       };
-    } catch (error: any) {
-      const status = error.status;
-      const errorText = error.responseText || error.message;
+    } catch (error: unknown) {
+      const status = (error && typeof error === 'object' && 'status' in error) ? (error as { status?: number }).status : undefined;
+      const errorText = (error && typeof error === 'object' && 'responseText' in error) 
+        ? String((error as { responseText?: string }).responseText)
+        : (error instanceof Error ? error.message : 'Unknown error');
 
       // Handle HTTP status codes from API responses
       if (status === 401) {
@@ -278,10 +281,12 @@ export class CheckmateProvider implements ITestManagementProvider {
       // Network errors (no HTTP response received)
       if (!status) {
         // Check if it's a fetch network error vs other errors
-        const isFetchError = error.message && (
-          error.message.includes('fetch') || 
-          error.message.includes('Failed to fetch') || 
-          error.name === 'TypeError'
+        const errorMessage = error instanceof Error ? error.message : '';
+        const errorName = error instanceof Error ? error.name : '';
+        const isFetchError = errorMessage && (
+          errorMessage.includes('fetch') || 
+          errorMessage.includes('Failed to fetch') || 
+          errorName === 'TypeError'
         );
         
         return {
@@ -666,8 +671,10 @@ export class CheckmateProvider implements ITestManagementProvider {
         success: true,
         data
       };
-    } catch (error: any) {
-      const status = error.status || 500;
+    } catch (error: unknown) {
+      const status = (error && typeof error === 'object' && 'status' in error && typeof (error as { status?: number }).status === 'number')
+        ? (error as { status: number }).status
+        : 500;
       return {
         success: false,
         message: this.getMetadataErrorMessage(status, 'fetch projects'),
@@ -690,8 +697,10 @@ export class CheckmateProvider implements ITestManagementProvider {
         success: true,
         data
       };
-    } catch (error: any) {
-      const status = error.status || 500;
+    } catch (error: unknown) {
+      const status = (error && typeof error === 'object' && 'status' in error && typeof (error as { status?: number }).status === 'number')
+        ? (error as { status: number }).status
+        : 500;
       return {
         success: false,
         message: this.getMetadataErrorMessage(status, 'fetch sections'),
@@ -714,8 +723,10 @@ export class CheckmateProvider implements ITestManagementProvider {
         success: true,
         data
       };
-    } catch (error: any) {
-      const status = error.status || 500;
+    } catch (error: unknown) {
+      const status = (error && typeof error === 'object' && 'status' in error && typeof (error as { status?: number }).status === 'number')
+        ? (error as { status: number }).status
+        : 500;
       return {
         success: false,
         message: this.getMetadataErrorMessage(status, 'fetch labels'),
@@ -738,8 +749,10 @@ export class CheckmateProvider implements ITestManagementProvider {
         success: true,
         data
       };
-    } catch (error: any) {
-      const status = error.status || 500;
+    } catch (error: unknown) {
+      const status = (error && typeof error === 'object' && 'status' in error && typeof (error as { status?: number }).status === 'number')
+        ? (error as { status: number }).status
+        : 500;
       return {
         success: false,
         message: this.getMetadataErrorMessage(status, 'fetch squads'),

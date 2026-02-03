@@ -6,8 +6,18 @@
 import type { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
 import type { TestManagementConfigService } from '~services/integrations/test-management/test-management-config';
-import type { CreateTestManagementConfigDto, UpdateTestManagementConfigDto } from '~types/integrations/test-management/test-management-config';
-import { getErrorStatusCode, successMessageResponse, successResponse } from '~utils/response.utils';
+import type { CreateTestManagementConfigDto, UpdateTestManagementConfigDto, PlatformConfiguration } from '~types/integrations/test-management/test-management-config';
+import {
+  getErrorStatusCode,
+  successMessageResponse,
+  successResponse,
+  notFoundResponse,
+  forbiddenResponse,
+  simpleErrorResponse,
+  detailedErrorResponse,
+  buildValidationErrorResponse
+} from '~utils/response.utils';
+import { hasErrorCode } from '~utils/error.utils';
 import { TEST_MANAGEMENT_ERROR_MESSAGES, TEST_MANAGEMENT_SUCCESS_MESSAGES } from '../constants';
 import {
   validateTenantId,
@@ -31,16 +41,21 @@ const createConfigHandler = (service: TestManagementConfigService) =>
     try {
       const { tenantId } = req.params;
 
-      // Validate with Yup schema - sends error response automatically if validation fails
-      const validated = await validateCreateConfig({
+      // Validate with Yup schema
+      const validationResult = await validateCreateConfig({
         tenantId,
         ...req.body
-      }, res);
+      });
 
-      // If validation failed, response already sent
-      if (!validated) {
+      // If validation failed, send error response
+      if (validationResult.success === false) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          buildValidationErrorResponse('Request validation failed', validationResult.errors)
+        );
         return;
       }
+
+      const validated = validationResult.data;
 
       // Check integration existence and enabled state
       const storage = getStorage();
@@ -51,51 +66,34 @@ const createConfigHandler = (service: TestManagementConfigService) =>
           const integration = await integrationService.getIntegrationById(validated.integrationId);
           
           if (!integration) {
-            res.status(HTTP_STATUS.NOT_FOUND).json({
-              success: false,
-              error: 'Integration not found',
-              details: {
-                errorCode: 'integration_not_found',
-                message: 'The specified integration does not exist'
-              }
-            });
+            res.status(HTTP_STATUS.NOT_FOUND).json(
+              notFoundResponse('Integration', 'integration_not_found')
+            );
             return;
           }
           
           // Check if integration belongs to tenant
           if (integration.tenantId !== tenantId) {
-            res.status(HTTP_STATUS.FORBIDDEN).json({
-              success: false,
-              error: 'Access denied',
-              details: {
-                errorCode: 'integration_access_denied',
-                message: 'Integration does not belong to this tenant'
-              }
-            });
+            res.status(HTTP_STATUS.FORBIDDEN).json(
+              forbiddenResponse('Integration does not belong to this tenant', 'integration_access_denied')
+            );
             return;
           }
           
           // Check if integration is enabled
           if (integration.isEnabled === false) {
-            res.status(HTTP_STATUS.BAD_REQUEST).json({
-              success: false,
-              error: 'Integration is disabled',
-              details: {
-                errorCode: 'integration_disabled',
-                message: 'Enable the integration before creating configurations'
-              }
-            });
+            res.status(HTTP_STATUS.BAD_REQUEST).json(
+              simpleErrorResponse('Enable the integration before creating configurations', 'integration_disabled')
+            );
             return;
           }
-        } catch (error: any) {
-          res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            error: 'Failed to verify integration',
-            details: {
-              errorCode: 'integration_verification_failed',
-              message: error.message || 'An error occurred while verifying the integration'
-            }
-          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Failed to verify integration';
+          const errorCode = hasErrorCode(error) ? error.code : 'integration_verification_failed';
+          
+          res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+            detailedErrorResponse(message, errorCode, [message])
+          );
           return;
         }
       }
@@ -105,26 +103,23 @@ const createConfigHandler = (service: TestManagementConfigService) =>
         integrationId: validated.integrationId,
         name: validated.name,
         passThresholdPercent: validated.passThresholdPercent,
-        platformConfigurations: validated.platformConfigurations as any,
+        platformConfigurations: validated.platformConfigurations,
         createdByAccountId: req.user?.id
       };
 
       const config = await service.createConfig(data);
 
       res.status(HTTP_STATUS.CREATED).json(successResponse(config));
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Test Management] Failed to create config:', error);
 
-      // Handle errors with proper status code
+      const message = error instanceof Error ? error.message : TEST_MANAGEMENT_ERROR_MESSAGES.CREATE_CONFIG_FAILED;
       const statusCode = getErrorStatusCode(error);
-      res.status(statusCode).json({
-        success: false,
-        error: error.message || TEST_MANAGEMENT_ERROR_MESSAGES.CREATE_CONFIG_FAILED,
-        details: {
-          errorCode: error.code || 'config_create_failed',
-          message: error.message || 'An unexpected error occurred while creating the configuration'
-        }
-      });
+      const errorCode = hasErrorCode(error) ? error.code : 'config_create_failed';
+      
+      res.status(statusCode).json(
+        detailedErrorResponse(message, errorCode, [message])
+      );
     }
   };
 
@@ -139,28 +134,21 @@ const getConfigByIdHandler = (service: TestManagementConfigService) =>
       const config = await service.getConfigById(id);
 
       if (!config) {
-        res.status(HTTP_STATUS.NOT_FOUND).json({
-          success: false,
-          error: 'Configuration not found',
-          details: {
-            errorCode: 'config_not_found',
-            message: 'The requested test management configuration does not exist'
-          }
-        });
+        res.status(HTTP_STATUS.NOT_FOUND).json(
+          notFoundResponse('Configuration', 'config_not_found')
+        );
         return;
       }
 
       res.status(HTTP_STATUS.OK).json(successResponse(config));
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : TEST_MANAGEMENT_ERROR_MESSAGES.GET_CONFIG_FAILED;
       const statusCode = getErrorStatusCode(error);
-      res.status(statusCode).json({
-        success: false,
-        error: error.message || TEST_MANAGEMENT_ERROR_MESSAGES.GET_CONFIG_FAILED,
-        details: {
-          errorCode: error.code || 'config_fetch_failed',
-          message: error.message || 'An unexpected error occurred while fetching the configuration'
-        }
-      });
+      const errorCode = hasErrorCode(error) ? error.code : 'config_fetch_failed';
+      
+      res.status(statusCode).json(
+        detailedErrorResponse(message, errorCode, [message])
+      );
     }
   };
 
@@ -175,30 +163,23 @@ const listConfigsByTenantHandler = (service: TestManagementConfigService) =>
 
       const tenantIdError = validateTenantId(tenantId);
       if (tenantIdError) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json({
-          success: false,
-          error: tenantIdError,
-          details: {
-            errorCode: 'invalid_tenant_id',
-            message: tenantIdError
-          }
-        });
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          simpleErrorResponse(tenantIdError, 'invalid_tenant_id')
+        );
         return;
       }
 
       const configs = await service.listConfigsByTenant(tenantId);
 
       res.status(HTTP_STATUS.OK).json(successResponse(configs));
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : TEST_MANAGEMENT_ERROR_MESSAGES.LIST_CONFIGS_FAILED;
       const statusCode = getErrorStatusCode(error);
-      res.status(statusCode).json({
-        success: false,
-        error: error.message || TEST_MANAGEMENT_ERROR_MESSAGES.LIST_CONFIGS_FAILED,
-        details: {
-          errorCode: error.code || 'config_list_failed',
-          message: error.message || 'An unexpected error occurred while listing configurations'
-        }
-      });
+      const errorCode = hasErrorCode(error) ? error.code : 'config_list_failed';
+      
+      res.status(statusCode).json(
+        detailedErrorResponse(message, errorCode, [message])
+      );
     }
   };
 
@@ -210,49 +191,46 @@ const updateConfigHandler = (service: TestManagementConfigService) =>
     try {
       const { id } = req.params;
 
-      // Validate with Yup schema - sends error response automatically if validation fails
-      const validated = await validateUpdateConfig(req.body, res);
+      // Validate with Yup schema
+      const validationResult = await validateUpdateConfig(req.body);
 
-      // If validation failed, response already sent
-      if (!validated) {
+      // If validation failed, send error response
+      if (validationResult.success === false) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          buildValidationErrorResponse('Request validation failed', validationResult.errors)
+        );
         return;
       }
 
+      const validated = validationResult.data;
+
       // Build update DTO from validated data
       const updateData: UpdateTestManagementConfigDto = {
-        ...(validated.name !== undefined && { name: validated.name }),
-        ...(validated.passThresholdPercent !== undefined && { passThresholdPercent: validated.passThresholdPercent }),
-        ...(validated.platformConfigurations !== undefined && { platformConfigurations: validated.platformConfigurations as any })
+        name: validated.name,
+        passThresholdPercent: validated.passThresholdPercent,
+        platformConfigurations: validated.platformConfigurations
       };
 
       const config = await service.updateConfig(id, updateData);
 
       if (!config) {
-        res.status(HTTP_STATUS.NOT_FOUND).json({
-          success: false,
-          error: 'Configuration not found',
-          details: {
-            errorCode: 'config_not_found',
-            message: 'The requested test management configuration does not exist'
-          }
-        });
+        res.status(HTTP_STATUS.NOT_FOUND).json(
+          notFoundResponse('Configuration', 'config_not_found')
+        );
         return;
       }
 
       res.status(HTTP_STATUS.OK).json(successResponse(config));
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Test Management] Failed to update config:', error);
 
-      // Handle errors with proper status code
+      const message = error instanceof Error ? error.message : TEST_MANAGEMENT_ERROR_MESSAGES.UPDATE_CONFIG_FAILED;
       const statusCode = getErrorStatusCode(error);
-      res.status(statusCode).json({
-        success: false,
-        error: error.message || TEST_MANAGEMENT_ERROR_MESSAGES.UPDATE_CONFIG_FAILED,
-        details: {
-          errorCode: error.code || 'config_update_failed',
-          message: error.message || 'An unexpected error occurred while updating the configuration'
-        }
-      });
+      const errorCode = hasErrorCode(error) ? error.code : 'config_update_failed';
+      
+      res.status(statusCode).json(
+        detailedErrorResponse(message, errorCode, [message])
+      );
     }
   };
 
@@ -267,30 +245,23 @@ const deleteConfigHandler = (service: TestManagementConfigService) =>
       const deleted = await service.deleteConfig(id);
 
       if (!deleted) {
-        res.status(HTTP_STATUS.NOT_FOUND).json({
-          success: false,
-          error: 'Configuration not found',
-          details: {
-            errorCode: 'config_not_found',
-            message: 'The requested test management configuration does not exist'
-          }
-        });
+        res.status(HTTP_STATUS.NOT_FOUND).json(
+          notFoundResponse('Configuration', 'config_not_found')
+        );
         return;
       }
 
       res.status(HTTP_STATUS.OK).json(
         successMessageResponse(TEST_MANAGEMENT_SUCCESS_MESSAGES.CONFIG_DELETED)
       );
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : TEST_MANAGEMENT_ERROR_MESSAGES.DELETE_CONFIG_FAILED;
       const statusCode = getErrorStatusCode(error);
-      res.status(statusCode).json({
-        success: false,
-        error: error.message || TEST_MANAGEMENT_ERROR_MESSAGES.DELETE_CONFIG_FAILED,
-        details: {
-          errorCode: error.code || 'config_delete_failed',
-          message: error.message || 'An unexpected error occurred while deleting the configuration'
-        }
-      });
+      const errorCode = hasErrorCode(error) ? error.code : 'config_delete_failed';
+      
+      res.status(statusCode).json(
+        detailedErrorResponse(message, errorCode, [message])
+      );
     }
   };
 

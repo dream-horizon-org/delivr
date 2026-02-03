@@ -4,16 +4,41 @@ import type { ConnectionAdapter } from "./connection-adapter.utils";
 import type { UpdateCICDIntegrationDto, SafeCICDIntegration } from "~types/integrations/ci-cd/connection.interface";
 import { decryptIfEncrypted, encryptForStorage } from "~utils/encryption";
 
+interface JenkinsVerifyBody {
+  hostUrl: string;
+  username: string;
+  apiToken: string;
+  _encrypted?: boolean;
+  useCrumb?: boolean;
+  crumbPath?: string;
+}
+
+interface JenkinsCreateBody {
+  displayName?: string;
+  hostUrl: string;
+  username: string;
+  apiToken: string;
+  _encrypted?: boolean;
+  providerConfig?: {
+    useCrumb?: boolean;
+    crumbPath?: string;
+  };
+}
+
 export const createJenkinsConnectionAdapter = (): ConnectionAdapter => {
   const service = new JenkinsConnectionService();
 
   const verify: ConnectionAdapter["verify"] = async (body) => {
-    const hostUrl = body.hostUrl as string;
-    const username = body.username as string;
-    const apiToken = body.apiToken as string;
-    const _encrypted = body._encrypted as boolean | undefined;
-    const useCrumb = (body.useCrumb as boolean | undefined) ?? true;
-    const crumbPath = (body.crumbPath as string | undefined) ?? PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH;
+    // Validated by middleware, safe to cast
+    const typedBody = body as unknown as JenkinsVerifyBody;
+    const {
+      hostUrl,
+      username,
+      apiToken,
+      _encrypted,
+      useCrumb = true,
+      crumbPath = PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH
+    } = typedBody;
     
     // Decrypt apiToken if encrypted from frontend (Layer 1)
     const decryptedToken = _encrypted 
@@ -27,12 +52,16 @@ export const createJenkinsConnectionAdapter = (): ConnectionAdapter => {
   // prepareVerifyOnUpdate removed; update handled via service.update
 
   const create: ConnectionAdapter["create"] = async (tenantId, accountId, body) => {
-    const displayName = body.displayName as string | undefined;
-    const hostUrl = body.hostUrl as string;
-    const username = body.username as string;
-    const apiToken = body.apiToken as string;
-    const _encrypted = body._encrypted as boolean | undefined;
-    const providerConfig = (body.providerConfig as { useCrumb?: boolean; crumbPath?: string } | undefined) ?? { useCrumb: true, crumbPath: PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH };
+    // Validated by middleware, safe to cast
+    const typedBody = body as unknown as JenkinsCreateBody;
+    const {
+      displayName,
+      hostUrl,
+      username,
+      apiToken,
+      _encrypted,
+      providerConfig = { useCrumb: true, crumbPath: PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH }
+    } = typedBody;
     
     // Decrypt frontend-encrypted value if needed (Layer 1), then encrypt with backend storage key (Layer 2)
     const decryptedToken = _encrypted 

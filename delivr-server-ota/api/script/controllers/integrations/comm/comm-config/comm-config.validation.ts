@@ -4,8 +4,8 @@
  */
 
 import * as yup from 'yup';
-import type { Response } from 'express';
-import { HTTP_STATUS } from '~constants/http';
+import { validateWithYup } from '~utils/validation.utils';
+import type { ValidationResult } from '~types/validation/validation-result.interface';
 
 /**
  * Field error type for structured validation errors
@@ -13,48 +13,6 @@ import { HTTP_STATUS } from '~constants/http';
 export type FieldError = {
   field: string;
   message: string;
-};
-
-/**
- * Generic Yup validation helper
- * Validates data against a Yup schema and sends error response if validation fails
- * Returns validated data or null (automatically sends error response)
- */
-const validateWithYup = async <T>(
-  schema: yup.Schema<T>,
-  data: unknown,
-  res: Response
-): Promise<T | null> => {
-  try {
-    const validated = await schema.validate(data, { abortEarly: false });
-    return validated;
-  } catch (error) {
-    if (error instanceof yup.ValidationError) {
-      // Group errors by field
-      const errorsByField = new Map<string, string[]>();
-      error.inner.forEach((err) => {
-        const field = err.path || 'unknown';
-        if (!errorsByField.has(field)) {
-          errorsByField.set(field, []);
-        }
-        errorsByField.get(field)!.push(err.message);
-      });
-
-      // Convert to array format with messages (plural)
-      const details = Array.from(errorsByField.entries()).map(([field, messages]) => ({
-        field,
-        messages
-      }));
-
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        error: 'Request validation failed',
-        details
-      });
-      return null;
-    }
-    throw error;
-  }
 };
 
 /**
@@ -84,7 +42,7 @@ const stageChannelMappingSchema = yup.lazy((obj) =>
         .required(`Channels for stage '${key}' are required`)
         .min(1, `At least one channel is required for stage '${key}'`);
       return acc;
-    }, {} as Record<string, any>)
+    }, {} as Record<string, yup.AnySchema>)
   ).test('at-least-one-stage', 'At least one stage must be configured', (value) => {
     return value && Object.keys(value).length > 0;
   })
@@ -118,8 +76,8 @@ const commConfigCreateSchema = yup.object({
       try {
         await stageChannelMappingSchema.validate(value);
         return true;
-      } catch (err: any) {
-        return this.createError({ message: err.message });
+      } catch (err: unknown) {
+        return this.createError({ message: err instanceof Error ? err.message : 'validation failed' });
       }
     })
 });
@@ -150,23 +108,21 @@ const commConfigUpdateSchema = yup.object({
 
 /**
  * Validate configuration for CREATE operation with Yup
- * Returns validated data or null (sends error response automatically)
+ * Returns ValidationResult with either validated data or errors
  */
 export const validateCreateConfig = async (
-  data: unknown,
-  res: Response
-): Promise<yup.InferType<typeof commConfigCreateSchema> | null> => {
-  return validateWithYup(commConfigCreateSchema, data, res);
+  data: unknown
+): Promise<ValidationResult<yup.InferType<typeof commConfigCreateSchema>>> => {
+  return validateWithYup(commConfigCreateSchema, data);
 };
 
 /**
  * Validate configuration for UPDATE operation with Yup
- * Returns validated data or null (sends error response automatically)
+ * Returns ValidationResult with either validated data or errors
  */
 export const validateUpdateConfig = async (
-  data: unknown,
-  res: Response
-): Promise<yup.InferType<typeof commConfigUpdateSchema> | null> => {
-  return validateWithYup(commConfigUpdateSchema, data, res);
+  data: unknown
+): Promise<ValidationResult<yup.InferType<typeof commConfigUpdateSchema>>> => {
+  return validateWithYup(commConfigUpdateSchema, data);
 };
 

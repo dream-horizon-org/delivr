@@ -4,7 +4,8 @@ import type { ProjectManagementIntegrationService } from '~services/integrations
 import { PROJECT_MANAGEMENT_ERROR_MESSAGES, PROJECT_MANAGEMENT_SUCCESS_MESSAGES } from '~services/integrations/project-management';
 import type {
   CreateProjectManagementIntegrationDto,
-  UpdateProjectManagementIntegrationDto
+  UpdateProjectManagementIntegrationDto,
+  ProjectManagementIntegrationConfig
 } from '~types/integrations/project-management';
 import { ProjectManagementProviderType } from '~types/integrations/project-management';
 import {
@@ -13,8 +14,11 @@ import {
   notFoundResponse,
   successMessageResponse,
   successResponse,
-  validationErrorResponse
+  validationErrorResponse,
+  detailedErrorResponse,
+  buildValidationErrorResponse
 } from '~utils/response.utils';
+import { hasErrorCode } from '~utils/error.utils';
 import { PROJECT_MANAGEMENT_PROVIDERS } from './integration.constants';
 import {
   validatePartialConfigStructure,
@@ -97,12 +101,15 @@ const createIntegrationHandler = (service: ProjectManagementIntegrationService) 
       // Validate config structure for JIRA (Yup validation)
       // TODO: Implement Yup validation for LINEAR and other providers
       let validatedConfig = config;
-      if (providerType.toUpperCase() === 'JIRA') {
-        const validated = await validateJiraConfig(config, res);
-        if (!validated) {
-          return; // Response already sent by validation function
+      if (providerType.toUpperCase() === ProjectManagementProviderType.JIRA) {
+        const validationResult = await validateJiraConfig(config);
+        if (validationResult.success === false) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            buildValidationErrorResponse('Config validation failed', validationResult.errors)
+          );
+          return;
         }
-        validatedConfig = validated;
+        validatedConfig = validationResult.data;
       }
 
       // Config validation (connection test) happens in service layer
@@ -118,13 +125,14 @@ const createIntegrationHandler = (service: ProjectManagementIntegrationService) 
 
       // Mask sensitive data in response
       res.status(HTTP_STATUS.CREATED).json(successResponse(maskSensitiveConfig(integration)));
-    } catch (error: any) {
+    } catch (error: unknown) {
       const statusCode = getErrorStatusCode(error);
-      res.status(statusCode).json({
-        success: false,
-        error: error.message || PROJECT_MANAGEMENT_ERROR_MESSAGES.CREATE_INTEGRATION_FAILED,
-        ...(error.details && { details: error.details })
-      });
+      const errorCode = hasErrorCode(error) ? error.code : 'integration_create_failed';
+      const errorMessage = error instanceof Error ? error.message : PROJECT_MANAGEMENT_ERROR_MESSAGES.CREATE_INTEGRATION_FAILED;
+      
+      res.status(statusCode).json(
+        detailedErrorResponse(errorMessage, errorCode, [errorMessage])
+      );
     }
   };
 
@@ -212,12 +220,15 @@ const updateIntegrationHandler = (service: ProjectManagementIntegrationService) 
         // Use Yup validation for Jira
         // TODO: Implement Yup validation for LINEAR and other providers
         if (existing.providerType === ProjectManagementProviderType.JIRA) {
-          const validated = await validateJiraUpdateConfig(config, res);
-          if (!validated) {
-            return; // Response already sent by validation function
+          const validationResult = await validateJiraUpdateConfig(config);
+          if (validationResult.success === false) {
+            res.status(HTTP_STATUS.BAD_REQUEST).json(
+              buildValidationErrorResponse('Config validation failed', validationResult.errors)
+            );
+            return;
           }
           // Replace config with validated (trimmed, transformed) data
-          req.body.config = validated;
+          req.body.config = validationResult.data;
         } else {
           // Fallback validation for non-Jira providers (not implemented yet)
           const configError = validatePartialConfigStructure(config, existing.providerType);
@@ -245,13 +256,14 @@ const updateIntegrationHandler = (service: ProjectManagementIntegrationService) 
 
       // Mask sensitive data in response
       res.status(HTTP_STATUS.OK).json(successResponse(maskSensitiveConfig(integration)));
-    } catch (error: any) {
+    } catch (error: unknown) {
       const statusCode = getErrorStatusCode(error);
-      res.status(statusCode).json({
-        success: false,
-        error: error.message || PROJECT_MANAGEMENT_ERROR_MESSAGES.UPDATE_INTEGRATION_FAILED,
-        ...(error.details && { details: error.details })
-      });
+      const errorCode = hasErrorCode(error) ? error.code : 'integration_update_failed';
+      const errorMessage = error instanceof Error ? error.message : PROJECT_MANAGEMENT_ERROR_MESSAGES.UPDATE_INTEGRATION_FAILED;
+      
+      res.status(statusCode).json(
+        detailedErrorResponse(errorMessage, errorCode, [errorMessage])
+      );
     }
   };
 
@@ -304,29 +316,38 @@ const verifyCredentialsHandler = (_service: ProjectManagementIntegrationService)
       }
 
       // Unified validation (handles JIRA Yup and others manual validation internally)
-      const validated = await validateVerifyRequest(req.body, providerType, res);
-      if (!validated) {
-        return; // Response already sent by validation function
+      const validationResult = await validateVerifyRequest(req.body, providerType);
+      if (validationResult.success === false) {
+        // Add "verified: false" for verify endpoint
+        const errorResponse = buildValidationErrorResponse('Request validation failed', validationResult.errors);
+        res.status(HTTP_STATUS.BAD_REQUEST).json({
+          ...errorResponse,
+          verified: false
+        });
+        return;
       }
+
+      const validated = validationResult.data;
 
       // Use ProviderFactory to validate config
       const { ProviderFactory } = await import('~services/integrations/project-management/providers');
       const provider = ProviderFactory.getProvider(providerType);
-      const validationResult = await provider.validateConfig(validated.config as any);
+      const verificationResult = await provider.validateConfig(validated.config as ProjectManagementIntegrationConfig);
 
-      if (validationResult.isValid) {
+      if (verificationResult.isValid) {
         res.status(HTTP_STATUS.OK).json({
-          success: true,
-          verified: true,
-          message: validationResult.message,
-          ...(validationResult.details && { details: validationResult.details })
+          ...successResponse({ verified: true }),
+          message: verificationResult.message,
+          ...(verificationResult.details && { details: verificationResult.details })
         });
       } else {
         res.status(HTTP_STATUS.BAD_REQUEST).json({
-          success: false,
-          verified: false,
-          error: validationResult.message,
-          ...(validationResult.details && { details: validationResult.details })
+          ...detailedErrorResponse(
+            verificationResult.message,
+            'verification_failed',
+            [verificationResult.message]
+          ),
+          verified: false
         });
       }
     } catch (error) {

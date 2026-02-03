@@ -3,8 +3,8 @@
  */
 
 import * as yup from 'yup';
-import type { Response } from 'express';
-import { HTTP_STATUS } from '~constants/http';
+import { validateWithYup } from '~utils/validation.utils';
+import type { ValidationResult } from '~types/validation/validation-result.interface';
 import type { 
   CreateReleaseConfigDto, 
   ReleaseSchedule, 
@@ -16,45 +16,15 @@ import { RELEASE_FREQUENCIES } from '~types/release-schedules';
 import { isValidVersion } from '~services/release-schedules/utils';
 
 /**
- * Generic Yup validation helper
- * Validates data against schema and sends error response if validation fails
+ * Extended type for validation that includes both ID references and inline config objects
  */
-const validateWithYup = async <T>(
-  schema: yup.Schema<T>,
-  data: unknown,
-  res: Response
-): Promise<T | null> => {
-  try {
-    const validated = await schema.validate(data, { abortEarly: false });
-    return validated;
-  } catch (error) {
-    if (error instanceof yup.ValidationError) {
-      // Group errors by field
-      const errorsByField = new Map<string, string[]>();
-      error.inner.forEach((err) => {
-        const field = err.path || 'unknown';
-        if (!errorsByField.has(field)) {
-          errorsByField.set(field, []);
-        }
-        errorsByField.get(field)!.push(err.message);
-      });
-
-      // Convert to array format with messages (plural)
-      const details = Array.from(errorsByField.entries()).map(([field, messages]) => ({
-        field,
-        messages
-      }));
-
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        error: 'Request validation failed',
-        details
-      });
-      return null;
-    }
-    throw error;
-  }
+type ReleaseConfigValidationInput = Partial<CreateReleaseConfigDto> & {
+  ciConfig?: unknown;
+  testManagementConfig?: unknown;
+  projectManagementConfig?: unknown;
+  communicationConfig?: unknown;
 };
+
 
 /**
  * Convert time string (HH:mm) to minutes for comparison
@@ -261,6 +231,7 @@ const createReleaseConfigSchema = yup.object().shape({
     .string()
     .required('Configuration name is required')
     .min(1, 'Configuration name cannot be empty'),
+  description: yup.string().optional().nullable(),
   releaseType: yup
     .string()
     .required('Release type is required'),
@@ -269,22 +240,51 @@ const createReleaseConfigSchema = yup.object().shape({
     .of(platformTargetSchema)
     .min(1, 'At least one platform target is required')
     .required('platformTargets is required'),
-  releaseSchedule: releaseScheduleSchema.required('Release schedule is required'),
-  // Optional integration config IDs
+  baseBranch: yup.string().optional().nullable(),
+  hasManualBuildUpload: yup.boolean().optional(),
+  isDefault: yup.boolean().optional(),
+  isActive: yup.boolean().optional(),
+  releaseSchedule: yup.mixed().optional().nullable(),
+  // Optional integration config IDs (for referencing existing configs)
   ciConfigId: yup.string().optional().nullable(),
   testManagementConfigId: yup.string().optional().nullable(),
   projectManagementConfigId: yup.string().optional().nullable(),
   commsConfigId: yup.string().optional().nullable(),
+  // Optional integration config objects (for creating new configs inline)
+  ciConfig: yup.mixed().optional().nullable(),
+  testManagementConfig: yup.mixed().optional().nullable(),
+  projectManagementConfig: yup.mixed().optional().nullable(),
+  communicationConfig: yup.mixed().optional().nullable(),
   tenantId: yup.string().optional() // Will be overridden by controller
 })
 .test(
   'at-least-one-integration',
   'At least one integration configuration must be provided',
-  function (value) {
-    const hasCi = value.ciConfigId !== undefined && value.ciConfigId !== null;
-    const hasTcm = value.testManagementConfigId !== undefined && value.testManagementConfigId !== null;
-    const hasProjectMgmt = value.projectManagementConfigId !== undefined && value.projectManagementConfigId !== null;
-    const hasComms = value.commsConfigId !== undefined && value.commsConfigId !== null;
+  function (value: ReleaseConfigValidationInput) {
+    // Skip validation if no integration fields are being updated (e.g., during archive operations)
+    const hasAnyIntegrationField = 
+      value.ciConfigId !== undefined || 
+      value.ciConfig !== undefined ||
+      value.testManagementConfigId !== undefined || 
+      value.testManagementConfig !== undefined ||
+      value.projectManagementConfigId !== undefined || 
+      value.projectManagementConfig !== undefined ||
+      value.commsConfigId !== undefined || 
+      value.communicationConfig !== undefined;
+    
+    if (!hasAnyIntegrationField) {
+      return true; // Skip validation when no integration fields present
+    }
+    
+    // Check for both ID references and inline config objects
+    const hasCi = (value.ciConfigId !== undefined && value.ciConfigId !== null) || 
+                  (value.ciConfig !== undefined && value.ciConfig !== null);
+    const hasTcm = (value.testManagementConfigId !== undefined && value.testManagementConfigId !== null) || 
+                   (value.testManagementConfig !== undefined && value.testManagementConfig !== null);
+    const hasProjectMgmt = (value.projectManagementConfigId !== undefined && value.projectManagementConfigId !== null) || 
+                           (value.projectManagementConfig !== undefined && value.projectManagementConfig !== null);
+    const hasComms = (value.commsConfigId !== undefined && value.commsConfigId !== null) || 
+                     (value.communicationConfig !== undefined && value.communicationConfig !== null);
     
     if (!hasCi && !hasTcm && !hasProjectMgmt && !hasComms) {
       return this.createError({
@@ -308,22 +308,22 @@ const updateReleaseConfigSchema = createReleaseConfigSchema.partial();
 
 /**
  * Validate create release config request
+ * Returns ValidationResult with either validated data or errors
  */
 export const validateCreateConfig = async (
-  data: unknown,
-  res: Response
-) => {
-  return await validateWithYup(createReleaseConfigSchema, data, res);
+  data: unknown
+): Promise<ValidationResult<any>> => {
+  return await validateWithYup(createReleaseConfigSchema, data);
 };
 
 /**
  * Validate update release config request
+ * Returns ValidationResult with either validated data or errors
  */
 export const validateUpdateConfig = async (
-  data: unknown,
-  res: Response
-) => {
-  return await validateWithYup(updateReleaseConfigSchema, data, res);
+  data: unknown
+): Promise<ValidationResult<any>> => {
+  return await validateWithYup(updateReleaseConfigSchema, data);
 };
 
 // ============================================================================

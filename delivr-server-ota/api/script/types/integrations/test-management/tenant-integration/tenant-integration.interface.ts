@@ -57,13 +57,26 @@ export type UpdateTenantTestManagementIntegrationDto = {
   config?: Partial<TenantTestManagementIntegrationConfig>;
 };
 
-export type VerifyTenantTestManagementIntegrationResult = {
-  success: boolean;
-  status: VerificationStatus;
-  message: string;
-  error?: string;
-  details?: any;
-};
+/**
+ * Discriminated union for verification results
+ * Enables type narrowing with `if (result.success === false)`
+ */
+export type VerifyTenantTestManagementIntegrationResult =
+  | {
+      success: true;
+      status: VerificationStatus;
+      message: string;
+    }
+  | {
+      success: false;
+      status: VerificationStatus;
+      message: string;
+      details?: {
+        errorCode?: string;
+        message?: string;
+        [key: string]: unknown;
+      };
+    };
 
 // Query filters
 export type FindTenantIntegrationsFilter = {
