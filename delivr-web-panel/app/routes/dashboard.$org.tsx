@@ -156,15 +156,14 @@ export type OrgLayoutLoaderData = AppLayoutLoaderData;
 export function shouldRevalidate({
   currentUrl,
   nextUrl,
-  defaultReason,
+  defaultShouldRevalidate,
 }: {
   currentUrl: URL;
   nextUrl: URL;
-  defaultReason: string;
+  defaultShouldRevalidate: boolean;
 }): boolean {
   if (currentUrl.pathname !== nextUrl.pathname) return true;
-  if (defaultReason === 'revalidate') return true;
-  return false;
+  return defaultShouldRevalidate;
 }
 
 export default function AppLayout() {
