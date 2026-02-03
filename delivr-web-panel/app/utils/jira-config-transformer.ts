@@ -13,7 +13,7 @@ import { PLATFORMS } from '~/types/release-config-constants';
  * WEB is not a valid platform for project management.
  */
 export interface CreateProjectManagementConfigDto {
-  projectId: string; // Tenant ID
+  projectId: string; // app id
   integrationId: string; // JIRA integration ID
   name: string; // Config name
   description?: string;
@@ -49,14 +49,14 @@ export interface ProjectManagementConfigResponse {
  * Transform frontend JiraProjectConfig to backend CreateProjectManagementConfigDto
  * 
  * @param jiraConfig - Frontend JIRA configuration
- * @param tenantId - Tenant/Project ID
+ * @param appId - Tenant/Project ID
  * @param configName - Name for the configuration
  * @param userId - User ID creating the config
  * @returns Backend DTO with empty platformConfigurations if disabled, null if not configured
  */
 export function transformJiraConfigToBackendDTO(
   jiraConfig: JiraProjectConfig,
-  tenantId: string,
+  appId: string,
   configName: string,
   userId?: string
 ): CreateProjectManagementConfigDto | null {
@@ -68,7 +68,7 @@ export function transformJiraConfigToBackendDTO(
   // If disabled or no integration selected, return config with empty platformConfigurations
   if (!jiraConfig.enabled || !jiraConfig.integrationId) {
     return {
-      projectId: tenantId,
+      projectId: appId,
       integrationId: jiraConfig.integrationId || '',
       name: `${configName} - JIRA Config`,
       description: `Project management configuration for ${configName}`,
@@ -80,7 +80,7 @@ export function transformJiraConfigToBackendDTO(
   // If no platform configurations, return config with empty array
   if (!jiraConfig.platformConfigurations || jiraConfig.platformConfigurations.length === 0) {
     return {
-      projectId: tenantId,
+      projectId: appId,
       integrationId: jiraConfig.integrationId,
       name: `${configName} - JIRA Config`,
       description: `Project management configuration for ${configName}`,
@@ -101,7 +101,7 @@ export function transformJiraConfigToBackendDTO(
   );
 
   return {
-    projectId: tenantId,
+    projectId: appId,
     integrationId: jiraConfig.integrationId,
     name: `${configName} - JIRA Config`,
     description: `Project management configuration for ${configName}`,

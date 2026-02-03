@@ -135,13 +135,13 @@ export class ReleasePlatformTargetMappingRepository {
    * Since versions are mandated to be incremental, the latest is simply the most recent.
    * Excludes ARCHIVED releases to ensure version progression is accurate.
    * 
-   * @param tenantId - Tenant ID to filter releases
+   * @param appId - app id to filter releases
    * @param platform - Platform (ANDROID, IOS, WEB)
    * @param target - Target (WEB, PLAY_STORE, APP_STORE)
    * @returns Latest version string, or null if no releases exist
    */
   async getLatestVersionForTenant(
-    tenantId: string,
+    appId: string,
     platform: ReleasePlatformTargetMapping['platform'],
     target: ReleasePlatformTargetMapping['target']
   ): Promise<string | null> {
@@ -159,7 +159,7 @@ export class ReleasePlatformTargetMappingRepository {
       SELECT ptm.version
       FROM release_platforms_targets_mapping ptm
       INNER JOIN releases r ON ptm.releaseId = r.id
-      WHERE r.tenantId = :tenantId
+      WHERE r.appId = :appId
         AND r.status != 'ARCHIVED'
         AND ptm.platform = :platform
         AND ptm.target = :target
@@ -170,7 +170,7 @@ export class ReleasePlatformTargetMappingRepository {
     type VersionRow = { version: string };
 
     const results: VersionRow[] = await sequelize.query(query, {
-      replacements: { tenantId, platform, target },
+      replacements: { appId, platform, target },
       type: QueryTypes.SELECT
     });
 

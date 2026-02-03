@@ -45,7 +45,7 @@ import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrat
 // ============================================================================
 
 export interface ConfigurationWizardProps {
-  tenantId: string;
+  appId: string;
   onSubmit: (config: ReleaseConfiguration) => Promise<void>;
   onCancel: () => void;
   availableIntegrations: {
@@ -89,7 +89,7 @@ export interface WizardStepIndicatorProps {
 export interface BasicInfoFormProps {
   config: Partial<ReleaseConfiguration>;
   onChange: (config: Partial<ReleaseConfiguration>) => void;
-  tenantId: string;
+  appId: string;
   showValidation?: boolean;
   hasScmIntegration?: boolean;
 }
@@ -110,7 +110,7 @@ export interface FixedPipelineCategoriesProps {
     githubActions: Array<{ id: string; name: string; displayName?: string }>;
   };
   selectedPlatforms: Platform[];
-  tenantId: string;
+  appId: string;
   showValidation?: boolean;
 }
 
@@ -136,7 +136,7 @@ export interface PipelineEditModalProps {
   fixedPlatform?: Platform;
   fixedEnvironment?: BuildEnvironment;
   workflows: CICDWorkflow[];
-  tenantId: string;
+  appId: string;
 }
 
 export interface PipelineCardProps {
@@ -166,7 +166,7 @@ export interface JenkinsConfigFormProps {
   onChange: (config: Partial<JenkinsConfig>) => void;
   availableIntegrations: Array<{ id: string; name: string; displayName?: string }>;
   workflows: CICDWorkflow[];
-  tenantId: string;
+  appId: string;
 }
 
 export interface GitHubActionsConfigFormProps {
@@ -174,7 +174,7 @@ export interface GitHubActionsConfigFormProps {
   onChange: (config: Partial<GitHubActionsConfig>) => void;
   availableIntegrations: Array<{ id: string; name: string; displayName?: string }>;
   workflows: CICDWorkflow[];
-  tenantId: string;
+  appId: string;
 }
 
 export interface ManualUploadConfigFormProps {
@@ -245,14 +245,14 @@ export interface CommunicationConfigProps {
   availableIntegrations: {
     slack: Array<{ id: string; name: string }>;
   };
-  tenantId: string;
+  appId: string;
 }
 
 export interface SlackChannelConfigEnhancedProps {
   config: CommunicationConfig;
   onChange: (config: CommunicationConfig) => void;
   availableIntegrations: Array<{ id: string; name: string; displayName?: string }>;
-  tenantId: string;
+  appId: string;
 }
 
 export interface SlackChannelMapperProps {
@@ -334,7 +334,7 @@ export interface JiraProjectStepProps {
   onChange: (config: JiraProjectConfig) => void;
   availableIntegrations: Array<{ id: string; name: string; displayName?: string }>;
   selectedPlatforms?: Platform[];
-  tenantId: string;
+  appId: string;
 }
 
 export interface JiraPlatformConfigCardProps {
@@ -467,7 +467,7 @@ export interface CheckmateConfigFormEnhancedProps {
   }>;
   selectedTargets: TargetPlatform[];
   integrationId?: string; // Optional: if provided, auto-select this integration (one-to-one mapping)
-  tenantId: string; // Required for new API format
+  appId: string; // Required for new API format
 }
 
 export interface ConfigSummaryProps {

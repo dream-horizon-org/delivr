@@ -94,7 +94,7 @@ export class ManualUploadService {
       };
     }
 
-    // Step 2: Get release for tenant ID
+    // Step 2: Get release for app id
     const release = await this.releaseRepo.findById(releaseId);
     const releaseNotFound = !release;
     if (releaseNotFound) {
@@ -122,7 +122,7 @@ export class ManualUploadService {
     let internalTrackLink: string | null = null;
     try {
       const uploadResult = await this.buildArtifactService.uploadStagingArtifact({
-        tenantId: release.tenantId,
+        appId: release.appId,
         releaseId,
         platform,
         artifactVersionName,
@@ -143,7 +143,7 @@ export class ManualUploadService {
     // Step 5: Create/upsert entry in release_uploads table
     // Only saved if all uploads (S3 + Play Store for AAB) succeed
     const uploadData: CreateReleaseUploadDto = {
-      tenantId: release.tenantId,
+      appId: release.appId,
       releaseId,
       platform,
       stage,

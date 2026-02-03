@@ -21,8 +21,8 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
     return jenkins.verifyConnection(params);
   };
 
-  create = async (tenantId: string, accountId: string, input: CreateInput): Promise<SafeCICDIntegration> => {
-    const existing = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
+  create = async (appId: string, accountId: string, input: CreateInput): Promise<SafeCICDIntegration> => {
+    const existing = await this.repository.findByAppAndProvider(appId, CICDProviderType.JENKINS);
     if (existing) {
       throw new Error(ERROR_MESSAGES.JENKINS_ALREADY_EXISTS);
     }
@@ -51,7 +51,7 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
     // Store the ORIGINAL (encrypted) token in database
     const createData: CreateCICDIntegrationDto & { id: string } = {
       id: shortid.generate(),
-      tenantId,
+      appId,
       providerType: CICDProviderType.JENKINS,
       displayName: input.displayName ?? 'Jenkins',
       hostUrl: input.hostUrl,
@@ -68,13 +68,13 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
     return this.toSafe(created);
   };
 
-  get = async (tenantId: string): Promise<SafeCICDIntegration | null> => {
-    const found = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
+  get = async (appId: string): Promise<SafeCICDIntegration | null> => {
+    const found = await this.repository.findByAppAndProvider(appId, CICDProviderType.JENKINS);
     return found ? this.toSafe(found) : null;
   };
 
-  update = async (tenantId: string, updateData: UpdateCICDIntegrationDto): Promise<SafeCICDIntegration> => {
-    const existing = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
+  update = async (appId: string, updateData: UpdateCICDIntegrationDto): Promise<SafeCICDIntegration> => {
+    const existing = await this.repository.findByAppAndProvider(appId, CICDProviderType.JENKINS);
     if (!existing) {
       throw new Error(ERROR_MESSAGES.JENKINS_NOT_FOUND);
     }
@@ -144,8 +144,8 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
     return this.toSafe(updated as any);
   };
 
-  delete = async (tenantId: string): Promise<void> => {
-    const existing = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
+  delete = async (appId: string): Promise<void> => {
+    const existing = await this.repository.findByAppAndProvider(appId, CICDProviderType.JENKINS);
     if (!existing) {
       throw new Error(ERROR_MESSAGES.JENKINS_NOT_FOUND);
     }

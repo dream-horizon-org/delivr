@@ -28,7 +28,7 @@ import { route } from "routes-gen";
 import { User } from '~/.server/services/Auth/auth.interface';
 import { useGetAppListForOrg } from "../AppList/hooks/useGetAppListForOrg";
 import { AppListRow } from "./components/AppListRow";
-import { useGetOrgList } from "../OrgListNavbar/hooks/useGetOrgList";
+import { useGetAppList } from "../OrgListNavbar/hooks/useGetAppList";
 import { CTAButton } from "~/components/Common/CTAButton";
 import { useState } from "react";
 import { CreateAppForm } from "../CreateApp";
@@ -57,8 +57,8 @@ export function AppListPage({ user }: AppListPageProps) {
     userEmail: user.user.email,
   });
 
-  const { data: orgs = [] } = useGetOrgList();
-  const currentOrg = orgs.find((org) => org.id === params.org);
+  const { data: apps = [] } = useGetAppList();
+  const currentApp = apps.find((app) => app.id === params.org); // params.org is actually appId
 
   const bgColor = theme.colors.slate[0];
 

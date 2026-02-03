@@ -106,7 +106,7 @@ export function GitHubConnectionFlow({
         _encrypted: true, // Flag to indicate encryption
       });
       
-      const endpoint = `/api/v1/tenants/${org}/integrations/scm/verify`;
+      const endpoint = `/api/v1/apps/${org}/integrations/scm/verify`;
       const result = await apiPost(
         endpoint,
         verifyPayload
@@ -168,7 +168,7 @@ export function GitHubConnectionFlow({
       }
 
       let result;
-      const endpoint = `/api/v1/tenants/${org}/integrations/scm`;
+      const endpoint = `/api/v1/apps/${org}/integrations/scm`;
       
       if (isEditMode && existingData?.id) {
         payload.integrationId = existingData.id;

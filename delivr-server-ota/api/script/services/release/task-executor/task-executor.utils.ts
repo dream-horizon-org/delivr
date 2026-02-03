@@ -1,12 +1,12 @@
 /**
  * Build Delivr URL for release-related pages
  * 
- * @param tenantId - Tenant ID
+ * @param appId - app id
  * @param releaseId - Release ID
  * @returns Full Delivr URL
  */
 export const buildDelivrUrl = (
-  tenantId: string,
+  appId: string,
   releaseId: string
 ): string => {
   // Use FRONTEND_URL for user-facing links
@@ -15,7 +15,7 @@ export const buildDelivrUrl = (
   // Remove trailing slash if present
   baseUrl = baseUrl.replace(/\/+$/, '');
   
-  // Format: {baseUrl}/{tenantId}/releases/{releaseId}
-  return `${baseUrl}/${tenantId}/releases/${releaseId}`;
+  // Format: {baseUrl}/{appId}/releases/{releaseId}
+  return `${baseUrl}/${appId}/releases/${releaseId}`;
 };
 

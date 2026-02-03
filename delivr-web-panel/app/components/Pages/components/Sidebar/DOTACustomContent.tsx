@@ -10,12 +10,12 @@ import { useLocation, Link } from "@remix-run/react";
 import { IconChevronRight } from "@tabler/icons-react";
 import { route } from "routes-gen";
 import type { ModuleConfig } from "./navigation-data";
-import type { Organization } from "./types";
+import type { App } from "./types";
 import { SubItems } from "./SubItems";
 
 interface DOTACustomContentProps {
   module: ModuleConfig;
-  org: Organization;
+  org: App;
   currentAppId?: string;
   userEmail: string;
   isExpanded: boolean;

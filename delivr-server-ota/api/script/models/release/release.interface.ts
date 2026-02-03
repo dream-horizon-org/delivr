@@ -18,7 +18,8 @@ export enum PlatformName {
 export enum TargetName {
   WEB = 'WEB',
   PLAY_STORE = 'PLAY_STORE',
-  APP_STORE = 'APP_STORE'
+  APP_STORE = 'APP_STORE',
+  DOTA = 'DOTA'
 }
 
 export enum ReleaseType {
@@ -196,7 +197,7 @@ export interface Release {
   id: string;
   releaseId: string; // User-facing release ID (e.g., "REL-001")
   releaseConfigId: string | null;
-  tenantId: string;
+  appId: string;
   status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
   type: 'MINOR' | 'HOTFIX' | 'MAJOR';
   branch: string | null;
@@ -222,7 +223,7 @@ export interface CreateReleaseDto {
   id: string;
   releaseId: string;
   releaseConfigId: string | null;
-  tenantId: string;
+  appId: string;
   status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
   type: 'MINOR' | 'HOTFIX' | 'MAJOR';
   branch: string | null;
@@ -262,7 +263,7 @@ export interface ReleasePlatformTargetMapping {
   id: string;
   releaseId: string;
   platform: 'ANDROID' | 'IOS' | 'WEB';
-  target: 'WEB' | 'PLAY_STORE' | 'APP_STORE';
+  target: 'WEB' | 'PLAY_STORE' | 'APP_STORE' | 'DOTA';
   version: string;
   projectManagementRunId: string | null;
   testManagementRunId: string | null;
@@ -274,7 +275,7 @@ export interface CreateReleasePlatformTargetMappingDto {
   id: string;
   releaseId: string;
   platform: 'ANDROID' | 'IOS' | 'WEB';
-  target: 'WEB' | 'PLAY_STORE' | 'APP_STORE';
+  target: 'WEB' | 'PLAY_STORE' | 'APP_STORE' | 'DOTA';
   version: string;
   projectManagementRunId?: string | null;
   testManagementRunId?: string | null;

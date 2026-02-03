@@ -1,6 +1,6 @@
 export const ERROR_MESSAGES = {
   STORE_TYPE_REQUIRED: 'storeType is required',
-  TENANT_ID_REQUIRED: 'tenantId is required',
+  APP_ID_REQUIRED: 'appId is required',
   USER_ID_REQUIRED: 'userId is required',
   PAYLOAD_REQUIRED: 'payload is required',
   DISPLAY_NAME_REQUIRED: 'displayName is required',
@@ -75,7 +75,7 @@ export const PLAY_STORE_UPLOAD_ERROR_MESSAGES = {
   INTEGRATION_STATUS_PENDING: 'Integration status is Pending. Please verify the integration before uploading.',
   INTEGRATION_STATUS_INVALID: 'Integration status is invalid. Integration must be verified before uploading.',
   RELEASE_ID_REQUIRED: 'releaseId is required',
-  RELEASE_NOT_FOUND: 'Release not found for the specified releaseId and tenantId',
+  RELEASE_NOT_FOUND: 'Release not found for the specified releaseId and appId',
   RELEASE_PLATFORM_TARGET_MAPPING_NOT_FOUND: 'Release platform target mapping not found for the specified releaseId, storeType, and platform',
   VERSION_MISMATCH: 'The artifact version does not match the release version. Please ensure the versionName matches the version configured for this release.',
 } as const;

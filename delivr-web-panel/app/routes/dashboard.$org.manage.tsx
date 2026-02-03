@@ -20,7 +20,7 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
 
   // Check if user is owner - only owners can manage team
   try {
-    const isOwner = await PermissionService.isTenantOwner(org, user.user.id);
+    const isOwner = await PermissionService.isAppOwner(org, user.user.id);
     if (!isOwner) {
       throw redirect(`/dashboard/${org}/releases`);
     }
@@ -34,18 +34,18 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
   }
 
   return json({ 
-    tenantId: org,
+    appId: org,
     user: user.user
   });
 });
 
 type LoaderData = {
-  tenantId: string;
+  appId: string;
   user: { id: string };
 };
 
 export default function ManageTenantCollaborators() {
-  const { tenantId, user } = useLoaderData<LoaderData>();
+  const { appId, user } = useLoaderData<LoaderData>();
   
   // Safety check - redirect if user data is missing
   if (!user || !user.id) {
@@ -66,7 +66,7 @@ export default function ManageTenantCollaborators() {
           Manage your organization's team members and their permissions
         </Text>
         
-        <TenantCollaboratorsPage tenantId={tenantId} userId={user.id} />
+        <TenantCollaboratorsPage appId={appId} userId={user.id} />
       </Paper>
     </Container>
   );

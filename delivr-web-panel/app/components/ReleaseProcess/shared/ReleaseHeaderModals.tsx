@@ -114,7 +114,7 @@ export function ReleaseHeaderModals({
       <ActivityLogsDrawer
         opened={activityDrawerOpened}
         onClose={onActivityDrawerClose}
-        tenantId={org}
+        appId={org}
         releaseId={release.id}
       />
 

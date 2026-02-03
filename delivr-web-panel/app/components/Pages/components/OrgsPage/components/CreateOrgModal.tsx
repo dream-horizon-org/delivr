@@ -41,7 +41,7 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
 
     setIsLoading(true);
     try {
-      const response = await fetch("/api/v1/tenants", {
+      const response = await fetch("/api/v1/apps", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

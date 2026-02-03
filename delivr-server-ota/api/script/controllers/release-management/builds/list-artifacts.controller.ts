@@ -17,21 +17,21 @@ import type { Storage } from '../../../storage/storage';
 /**
  * HTTP handler for listing build artifacts.
  * 
- * Required: tenantId (path), releaseId (path)
+ * Required: appId (path), releaseId (path)
  * Optional query params: platform, buildStage, storeType, buildType, regressionId, workflowStatus, buildUploadStatus
  */
 export const createBuildListArtifactsHandler = (storage: Storage) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       // Required path params
-      const tenantId = getTrimmedString(req.params.tenantId);
+      const appId = getTrimmedString(req.params.appId);
       const releaseId = getTrimmedString(req.params.releaseId);
 
       // Validate required params
-      const tenantIdMissing = !tenantId;
+      const tenantIdMissing = !appId;
       if (tenantIdMissing) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('tenantId', BUILD_ERROR_MESSAGES.INVALID_TENANT_ID)
+          validationErrorResponse('appId', BUILD_ERROR_MESSAGES.INVALID_TENANT_ID)
         );
         return;
       }
@@ -57,7 +57,7 @@ export const createBuildListArtifactsHandler = (storage: Storage) =>
       // Use the service to handle the core business logic
       const buildArtifactService = new BuildArtifactService(storage);
       const results = await buildArtifactService.listBuildArtifacts({
-        tenantId,
+        appId,
         releaseId,
         platform,
         buildStage,

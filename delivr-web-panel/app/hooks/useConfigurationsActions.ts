@@ -101,7 +101,7 @@ export function useConfigurationsActions({
       }
       
       const result = await apiPut<{ success: boolean; data?: any; error?: string }>(
-        `/api/v1/tenants/${org}/release-config/${archiveModal.configId}`,
+        `/api/v1/apps/${org}/release-config/${archiveModal.configId}`,
         archivePayload
       );
       
@@ -154,7 +154,7 @@ export function useConfigurationsActions({
       }
       
       const result = await apiPut<{ success: boolean; data?: any; error?: string }>(
-        `/api/v1/tenants/${org}/release-config/${unarchiveModal.configId}`,
+        `/api/v1/apps/${org}/release-config/${unarchiveModal.configId}`,
         unarchivePayload
       );
       
@@ -200,7 +200,7 @@ export function useConfigurationsActions({
     
     try {
       const result = await apiDelete<{ success: boolean; error?: string }>(
-        `/api/v1/tenants/${org}/release-config/${deleteModal.configId}`
+        `/api/v1/apps/${org}/release-config/${deleteModal.configId}`
       );
       
       if (result.success) {
@@ -264,7 +264,7 @@ export function useConfigurationsActions({
       
       if (currentDefault && currentDefault.id !== configId) {
         const unsetResult = await apiPut(
-          `/api/v1/tenants/${org}/release-config/${currentDefault.id}`,
+          `/api/v1/apps/${org}/release-config/${currentDefault.id}`,
           { ...currentDefault, isDefault: false }
         );
         
@@ -286,7 +286,7 @@ export function useConfigurationsActions({
       }
       
       const result = await apiPut(
-        `/api/v1/tenants/${org}/release-config/${configId}`,
+        `/api/v1/apps/${org}/release-config/${configId}`,
         { ...configToSetDefault, isDefault: true }
       );
       

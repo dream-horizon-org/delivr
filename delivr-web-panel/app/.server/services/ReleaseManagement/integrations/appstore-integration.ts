@@ -23,7 +23,7 @@ export enum AppStoreAuthType {
 }
 
 export interface VerifyAppStoreRequest {
-  tenantId: string;
+  appId: string;
   authType: AppStoreAuthType;
   issuerId: string;
   keyId: string;
@@ -43,7 +43,7 @@ export interface VerifyAppStoreResponse {
 }
 
 export interface CreateAppStoreIntegrationRequest {
-  tenantId: string;
+  appId: string;
   displayName?: string;
   authType: AppStoreAuthType;
   issuerId: string;
@@ -65,7 +65,7 @@ export interface CreateAppStoreIntegrationRequest {
 }
 
 export interface UpdateAppStoreIntegrationRequest {
-  tenantId: string;
+  appId: string;
   displayName?: string;
   authType?: AppStoreAuthType;
   issuerId?: string;
@@ -88,7 +88,7 @@ export interface UpdateAppStoreIntegrationRequest {
 
 export interface AppStoreIntegration {
   id: string;
-  tenantId: string;
+  appId: string;
   displayName: string;
   authType: AppStoreAuthType;
   issuerId: string;
@@ -130,7 +130,7 @@ export class AppStoreIntegrationServiceClass extends IntegrationService {
    * Verify App Store connection
    */
   async verifyAppStore(data: VerifyAppStoreRequest): Promise<VerifyAppStoreResponse> {
-    const endpoint = APPSTORE.verify(data.tenantId);
+    const endpoint = APPSTORE.verify(data.appId);
     this.logRequest('GET', endpoint);
     
     try {
@@ -164,7 +164,7 @@ export class AppStoreIntegrationServiceClass extends IntegrationService {
    * Create App Store integration
    */
   async createIntegration(data: CreateAppStoreIntegrationRequest): Promise<AppStoreIntegrationResponse> {
-    const endpoint = APPSTORE.create(data.tenantId);
+    const endpoint = APPSTORE.create(data.appId);
     this.logRequest('POST', endpoint);
     
     try {
@@ -197,10 +197,10 @@ export class AppStoreIntegrationServiceClass extends IntegrationService {
   /**
    * Get App Store integration for tenant
    */
-  async getIntegration(tenantId: string, userId: string): Promise<AppStoreIntegrationResponse> {
+  async getIntegration(appId: string, userId: string): Promise<AppStoreIntegrationResponse> {
     try {
       return await this.get<AppStoreIntegrationResponse>(
-        APPSTORE.get(tenantId),
+        APPSTORE.get(appId),
         userId
       );
     } catch (error: any) {
@@ -222,7 +222,7 @@ export class AppStoreIntegrationServiceClass extends IntegrationService {
    * Update App Store integration
    */
   async updateIntegration(data: UpdateAppStoreIntegrationRequest): Promise<AppStoreIntegrationResponse> {
-    const endpoint = APPSTORE.update(data.tenantId);
+    const endpoint = APPSTORE.update(data.appId);
     this.logRequest('PATCH', endpoint);
     
     try {
@@ -255,10 +255,10 @@ export class AppStoreIntegrationServiceClass extends IntegrationService {
   /**
    * Delete App Store integration
    */
-  async deleteIntegration(tenantId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  async deleteIntegration(appId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       return await this.delete<{ success: boolean; message?: string }>(
-        APPSTORE.delete(tenantId),
+        APPSTORE.delete(appId),
         userId
       );
     } catch (error: any) {

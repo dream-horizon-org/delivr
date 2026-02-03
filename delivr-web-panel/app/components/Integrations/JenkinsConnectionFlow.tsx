@@ -56,12 +56,12 @@ interface JenkinsConnectionFormData {
 export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false, existingData }: JenkinsConnectionFlowProps) {
   const theme = useMantineTheme();
   const params = useParams();
-  const tenantId = params.org;
+  const appId = params.org;
   const isInFlowRef = useRef(false);
 
   const { formData, setFormData, isDraftRestored, markSaveSuccessful } = useDraftStorage<JenkinsConnectionFormData>(
     {
-      storageKey: generateStorageKey('jenkins-cicd', tenantId || ''),
+      storageKey: generateStorageKey('jenkins-cicd', appId || ''),
       sensitiveFields: ['apiToken'],
       shouldSaveDraft: (data) => !isInFlowRef.current && !isEditMode && !!(data.hostUrl || data.username || data.displayName),
     },
@@ -142,7 +142,7 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         }
       });
       
-      const endpoint = `/api/v1/tenants/${tenantId}/integrations/ci-cd/${BUILD_PROVIDERS.JENKINS.toLowerCase()}/verify`;
+      const endpoint = `/api/v1/apps/${appId}/integrations/ci-cd/${BUILD_PROVIDERS.JENKINS.toLowerCase()}/verify`;
       
       const result = await apiPost<{ verified: boolean; message?: string }>(
         endpoint,
@@ -210,7 +210,7 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         payload.integrationId = existingData.id;
       }
 
-      const endpoint = `/api/v1/tenants/${tenantId}/integrations/ci-cd/${BUILD_PROVIDERS.JENKINS.toLowerCase()}`;
+      const endpoint = `/api/v1/apps/${appId}/integrations/ci-cd/${BUILD_PROVIDERS.JENKINS.toLowerCase()}`;
       const result = isEditMode
         ? await apiPatch(endpoint, payload)
         : await apiPost(endpoint, payload);

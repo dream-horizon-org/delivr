@@ -14,7 +14,7 @@ import { showSuccessToast } from '~/utils/toast';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
 
 interface TestFlightVerificationSectionProps {
-  tenantId: string;
+  appId: string;
   releaseId: string;
   stage: BuildUploadStage;
   release?: BackendReleaseResponse;
@@ -23,7 +23,7 @@ interface TestFlightVerificationSectionProps {
 }
 
 export function TestFlightVerificationSection({
-  tenantId,
+  appId,
   releaseId,
   stage,
   release,
@@ -34,7 +34,7 @@ export function TestFlightVerificationSection({
   const [isVerifying, setIsVerifying] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const verifyTestFlightMutation = useVerifyTestFlight(tenantId, releaseId);
+  const verifyTestFlightMutation = useVerifyTestFlight(appId, releaseId);
 
   const handleTestFlightVerify = useCallback(async () => {
     if (!testflightBuildNumber.trim()) {

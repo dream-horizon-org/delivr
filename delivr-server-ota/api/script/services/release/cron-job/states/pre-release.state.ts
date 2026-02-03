@@ -230,7 +230,7 @@ export class PreReleaseState implements ICronJobState {
             
             await taskExecutor.executeTask({
               releaseId,
-              tenantId: release.tenantId,
+              appId: release.appId,
               release,
               task,
               platformTargetMappings
@@ -361,7 +361,7 @@ export class PreReleaseState implements ICronJobState {
       const releaseId = this.context.getReleaseId();
       const releaseNotificationService = this.context.getReleaseNotificationService();
 
-      // Get release for tenantId
+      // Get release for appId
       const releaseRepo = this.context.getReleaseRepo();
       const release = await releaseRepo.findById(releaseId);
       if (!release) {
@@ -370,12 +370,12 @@ export class PreReleaseState implements ICronJobState {
       }
 
       // Build Delivr URL (same format as task failed notification)
-      const delivrUrl = buildDelivrUrl(release.tenantId, releaseId);
+      const delivrUrl = buildDelivrUrl(release.appId, releaseId);
 
       // Send notification
       await releaseNotificationService.notify({
         type: NotificationType.PRE_RELEASE_STAGE_APPROVAL_REQUEST,
-        tenantId: release.tenantId,
+        appId: release.appId,
         releaseId: releaseId,
         delivrUrl: delivrUrl,
         isSystemGenerated: true

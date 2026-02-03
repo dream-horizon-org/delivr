@@ -4,7 +4,7 @@ import * as validateCICD from "../../../../middleware/validate-cicd";
 import * as tenantPermissions from "../../../../middleware/tenant-permissions";
 import {
   createConfig,
-  listConfigsByTenant,
+  listConfigsByApp,
   getConfigById,
   updateConfigById,
   deleteConfigById,
@@ -15,38 +15,38 @@ export const createCICDConfigRoutes = (storage: Storage): Router => {
   const router = Router();
 
   router.post(
-    "/tenants/:tenantId/integrations/ci-cd/configs",
-    validateCICD.validateTenantId,
+    "/apps/:appId/integrations/ci-cd/configs",
+    validateCICD.validateAppId,
     tenantPermissions.requireOwner({ storage }),
     createConfig
   );
 
   router.get(
-    "/tenants/:tenantId/integrations/ci-cd/configs",
-    validateCICD.validateTenantId,
-    tenantPermissions.requireTenantMembership({ storage }),
-    listConfigsByTenant
+    "/apps/:appId/integrations/ci-cd/configs",
+    validateCICD.validateAppId,
+    tenantPermissions.requireAppMembership({ storage }),
+    listConfigsByApp
   );
 
   router.get(
-    "/tenants/:tenantId/integrations/ci-cd/configs/:configId",
-    validateCICD.validateTenantId,
+    "/apps/:appId/integrations/ci-cd/configs/:configId",
+    validateCICD.validateAppId,
     validateCICD.validateConfigIdParam,
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     getConfigById
   );
 
   router.patch(
-    "/tenants/:tenantId/integrations/ci-cd/configs/:configId",
-    validateCICD.validateTenantId,
+    "/apps/:appId/integrations/ci-cd/configs/:configId",
+    validateCICD.validateAppId,
     validateCICD.validateConfigIdParam,
     tenantPermissions.requireEditor({ storage }),
     updateConfigById
   );
 
   router.delete(
-    "/tenants/:tenantId/integrations/ci-cd/configs/:configId",
-    validateCICD.validateTenantId,
+    "/apps/:appId/integrations/ci-cd/configs/:configId",
+    validateCICD.validateAppId,
     validateCICD.validateConfigIdParam,
     tenantPermissions.requireEditor({ storage }),
     deleteConfigById

@@ -18,7 +18,7 @@ export function JenkinsConfigForm({
   config,
   onChange,
   availableIntegrations,
-  tenantId,
+  appId,
 }: JenkinsConfigFormProps) {
   
   // Manual parameter entry state (legacy fallback) - DISABLED
@@ -99,7 +99,7 @@ export function JenkinsConfigForm({
 
     // Only auto-fetch if we don't have parameterDefinitions and have required fields
     // The clear effect handles resetting state when URL changes, so we just need to check if we should fetch
-    if (!config.parameterDefinitions && config.jobUrl && config.integrationId && tenantId && !parametersFetched && !fetchingParams) {
+    if (!config.parameterDefinitions && config.jobUrl && config.integrationId && appId && !parametersFetched && !fetchingParams) {
       // Debounce the fetch by 1000ms
       debounceTimeoutRef.current = setTimeout(() => {
         handleFetchParameters();
@@ -170,8 +170,8 @@ export function JenkinsConfigForm({
       return;
     }
     
-    if (!tenantId) {
-      setFetchError('No tenant ID provided');
+    if (!appId) {
+      setFetchError('No app id provided');
       return;
     }
     
@@ -186,7 +186,7 @@ export function JenkinsConfigForm({
     
     try {
       const result = await apiPost<{ parameters: WorkflowParameter[] }>(
-        `/api/v1/tenants/${tenantId}/workflows/job-parameters`,
+        `/api/v1/apps/${appId}/workflows/job-parameters`,
         {
           providerType: BUILD_PROVIDERS.JENKINS,
           integrationId: config.integrationId,

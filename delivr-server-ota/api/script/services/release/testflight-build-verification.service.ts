@@ -24,7 +24,7 @@ import { PlatformName, TargetName } from '../../models/release/release.interface
 
 type VerifyBuildParams = {
   releaseId: string;
-  tenantId: string;
+  appId: string;
   testflightBuildNumber: string;
 };
 
@@ -85,10 +85,10 @@ export class TestFlightBuildVerificationService {
    * 5. Return build details including version from TestFlight
    */
    async verifyBuild(params: VerifyBuildParams): Promise<VerifyBuildResult> {
-    const { releaseId, tenantId, testflightBuildNumber } = params;
+    const { releaseId, appId, testflightBuildNumber } = params;
 
     // STEP 1: Verify release exists, belongs to tenant, and has iOS App Store config
-    const releaseCheckResult = await this.verifyReleaseExists(releaseId, tenantId);
+    const releaseCheckResult = await this.verifyReleaseExists(releaseId, appId);
     if (!releaseCheckResult.success) {
       return {
         success: false,
@@ -104,7 +104,7 @@ export class TestFlightBuildVerificationService {
     );
 
     // STEP 2: Get App Store Connect credentials for tenant
-    const credentialsResult = await this.getCredentials(tenantId);
+    const credentialsResult = await this.getCredentials(appId);
     if (!credentialsResult.success) {
       return {
         success: false,
@@ -213,7 +213,7 @@ export class TestFlightBuildVerificationService {
    */
   private async verifyReleaseExists(
     releaseId: string,
-    tenantId: string
+    appId: string
   ): Promise<{
     success: boolean;
     error?: { code: string; message: string };
@@ -232,12 +232,12 @@ export class TestFlightBuildVerificationService {
     }
 
     // Verify release belongs to the specified tenant
-    if (release.tenantId !== tenantId) {
+    if (release.appId !== appId) {
       return {
         success: false,
         error: {
           code: 'RELEASE_TENANT_MISMATCH',
-          message: `Release ${releaseId} does not belong to tenant ${tenantId}`,
+          message: `Release ${releaseId} does not belong to tenant ${appId}`,
         },
       };
     }
@@ -262,14 +262,14 @@ export class TestFlightBuildVerificationService {
     return { success: true };
   }
 
-  private async getCredentials(tenantId: string): Promise<{
+  private async getCredentials(appId: string): Promise<{
     success: boolean;
     credentials?: Credentials;
     errorCode?: string;
     errorMessage?: string;
   }> {
-    const integrations = await this.storeIntegrationController.findByTenantAndStoreType(
-      tenantId,
+    const integrations = await this.storeIntegrationController.findByAppAndStoreType(
+      appId,
       StoreType.APP_STORE
     );
 

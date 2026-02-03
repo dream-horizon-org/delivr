@@ -40,7 +40,7 @@ export type PlatformTarget = {
  */
 export type ReleaseConfiguration = {
   id: string;
-  tenantId: string;
+  appId: string;
   name: string;
   description: string | null;
   releaseType: 'MAJOR' | 'MINOR' | 'HOTFIX';
@@ -64,7 +64,7 @@ export type ReleaseConfiguration = {
  * NOTE: releaseScheduleId is NOT included - schedules are created separately and reference the config
  */
 export type CreateReleaseConfigDto = {
-  tenantId: string;
+  appId: string;
   name: string;
   description?: string;
   releaseType: 'MAJOR' | 'MINOR' | 'HOTFIX';
@@ -106,7 +106,7 @@ export type UpdateReleaseConfigDto = {
  * STANDARDIZED: All integration keys have "Config" suffix except releaseSchedule (matches table name)
  */
 export type CreateReleaseConfigRequest = {
-  tenantId: string;
+  appId: string;
   name: string;
   description?: string;
   releaseType: 'MAJOR' | 'MINOR' | 'HOTFIX';
@@ -138,7 +138,7 @@ export type CreateReleaseConfigRequest = {
  * 
  * STANDARDIZED: All integration keys have "Config" suffix except releaseSchedule
  */
-export type UpdateReleaseConfigRequest = Partial<Omit<CreateReleaseConfigRequest, 'tenantId'>> & {
+export type UpdateReleaseConfigRequest = Partial<Omit<CreateReleaseConfigRequest, 'appId'>> & {
   // Integration configs with explicit null support for removal
   ciConfig?: {
     id?: string;  // Optional: reference existing config by ID
@@ -165,7 +165,7 @@ export type UpdateReleaseConfigRequest = Partial<Omit<CreateReleaseConfigRequest
  */
 export type VerboseReleaseConfiguration = {
   id: string;
-  tenantId: string;
+  appId: string;
   name: string;
   description: string | null;
   releaseType: 'MAJOR' | 'MINOR' | 'HOTFIX';
@@ -194,7 +194,7 @@ export type VerboseReleaseConfiguration = {
  */
 export type SafeReleaseConfiguration = {
   id: string;
-  tenantId: string;
+  appId: string;
   name: string;
   description: string | null;
   releaseType: 'MAJOR' | 'MINOR' | 'HOTFIX';

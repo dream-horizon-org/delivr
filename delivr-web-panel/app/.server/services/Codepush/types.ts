@@ -84,10 +84,16 @@ export type Integration =
   | PipelineIntegration 
   | CommunicationIntegration;
 
-export type Organization = {
+/**
+ * App type - represents the new App entity (replaces Organization/Tenant)
+ */
+export type App = {
   id: string;
   displayName: string;
+  name?: string;
   role: "Owner" | "Collaborator";
+  createdBy?: string;
+  createdTime?: number;
   releaseManagement?: {
     config?: {
       connectedIntegrations: {
@@ -105,6 +111,12 @@ export type Organization = {
     };
   };
 };
+
+/**
+ * Organization type (legacy - kept for backward compatibility)
+ * @deprecated Use App instead
+ */
+export type Organization = App;
 
 // Base types for terms-related entities
 export type TermsAccountInfo = {
@@ -434,7 +446,7 @@ export type CreateReleaseResponse = {
 
 // Tenant Info Types
 export type TenantInfoRequest = BaseHeader & {
-  tenantId: string;
+  appId: string;
 };
 
 export type TenantInfoResponse = {

@@ -30,7 +30,7 @@ const getConfigRepository = () => {
  * Ensures only valid parameter names are provided (no extra/unknown parameters).
  */
 const validateWorkflowParameters = async (
-  tenantId: string,
+  appId: string,
   providerType: CICDProviderType,
   workflowUrl: string,
   providedParameters: Array<{ name: string }> | null | undefined
@@ -44,11 +44,11 @@ const validateWorkflowParameters = async (
 
     if (providerType === CICDProviderType.GITHUB_ACTIONS) {
       const service = new GitHubActionsWorkflowService();
-      const result = await service.fetchWorkflowInputs(tenantId, workflowUrl);
+      const result = await service.fetchWorkflowInputs(appId, workflowUrl);
       actualParameters = result.parameters;
     } else if (providerType === CICDProviderType.JENKINS) {
       const service = new JenkinsWorkflowService();
-      const result = await service.fetchJobParameters(tenantId, workflowUrl);
+      const result = await service.fetchJobParameters(appId, workflowUrl);
       actualParameters = result.parameters;
     }
 
@@ -70,7 +70,7 @@ const validateWorkflowParameters = async (
 };
 
 export const createWorkflow = async (req: Request, res: Response): Promise<any> => {
-  const tenantId = req.params.tenantId;
+  const appId = req.params.appId;
   const accountId: string = req.user.id;
 
   const body = req.body as Partial<CreateWorkflowDto>;
@@ -87,7 +87,7 @@ export const createWorkflow = async (req: Request, res: Response): Promise<any> 
     const cicd = getCICDIntegrationRepository();
     const integration = await cicd.findById(body.integrationId);
     const invalidIntegration = !integration || integration.id !== body.integrationId;
-    if (invalidIntegration || integration.tenantId !== tenantId || integration.providerType !== body.providerType) {
+    if (invalidIntegration || integration.appId !== appId || integration.providerType !== body.providerType) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_INTEGRATION_INVALID });
     }
 
@@ -114,7 +114,7 @@ export const createWorkflow = async (req: Request, res: Response): Promise<any> 
     // Validate workflow parameters if provided
     if (body.parameters) {
       const parameterValidationError = await validateWorkflowParameters(
-        tenantId,
+        appId,
         integration.providerType as CICDProviderType,
         body.workflowUrl as string,
         body.parameters
@@ -132,7 +132,7 @@ export const createWorkflow = async (req: Request, res: Response): Promise<any> 
 
     const createdWorkflow = await wfRepository.create({
       id: shortid.generate(),
-      tenantId,
+      appId,
       providerType: integration.providerType as CICDProviderType,
       integrationId: body.integrationId,
       displayName: body.displayName,
@@ -158,13 +158,13 @@ export const createWorkflow = async (req: Request, res: Response): Promise<any> 
  * List workflows for a tenant, optionally filtered by providerType, integrationId, platform, workflowType.
  */
 export const listWorkflows = async (req: Request, res: Response): Promise<any> => {
-  const tenantId = req.params.tenantId;
+  const appId = req.params.appId;
   const { providerType, integrationId, platform, workflowType } = req.query as any;
 
   try {
     const wfRepository = getWorkflowRepository();
     const items = await wfRepository.findAll({
-      tenantId,
+      appId,
       providerType: providerType as any,
       integrationId: integrationId as string | undefined,
       platform: normalizePlatform(platform),
@@ -181,12 +181,12 @@ export const listWorkflows = async (req: Request, res: Response): Promise<any> =
  * Get a workflow by id within tenant scope.
  */
 export const getWorkflowById = async (req: Request, res: Response): Promise<any> => {
-  const tenantId = req.params.tenantId;
+  const appId = req.params.appId;
   const id = req.params.workflowId;
   try {
     const wfRepository = getWorkflowRepository();
     const item = await wfRepository.findById(id);
-    const notFound = !item || item.tenantId !== tenantId;
+    const notFound = !item || item.appId !== appId;
     if (notFound) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_NOT_FOUND });
     }
@@ -201,13 +201,13 @@ export const getWorkflowById = async (req: Request, res: Response): Promise<any>
  * Update a workflow by id.
  */
 export const updateWorkflow = async (req: Request, res: Response): Promise<any> => {
-  const tenantId = req.params.tenantId;
+  const appId = req.params.appId;
   const id = req.params.workflowId;
   const body = req.body as UpdateWorkflowDto;
   try {
     const wfRepository = getWorkflowRepository();
     const existing = await wfRepository.findById(id);
-    const notFound = !existing || existing.tenantId !== tenantId;
+    const notFound = !existing || existing.appId !== appId;
     if (notFound) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_NOT_FOUND });
     }
@@ -240,7 +240,7 @@ export const updateWorkflow = async (req: Request, res: Response): Promise<any> 
     if (isUpdatingParameters) {
       const urlToValidateAgainst = body.workflowUrl ?? existing.workflowUrl;
       const parameterValidationError = await validateWorkflowParameters(
-        tenantId,
+        appId,
         existing.providerType as CICDProviderType,
         urlToValidateAgainst,
         body.parameters
@@ -269,20 +269,20 @@ export const updateWorkflow = async (req: Request, res: Response): Promise<any> 
  * If referenced, returns 400 with WORKFLOW_IN_USE_BY_CONFIG error.
  */
 export const deleteWorkflow = async (req: Request, res: Response): Promise<any> => {
-  const tenantId = req.params.tenantId;
+  const appId = req.params.appId;
   const workflowId = req.params.workflowId;
   try {
     const wfRepository = getWorkflowRepository();
     const configRepository = getConfigRepository();
 
     const existing = await wfRepository.findById(workflowId);
-    const notFound = !existing || existing.tenantId !== tenantId;
+    const notFound = !existing || existing.appId !== appId;
     if (notFound) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_NOT_FOUND });
     }
 
     // Check if workflow is referenced by any config
-    const configs = await configRepository.findByTenant(tenantId);
+    const configs = await configRepository.findByApp(appId);
     const isWorkflowReferenced = configs.some((config: { workflowIds: string[] }) => {
       const workflowIds = Array.isArray(config.workflowIds) ? config.workflowIds : [];
       return workflowIds.includes(workflowId);

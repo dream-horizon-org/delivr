@@ -46,9 +46,9 @@ import { determineReleasePhase } from '~/utils/release-process-utils';
  * Provides data for fast first load, React Query handles caching
  */
 export const loader = authenticateLoaderRequest(async ({ params, user, request }) => {
-  const { org: tenantId } = params;
+  const { org: appId } = params;
 
-  if (!tenantId) {
+  if (!appId) {
     throw new Response('Organization not found', { status: 404 });
   }
 
@@ -59,14 +59,14 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
     const url = new URL(request.url);
     const hasRefreshParam = url.searchParams.has('refresh');
     
-    const result = await listReleases(tenantId, userId, { includeTasks: false });
+    const result = await listReleases(appId, userId, { includeTasks: false });
 
     if (!result.success) {
       console.error('[ReleasesList] Loader error:', result.error);
       // Return empty array on error - React Query will handle retry
       // This allows page to render with empty state, React Query will refetch
       return json({
-        org: tenantId,
+        org: appId,
         initialReleases: [],
         error: result.error || 'Failed to load releases',
       }, {
@@ -77,7 +77,7 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
     }
 
     return json({
-      org: tenantId,
+      org: appId,
       initialReleases: result.releases || [],
     }, {
       headers: {
@@ -93,7 +93,7 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
     // Return empty array on error - React Query will handle retry
     // This allows page to render with empty state, React Query will refetch
     return json({
-      org: tenantId,
+      org: appId,
       initialReleases: [],
       error: error.message || 'Failed to load releases',
     }, {

@@ -63,7 +63,7 @@ export const ReleasesTabPanel = memo(function ReleasesTabPanel({
         <ReleaseCard
           key={release.id}
           release={release}
-          org={release.tenantId}
+          org={release.appId}
         />
       ))}
     </Stack>

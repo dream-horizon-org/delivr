@@ -38,7 +38,7 @@ interface IntegrationDetailModalProps {
   onClose: () => void;
   onDisconnectComplete: () => void;
   onEdit?: (integrationId: string) => void;
-  tenantId: string;
+  appId: string;
 }
 
 export function IntegrationDetailModal({
@@ -47,7 +47,7 @@ export function IntegrationDetailModal({
   onClose,
   onDisconnectComplete,
   onEdit,
-  tenantId
+  appId
 }: IntegrationDetailModalProps) {
   const theme = useMantineTheme();
   const [isDisconnecting, setIsDisconnecting] = useState(false);
@@ -85,7 +85,7 @@ export function IntegrationDetailModal({
     setIsDisconnecting(true);
 
     try {
-      const endpoint = config.endpoint(tenantId, integration.config);
+      const endpoint = config.endpoint(appId, integration.config);
       
       const needsIntegrationIdInBody = ['jenkins', 'github_actions'].includes(normalizedId);
       const requestBody = needsIntegrationIdInBody && integration.config?.id

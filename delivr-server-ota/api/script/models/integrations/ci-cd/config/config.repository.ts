@@ -1,4 +1,4 @@
-import type { TenantCICDConfig } from '~types/integrations/ci-cd/config.interface';
+import type { AppCICDConfig } from '~types/integrations/ci-cd/config.interface';
 import type { CICDConfigModelType } from './config.sequelize.model';
 
 export class CICDConfigRepository {
@@ -10,25 +10,25 @@ export class CICDConfigRepository {
 
   private toPlainObject = (
     instance: InstanceType<CICDConfigModelType>
-  ): TenantCICDConfig => {
-    return instance.toJSON() as TenantCICDConfig;
+  ): AppCICDConfig => {
+    return instance.toJSON() as AppCICDConfig;
   };
 
-  create = async (data: Omit<TenantCICDConfig, 'createdAt' | 'updatedAt'>): Promise<TenantCICDConfig> => {
+  create = async (data: Omit<AppCICDConfig, 'createdAt' | 'updatedAt'>): Promise<AppCICDConfig> => {
     const record = await this.model.create({
       ...data
     });
     return this.toPlainObject(record);
   };
 
-  findById = async (id: string): Promise<TenantCICDConfig | null> => {
+  findById = async (id: string): Promise<AppCICDConfig | null> => {
     const record = await this.model.findByPk(id);
     return record ? this.toPlainObject(record) : null;
     };
 
-  findByTenant = async (tenantId: string): Promise<TenantCICDConfig[]> => {
+  findByApp = async (appId: string): Promise<AppCICDConfig[]> => {
     const records = await this.model.findAll({
-      where: { tenantId },
+      where: { appId },
       order: [['createdAt', 'DESC']]
     });
     return records.map(r => this.toPlainObject(r));
@@ -36,8 +36,8 @@ export class CICDConfigRepository {
 
   update = async (
     id: string,
-    data: Partial<Pick<TenantCICDConfig, 'workflowIds'>>
-  ): Promise<TenantCICDConfig | null> => {
+    data: Partial<Pick<AppCICDConfig, 'workflowIds'>>
+  ): Promise<AppCICDConfig | null> => {
     const record = await this.model.findByPk(id);
     if (!record) {
       return null;

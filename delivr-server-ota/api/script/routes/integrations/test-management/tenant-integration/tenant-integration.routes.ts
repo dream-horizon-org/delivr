@@ -11,7 +11,7 @@ export const createTenantIntegrationRoutes = (
   const router = Router();
   const controller = createTestManagementIntegrationController(service);
 
-  // List available providers (no tenantId needed)
+  // List available providers (no appId needed)
   router.get(
     '/integrations/test-management/providers',
     tenantPermissions.requireEditor({ storage }),
@@ -20,49 +20,49 @@ export const createTenantIntegrationRoutes = (
 
   // Verify credentials without saving (stateless)
   router.post(
-    '/tenants/:tenantId/integrations/test-management/verify',
+    '/apps/:appId/integrations/test-management/verify',
     tenantPermissions.requireOwner({ storage }),
     controller.verifyCredentials
   );
 
   // Create integration for a tenant
   router.post(
-    '/tenants/:tenantId/integrations/test-management',
+    '/apps/:appId/integrations/test-management',
     tenantPermissions.requireOwner({ storage }),
     controller.createIntegration
   );
 
   // List all integrations for a tenant
   router.get(
-    '/tenants/:tenantId/integrations/test-management',
+    '/apps/:appId/integrations/test-management',
     tenantPermissions.requireEditor({ storage }),
     controller.listIntegrations
   );
 
   // Get specific integration
   router.get(
-    '/tenants/:tenantId/integrations/test-management/:integrationId',
+    '/apps/:appId/integrations/test-management/:integrationId',
     tenantPermissions.requireEditor({ storage }),
     controller.getIntegration
   );
 
   // Update specific integration
   router.put(
-    '/tenants/:tenantId/integrations/test-management/:integrationId',
+    '/apps/:appId/integrations/test-management/:integrationId',
     tenantPermissions.requireOwner({ storage }),
     controller.updateIntegration
   );
 
   // Delete specific integration
   router.delete(
-    '/tenants/:tenantId/integrations/test-management/:integrationId',
+    '/apps/:appId/integrations/test-management/:integrationId',
     tenantPermissions.requireOwner({ storage }),
     controller.deleteIntegration
   );
 
   // Verify integration credentials
   router.post(
-    '/tenants/:tenantId/integrations/test-management/:integrationId/verify',
+    '/apps/:appId/integrations/test-management/:integrationId/verify',
     tenantPermissions.requireOwner({ storage }),
     controller.verifyIntegration
   );

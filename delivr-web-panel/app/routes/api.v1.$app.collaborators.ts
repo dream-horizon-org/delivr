@@ -30,7 +30,7 @@ const removeCollabarator: AuthenticatedActionFunction = async ({
     userId: user.user.id,
     appId: params.app ?? "",
     email: request.headers.get("email") ?? "",
-    tenant: request.headers.get("tenant") ?? "",
+    tenant: request.headers.get("app") ?? request.headers.get("tenant") ?? "",
   });
   return json(data, { status });
 };
@@ -57,7 +57,7 @@ export const loader = authenticateLoaderRequest(
     const { data, status } = await CodepushService.getCollaboratorForApp({
       userId: user.user.id,
       appId: params.app ?? "",
-      tenant: request.headers.get("tenant") ?? "",
+      tenant: request.headers.get("app") ?? request.headers.get("tenant") ?? "",
     });
     return json(data, { status });
   }

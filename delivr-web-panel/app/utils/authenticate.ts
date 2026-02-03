@@ -137,6 +137,11 @@ export const authenticateLoaderRequest = (cb?: AuthenticatedLoaderFunction) => {
       if (e instanceof Response && e.status === 401) {
         return await handleAuthFailure(args.request);
       }
+
+      // Rethrow any other Response (e.g. 302 redirects from loader) so Remix can perform redirect
+      if (e instanceof Response) {
+        throw e;
+      }
       
       // If API call returns 401 via AxiosError
       if (e instanceof AxiosError && e.response?.status === 401) {

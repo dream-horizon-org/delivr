@@ -1,4 +1,5 @@
-// Type definitions for tenant-level test management integrations
+// Type definitions for app-level test management integrations
+// App types are primary; Tenant types kept as deprecated aliases for backward compatibility
 // Strict typing - no 'any' types, explicit type definitions
 
 // Enum-like const object pattern - provides both type AND value
@@ -25,48 +26,83 @@ export type VerificationStatus = typeof VerificationStatusValues[keyof typeof Ve
 export const VerificationStatus = VerificationStatusValues;
 
 // Base configuration type - provider-specific
-export type TenantTestManagementIntegrationConfig = {
+export type AppTestManagementIntegrationConfig = {
   baseUrl: string;
   authToken: string;
   [key: string]: unknown; // Allow provider-specific additional fields
 };
 
+/**
+ * @deprecated Use AppTestManagementIntegrationConfig instead
+ * Kept for backward compatibility
+ */
+export type TenantTestManagementIntegrationConfig = AppTestManagementIntegrationConfig;
+
 // Main entity type
-export type TenantTestManagementIntegration = {
+export type AppTestManagementIntegration = {
   id: string;
-  tenantId: string;
+  appId: string;
   name: string;
   providerType: TestManagementProviderType;
-  config: TenantTestManagementIntegrationConfig;
+  config: AppTestManagementIntegrationConfig;
   createdByAccountId: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
 
+/**
+ * @deprecated Use AppTestManagementIntegration instead
+ * Kept for backward compatibility
+ */
+export type TenantTestManagementIntegration = AppTestManagementIntegration;
+
 // DTOs for API operations
-export type CreateTenantTestManagementIntegrationDto = {
-  tenantId: string;
+export type CreateAppTestManagementIntegrationDto = {
+  appId: string;
   name: string;
   providerType: TestManagementProviderType;
-  config: TenantTestManagementIntegrationConfig;
+  config: AppTestManagementIntegrationConfig;
   createdByAccountId?: string;
 };
 
-export type UpdateTenantTestManagementIntegrationDto = {
+/**
+ * @deprecated Use CreateAppTestManagementIntegrationDto instead
+ * Kept for backward compatibility
+ */
+export type CreateTenantTestManagementIntegrationDto = CreateAppTestManagementIntegrationDto;
+
+export type UpdateAppTestManagementIntegrationDto = {
   name?: string;
-  config?: Partial<TenantTestManagementIntegrationConfig>;
+  config?: Partial<AppTestManagementIntegrationConfig>;
 };
 
-export type VerifyTenantTestManagementIntegrationResult = {
+/**
+ * @deprecated Use UpdateAppTestManagementIntegrationDto instead
+ * Kept for backward compatibility
+ */
+export type UpdateTenantTestManagementIntegrationDto = UpdateAppTestManagementIntegrationDto;
+
+export type VerifyAppTestManagementIntegrationResult = {
   success: boolean;
   status: VerificationStatus;
   message: string;
   error?: string;
 };
 
+/**
+ * @deprecated Use VerifyAppTestManagementIntegrationResult instead
+ * Kept for backward compatibility
+ */
+export type VerifyTenantTestManagementIntegrationResult = VerifyAppTestManagementIntegrationResult;
+
 // Query filters
-export type FindTenantIntegrationsFilter = {
-  tenantId: string;
+export type FindAppIntegrationsFilter = {
+  appId: string;
   providerType?: TestManagementProviderType;
 };
 
+/**
+ * @deprecated Use FindAppIntegrationsFilter instead
+ * Kept for backward compatibility
+ */
+export type FindTenantIntegrationsFilter = FindAppIntegrationsFilter;

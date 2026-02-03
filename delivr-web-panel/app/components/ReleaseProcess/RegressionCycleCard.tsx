@@ -32,7 +32,7 @@ interface RegressionCycleCardProps {
   cycle: RegressionCycle;
   tasks: Task[]; // Tasks for this cycle (filtered by releaseCycleId)
   // Note: Builds are displayed inside task cards via BuildTaskDetails, not here
-  tenantId: string;
+  appId: string;
   releaseId: string;
   onRetryTask?: (taskId: string) => void;
   uploadedBuilds?: BuildInfo[]; // Stage-level uploaded builds (for tasks that haven't consumed builds yet)
@@ -45,7 +45,7 @@ interface RegressionCycleCardProps {
 export function RegressionCycleCard({
   cycle,
   tasks,
-  tenantId,
+  appId,
   releaseId,
   onRetryTask,
   uploadedBuilds = [],
@@ -107,7 +107,7 @@ export function RegressionCycleCard({
               <TaskCard
                 key={task.id}
                 task={task}
-                tenantId={tenantId}
+                appId={appId}
                 releaseId={releaseId}
                 onRetry={onRetryTask}
                 uploadedBuilds={uploadedBuilds}

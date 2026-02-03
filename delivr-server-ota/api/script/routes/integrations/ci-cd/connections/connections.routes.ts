@@ -15,8 +15,8 @@ export const createCICDConnectionsRoutes = (storage: Storage): Router => {
 
   // Create/Verify by provider type
   router.post(
-    "/tenants/:tenantId/integrations/ci-cd/connections/:providerType/verify",
-    validateCICD.validateTenantId,
+    "/apps/:appId/integrations/ci-cd/connections/:providerType/verify",
+    validateCICD.validateAppId,
     validateCICD.validateProviderTypeParam,
     validateCICD.validateConnectionVerifyBody,
     tenantPermissions.requireOwner({ storage }),
@@ -24,8 +24,8 @@ export const createCICDConnectionsRoutes = (storage: Storage): Router => {
   );
 
   router.post(
-    "/tenants/:tenantId/integrations/ci-cd/connections/:providerType",
-    validateCICD.validateTenantId,
+    "/apps/:appId/integrations/ci-cd/connections/:providerType",
+    validateCICD.validateAppId,
     validateCICD.validateProviderTypeParam,
     validateCICD.validateConnectionCreateBody,
     tenantPermissions.requireOwner({ storage }),
@@ -34,24 +34,24 @@ export const createCICDConnectionsRoutes = (storage: Storage): Router => {
 
   // CRUD by integrationId
   router.get(
-    "/tenants/:tenantId/integrations/ci-cd/connections/:integrationId",
-    validateCICD.validateTenantId,
+    "/apps/:appId/integrations/ci-cd/connections/:integrationId",
+    validateCICD.validateAppId,
     validateCICD.validateIntegrationIdParam,
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     getIntegrationById
   );
 
   router.patch(
-    "/tenants/:tenantId/integrations/ci-cd/connections/:integrationId",
-    validateCICD.validateTenantId,
+    "/apps/:appId/integrations/ci-cd/connections/:integrationId",
+    validateCICD.validateAppId,
     validateCICD.validateIntegrationIdParam,
     tenantPermissions.requireOwner({ storage }),
     updateIntegrationById
   );
 
   router.delete(
-    "/tenants/:tenantId/integrations/ci-cd/connections/:integrationId",
-    validateCICD.validateTenantId,
+    "/apps/:appId/integrations/ci-cd/connections/:integrationId",
+    validateCICD.validateAppId,
     validateCICD.validateIntegrationIdParam,
     tenantPermissions.requireOwner({ storage }),
     deleteIntegrationById

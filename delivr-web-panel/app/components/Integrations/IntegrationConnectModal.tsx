@@ -44,7 +44,7 @@ export function IntegrationConnectModal({
 }: IntegrationConnectModalProps) {
   const theme = useMantineTheme();
   const params = useParams();
-  const tenantId = params.org!;
+  const appId = params.org!;
   const closeHandlerRef = useRef<(() => void) | null>(null);
 
   // Check if this is an App Store/Play Store integration
@@ -166,7 +166,7 @@ export function IntegrationConnectModal({
         return (
           <AppDistributionConnectionFlow
             storeType={TARGET_PLATFORMS.PLAY_STORE}
-            tenantId={tenantId}
+            appId={appId}
             allowedPlatforms={[PLATFORMS.ANDROID]}
             onConnect={(data) => {
               onConnect(INTEGRATION_IDS.PLAY_STORE, data);
@@ -188,7 +188,7 @@ export function IntegrationConnectModal({
         return (
           <AppDistributionConnectionFlow
             storeType={TARGET_PLATFORMS.APP_STORE}
-            tenantId={tenantId}
+            appId={appId}
             allowedPlatforms={[PLATFORMS.IOS]}
             onConnect={(data) => {
               onConnect(INTEGRATION_IDS.APP_STORE, data);
@@ -208,7 +208,7 @@ export function IntegrationConnectModal({
         return (
           <AppDistributionConnectionFlow
             storeType={BUILD_ENVIRONMENTS.TESTFLIGHT}
-            tenantId={tenantId}
+            appId={appId}
             allowedPlatforms={[PLATFORMS.IOS]}
             onConnect={(data) => {
               onConnect(INTEGRATION_IDS.APP_STORE, data);

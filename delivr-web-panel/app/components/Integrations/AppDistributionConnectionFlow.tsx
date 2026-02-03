@@ -43,7 +43,7 @@ import {
 
 interface AppDistributionConnectionFlowProps {
   storeType: StoreType;
-  tenantId: string;
+  appId: string;
   onConnect: (data: any) => void;
   onCancel: () => void;
   allowedPlatforms: Platform[];
@@ -54,7 +54,7 @@ interface AppDistributionConnectionFlowProps {
 
 export function AppDistributionConnectionFlow({
   storeType,
-  tenantId,
+  appId,
   onConnect,
   onCancel,
   allowedPlatforms,
@@ -255,7 +255,7 @@ export function AppDistributionConnectionFlow({
         });
       }
 
-      const endpoint = `/api/v1/tenants/${tenantId}/distributions?action=verify`;
+      const endpoint = `/api/v1/apps/${appId}/distributions?action=verify`;
       const requestBody = {
         storeType,
         platform,
@@ -386,13 +386,13 @@ export function AppDistributionConnectionFlow({
       
       if (isEditMode && existingData?.id) {
         // Update existing integration
-        const endpoint = `/api/v1/tenants/${tenantId}/distributions?integrationId=${existingData.id}`;
+        const endpoint = `/api/v1/apps/${appId}/distributions?integrationId=${existingData.id}`;
         
         
         result = await apiPatch(endpoint, { payload });
       } else {
         // Create new integration
-        const endpoint = `/api/v1/tenants/${tenantId}/distributions`;
+        const endpoint = `/api/v1/apps/${appId}/distributions`;
         
         result = await apiPost(endpoint, {
           storeType,

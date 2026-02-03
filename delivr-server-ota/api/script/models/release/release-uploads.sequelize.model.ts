@@ -28,7 +28,7 @@ export type UploadStage = 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE';
  */
 export type ReleaseUploadAttributes = {
   id: string;
-  tenantId: string;
+  appId: string;
   releaseId: string;
   platform: PlatformName;
   stage: UploadStage;
@@ -56,7 +56,7 @@ export type ReleaseUploadCreationAttributes = Optional<
 
 export class ReleaseUploadModel extends Model<ReleaseUploadAttributes, ReleaseUploadCreationAttributes> {
   declare id: string;
-  declare tenantId: string;
+  declare appId: string;
   declare releaseId: string;
   declare platform: PlatformName;
   declare stage: UploadStage;
@@ -85,14 +85,17 @@ export const createReleaseUploadModel = (sequelize: Sequelize): typeof ReleaseUp
         primaryKey: true,
         allowNull: false,
       },
-      tenantId: {
+      appId: {
         type: DataTypes.UUID,
         allowNull: false,
-        field: 'tenantId',
+        field: 'appId',
         references: {
-          model: 'tenants',
+          model: 'apps',  // Changed from 'tenants' to 'apps'
           key: 'id'
-        }
+        },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+        comment: 'Reference to apps table (renamed from tenants)'
       },
       releaseId: {
         type: DataTypes.STRING(255),
@@ -171,7 +174,7 @@ export const createReleaseUploadModel = (sequelize: Sequelize): typeof ReleaseUp
       modelName: 'ReleaseUpload',
       timestamps: true,
       indexes: [
-        { fields: ['tenantId'] },
+        // Note: Index on appId omitted so sync succeeds when table exists without appId (add via migration first, then add this index)
         { fields: ['releaseId'] },
         { fields: ['releaseId', 'stage'] },
         { fields: ['releaseId', 'platform', 'stage'] },

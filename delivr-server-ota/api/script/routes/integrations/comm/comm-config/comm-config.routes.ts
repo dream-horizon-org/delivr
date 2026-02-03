@@ -29,28 +29,28 @@ export const createCommConfigRoutes = (storage: Storage): Router => {
 
   // Create channel configuration
   router.post(
-    '/tenants/:tenantId/integrations/slack/channel-config',
+    '/apps/:appId/integrations/slack/channel-config',
     tenantPermissions.requireEditor({ storage }),
     (req, res) => getController().createConfig(req, res)
   );
 
   // Get channel configuration by ID (id in body)
   router.post(
-    '/tenants/:tenantId/integrations/slack/channel-config/get',
-    tenantPermissions.requireTenantMembership({ storage }),
+    '/apps/:appId/integrations/slack/channel-config/get',
+    tenantPermissions.requireAppMembership({ storage }),
     (req, res) => getController().getConfig(req, res)
   );
 
   // Delete channel configuration by ID (id in body)
   router.post(
-    '/tenants/:tenantId/integrations/slack/channel-config/delete',
+    '/apps/:appId/integrations/slack/channel-config/delete',
     tenantPermissions.requireEditor({ storage }),
     (req, res) => getController().deleteConfig(req, res)
   );
 
   // Update channel configuration - add/remove channels from stage
   router.post(
-    '/tenants/:tenantId/integrations/slack/channel-config/update',
+    '/apps/:appId/integrations/slack/channel-config/update',
     tenantPermissions.requireEditor({ storage }),
     (req, res) => getController().updateConfig(req, res)
   );

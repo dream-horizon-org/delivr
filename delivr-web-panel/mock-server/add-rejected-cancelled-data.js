@@ -26,7 +26,7 @@ const baseDate = new Date('2025-12-16T10:00:00.000Z');
 
 const rejectedAndroidRelease = {
   id: 'rel_rejected_android',
-  tenantId: 'EkgmIbgGQx',
+  appId: 'EkgmIbgGQx',
   version: '5.0.0',
   branch: 'release/5.0.0',
   createdAt: addDays(baseDate, -3),
@@ -35,7 +35,7 @@ const rejectedAndroidRelease = {
 
 const rejectedAndroidDist = {
   id: 'dist_rejected_android',
-  tenantId: 'EkgmIbgGQx',
+  appId: 'EkgmIbgGQx',
   releaseId: 'rel_rejected_android',
   status: 'SUBMITTED', // Distribution shows SUBMITTED because submission was rejected
   createdAt: addDays(baseDate, -3),
@@ -71,7 +71,7 @@ const rejectedAndroidSub = {
 
 const cancelledIOSRelease = {
   id: 'rel_cancelled_ios',
-  tenantId: 'EkgmIbgGQx',
+  appId: 'EkgmIbgGQx',
   version: '5.1.0',
   branch: 'release/5.1.0',
   createdAt: addDays(baseDate, -5),
@@ -80,7 +80,7 @@ const cancelledIOSRelease = {
 
 const cancelledIOSDist = {
   id: 'dist_cancelled_ios',
-  tenantId: 'EkgmIbgGQx',
+  appId: 'EkgmIbgGQx',
   releaseId: 'rel_cancelled_ios',
   status: 'SUBMITTED', // Distribution shows SUBMITTED because submission was cancelled
   createdAt: addDays(baseDate, -5),
@@ -122,7 +122,7 @@ const cancelledIOSSub = {
 
 const bothRejectedRelease = {
   id: 'rel_both_rejected',
-  tenantId: 'EkgmIbgGQx',
+  appId: 'EkgmIbgGQx',
   version: '5.2.0',
   branch: 'release/5.2.0',
   createdAt: addDays(baseDate, -7),
@@ -131,7 +131,7 @@ const bothRejectedRelease = {
 
 const bothRejectedDist = {
   id: 'dist_both_rejected',
-  tenantId: 'EkgmIbgGQx',
+  appId: 'EkgmIbgGQx',
   releaseId: 'rel_both_rejected',
   status: 'PARTIALLY_SUBMITTED', // One rejected, one cancelled
   createdAt: addDays(baseDate, -7),
@@ -199,7 +199,7 @@ const bothRejectedIOS_v1 = {
 
 const multiResubmitRelease = {
   id: 'rel_multi_resubmit',
-  tenantId: 'EkgmIbgGQx',
+  appId: 'EkgmIbgGQx',
   version: '5.3.0',
   branch: 'release/5.3.0',
   createdAt: addDays(baseDate, -10),
@@ -208,7 +208,7 @@ const multiResubmitRelease = {
 
 const multiResubmitDist = {
   id: 'dist_multi_resubmit',
-  tenantId: 'EkgmIbgGQx',
+  appId: 'EkgmIbgGQx',
   releaseId: 'rel_multi_resubmit',
   status: 'SUBMITTED', // Currently in review after 2 resubmissions
   createdAt: addDays(baseDate, -10),

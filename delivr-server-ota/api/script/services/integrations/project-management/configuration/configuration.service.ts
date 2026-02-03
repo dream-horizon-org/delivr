@@ -32,11 +32,11 @@ export class ProjectManagementConfigService {
   validateConfig(data: CreateProjectManagementConfigDto): ValidateProjectManagementConfigResult {
     const errors: ValidationError[] = [];
 
-    // Validate tenantId
-    if (!data.tenantId || data.tenantId.trim() === '') {
+    // Validate appId
+    if (!data.appId || data.appId.trim() === '') {
       errors.push({
-        field: 'tenantId',
-        message: 'Tenant ID is required and cannot be empty'
+        field: 'appId',
+        message: 'app id is required and cannot be empty'
       });
     }
 
@@ -225,14 +225,14 @@ export class ProjectManagementConfigService {
       );
     }
 
-    const tenantMatches = integration.tenantId === data.tenantId;
+    const tenantMatches = integration.appId === data.appId;
 
     if (!tenantMatches) {
       throw new Error('Integration does not belong to the specified tenant');
     }
 
     // Check if a config with the same name already exists for this tenant
-    const existingConfigs = await this.configRepo.findByTenantId(data.tenantId);
+    const existingConfigs = await this.configRepo.findByAppId(data.appId);
     const duplicateName = existingConfigs.find(
       (config) => config.name.toLowerCase() === data.name.toLowerCase() && config.isActive
     );
@@ -254,10 +254,10 @@ export class ProjectManagementConfigService {
   }
 
   /**
-   * List configs by tenant ID
+   * List configs by app id
    */
-  async listConfigsByProject(tenantId: string): Promise<ProjectManagementConfig[]> {
-    return this.configRepo.findByTenantId(tenantId);
+  async listConfigsByProject(appId: string): Promise<ProjectManagementConfig[]> {
+    return this.configRepo.findByAppId(appId);
   }
 
   /**
@@ -282,7 +282,7 @@ export class ProjectManagementConfigService {
 
     // Check for duplicate name if name is being updated
     if (data.name !== undefined) {
-      const existingConfigs = await this.configRepo.findByTenantId(config.tenantId);
+      const existingConfigs = await this.configRepo.findByAppId(config.appId);
       const duplicateName = existingConfigs.find(
         (existingConfig) =>
           existingConfig.id !== id &&

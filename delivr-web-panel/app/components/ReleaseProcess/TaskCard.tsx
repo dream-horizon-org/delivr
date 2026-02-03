@@ -43,7 +43,7 @@ import {
 
 interface TaskCardProps {
   task: Task;
-  tenantId?: string;
+  appId?: string;
   releaseId?: string;
   onRetry?: (taskId: string) => void;
   className?: string;
@@ -82,7 +82,7 @@ function formatTimeAgo(dateString: string): string {
 
 export function TaskCard({
   task,
-  tenantId,
+  appId,
   releaseId,
   onRetry,
   className,
@@ -107,7 +107,7 @@ export function TaskCard({
       return (
         <BuildTaskDetails
           task={task}
-          tenantId={tenantId}
+          appId={appId}
           releaseId={releaseId}
           uploadedBuilds={uploadedBuilds}
         />

@@ -18,8 +18,8 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
     return gha.verifyConnection(params);
   };
 
-  create = async (tenantId: string, accountId: string, input: CreateInput): Promise<SafeCICDIntegration> => {
-    const existing = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
+  create = async (appId: string, accountId: string, input: CreateInput): Promise<SafeCICDIntegration> => {
+    const existing = await this.repository.findByAppAndProvider(appId, CICDProviderType.GITHUB_ACTIONS);
     if (existing) {
       throw new Error(ERROR_MESSAGES.GHA_ALREADY_EXISTS);
     }
@@ -44,7 +44,7 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
     // Store the ORIGINAL (encrypted) token in database
     const createData: CreateCICDIntegrationDto & { id: string } = {
       id: shortid.generate(),
-      tenantId,
+      appId,
       providerType: CICDProviderType.GITHUB_ACTIONS,
       displayName: input.displayName ?? 'GitHub Actions',
       hostUrl: PROVIDER_DEFAULTS.GITHUB_API,
@@ -60,13 +60,13 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
     return this.toSafe(created);
   };
 
-  get = async (tenantId: string): Promise<SafeCICDIntegration | null> => {
-    const found = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
+  get = async (appId: string): Promise<SafeCICDIntegration | null> => {
+    const found = await this.repository.findByAppAndProvider(appId, CICDProviderType.GITHUB_ACTIONS);
     return found ? this.toSafe(found) : null;
   };
 
-  update = async (tenantId: string, updateData: UpdateCICDIntegrationDto): Promise<SafeCICDIntegration> => {
-    const existing = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
+  update = async (appId: string, updateData: UpdateCICDIntegrationDto): Promise<SafeCICDIntegration> => {
+    const existing = await this.repository.findByAppAndProvider(appId, CICDProviderType.GITHUB_ACTIONS);
     if (!existing) {
       throw new Error(ERROR_MESSAGES.GHA_NOT_FOUND);
     }
@@ -119,8 +119,8 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
     return this.toSafe(updated as any);
   };
 
-  delete = async (tenantId: string): Promise<void> => {
-    const existing = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
+  delete = async (appId: string): Promise<void> => {
+    const existing = await this.repository.findByAppAndProvider(appId, CICDProviderType.GITHUB_ACTIONS);
     if (!existing) {
       throw new Error(ERROR_MESSAGES.GHA_NOT_FOUND);
     }

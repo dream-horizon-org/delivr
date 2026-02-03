@@ -10,7 +10,7 @@ import {
   IconUsers,
   IconAutomation,
 } from "@tabler/icons-react";
-import type { Organization } from "./types";
+import type { App } from "./types";
 
 export type SubItem = {
   label: string;
@@ -31,7 +31,7 @@ export type ModuleConfig = {
   isCustomRender?: boolean;
 };
 
-export function getNavigationModules(org: Organization): ModuleConfig[] {
+export function getNavigationModules(org: App): ModuleConfig[] {
   return [
     {
       id: "releaseManagement",
@@ -87,7 +87,7 @@ export function getNavigationModules(org: Organization): ModuleConfig[] {
   ];
 }
 
-export function getOrganizationRoutes(org: Organization): SubItem[] {
+export function getOrganizationRoutes(org: App): SubItem[] {
   return [
     {
       label: "Integrations",

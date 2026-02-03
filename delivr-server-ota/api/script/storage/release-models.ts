@@ -35,19 +35,10 @@ export function createRelease(sequelize: Sequelize) {
       allowNull: false,
     },
     
-    // Multi-tenancy (NEW - not in Delivr)
-    tenantId: {
+    // Multi-tenancy: app_id column (tenant_id was migrated to apps; use app_id)
+    appId: {
       type: DataTypes.UUID,
       allowNull: false,
-      field: 'tenant_id',
-      references: {
-        model: 'tenants',
-        key: 'id',
-      },
-    },
-    appId: {
-      type: DataTypes.STRING,
-      allowNull: true,
       field: 'app_id',
       references: {
         model: 'apps',

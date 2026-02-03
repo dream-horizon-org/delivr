@@ -61,8 +61,8 @@ const seedData = {
     { id: "tenant_2", displayName: "Organization Two", createdBy: "id_1" },
   ],
   apps: [
-    { id: "id_2", name: "App One", accountId: "id_0", tenantId: "tenant_1", createdTime: new Date().getTime() },
-    { id: "id_3", name: "App Two", accountId: "id_1", tenantId: "tenant_2", createdTime: new Date().getTime() },
+    { id: "id_2", name: "App One", accountId: "id_0", appId: "tenant_1", createdTime: new Date().getTime() },
+    { id: "id_3", name: "App Two", accountId: "id_1", appId: "tenant_2", createdTime: new Date().getTime() },
     { id: "id_4", name: "Independent App", accountId: "id_0", createdTime: new Date().getTime() }, // App without a tenant association
   ],
   collaborators: [
@@ -183,8 +183,8 @@ const seedData = {
   ],
 };
 
-// Seed function
-async function seed() {
+// Seed function (currently unused - can be called manually if needed)
+async function _seed() {
   try {
     // Initialize models
     const models = createModelss(sequelize);
@@ -214,7 +214,7 @@ async function seed() {
     await models.Deployment.destroy({ where: {} });
     await models.Collaborator.destroy({ where: {} });
     await models.App.destroy({ where: {} });
-    await models.Tenant.destroy({ where: {} });
+    await models.App.destroy({ where: {} }); // Updated: Tenant → App (new App entity)
     await models.AccountChannel.destroy({ where: {} });
     await models.Account.destroy({ where: {} });
 
@@ -224,7 +224,7 @@ async function seed() {
     // Insert seed data in order
     await models.Account.bulkCreate(seedData.accounts);
     await models.AccountChannel.bulkCreate(seedData.accountChannels);
-    await models.Tenant.bulkCreate(seedData.tenants);
+    await models.App.bulkCreate(seedData.tenants); // Updated: Tenant → App (new App entity)
     await models.App.bulkCreate(seedData.apps);
     await models.Collaborator.bulkCreate(seedData.collaborators);
     
@@ -272,7 +272,7 @@ async function seed() {
 }
 
 if (process.env.NODE_ENV !== "production") {
-  seed();
+  // _seed(); // Uncomment to run seed data
 } else {
   // Do nothing
 }

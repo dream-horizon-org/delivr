@@ -13,7 +13,7 @@ export const createProjectManagementIntegrationModel = (sequelize: Sequelize) =>
     implements ProjectManagementIntegration
   {
     declare id: string;
-    declare tenantId: string;
+    declare appId: string;
     declare name: string;
     declare providerType: ProjectManagementProviderType;
     declare config: ProjectManagementIntegrationConfig;
@@ -32,10 +32,16 @@ export const createProjectManagementIntegrationModel = (sequelize: Sequelize) =>
         primaryKey: true,
         comment: 'Primary key'
       },
-      tenantId: {
+      appId: {
         type: DataTypes.UUID,
         allowNull: false,
-        comment: 'Tenant identifier'
+        references: {
+          model: 'apps',  // Added FK reference to apps table
+          key: 'id'
+        },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+        comment: 'App identifier (references apps.id, renamed from tenants)'
       },
       name: {
         type: DataTypes.STRING(255),
@@ -104,7 +110,7 @@ export const createProjectManagementIntegrationModel = (sequelize: Sequelize) =>
       indexes: [
         {
           name: 'idx_pm_integration_tenant',
-          fields: ['tenantId']
+          fields: ['appId']
         },
         {
           name: 'idx_pm_integration_provider',
@@ -113,7 +119,7 @@ export const createProjectManagementIntegrationModel = (sequelize: Sequelize) =>
         {
           name: 'idx_pm_integration_unique_name',
           unique: true,
-          fields: ['tenantId', 'name']
+          fields: ['appId', 'name']
         }
       ]
     }

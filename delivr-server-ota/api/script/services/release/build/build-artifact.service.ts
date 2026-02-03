@@ -119,7 +119,7 @@ export class BuildArtifactService {
 
     // Step 2: Upload artifact to S3
     const uploadResult = await this.uploadArtifactToS3({
-      tenantId: build.tenantId,
+      appId: build.appId,
       releaseId: build.releaseId,
       platform: build.platform,
       artifactVersionName: artifactVersion,
@@ -143,7 +143,7 @@ export class BuildArtifactService {
     if (isAab) {
       await this.handleAabInternalTrack({
         buildId: build.id,
-        tenantId: build.tenantId,
+        appId: build.appId,
         artifactBuffer,
         artifactVersionName: artifactVersion,
         platform: build.platform,
@@ -163,7 +163,7 @@ export class BuildArtifactService {
    * Upload artifact for staging (manual upload flow).
    * Does NOT create a build record - that happens when TaskExecutor consumes the upload.
    * 
-   * Path structure: {tenantId}/{releaseId}/{platform}/{artifactVersionName}/{uploadId}.{ext}
+   * Path structure: {appId}/{releaseId}/{platform}/{artifactVersionName}/{uploadId}.{ext}
    * 
    * Steps:
    * 1. Generate unique upload ID
@@ -180,7 +180,7 @@ export class BuildArtifactService {
   uploadStagingArtifact = async (
     input: UploadStagingArtifactInput
   ): Promise<UploadStagingArtifactResult> => {
-    const { tenantId, releaseId, platform, artifactVersionName, artifactBuffer, originalFilename } = input;
+    const { appId, releaseId, platform, artifactVersionName, artifactBuffer, originalFilename } = input;
 
     // Step 1: Generate unique upload ID for this staging artifact
     const uploadId = shortid.generate();
@@ -189,9 +189,9 @@ export class BuildArtifactService {
     const fileName = deriveStandardArtifactFilename(originalFilename, uploadId);
 
     // Step 3: Generate S3 key using artifactVersionName from platform mapping
-    // Result: {tenantId}/{releaseId}/{platform}/{1.2.3}/{x7k9m2}.ipa
+    // Result: {appId}/{releaseId}/{platform}/{1.2.3}/{x7k9m2}.ipa
     const s3Key = buildArtifactS3Key(
-      { tenantId, releaseId, platform, artifactVersionName },
+      { appId, releaseId, platform, artifactVersionName },
       fileName
     );
 
@@ -224,7 +224,7 @@ export class BuildArtifactService {
         () => uploadAabToPlayStoreInternal(
           artifactBuffer,
           artifactVersionName,
-          tenantId,
+          appId,
           STORE_TYPE_MAP.PLAY_STORE,
           platform,
           releaseId
@@ -245,13 +245,13 @@ export class BuildArtifactService {
    * 1. Query builds from database
    * 2. Generate presigned URLs for each artifact
    *
-   * @param input - Filter criteria for listing builds (tenantId and releaseId required, rest optional)
+   * @param input - Filter criteria for listing builds (appId and releaseId required, rest optional)
    * @returns Array of build artifacts with download URLs
    * @throws BuildArtifactError if query fails
    */
   listBuildArtifacts = async (input: ListBuildArtifactsInput): Promise<BuildArtifactItem[]> => {
     const {
-      tenantId,
+      appId,
       releaseId,
       platform,
       buildStage,
@@ -266,7 +266,7 @@ export class BuildArtifactService {
     // Step 1: Query builds from database
     const builds = await executeOperation(
       () => this.buildRepository.findBuilds({
-        tenantId,
+        appId,
         releaseId,
         platform,
         buildStage,
@@ -337,14 +337,14 @@ export class BuildArtifactService {
   verifyManualTestflightBuild = async (
     input: ManualTestflightVerifyInput
   ): Promise<TestflightVerifyResult> => {
-    const { tenantId, releaseId, testflightNumber, buildStage } = input;
+    const { appId, releaseId, testflightNumber, buildStage } = input;
 
     // Step 1: Verify TestFlight build number exists in App Store Connect
     // Version is retrieved from TestFlight (not provided in input)
     const verificationResult = await executeOperation(
       () => this.testflightVerificationService.verifyBuild({
         releaseId,
-        tenantId,
+        appId,
         testflightBuildNumber: testflightNumber,
       }),
       BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_VERIFICATION_FAILED,
@@ -377,7 +377,7 @@ export class BuildArtifactService {
     await executeOperation(
       () => this.buildRepository.create({
         id: buildId,
-        tenantId,
+        appId,
         buildNumber: testflightNumber,
         artifactVersionName: versionName,
         artifactPath: null,
@@ -450,7 +450,7 @@ export class BuildArtifactService {
     const verificationResult = await executeOperation(
       () => this.testflightVerificationService.verifyBuild({
         releaseId: build.releaseId,
-        tenantId: build.tenantId,
+        appId: build.appId,
         testflightBuildNumber: testflightNumber,
       }),
       BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_VERIFICATION_FAILED,
@@ -517,13 +517,13 @@ export class BuildArtifactService {
    * 5. Calculate expiry timestamp
    *
    * @param buildId - The build ID
-   * @param tenantId - The tenant ID (for ownership validation)
+   * @param appId - The app id (for ownership validation)
    * @returns Object with presigned URL and expiry timestamp
    * @throws BuildArtifactError if build not found, doesn't belong to tenant, or artifact unavailable
    */
   getBuildArtifactDownloadUrl = async (
     buildId: string,
-    tenantId: string
+    appId: string
   ): Promise<{ url: string; expiresAt: string }> => {
     // Step 1: Find build by buildId
     const build = await executeOperation(
@@ -542,7 +542,7 @@ export class BuildArtifactService {
     }
 
     // Step 3: Validate tenant ownership (security: don't leak build existence)
-    const tenantMismatch = build.tenantId !== tenantId;
+    const tenantMismatch = build.appId !== appId;
     if (tenantMismatch) {
       throw new BuildArtifactError(
         BUILD_ARTIFACT_ERROR_CODE.BUILD_NOT_FOUND,
@@ -581,7 +581,7 @@ export class BuildArtifactService {
    * @throws BuildArtifactError if upload or URL generation fails
    */
   private uploadArtifactToS3 = async (params: {
-    tenantId: string;
+    appId: string;
     releaseId: string;
     platform: string;
     artifactVersionName: string;
@@ -590,7 +590,7 @@ export class BuildArtifactService {
     originalFilename: string;
   }): Promise<{ s3Uri: string; downloadUrl: string }> => {
     const {
-      tenantId,
+      appId,
       releaseId,
       platform,
       artifactVersionName,
@@ -602,7 +602,7 @@ export class BuildArtifactService {
     // Step 1: Generate S3 key from metadata
     const fileName = deriveStandardArtifactFilename(originalFilename, buildId);
     const s3Key = buildArtifactS3Key(
-      { tenantId, releaseId, platform, artifactVersionName },
+      { appId, releaseId, platform, artifactVersionName },
       fileName
     );
     const contentType = inferContentType(fileName);
@@ -634,7 +634,7 @@ export class BuildArtifactService {
    * Either generates link from provided buildNumber or uploads to Play Store.
    *
    * @param buildId - Build ID to update
-   * @param tenantId - Tenant ID for Play Store lookup
+   * @param appId - app id for Play Store lookup
    * @param artifactBuffer - The AAB file buffer (for uploading to Play Store)
    * @param artifactVersionName - Version name for Play Store upload
    * @param platform - Build platform
@@ -643,20 +643,20 @@ export class BuildArtifactService {
    */
   private handleAabInternalTrack = async (params: {
     buildId: string;
-    tenantId: string;
+    appId: string;
     artifactBuffer: Buffer;
     artifactVersionName: string;
     platform: string;
     releaseId: string;
     buildNumber?: string | null;
   }): Promise<void> => {
-    const { buildId, tenantId, artifactBuffer, artifactVersionName, platform, releaseId, buildNumber } = params;
+    const { buildId, appId, artifactBuffer, artifactVersionName, platform, releaseId, buildNumber } = params;
     
     const hasProvidedBuildNumber = buildNumber !== null && buildNumber !== undefined;
     
     if (hasProvidedBuildNumber) {
       // CI already uploaded to Play Store - generate link using packageName + buildNumber
-      const packageName = await this.getPlayStorePackageName(tenantId);
+      const packageName = await this.getPlayStorePackageName(appId);
       const internalTrackLink = generateInternalTrackLink(packageName, buildNumber);
 
       await executeOperation(
@@ -670,7 +670,7 @@ export class BuildArtifactService {
         () => uploadAabToPlayStoreInternal(
           artifactBuffer,
           artifactVersionName,
-          tenantId,
+          appId,
           STORE_TYPE_MAP.PLAY_STORE,
           platform,
           releaseId
@@ -693,13 +693,13 @@ export class BuildArtifactService {
   /**
    * Get Play Store package name (appIdentifier) from store_integrations table.
    *
-   * @param tenantId - The tenant ID
+   * @param appId - The app id
    * @returns The package name (appIdentifier)
    * @throws BuildArtifactError if Play Store integration not found
    */
-  private getPlayStorePackageName = async (tenantId: string): Promise<string> => {
+  private getPlayStorePackageName = async (appId: string): Promise<string> => {
     const integrations = await this.s3Storage.storeIntegrationController.findAll({
-      tenantId,
+      appId,
       storeType: PlayStoreType.PLAY_STORE
     });
 

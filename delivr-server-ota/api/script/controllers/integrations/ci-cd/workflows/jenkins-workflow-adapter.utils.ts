@@ -5,7 +5,7 @@ import type { ParametersResult, WorkflowStatus, WorkflowAdapter } from "./workfl
 export const createJenkinsAdapter = (): WorkflowAdapter => {
   const service = new JenkinsWorkflowService();
 
-  const fetchParameters: WorkflowAdapter["fetchParameters"] = async (tenantId, body) => {
+  const fetchParameters: WorkflowAdapter["fetchParameters"] = async (appId, body) => {
     const workflowUrl = body.workflowUrl;
     const workflowUrlMissing = !workflowUrl;
     if (workflowUrlMissing) {
@@ -17,7 +17,7 @@ export const createJenkinsAdapter = (): WorkflowAdapter => {
     } catch {
       throw new Error(ERROR_MESSAGES.JENKINS_INVALID_WORKFLOW_URL);
     }
-    const result = await service.fetchJobParameters(tenantId, workflowUrl as string);
+    const result = await service.fetchJobParameters(appId, workflowUrl as string);
     const mapped = result.parameters.map((p) => ({
       name: p.name,
       type: p.type,
@@ -29,14 +29,14 @@ export const createJenkinsAdapter = (): WorkflowAdapter => {
     return response;
   };
 
-  const trigger: WorkflowAdapter["trigger"] = async (tenantId, input) => {
+  const trigger: WorkflowAdapter["trigger"] = async (appId, input) => {
     const hasWorkflowId = !!input.workflowId;
     const hasTypeAndPlatform = !!input.workflowType && !!input.platform;
     const invalid = !hasWorkflowId && !hasTypeAndPlatform;
     if (invalid) {
       throw new Error(ERROR_MESSAGES.WORKFLOW_SELECTION_REQUIRED);
     }
-    const result = await service.trigger(tenantId, {
+    const result = await service.trigger(appId, {
       workflowId: input.workflowId,
       workflowType: input.workflowType,
       platform: input.platform,
@@ -45,7 +45,7 @@ export const createJenkinsAdapter = (): WorkflowAdapter => {
     return { queueLocation: result.queueLocation };
   };
 
-  const queueStatus: WorkflowAdapter["queueStatus"] = async (tenantId, body) => {
+  const queueStatus: WorkflowAdapter["queueStatus"] = async (appId, body) => {
     const queueUrl = body.queueUrl;
     const queueUrlMissing = !queueUrl;
     if (queueUrlMissing) {
@@ -57,7 +57,7 @@ export const createJenkinsAdapter = (): WorkflowAdapter => {
     } catch {
       throw new Error(ERROR_MESSAGES.JENKINS_INVALID_QUEUE_URL);
     }
-    const result = await service.getQueueStatus(tenantId, queueUrl as string);
+    const result = await service.getQueueStatus(appId, queueUrl as string);
     // Extract just the status for the adapter (executableUrl used by polling service directly)
     const validStatus: WorkflowStatus = result.status;
     return validStatus;

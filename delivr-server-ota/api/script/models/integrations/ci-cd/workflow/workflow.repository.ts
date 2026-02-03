@@ -31,7 +31,7 @@ export class CICDWorkflowRepository {
 
   findAll = async (filters: WorkflowFilters = {}): Promise<TenantCICDWorkflow[]> => {
     const where: Record<string, unknown> = {};
-    if (filters.tenantId) where.tenantId = filters.tenantId;
+    if (filters.appId) where.appId = filters.appId;
     if (filters.providerType) where.providerType = filters.providerType;
     if (filters.integrationId) where.integrationId = filters.integrationId;
     if (filters.platform) where.platform = normalizePlatform(filters.platform);

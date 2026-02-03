@@ -160,7 +160,7 @@ liveScenarios.forEach((scenario, i) => {
   // Release
   db.releases.push({
     id: releaseId,
-    tenantId: 'EkgmIbgGQx',
+    appId: 'EkgmIbgGQx',
     version: version,
     branch: `release/${version}`,
     createdAt: daysAgo(25 - i),
@@ -181,7 +181,7 @@ liveScenarios.forEach((scenario, i) => {
   db.store_distribution.push({
     id: distId,
     releaseId: releaseId,
-    tenantId: 'EkgmIbgGQx',
+    appId: 'EkgmIbgGQx',
     status: distributionStatus,
     createdAt: daysAgo(25 - i),
     updatedAt: daysAgo(Math.max(0, 23 - i)),
@@ -207,7 +207,7 @@ liveScenarios.forEach((scenario, i) => {
       id: androidSubmissionId,
       distributionId: distId,
       releaseId: releaseId,
-      tenantId: 'EkgmIbgGQx',
+      appId: 'EkgmIbgGQx',
       storeType: 'PLAY_STORE',
       status: androidConfig.status,
       version: version,
@@ -246,7 +246,7 @@ liveScenarios.forEach((scenario, i) => {
       id: iosSubmissionId,
       distributionId: distId,
       releaseId: releaseId,
-      tenantId: 'EkgmIbgGQx',
+      appId: 'EkgmIbgGQx',
       storeType: 'APP_STORE',
       status: iosConfig.status,
       version: version,

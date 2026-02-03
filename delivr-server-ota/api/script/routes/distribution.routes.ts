@@ -55,7 +55,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
 
   
   /**
-   * GET /distributions?tenantId=xxx&page=1&pageSize=10
+   * GET /distributions?appId=xxx&page=1&pageSize=10
    * 
    * List all distributions with pagination, filtering, and stats.
    * 
@@ -69,33 +69,33 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    */
   router.get(
     "/distributions",
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     distributionController.listDistributions
   );
 
   /**
-   * GET /tenants/:tenantId/releases/:releaseId/distribution
+   * GET /apps/:appId/releases/:releaseId/distribution
    * 
    * Get distribution by release ID with all submissions and action history.
    * 
    * Use Case: View distribution details for a specific release
    */
   router.get(
-    "/tenants/:tenantId/releases/:releaseId/distribution",
-    tenantPermissions.requireTenantMembership({ storage }),
+    "/apps/:appId/releases/:releaseId/distribution",
+    tenantPermissions.requireAppMembership({ storage }),
     distributionController.getDistributionByReleaseId
   );
 
   /**
-   * GET /tenants/:tenantId/distributions/:distributionId
+   * GET /apps/:appId/distributions/:distributionId
    * 
    * Get distribution by distribution ID with all submissions and action history.
    * 
    * Use Case: View distribution details when you have the distribution ID directly
    */
   router.get(
-      "/tenants/:tenantId/distributions/:distributionId",
-      tenantPermissions.requireTenantMembership({ storage }),
+      "/apps/:appId/distributions/:distributionId",
+      tenantPermissions.requireAppMembership({ storage }),
       distributionController.getDistributionById
   );
   // ============================================================================
@@ -103,7 +103,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   // ============================================================================
   
   /**
-   * PUT /tenants/:tenantId/releases/:releaseId/submissions/:submissionId/submit?platform=<ANDROID|IOS>
+   * PUT /apps/:appId/releases/:releaseId/submissions/:submissionId/submit?platform=<ANDROID|IOS>
    * 
    * Submit an existing PENDING submission to the store (first-time submission).
    * 
@@ -126,7 +126,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * 3. If successful, changes status to SUBMITTED
    */
   router.put(
-    "/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/submit",
+    "/apps/:appId/releases/:releaseId/submissions/:submissionId/submit",
     releasePermissions.requireReleaseOwner({ storage }),
     submissionController.submitExistingSubmission
   );
@@ -136,7 +136,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   // ============================================================================
   
   /**
-   * POST /tenants/:tenantId/releases/:releaseId/distributions/:distributionId/submissions
+   * POST /apps/:appId/releases/:releaseId/distributions/:distributionId/submissions
    * 
    * Create a completely new submission after rejection or cancellation.
    * 
@@ -170,7 +170,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * 6. Old submission remains in history
    */
   router.post(
-    "/tenants/:tenantId/releases/:releaseId/distributions/:distributionId/submissions",
+    "/apps/:appId/releases/:releaseId/distributions/:distributionId/submissions",
     releasePermissions.requireReleaseOwner({ storage }),
     upload.single('aabFile'),
     submissionController.createNewSubmission
@@ -181,20 +181,20 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   // ============================================================================
   
   /**
-   * GET /tenants/:tenantId/submissions/:submissionId
+   * GET /apps/:appId/submissions/:submissionId
    * 
    * Get full details for a specific submission with artifact information.
    * 
    * Use Case: Submission details page
    */
   router.get(
-    "/tenants/:tenantId/submissions/:submissionId",
-    tenantPermissions.requireTenantMembership({ storage }),
+    "/apps/:appId/submissions/:submissionId",
+    tenantPermissions.requireAppMembership({ storage }),
     submissionController.getSubmissionDetails
   );
 
   /**
-   * GET /tenants/:tenantId/submissions/:submissionId/artifact?platform={android|ios}
+   * GET /apps/:appId/submissions/:submissionId/artifact?platform={android|ios}
    * 
    * Get presigned download URL for submission artifact.
    * 
@@ -208,8 +208,8 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * Use Case: Download submission artifact for local testing or review
    */
   router.get(
-    "/tenants/:tenantId/submissions/:submissionId/artifact",
-    tenantPermissions.requireTenantMembership({ storage }),
+    "/apps/:appId/submissions/:submissionId/artifact",
+    tenantPermissions.requireAppMembership({ storage }),
     submissionController.getSubmissionArtifactDownload
   );
 
@@ -218,7 +218,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   // ============================================================================
   
   /**
-   * PATCH /tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
+   * PATCH /apps/:appId/releases/:releaseId/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
    * 
    * Increase/decrease rollout percentage for a submission.
    * 
@@ -234,7 +234,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * - rolloutPercent: float (0-100)
    */
   router.patch(
-    "/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout",
+    "/apps/:appId/releases/:releaseId/submissions/:submissionId/rollout",
     releasePermissions.requireReleaseOwner({ storage }),
     submissionController.updateRolloutPercentage
   );
@@ -244,7 +244,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   // ============================================================================
   
   /**
-   * PATCH /tenants/:tenantId/releases/:releaseId/submissions/:submissionId/cancel?platform=IOS
+   * PATCH /apps/:appId/releases/:releaseId/submissions/:submissionId/cancel?platform=IOS
    * 
    * Cancel an iOS submission (iOS only).
    * Deletes the app store review submission in Apple App Store Connect.
@@ -261,7 +261,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * - reason: string (required) - Reason for cancellation
    */
   router.patch(
-    "/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/cancel",
+    "/apps/:appId/releases/:releaseId/submissions/:submissionId/cancel",
     releasePermissions.requireReleaseOwner({ storage }),
     submissionController.cancelSubmission
   );
@@ -271,7 +271,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   // ============================================================================
   
   /**
-   * PATCH /tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/pause?platform=<IOS|ANDROID>
+   * PATCH /apps/:appId/releases/:releaseId/submissions/:submissionId/rollout/pause?platform=<IOS|ANDROID>
    * 
    * - iOS: Pause an active rollout (iOS only).
    * - Android: Halt an active rollout (Android only).
@@ -283,7 +283,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * - reason: string (required)
    */
   router.patch(
-    "/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/pause",
+    "/apps/:appId/releases/:releaseId/submissions/:submissionId/rollout/pause",
     releasePermissions.requireReleaseOwner({ storage }),
     submissionController.pauseRollout
   );
@@ -293,7 +293,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   // ============================================================================
   
   /**
-   * PATCH /tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/resume?platform=<IOS|ANDROID>
+   * PATCH /apps/:appId/releases/:releaseId/submissions/:submissionId/rollout/resume?platform=<IOS|ANDROID>
    * 
    * Resume a paused/halted rollout.
    * 
@@ -304,7 +304,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * - platform: string (required) - "IOS" or "ANDROID"
    */
   router.patch(
-    "/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/resume",
+    "/apps/:appId/releases/:releaseId/submissions/:submissionId/rollout/resume",
     releasePermissions.requireReleaseOwner({ storage }),
     submissionController.resumeRollout
   );
@@ -314,7 +314,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   // ============================================================================
   
   /**
-   * PATCH /tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/halt
+   * PATCH /apps/:appId/releases/:releaseId/submissions/:submissionId/rollout/halt
    * 
    * Immediately halt a release (cannot resubmit, must create new release).
    * 
@@ -322,7 +322,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * - reason: string (required)
    */
   router.patch(
-    "/tenants/:tenantId/releases/:releaseId/submissions/:submissionId/rollout/halt",
+    "/apps/:appId/releases/:releaseId/submissions/:submissionId/rollout/halt",
     releasePermissions.requireReleaseOwner({ storage }),
     async (req: Request, res: Response): Promise<Response> => {
       // TODO: Implement submissionController.emergencyHalt
@@ -338,7 +338,7 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   // ============================================================================
   
   /**
-   * POST /tenants/:tenantId/submissions/:submissionId/status
+   * POST /apps/:appId/submissions/:submissionId/status
    * 
    * Internal webhook for Cronicle to update a specific submission's status.
    * Each submission has its own Cronicle job that calls this endpoint every 2 hours.
@@ -363,8 +363,8 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * - jobDeleted: whether Cronicle job was deleted
    */
   router.post(
-    "/tenants/:tenantId/submissions/:submissionId/status",
-    tenantPermissions.requireTenantMembership({ storage }),
+    "/apps/:appId/submissions/:submissionId/status",
+    tenantPermissions.requireAppMembership({ storage }),
     submissionController.submissionStatus
   );
 

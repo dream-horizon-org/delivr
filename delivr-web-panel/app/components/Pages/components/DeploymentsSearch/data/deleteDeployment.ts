@@ -20,7 +20,7 @@ export const deleteDeployment = async ({
       app: appId,
     }),
     {
-      headers: { tenant, deploymentName },
+      headers: { app: tenant, deploymentName },
     }
   );
 

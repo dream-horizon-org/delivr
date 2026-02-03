@@ -72,11 +72,11 @@ export interface App {
   /*generated*/ createdTime: number;
   /*generated*/ id?: string;
   name: string;
-  tenantId?: string;
+  appId?: string;
   tenantName?: string;
 }
 
-export interface Organization {
+export interface OrgApp {
   /*generated*/ createdBy: string;
   /*generated*/ createdTime: number;
   /*generated*/ id?: string;
@@ -166,28 +166,30 @@ export interface Storage {
   getAppOwnershipCount(accountId: string): Promise<number>;
 
 
-  getTenants(accountId: string): Promise<Organization[]>;
-  addTenant(accountId: string, tenant: Organization): Promise<Organization>;
-  removeTenant(accountId: string, tenantId: string): Promise<void>;
+  // OrgApp methods (new App entities - renamed from Tenant)
+  // Note: These work with the new App entity (renamed from Tenant)
+  // The organizationId FK exists but Org entity not implemented yet
+  getOrgApps(accountId: string): Promise<OrgApp[]>;
+  addOrgApp(accountId: string, orgApp: OrgApp): Promise<OrgApp>;
+  removeOrgApp(accountId: string, appId: string): Promise<void>;  // Removes app (new App entity)
   
+  // OrgApp collaborator methods (for new App entities)
+  getOrgAppCollaborators(appId: string): Promise<CollaboratorMap>;
+  addOrgAppCollaborator(appId: string, email: string, permission: string): Promise<void>;
+  updateOrgAppCollaborator(appId: string, email: string, permission: string): Promise<void>;
+  removeOrgAppCollaborator(appId: string, email: string): Promise<void>;
   
-  addApp(accountId: string, app: App): Promise<App>;
-  getApps(accountId: string): Promise<App[]>;
-  getApp(accountId: string, appId: string): Promise<App>;
-  removeApp(accountId: string, appId: string): Promise<void>;
-  transferApp(accountId: string, appId: string, email: string): Promise<void>;
-  updateApp(accountId: string, app: App): Promise<void>;
+  addApp(accountId: string, app: App): Promise<App>;  // Creates DOTA app (old apps table)
+  getApps(accountId: string): Promise<App[]>;  // Returns DOTA apps (old apps table)
+  getApp(accountId: string, appId: string): Promise<App>;  // Gets DOTA app (old apps table)
+  removeApp(accountId: string, appId: string): Promise<void>;  // Removes DOTA app (old apps table)
+  transferApp(accountId: string, appId: string, email: string): Promise<void>;  // Transfers DOTA app
+  updateApp(accountId: string, app: App): Promise<void>;  // Updates DOTA app
 
   addCollaborator(accountId: string, appId: string, email: string): Promise<void>;
   getCollaborators(accountId: string, appId: string): Promise<CollaboratorMap>;
   updateCollaborators(accountId: string, appId: string, email: string, role: string): Promise<void>;
   removeCollaborator(accountId: string, appId: string, email: string): Promise<void>;
-  
-  // Tenant collaborator methods
-  getTenantCollaborators(tenantId: string): Promise<CollaboratorMap>;
-  addTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void>;
-  updateTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void>;
-  removeTenantCollaborator(tenantId: string, email: string): Promise<void>;
 
   addDeployment(accountId: string, appId: string, deployment: Deployment): Promise<string>;
   getDeployment(accountId: string, appId: string, deploymentId: string): Promise<Deployment>;
@@ -323,20 +325,20 @@ export class NameResolver {
 
   public static findByTentantId(item: App, appRequest: AppCreationRequest): boolean {
       if (!appRequest.organisation) {
-          return true; // No tenantId in request, so it's a personal app
+          return true; // No appId in request, so it's a personal app
       }
-      if (!item.tenantId) {
-          return false; // No tenantId in app, so it's a personal app
+      if (!item.appId) {
+          return false; // No appId in app, so it's a personal app
       }
-      // Check if the app's tenantId matches the requested organisation's tenantId
-      return item.tenantId === appRequest.organisation.orgId;
+      // Check if the app's appId matches the requested organisation's appId
+      return item.appId === appRequest.organisation.orgId;
   }
 
-  public static findAppByTenantId(apps: App[], tenantId: string, name: string): App {
+  public static findAppByAppId(apps: App[], appId: string, name: string): App {
     if (!apps.length) return null;
 
     for (let i = 0; i < apps.length; i++) {
-      if (apps[i].tenantId === tenantId && apps[i].name === name) {
+      if (apps[i].appId === appId && apps[i].name === name) {
         return apps[i];
       }
     }
@@ -429,12 +431,12 @@ export class NameResolver {
       .catch(NameResolver.errorMessageOverride(ErrorCode.NotFound, `Access key "${name}" does not exist.`));
   }
 
-  public resolveApp(accountId: string, name: string, tenantId?: string, _permission?: string): Promise<App> {
+  public resolveApp(accountId: string, name: string, appId?: string, _permission?: string): Promise<App> {
     return this._storage
       .getApps(accountId)
       .then((apps: App[]): App => {
         //check this logic
-        const app: App = tenantId ? NameResolver.findAppByTenantId(apps, tenantId, name) : NameResolver.findByName(apps, name);
+        const app: App = appId ? NameResolver.findAppByAppId(apps, appId, name) : NameResolver.findByName(apps, name);
         if (!app) throw storageError(ErrorCode.NotFound);
         return app;
       })

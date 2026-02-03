@@ -71,7 +71,7 @@ export type ReleaseWithPlatformTargets = {
   id: string;
   releaseId: string;
   releaseConfigId: string | null;
-  tenantId: string;
+  appId: string;
   platformTargets: PlatformTargetVersion[];
 };
 
@@ -80,7 +80,7 @@ export type ReleaseWithPlatformTargets = {
  * Note: Uses Date objects (not strings) since this is internal to the service layer
  */
 export interface CreateReleasePayload {
-  tenantId: string;
+  appId: string;
   accountId: string;
   platformTargets: PlatformTargetVersion[]; // Array of platform-target-version combinations
   type: 'MAJOR' | 'MINOR' | 'HOTFIX';
@@ -213,7 +213,7 @@ export interface ReleaseResponseBody {
   id: string;
   releaseId: string;
   releaseConfigId: string | null;
-  tenantId: string;
+  appId: string;
   type: 'MAJOR' | 'MINOR' | 'HOTFIX';
   status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
   currentActiveStage?: ActiveStage;
@@ -272,7 +272,7 @@ export interface RegressionCycleResponse {
 export interface BuildInfoResponse {
   // Mandatory fields (in both builds and uploads)
   id: string;
-  tenantId: string;
+  appId: string;
   releaseId: string;
   platform: BuildPlatform;
   buildStage: BuildStage;
@@ -310,7 +310,7 @@ export interface RegressionSlotResponse {
 
 /**
  * KICKOFF stage tasks response
- * API #2: GET /tenants/:tenantId/releases/:releaseId/tasks?stage=KICKOFF
+ * API #2: GET /apps/:appId/releases/:releaseId/tasks?stage=KICKOFF
  */
 export interface StageTasksResponseBody {
   success: true;
@@ -323,7 +323,7 @@ export interface StageTasksResponseBody {
 
 /**
  * PRE_RELEASE stage tasks response - includes approval status
- * API #2: GET /tenants/:tenantId/releases/:releaseId/tasks?stage=PRE_RELEASE
+ * API #2: GET /apps/:appId/releases/:releaseId/tasks?stage=PRE_RELEASE
  */
 export interface PreReleaseStageTasksResponseBody {
   success: true;
@@ -361,7 +361,7 @@ export interface ApprovalStatusResponse {
 
 /**
  * REGRESSION stage tasks response - includes additional fields
- * API #2: GET /tenants/:tenantId/releases/:releaseId/tasks?stage=REGRESSION
+ * API #2: GET /apps/:appId/releases/:releaseId/tasks?stage=REGRESSION
  */
 export interface RegressionStageTasksResponseBody {
   success: true;
@@ -397,7 +397,7 @@ export interface UpdateReleaseRequestBody {
   id?: string;
   releaseId?: string;
   releaseConfigId?: string;
-  tenantId?: string;
+  appId?: string;
   type?: 'MAJOR' | 'MINOR' | 'HOTFIX';
   status?: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
   branch?: string;

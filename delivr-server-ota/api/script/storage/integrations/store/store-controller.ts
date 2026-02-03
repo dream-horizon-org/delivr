@@ -57,7 +57,7 @@ export class StoreIntegrationController {
 
   async findAll(filters: StoreIntegrationFilters = {}): Promise<SafeStoreIntegration[]> {
     const where: any = {};
-    if (filters.tenantId) where.tenantId = filters.tenantId;
+    if (filters.appId) where.appId = filters.appId;
     if (filters.storeType) where.storeType = filters.storeType;
     if (filters.platform) where.platform = filters.platform;
     if (filters.status) where.status = filters.status;
@@ -81,24 +81,24 @@ export class StoreIntegrationController {
     return integrations;
   }
 
-  async findByTenantAndStoreType(
-    tenantId: string, 
+  async findByAppAndStoreType(
+    appId: string, 
     storeType: StoreType
   ): Promise<SafeStoreIntegration[]> {
     const results = await this.integrationModel.findAll({
-      where: { tenantId, storeType },
+      where: { appId, storeType },
       order: [['createdAt', 'DESC']]
     });
     return results.map(r => this.toSafeObject(r.toJSON()));
   }
 
-  async findByTenantStoreTypeAndAppIdentifier(
-    tenantId: string,
+  async findByAppStoreTypeAndAppIdentifier(
+    appId: string,
     storeType: StoreType,
     appIdentifier: string
   ): Promise<SafeStoreIntegration | null> {
     const integration = await this.integrationModel.findOne({
-      where: { tenantId, storeType, appIdentifier }
+      where: { appId, storeType, appIdentifier }
     });
     if (!integration) return null;
     return this.toSafeObject(integration.toJSON());

@@ -30,17 +30,17 @@ import {
 
 /**
  * Handler: Create channel configuration
- * POST /tenants/:tenantId/integrations/slack/channel-config
+ * POST /apps/:appId/integrations/slack/channel-config
  */
 const createConfigHandler = (service: CommConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId } = req.params;
+      const { appId } = req.params;
       const { channelData } = req.body;
 
       // Build DTO
       const data: CreateChannelConfigDto = {
-        tenantId,
+        appId,
         channelData: channelData as StageChannelMapping
       };
 
@@ -66,21 +66,21 @@ const createConfigHandler = (service: CommConfigService) =>
 
 /**
  * Handler: List Configs for Tenant
- * GET /tenants/:tenantId/integrations/slack/channel-config
+ * GET /apps/:appId/integrations/slack/channel-config
  */
 const listConfigsHandler = (service: CommConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId } = req.params;
+      const { appId } = req.params;
 
-      if (!tenantId) {
+      if (!appId) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('tenantId', 'Tenant ID is required')
+          validationErrorResponse('appId', 'app id is required')
         );
         return;
       }
 
-      const configs = await service.listConfigsByTenant(tenantId);
+      const configs = await service.listConfigsByApp(appId);
       res.status(HTTP_STATUS.OK).json(successResponse(configs));
     } catch (error) {
       const statusCode = getErrorStatusCode(error);
@@ -92,7 +92,7 @@ const listConfigsHandler = (service: CommConfigService) =>
 
 /**
  * Handler: Get channel configuration by ID
- * POST /tenants/:tenantId/integrations/slack/channel-config/get
+ * POST /apps/:appId/integrations/slack/channel-config/get
  */
 const getConfigHandler = (service: CommConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -126,7 +126,7 @@ const getConfigHandler = (service: CommConfigService) =>
 
 /**
  * Handler: Delete channel configuration
- * POST /tenants/:tenantId/integrations/slack/channel-config/delete
+ * POST /apps/:appId/integrations/slack/channel-config/delete
  */
 const deleteConfigHandler = (service: CommConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -162,7 +162,7 @@ const deleteConfigHandler = (service: CommConfigService) =>
 
 /**
  * Handler: Update channel configuration (add/remove channels)
- * POST /tenants/:tenantId/integrations/slack/channel-config/update
+ * POST /apps/:appId/integrations/slack/channel-config/update
  */
 const updateConfigHandler = (service: CommConfigService) =>
   async (req: Request, res: Response): Promise<void> => {

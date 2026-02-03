@@ -3,7 +3,7 @@
  */
 export const BUILD_ARTIFACT_DOWNLOAD_ERROR_MESSAGES = {
   INVALID_BUILD_ID: 'Build ID is required and must be a valid string',
-  INVALID_TENANT_ID: 'Tenant ID is required and must be a valid string',
+  INVALID_TENANT_ID: 'app id is required and must be a valid string',
   BUILD_NOT_FOUND: 'Build not found or does not belong to this tenant',
   ARTIFACT_NOT_AVAILABLE: 'Artifact not available for this build',
   PRESIGNED_URL_FAILED: 'Failed to generate download URL'

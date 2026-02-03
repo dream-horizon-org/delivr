@@ -11,7 +11,7 @@ import { ManualBuildUploadWidget } from './ManualBuildUploadWidget';
 import type { BuildInfo } from '~/types/release-process.types';
 
 interface BuildUploadSectionProps {
-  tenantId: string;
+  appId: string;
   releaseId: string;
   buildStage: BuildUploadStage;
   taskType: TaskType;
@@ -21,7 +21,7 @@ interface BuildUploadSectionProps {
 }
 
 export function BuildUploadSection({
-  tenantId,
+  appId,
   releaseId,
   buildStage,
   taskType,
@@ -41,7 +41,7 @@ export function BuildUploadSection({
         Upload Builds
       </Text>
       <ManualBuildUploadWidget
-        tenantId={tenantId}
+        appId={appId}
         releaseId={releaseId}
         stage={buildStage}
         taskType={taskType}

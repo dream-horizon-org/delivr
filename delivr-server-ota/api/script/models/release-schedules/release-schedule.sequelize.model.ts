@@ -17,7 +17,7 @@ import type {
 
 export type ReleaseScheduleAttributes = {
   id: string;
-  tenantId: string;
+  appId: string;
   releaseConfigId: string; // FK to release_configurations
 
   // Scheduling Configuration
@@ -64,15 +64,17 @@ export const createReleaseScheduleModel = (
         primaryKey: true,
         allowNull: false
       },
-      tenantId: {
+      appId: {
         type: DataTypes.UUID,
         allowNull: false,
-        field: 'tenantId',
+        field: 'appId',
         references: {
-          model: 'tenants',
+          model: 'apps',  // Changed from 'tenants' to 'apps'
           key: 'id'
         },
-        comment: 'Tenant identifier (denormalized for query performance)'
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+        comment: 'App identifier (references apps.id, renamed from tenants, denormalized for query performance)'
       },
       releaseConfigId: {
         type: DataTypes.STRING(255),
@@ -225,7 +227,7 @@ export const createReleaseScheduleModel = (
         },
         {
           name: 'idx_schedules_tenant',
-          fields: ['tenantId']
+          fields: ['appId']
         },
         {
           name: 'idx_schedules_release_config',

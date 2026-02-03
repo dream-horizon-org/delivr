@@ -4,7 +4,7 @@
       "id": "rel_test_android_rejected_current",
       "releaseId": "rel_test_android_rejected_current",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "PATCH",
       "status": "IN_PROGRESS",
       "releasePhase": "DISTRIBUTION",
@@ -25,7 +25,7 @@
       "id": "rel_test_ios_rejected_current",
       "releaseId": "rel_test_ios_rejected_current",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "PATCH",
       "status": "IN_PROGRESS",
       "releasePhase": "DISTRIBUTION",
@@ -46,7 +46,7 @@
       "id": "rel_test_android_suspended",
       "releaseId": "rel_test_android_suspended",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "PATCH",
       "status": "IN_PROGRESS",
       "releasePhase": "DISTRIBUTION",
@@ -67,7 +67,7 @@
       "id": "rel_test_android_user_action",
       "releaseId": "rel_test_android_user_action",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "PATCH",
       "status": "IN_PROGRESS",
       "releasePhase": "DISTRIBUTION",
@@ -88,7 +88,7 @@
       "id": "rel_test_android_rejected",
       "releaseId": "rel_test_android_rejected",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "DISTRIBUTION",
@@ -109,7 +109,7 @@
       "id": "rel_test_android_cancelled",
       "releaseId": "rel_test_android_cancelled",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "DISTRIBUTION",
@@ -130,7 +130,7 @@
       "id": "rel_test_ios_rejected",
       "releaseId": "rel_test_ios_rejected",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "DISTRIBUTION",
@@ -151,7 +151,7 @@
       "id": "rel_test_ios_cancelled",
       "releaseId": "rel_test_ios_cancelled",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "DISTRIBUTION",
@@ -172,7 +172,7 @@
       "id": "rel_1_0_0",
       "releaseId": "rel_1_0_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE_COMPLETED",
@@ -200,7 +200,7 @@
       "id": "rel_1_1_0",
       "releaseId": "rel_1_1_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -228,7 +228,7 @@
       "id": "rel_1_2_0",
       "releaseId": "rel_1_2_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -256,7 +256,7 @@
       "id": "rel_1_3_0",
       "releaseId": "rel_1_3_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -284,7 +284,7 @@
       "id": "rel_1_4_0",
       "releaseId": "rel_1_4_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -312,7 +312,7 @@
       "id": "rel_1_5_0",
       "releaseId": "rel_1_5_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -340,7 +340,7 @@
       "id": "rel_1_6_0",
       "releaseId": "rel_1_6_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -368,7 +368,7 @@
       "id": "rel_1_7_0",
       "releaseId": "rel_1_7_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -396,7 +396,7 @@
       "id": "rel_1_8_0",
       "releaseId": "rel_1_8_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -424,7 +424,7 @@
       "id": "rel_2_0_0",
       "releaseId": "rel_2_0_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE_COMPLETED",
@@ -452,7 +452,7 @@
       "id": "rel_2_1_0",
       "releaseId": "rel_2_1_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -480,7 +480,7 @@
       "id": "rel_2_2_0",
       "releaseId": "rel_2_2_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -508,7 +508,7 @@
       "id": "rel_2_3_0",
       "releaseId": "rel_2_3_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -536,7 +536,7 @@
       "id": "rel_2_4_0",
       "releaseId": "rel_2_4_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -564,7 +564,7 @@
       "id": "rel_2_5_0",
       "releaseId": "rel_2_5_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -592,7 +592,7 @@
       "id": "rel_2_6_0",
       "releaseId": "rel_2_6_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -620,7 +620,7 @@
       "id": "rel_3_0_0",
       "releaseId": "rel_3_0_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE_COMPLETED",
@@ -648,7 +648,7 @@
       "id": "rel_3_1_0",
       "releaseId": "rel_3_1_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -676,7 +676,7 @@
       "id": "rel_3_2_0",
       "releaseId": "rel_3_2_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -704,7 +704,7 @@
       "id": "rel_3_3_0",
       "releaseId": "rel_3_3_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -732,7 +732,7 @@
       "id": "rel_3_4_0",
       "releaseId": "rel_3_4_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -760,7 +760,7 @@
       "id": "rel_3_5_0",
       "releaseId": "rel_3_5_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -788,7 +788,7 @@
       "id": "rel_3_6_0",
       "releaseId": "rel_3_6_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -816,7 +816,7 @@
       "id": "rel_3_7_0",
       "releaseId": "rel_3_7_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -844,7 +844,7 @@
       "id": "rel_3_8_0",
       "releaseId": "rel_3_8_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -872,7 +872,7 @@
       "id": "rel_3_9_0",
       "releaseId": "rel_3_9_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -900,7 +900,7 @@
       "id": "rel_4_0_0",
       "releaseId": "rel_4_0_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -928,7 +928,7 @@
       "id": "rel_4_1_0",
       "releaseId": "rel_4_1_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -956,7 +956,7 @@
       "id": "rel_4_2_0",
       "releaseId": "rel_4_2_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -984,7 +984,7 @@
       "id": "rel_4_3_0",
       "releaseId": "rel_4_3_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1012,7 +1012,7 @@
       "id": "rel_4_4_0",
       "releaseId": "rel_4_4_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1040,7 +1040,7 @@
       "id": "rel_4_5_0",
       "releaseId": "rel_4_5_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1068,7 +1068,7 @@
       "id": "rel_5_0_0",
       "releaseId": "rel_5_0_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1096,7 +1096,7 @@
       "id": "rel_5_1_0",
       "releaseId": "rel_5_1_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1124,7 +1124,7 @@
       "id": "rel_5_2_0",
       "releaseId": "rel_5_2_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1152,7 +1152,7 @@
       "id": "rel_9_0_0",
       "releaseId": "rel_9_0_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "PRE_RELEASE_COMPLETED",
@@ -1180,7 +1180,7 @@
       "id": "rel_9_1_0",
       "releaseId": "rel_9_1_0",
       "releaseConfigId": null,
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1208,7 +1208,7 @@
       "id": "rel_test_001",
       "releaseId": "REL-TEST-001",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1235,7 +1235,7 @@
       "id": "rel_test_002",
       "releaseId": "REL-TEST-002",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1262,7 +1262,7 @@
       "id": "rel_test_003",
       "releaseId": "REL-TEST-003",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1289,7 +1289,7 @@
       "id": "rel_test_004",
       "releaseId": "REL-TEST-004",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1316,7 +1316,7 @@
       "id": "rel_test_005",
       "releaseId": "REL-TEST-005",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "RELEASED",
@@ -1343,7 +1343,7 @@
       "id": "rel_test_015",
       "releaseId": "REL-TEST-015",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1370,7 +1370,7 @@
       "id": "rel_test_016",
       "releaseId": "REL-TEST-016",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1397,7 +1397,7 @@
       "id": "rel_test_017",
       "releaseId": "REL-TEST-017",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1424,7 +1424,7 @@
       "id": "rel_test_018",
       "releaseId": "REL-TEST-018",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1451,7 +1451,7 @@
       "id": "rel_test_019",
       "releaseId": "REL-TEST-019",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1478,7 +1478,7 @@
       "id": "rel_test_020",
       "releaseId": "REL-TEST-020",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1505,7 +1505,7 @@
       "id": "rel_test_021",
       "releaseId": "REL-TEST-021",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1532,7 +1532,7 @@
       "id": "rel_test_022",
       "releaseId": "REL-TEST-022",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1559,7 +1559,7 @@
       "id": "rel_test_006",
       "releaseId": "REL-TEST-006",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1586,7 +1586,7 @@
       "id": "rel_test_007",
       "releaseId": "REL-TEST-007",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1613,7 +1613,7 @@
       "id": "rel_test_008",
       "releaseId": "REL-TEST-008",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1640,7 +1640,7 @@
       "id": "rel_test_009",
       "releaseId": "REL-TEST-009",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1667,7 +1667,7 @@
       "id": "rel_test_010",
       "releaseId": "REL-TEST-010",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "RELEASED",
@@ -1694,7 +1694,7 @@
       "id": "rel_test_011",
       "releaseId": "REL-TEST-011",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "RELEASED",
@@ -1721,7 +1721,7 @@
       "id": "rel_test_016_ios",
       "releaseId": "REL-TEST-016-IOS",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1748,7 +1748,7 @@
       "id": "rel_test_012",
       "releaseId": "REL-TEST-012",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1775,7 +1775,7 @@
       "id": "rel_test_013",
       "releaseId": "REL-TEST-013",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1802,7 +1802,7 @@
       "id": "rel_test_014",
       "releaseId": "REL-TEST-014",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "RELEASED",
@@ -1829,7 +1829,7 @@
       "id": "rel_test_017_cross",
       "releaseId": "REL-TEST-017-CROSS",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1856,7 +1856,7 @@
       "id": "rel_test_018_cross",
       "releaseId": "REL-TEST-018-CROSS",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1883,7 +1883,7 @@
       "id": "rel_pending_001",
       "releaseId": "REL-PENDING-001",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1910,7 +1910,7 @@
       "id": "rel_pending_002",
       "releaseId": "REL-PENDING-002",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1937,7 +1937,7 @@
       "id": "rel_pending_003",
       "releaseId": "REL-PENDING-003",
       "releaseConfigId": "test_config_1",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "type": "MINOR",
       "status": "IN_PROGRESS",
       "releasePhase": "SUBMISSION",
@@ -1970,7 +1970,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-23T12:00:00.000Z",
       "updatedAt": "2025-12-23T12:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_ios_rejected_current",
@@ -1980,7 +1980,7 @@
       "iosSubmissionId": "isb_test_ios_rejected_current",
       "createdAt": "2025-12-23T12:00:00.000Z",
       "updatedAt": "2025-12-23T12:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_android_suspended",
@@ -1990,7 +1990,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-22T12:00:00.000Z",
       "updatedAt": "2025-12-23T12:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_android_user_action",
@@ -2000,7 +2000,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-22T11:00:00.000Z",
       "updatedAt": "2025-12-23T11:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_android_rejected",
@@ -2010,7 +2010,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-22T10:00:00.000Z",
       "updatedAt": "2025-12-23T10:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_android_cancelled",
@@ -2020,7 +2020,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-22T09:00:00.000Z",
       "updatedAt": "2025-12-23T09:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_ios_rejected",
@@ -2030,7 +2030,7 @@
       "iosSubmissionId": "isb_test_ios_rejected_2",
       "createdAt": "2025-12-22T08:00:00.000Z",
       "updatedAt": "2025-12-23T08:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_ios_cancelled",
@@ -2040,11 +2040,11 @@
       "iosSubmissionId": "isb_test_ios_cancelled_2",
       "createdAt": "2025-12-22T07:00:00.000Z",
       "updatedAt": "2025-12-23T07:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_001",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_1_0_0",
       "status": "PENDING",
       "createdAt": "2025-12-02T06:32:36.779Z",
@@ -2052,7 +2052,7 @@
     },
     {
       "id": "dist_002",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_1_1_0",
       "status": "SUBMITTED",
       "createdAt": "2025-12-02T06:32:36.779Z",
@@ -2060,7 +2060,7 @@
     },
     {
       "id": "dist_003",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_1_2_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.779Z",
@@ -2068,7 +2068,7 @@
     },
     {
       "id": "dist_004",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_1_3_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.779Z",
@@ -2076,7 +2076,7 @@
     },
     {
       "id": "dist_005",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_1_4_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.779Z",
@@ -2084,7 +2084,7 @@
     },
     {
       "id": "dist_006",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_1_5_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.779Z",
@@ -2092,7 +2092,7 @@
     },
     {
       "id": "dist_007",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_1_6_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.779Z",
@@ -2100,7 +2100,7 @@
     },
     {
       "id": "dist_008",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_1_7_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.779Z",
@@ -2108,7 +2108,7 @@
     },
     {
       "id": "dist_009",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_1_8_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.779Z",
@@ -2116,7 +2116,7 @@
     },
     {
       "id": "dist_010",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_2_0_0",
       "status": "PENDING",
       "createdAt": "2025-12-02T06:32:36.779Z",
@@ -2124,7 +2124,7 @@
     },
     {
       "id": "dist_011",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_2_1_0",
       "status": "SUBMITTED",
       "createdAt": "2025-12-02T06:32:36.779Z",
@@ -2132,7 +2132,7 @@
     },
     {
       "id": "dist_012",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_2_2_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.779Z",
@@ -2140,7 +2140,7 @@
     },
     {
       "id": "dist_013",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_2_3_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.779Z",
@@ -2148,7 +2148,7 @@
     },
     {
       "id": "dist_014",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_2_4_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.779Z",
@@ -2156,7 +2156,7 @@
     },
     {
       "id": "dist_015",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_2_5_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.779Z",
@@ -2164,7 +2164,7 @@
     },
     {
       "id": "dist_016",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_2_6_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.779Z",
@@ -2172,7 +2172,7 @@
     },
     {
       "id": "dist_017",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_3_0_0",
       "status": "PENDING",
       "createdAt": "2025-12-02T06:32:36.779Z",
@@ -2180,7 +2180,7 @@
     },
     {
       "id": "dist_018",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_3_1_0",
       "status": "SUBMITTED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2188,7 +2188,7 @@
     },
     {
       "id": "dist_019",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_3_2_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2196,7 +2196,7 @@
     },
     {
       "id": "dist_020",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_3_3_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2204,7 +2204,7 @@
     },
     {
       "id": "dist_021",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_3_4_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2212,7 +2212,7 @@
     },
     {
       "id": "dist_022",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_3_5_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2220,7 +2220,7 @@
     },
     {
       "id": "dist_023",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_3_6_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2228,7 +2228,7 @@
     },
     {
       "id": "dist_024",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_3_7_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2236,7 +2236,7 @@
     },
     {
       "id": "dist_025",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_3_8_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2244,7 +2244,7 @@
     },
     {
       "id": "dist_026",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_3_9_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2252,7 +2252,7 @@
     },
     {
       "id": "dist_027",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_4_0_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2260,7 +2260,7 @@
     },
     {
       "id": "dist_028",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_4_1_0",
       "status": "SUBMITTED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2268,7 +2268,7 @@
     },
     {
       "id": "dist_029",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_4_2_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2276,7 +2276,7 @@
     },
     {
       "id": "dist_030",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_4_3_0",
       "status": "SUBMITTED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2284,7 +2284,7 @@
     },
     {
       "id": "dist_031",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_4_4_0",
       "status": "SUBMITTED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2292,7 +2292,7 @@
     },
     {
       "id": "dist_032",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_4_5_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2300,7 +2300,7 @@
     },
     {
       "id": "dist_033",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_5_0_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2308,7 +2308,7 @@
     },
     {
       "id": "dist_034",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_5_1_0",
       "status": "RELEASED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2316,7 +2316,7 @@
     },
     {
       "id": "dist_035",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_5_2_0",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2324,7 +2324,7 @@
     },
     {
       "id": "dist_036",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_9_0_0",
       "status": "PENDING",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2332,7 +2332,7 @@
     },
     {
       "id": "dist_037",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "rel_9_1_0",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2025-12-02T06:32:36.780Z",
@@ -2346,7 +2346,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_002",
@@ -2356,7 +2356,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_003",
@@ -2366,7 +2366,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_004",
@@ -2376,7 +2376,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_005",
@@ -2386,7 +2386,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_015",
@@ -2396,7 +2396,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_016",
@@ -2406,7 +2406,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_017",
@@ -2416,7 +2416,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-22T11:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_018",
@@ -2426,7 +2426,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-22T12:00:00.000Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_019",
@@ -2436,7 +2436,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_020",
@@ -2446,7 +2446,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_021",
@@ -2456,7 +2456,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_022",
@@ -2466,7 +2466,7 @@
       "iosSubmissionId": null,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_006",
@@ -2476,7 +2476,7 @@
       "iosSubmissionId": "isb_test_006",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_007",
@@ -2486,7 +2486,7 @@
       "iosSubmissionId": "isb_test_007",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_008",
@@ -2496,7 +2496,7 @@
       "iosSubmissionId": "isb_test_008",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_009",
@@ -2506,7 +2506,7 @@
       "iosSubmissionId": "isb_test_009",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_010",
@@ -2516,7 +2516,7 @@
       "iosSubmissionId": "isb_test_010",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_011",
@@ -2526,7 +2526,7 @@
       "iosSubmissionId": "isb_test_011",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_016_ios",
@@ -2536,7 +2536,7 @@
       "iosSubmissionId": "isb_test_016",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_012",
@@ -2546,7 +2546,7 @@
       "iosSubmissionId": "isb_test_012",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_013",
@@ -2556,7 +2556,7 @@
       "iosSubmissionId": "isb_test_013",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_014",
@@ -2566,7 +2566,7 @@
       "iosSubmissionId": "isb_test_014",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_017_cross",
@@ -2576,7 +2576,7 @@
       "iosSubmissionId": "isb_test_017_cross",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_test_018_cross",
@@ -2586,7 +2586,7 @@
       "iosSubmissionId": "isb_test_018_cross",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-16T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_pending_001",
@@ -2596,7 +2596,7 @@
       "iosSubmissionId": "isb_pending_001",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-06T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_pending_002",
@@ -2606,7 +2606,7 @@
       "iosSubmissionId": "isb_pending_002",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-06T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_pending_003",
@@ -2616,11 +2616,11 @@
       "iosSubmissionId": "isb_pending_003",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2025-12-06T00:00:00Z",
-      "tenantId": "EJ9w28zQmg"
+      "appId": "EJ9w28zQmg"
     },
     {
       "id": "dist_71423925",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "71423925-cb54-43d8-9079-7b2f7cb57871",
       "status": "PENDING",
       "createdAt": "2025-12-22T20:28:27.981Z",
@@ -2628,7 +2628,7 @@
     },
     {
       "id": "dist_fb3c602f",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "fb3c602f-215b-4979-90ae-d70538970d65",
       "status": "PENDING",
       "createdAt": "2025-12-22T20:28:27.982Z",
@@ -2636,7 +2636,7 @@
     },
     {
       "id": "dist_ad2eff28",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "ad2eff28-a8b1-4efa-8c5d-0e46db64342e",
       "status": "PENDING",
       "createdAt": "2025-12-22T20:28:27.982Z",
@@ -2644,7 +2644,7 @@
     },
     {
       "id": "dist_fe8ce14c",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "fe8ce14c-6f44-4a65-bd85-f579ed164a86",
       "status": "PENDING",
       "createdAt": "2025-12-22T20:28:27.982Z",
@@ -2652,7 +2652,7 @@
     },
     {
       "id": "dist_dc2afa87",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "dc2afa87-0d5f-4dc4-bbaf-b75b7cd3e53f",
       "status": "PENDING",
       "createdAt": "2025-12-22T20:28:27.982Z",
@@ -2660,7 +2660,7 @@
     },
     {
       "id": "dist_af28ca4e",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "af28ca4e-0f5a-46d4-bb8c-5a557994192a",
       "status": "PENDING",
       "createdAt": "2025-12-22T20:28:27.982Z",
@@ -2668,7 +2668,7 @@
     },
     {
       "id": "dist_ae028cdb",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "ae028cdb-a6a4-4569-b719-0e5c56b83119",
       "status": "PENDING",
       "createdAt": "2025-12-22T20:28:27.982Z",
@@ -2676,7 +2676,7 @@
     },
     {
       "id": "dist_564b96a4",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "564b96a4-d1bf-4e66-b34f-8c7bf7fbcbaf",
       "status": "PENDING",
       "createdAt": "2025-12-22T20:28:27.982Z",
@@ -2684,7 +2684,7 @@
     },
     {
       "id": "dist_01601e6e",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "01601e6e-a229-4d12-b9dc-cd1e63800077",
       "status": "PENDING",
       "createdAt": "2025-12-22T20:28:27.982Z",
@@ -2692,7 +2692,7 @@
     },
     {
       "id": "dist_127a06a0",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "127a06a0-9181-445c-8294-b36077d828a0",
       "status": "PENDING",
       "createdAt": "2025-12-22T20:28:27.983Z",
@@ -2700,7 +2700,7 @@
     },
     {
       "id": "dist_acbdd9b9",
-      "tenantId": "Vy3mYbVgmx",
+      "appId": "Vy3mYbVgmx",
       "releaseId": "acbdd9b9-a7ba-431a-af91-90f220dbaa18",
       "status": "PENDING",
       "createdAt": "2025-12-22T20:28:27.983Z",
@@ -2708,7 +2708,7 @@
     },
     {
       "id": "dist_test_android-only-pending",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "bd820965-d4f2-4ca8-b79b-438359a908ae",
       "status": "PENDING",
       "createdAt": "2024-12-02T00:00:00.000Z",
@@ -2716,7 +2716,7 @@
     },
     {
       "id": "dist_test_ios-only-pending",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "d2251ea9-3401-48ae-a0a3-fb7ca22ec6ff",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2024-12-03T00:00:00.000Z",
@@ -2724,7 +2724,7 @@
     },
     {
       "id": "dist_test_both-android-in-review",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "33502703-3b29-4820-a3f6-ffc5875f0717",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2024-12-04T00:00:00.000Z",
@@ -2732,7 +2732,7 @@
     },
     {
       "id": "dist_test_both-in-review",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "d250980b-e66f-49ea-a99f-75b384327c1e",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2024-12-05T00:00:00.000Z",
@@ -2740,7 +2740,7 @@
     },
     {
       "id": "dist_test_both-rejected",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "78e47721-76b1-4960-a238-b00d65b9fc34",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2024-12-06T00:00:00.000Z",
@@ -2748,7 +2748,7 @@
     },
     {
       "id": "dist_test_mixed-android-live-ios-review",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "8b02bcbc-870c-453f-b0c7-bb7e1107e799",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2024-12-07T00:00:00.000Z",
@@ -2756,7 +2756,7 @@
     },
     {
       "id": "dist_test_both-live",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "e5820517-0e1a-4c66-8a14-e743411ace30",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2024-12-08T00:00:00.000Z",
@@ -2764,7 +2764,7 @@
     },
     {
       "id": "dist_test_android-only-completed",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "30f3378f-934c-42a0-820f-dc4ae4ba64f8",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2024-12-09T00:00:00.000Z",
@@ -2772,7 +2772,7 @@
     },
     {
       "id": "dist_test_ios-only-rejected",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "1a029896-e50d-4ce8-86a6-dc211cad8166",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2024-12-10T00:00:00.000Z",
@@ -2780,7 +2780,7 @@
     },
     {
       "id": "dist_test_both-paused",
-      "tenantId": "EJ9w28zQmg",
+      "appId": "EJ9w28zQmg",
       "releaseId": "255e8145-ca5d-443f-b336-413a08295ab7",
       "status": "PARTIALLY_RELEASED",
       "createdAt": "2024-12-11T00:00:00.000Z",

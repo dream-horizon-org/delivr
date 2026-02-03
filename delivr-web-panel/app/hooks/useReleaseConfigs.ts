@@ -8,9 +8,9 @@ interface ReleaseConfigsResponse {
   data: ReleaseConfiguration[];
 }
 
-const QUERY_KEY = (tenantId: string) => ['releaseConfigs', tenantId];
+const QUERY_KEY = (appId: string) => ['releaseConfigs', appId];
 
-export function useReleaseConfigs(tenantId?: string) {
+export function useReleaseConfigs(appId?: string) {
   const queryClient = useQueryClient();
 
   // Fetch all configs for tenant
@@ -20,15 +20,15 @@ export function useReleaseConfigs(tenantId?: string) {
     error,
     refetch,
   } = useQuery<ReleaseConfigsResponse, Error>(
-    QUERY_KEY(tenantId || ''),
+    QUERY_KEY(appId || ''),
     async () => {
-      if (!tenantId) {
+      if (!appId) {
         return { success: false, data: [] };
       }
       
       try {
         const result = await apiGet<ReleaseConfiguration[]>(
-          `/api/v1/tenants/${tenantId}/release-config`
+          `/api/v1/apps/${appId}/release-config`
         );
         
         if (result.error) {
@@ -46,7 +46,7 @@ export function useReleaseConfigs(tenantId?: string) {
       }
     },
     {
-      enabled: !!tenantId, // Only fetch if tenantId exists
+      enabled: !!appId, // Only fetch if appId exists
       staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh
       cacheTime: 30 * 60 * 1000, // 30 minutes - cache time
       refetchOnWindowFocus: true, // Refetch when user returns to tab
@@ -57,17 +57,17 @@ export function useReleaseConfigs(tenantId?: string) {
 
   // Invalidate cache (call after create/update/delete)
   const invalidateCache = () => {
-    if (tenantId) {
-      queryClient.invalidateQueries(QUERY_KEY(tenantId));
+    if (appId) {
+      queryClient.invalidateQueries(QUERY_KEY(appId));
     }
   };
 
   // Optimistically update a single config
   const updateConfigInCache = (configId: string, updater: (config: ReleaseConfiguration) => ReleaseConfiguration) => {
-    if (!tenantId) return;
+    if (!appId) return;
     
     queryClient.setQueryData<ReleaseConfigsResponse>(
-      QUERY_KEY(tenantId),
+      QUERY_KEY(appId),
       (old: ReleaseConfigsResponse | undefined): ReleaseConfigsResponse => {
         if (!old) return { success: false, data: [] };
         
@@ -83,10 +83,10 @@ export function useReleaseConfigs(tenantId?: string) {
 
   // Remove a config from cache optimistically
   const removeConfigFromCache = (configId: string) => {
-    if (!tenantId) return;
+    if (!appId) return;
     
     queryClient.setQueryData<ReleaseConfigsResponse>(
-      QUERY_KEY(tenantId),
+      QUERY_KEY(appId),
       (old: ReleaseConfigsResponse | undefined): ReleaseConfigsResponse => {
         if (!old) return { success: false, data: [] };
         
@@ -138,8 +138,8 @@ export function useReleaseConfigs(tenantId?: string) {
 /**
  * Get release configs by type
  */
-export function useReleaseConfigsByType(tenantId: string | undefined, releaseType: string) {
-  const { configs, isLoading, error } = useReleaseConfigs(tenantId);
+export function useReleaseConfigsByType(appId: string | undefined, releaseType: string) {
+  const { configs, isLoading, error } = useReleaseConfigs(appId);
   
   const configsByType = configs.filter((c: ReleaseConfiguration) => c.releaseType === releaseType);
   
@@ -153,8 +153,8 @@ export function useReleaseConfigsByType(tenantId: string | undefined, releaseTyp
 /**
  * Get a single release config by ID
  */
-export function useReleaseConfig(tenantId: string | undefined, configId: string | undefined) {
-  const { configs, isLoading, error } = useReleaseConfigs(tenantId);
+export function useReleaseConfig(appId: string | undefined, configId: string | undefined) {
+  const { configs, isLoading, error } = useReleaseConfigs(appId);
   
   const config = configs.find((c: ReleaseConfiguration) => c.id === configId);
   

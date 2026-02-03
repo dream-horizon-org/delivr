@@ -8,17 +8,17 @@ export const createCICDWorkflowsRoutes = (storage: Storage): Router => {
   const router = Router();
 
   router.post(
-    "/tenants/:tenantId/integrations/ci-cd/:integrationId/job-parameters",
-    validateCICD.validateTenantId,
+    "/apps/:appId/integrations/ci-cd/:integrationId/job-parameters",
+    validateCICD.validateAppId,
     validateCICD.validateIntegrationIdParam,
     validateCICD.validateWorkflowParamFetchBody,
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     getJobParameters
   );
 
   router.post(
-    "/tenants/:tenantId/integrations/ci-cd/:integrationId/trigger",
-    validateCICD.validateTenantId,
+    "/apps/:appId/integrations/ci-cd/:integrationId/trigger",
+    validateCICD.validateAppId,
     validateCICD.validateIntegrationIdParam,
     validateCICD.validateWorkflowTriggerBody,
     tenantPermissions.requireEditor({ storage }),
@@ -26,20 +26,20 @@ export const createCICDWorkflowsRoutes = (storage: Storage): Router => {
   );
 
   router.get(
-    "/tenants/:tenantId/integrations/ci-cd/:integrationId/queue-status",
-    validateCICD.validateTenantId,
+    "/apps/:appId/integrations/ci-cd/:integrationId/queue-status",
+    validateCICD.validateAppId,
     validateCICD.validateIntegrationIdParam,
     validateCICD.validateJenkinsQueueQuery,
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     getQueueStatus
   );
 
   router.get(
-    "/tenants/:tenantId/integrations/ci-cd/:integrationId/run-status",
-    validateCICD.validateTenantId,
+    "/apps/:appId/integrations/ci-cd/:integrationId/run-status",
+    validateCICD.validateAppId,
     validateCICD.validateIntegrationIdParam,
     validateCICD.validateWorkflowRunStatusQuery,
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     getRunStatus
   );
 

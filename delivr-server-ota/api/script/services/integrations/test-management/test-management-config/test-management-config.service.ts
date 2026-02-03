@@ -28,11 +28,11 @@ export class TestManagementConfigService {
   } {
     const errors: Array<{ field: string; message: string }> = [];
 
-    // 1. Validate tenantId - not blank or null
-    if (!data.tenantId || data.tenantId.trim() === '') {
+    // 1. Validate appId - not blank or null
+    if (!data.appId || data.appId.trim() === '') {
       errors.push({
-        field: 'tenantId',
-        message: 'Tenant ID is required and cannot be blank'
+        field: 'appId',
+        message: 'app id is required and cannot be blank'
       });
     }
 
@@ -87,7 +87,7 @@ export class TestManagementConfigService {
       throw new Error(`Test management integration not found: ${data.integrationId}`);
     }
 
-    const tenantMatches = integration.tenantId === data.tenantId;
+    const tenantMatches = integration.appId === data.appId;
 
     if (!tenantMatches) {
       throw new Error('Integration does not belong to the specified tenant');
@@ -104,11 +104,12 @@ export class TestManagementConfigService {
   }
 
   /**
-   * List configs by tenant ID
+   * List configs by app id
    */
-  async listConfigsByTenant(tenantId: string): Promise<TestManagementConfig[]> {
-    return this.configRepo.findByTenantId(tenantId);
+  async listConfigsByApp(appId: string): Promise<TestManagementConfig[]> {
+    return this.configRepo.findByAppId(appId);
   }
+
 
   /**
    * Update config

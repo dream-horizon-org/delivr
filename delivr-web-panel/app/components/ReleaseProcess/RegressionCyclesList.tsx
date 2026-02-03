@@ -34,7 +34,7 @@ interface RegressionCyclesListProps {
   tasks: Task[]; // All regression tasks (will be grouped by releaseCycleId)
   uploadedBuilds: BuildInfo[];  // Builds uploaded for upcoming slot (not yet consumed)
   upcomingSlot: RegressionSlot[] | null;
-  tenantId: string;
+  appId: string;
   releaseId: string;
   onRetryTask?: (taskId: string) => void;
   className?: string;
@@ -47,13 +47,13 @@ export function RegressionCyclesList({
   tasks,
   uploadedBuilds,
   upcomingSlot,
-  tenantId,
+  appId,
   releaseId,
   onRetryTask,
   className,
   isArchived = false,
 }: RegressionCyclesListProps) {
-  const { release } = useRelease(tenantId, releaseId);
+  const { release } = useRelease(appId, releaseId);
   const isManualMode = release?.hasManualBuildUpload === true;
 
   // Group tasks by cycle ID
@@ -213,7 +213,7 @@ export function RegressionCyclesList({
           <RegressionCycleCard
             cycle={actualCurrentCycle}
             tasks={tasksByCycle[actualCurrentCycle.id] || []}
-            tenantId={tenantId}
+            appId={appId}
             releaseId={releaseId}
             onRetryTask={onRetryTask}
             uploadedBuilds={uploadedBuilds}
@@ -240,7 +240,7 @@ export function RegressionCyclesList({
 
           {requiredPlatforms.length > 0 ? (
             <ManualBuildUploadWidget
-              tenantId={tenantId}
+              appId={appId}
               releaseId={releaseId}
               stage={BuildUploadStage.REGRESSION}
               taskType={TaskType.TRIGGER_REGRESSION_BUILDS}
@@ -330,7 +330,7 @@ export function RegressionCyclesList({
                   key={cycle.id}
                   cycle={cycle}
                   tasks={tasksByCycle[cycle.id] || []}
-                  tenantId={tenantId}
+                  appId={appId}
                   releaseId={releaseId}
                   onRetryTask={onRetryTask}
                   uploadedBuilds={uploadedBuilds}

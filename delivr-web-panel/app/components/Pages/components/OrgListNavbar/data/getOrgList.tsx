@@ -1,49 +1,76 @@
 import { apiGet } from "~/utils/api-client";
 import { extractApiErrorMessage } from "~/utils/api-error-utils";
-import { route } from "routes-gen";
 import { TenantsResponse } from "~/.server/services/Codepush/types";
-import { TenantRole } from "~/constants/permissions";
+import { AppLevelRole } from "~/constants/permissions";
 
-export type Organization = {
+/**
+ * App entity (renamed from Organization/Tenant)
+ * Represents a user's app with their role/permission
+ */
+export type App = {
   id: string;
-  orgName: string;
+  name: string;
+  displayName: string;
   isAdmin: boolean;
-  role: TenantRole;
+  role: AppLevelRole;
 };
 
-export const getOrgList = async (): Promise<Organization[]> => {
-  // Use apiGet for relative requests to Remix routes (not direct backend calls)
-  const result = await apiGet<TenantsResponse>(
-    route("/api/v1/tenants")
+/**
+ * Organization type (legacy - kept for backward compatibility)
+ * Maps to App entity
+ * @deprecated Use App type instead
+ */
+export type Organization = App;
+
+/**
+ * Get list of apps (renamed from getOrgList)
+ * Fetches apps where the user is a collaborator
+ * 
+ * Note: Backend returns both `apps` and `organisations` for backward compatibility
+ */
+export const getAppList = async (): Promise<App[]> => {
+  // Use string literal instead of route() since route generator doesn't have /api/v1/apps yet
+  const result = await apiGet<{ apps?: TenantsResponse['organisations']; organisations?: TenantsResponse['organisations'] }>(
+    "/api/v1/apps"
   );
   
   if (!result.success || !result.data) {
-    const errorMessage = extractApiErrorMessage(result.error, 'Failed to fetch organizations');
+    const errorMessage = extractApiErrorMessage(result.error, 'Failed to fetch apps');
     throw new Error(errorMessage);
   }
   
-  return result.data.organisations.map((item) => {
-    // Backend returns "Owner" | "Editor" | "Viewer" (despite type saying "Collaborator")
-    // Map "Collaborator" to Viewer for backward compatibility if needed
-    let role: TenantRole;
+  // Backend returns both apps and organisations for backward compatibility
+  const apps = result.data.apps || result.data.organisations || [];
+  return apps.map((item) => {
+    // Backend returns "Owner" | "Editor" | "Viewer"
+    let role: AppLevelRole;
     if (item.role === 'Collaborator') {
-      role = TenantRole.VIEWER;
-    } else if (item.role === TenantRole.OWNER || item.role === 'Owner') {
-      role = TenantRole.OWNER;
-    } else if (item.role === TenantRole.EDITOR || item.role === 'Editor') {
-      role = TenantRole.EDITOR;
-    } else if (item.role === TenantRole.VIEWER || item.role === 'Viewer') {
-      role = TenantRole.VIEWER;
+      role = AppLevelRole.VIEWER;
+    } else if (item.role === AppLevelRole.OWNER || item.role === 'Owner') {
+      role = AppLevelRole.OWNER;
+    } else if (item.role === AppLevelRole.EDITOR || item.role === 'Editor') {
+      role = AppLevelRole.EDITOR;
+    } else if (item.role === AppLevelRole.VIEWER || item.role === 'Viewer') {
+      role = AppLevelRole.VIEWER;
     } else {
       // Fallback to Viewer if unknown role
-      role = TenantRole.VIEWER;
+      role = AppLevelRole.VIEWER;
     }
     
     return {
       id: item.id,
-      orgName: item.displayName,
-      isAdmin: role === TenantRole.OWNER,
-      role, // Backend sends Owner/Editor/Viewer from collaborators.permission
+      name: item.displayName, // Use displayName as name
+      displayName: item.displayName,
+      isAdmin: role === AppLevelRole.OWNER,
+      role,
     };
   });
+};
+
+/**
+ * Get list of organizations (legacy function - delegates to getAppList)
+ * @deprecated Use getAppList instead
+ */
+export const getOrgList = async (): Promise<Organization[]> => {
+  return getAppList();
 };

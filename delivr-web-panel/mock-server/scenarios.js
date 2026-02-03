@@ -163,7 +163,7 @@ const scenarios = {
       const distId = `dist_${String(i + 1).padStart(3, '0')}`;
       db.distributions.push({
         id: distId,
-        tenantId: 'EkgmIbgGQx',
+        appId: 'EkgmIbgGQx',
         releaseId: release.id,
         status: distStatuses[i % distStatuses.length],
         createdAt: new Date(Date.now() - (20 - i) * 86400000).toISOString(),
@@ -468,7 +468,7 @@ const scenarios = {
       // ✅ Add distribution entry
       db.distributions.push({
         id: distId,
-        tenantId: 'EkgmIbgGQx',
+        appId: 'EkgmIbgGQx',
         releaseId: release.id,
         status: distStatuses[index],
         createdAt: new Date(Date.now() - (index + 1) * 86400000).toISOString(),

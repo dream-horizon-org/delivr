@@ -62,7 +62,7 @@ const sanitizeSCMResponse = (integration: any): SafeSCMIntegration => {
 
 /**
  * Verify GitHub Connection
- * POST /tenants/:tenantId/integrations/scm/github/verify
+ * POST /apps/:appId/integrations/scm/github/verify
  */
 export async function verifyGitHubConnection(
   req: Request, 
@@ -104,13 +104,13 @@ export async function verifyGitHubConnection(
 
 /**
  * Create GitHub Integration
- * POST /tenants/:tenantId/integrations/scm/github
+ * POST /apps/:appId/integrations/scm/github
  */
 export async function createGitHubConnection(
   req: Request, 
   res: Response
 ): Promise<any> {
-  const tenantId: string = req.params.tenantId;
+  const appId: string = req.params.appId;
   const accountId: string = req.user.id;
   const { 
     displayName,
@@ -148,7 +148,7 @@ export async function createGitHubConnection(
   
   try {
     const scmController = getSCMController();
-    const existing = await scmController.findActiveByTenant(tenantId);
+    const existing = await scmController.findActiveByApp(appId);
     
     // Double-layer encryption: Decrypt frontend-encrypted values, then encrypt with backend storage key
     const { decrypted: decryptedData } = decryptFields(
@@ -184,7 +184,7 @@ export async function createGitHubConnection(
       });
     } else {
       const createData: CreateSCMIntegrationDto = {
-        tenantId,
+        appId,
         scmType: 'GITHUB' as SCMType,
         displayName: displayName || `${owner}/${repo}`,
         owner,
@@ -219,17 +219,17 @@ export async function createGitHubConnection(
 
 /**
  * Get GitHub Integration
- * GET /tenants/:tenantId/integrations/scm/github
+ * GET /apps/:appId/integrations/scm/github
  */
 export async function getGitHubConnection(
   req: Request, 
   res: Response
 ): Promise<any> {
-  const tenantId: string = req.params.tenantId;
+  const appId: string = req.params.appId;
 
   try {
     const scmController = getSCMController();
-    const integration = await scmController.findActiveByTenant(tenantId);
+    const integration = await scmController.findActiveByApp(appId);
 
     if (!integration || integration.scmType !== 'GITHUB') {
       return res.status(404).json({
@@ -253,18 +253,18 @@ export async function getGitHubConnection(
 
 /**
  * Update GitHub Integration
- * PATCH /tenants/:tenantId/integrations/scm/github
+ * PATCH /apps/:appId/integrations/scm/github
  */
 export async function updateGitHubConnection(
   req: Request, 
   res: Response
 ): Promise<any> {
-  const tenantId: string = req.params.tenantId;
+  const appId: string = req.params.appId;
   const { _encrypted, ...updateData } = req.body;
 
   try {
     const scmController = getSCMController();
-    const existing = await scmController.findActiveByTenant(tenantId);
+    const existing = await scmController.findActiveByApp(appId);
 
     if (!existing || existing.scmType !== 'GITHUB') {
       return res.status(404).json({
@@ -327,17 +327,17 @@ export async function updateGitHubConnection(
 
 /**
  * Delete GitHub Integration
- * DELETE /tenants/:tenantId/integrations/scm/github
+ * DELETE /apps/:appId/integrations/scm/github
  */
 export async function deleteGitHubConnection(
   req: Request, 
   res: Response
 ): Promise<any> {
-  const tenantId: string = req.params.tenantId;
+  const appId: string = req.params.appId;
 
   try {
     const scmController = getSCMController();
-    const existing = await scmController.findActiveByTenant(tenantId);
+    const existing = await scmController.findActiveByApp(appId);
 
     if (!existing || existing.scmType !== 'GITHUB') {
       return res.status(404).json({
@@ -363,17 +363,17 @@ export async function deleteGitHubConnection(
 
 /**
  * Fetch Branches from GitHub Repository
- * GET /tenants/:tenantId/integrations/scm/github/branches
+ * GET /apps/:appId/integrations/scm/github/branches
  */
 export async function fetchGitHubBranches(
   req: Request,
   res: Response
 ): Promise<any> {
-  const tenantId: string = req.params.tenantId;
+  const appId: string = req.params.appId;
 
   try {
     const scmController = getSCMController();
-    const integration = await scmController.findActiveByTenantWithTokens(tenantId);
+    const integration = await scmController.findActiveByAppWithTokens(appId);
 
     if (!integration || integration.scmType !== 'GITHUB') {
       return res.status(404).json({
@@ -389,7 +389,7 @@ export async function fetchGitHubBranches(
       });
     }
     
-    // Token is already decrypted by findActiveByTenantWithTokens (decryptFromStorage)
+    // Token is already decrypted by findActiveByAppWithTokens (decryptFromStorage)
     // No need to decrypt again
     const branches = await fetchBranchesFromGitHub(
       integration.owner,

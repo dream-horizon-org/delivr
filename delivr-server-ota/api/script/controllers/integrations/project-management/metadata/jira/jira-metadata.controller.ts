@@ -21,12 +21,12 @@ export const createJiraMetadataController = (metadataService: JiraMetadataServic
 
 /**
  * Get all Jira projects
- * GET /tenants/:tenantId/integrations/project-management/:integrationId/jira/metadata/projects
+ * GET /apps/:appId/integrations/project-management/:integrationId/jira/metadata/projects
  */
 const getProjectsHandler = (metadataService: JiraMetadataService) => async (req: Request, res: Response): Promise<void> => {
   try {
     const integrationId = req.params.integrationId;
-    const tenantId = req.params.tenantId;
+    const appId = req.params.appId;
 
     if (!integrationId) {
       res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -35,14 +35,14 @@ const getProjectsHandler = (metadataService: JiraMetadataService) => async (req:
       return;
     }
 
-    if (!tenantId) {
+    if (!appId) {
       res.status(HTTP_STATUS.BAD_REQUEST).json(
-        errorResponse('tenantId is required')
+        errorResponse('appId is required')
       );
       return;
     }
 
-    const projects = await metadataService.getProjects(integrationId, tenantId);
+    const projects = await metadataService.getProjects(integrationId, appId);
     
     res.status(HTTP_STATUS.OK).json(
       successResponse(projects)

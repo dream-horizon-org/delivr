@@ -13,7 +13,7 @@ export interface BackendReleaseResponse {
   id: string;
   releaseId: string;
   releaseConfigId: string | null;
-  tenantId: string;
+  appId: string;
   type: 'MAJOR' | 'MINOR' | 'HOTFIX';
   status: ReleaseStatus;
   releasePhase?: Phase;

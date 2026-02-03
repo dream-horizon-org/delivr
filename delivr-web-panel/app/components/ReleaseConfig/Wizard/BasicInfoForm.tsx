@@ -36,7 +36,7 @@ import { SCM_API_ENDPOINTS } from '~/constants/integrations';
 import { BASIC_INFO_LABELS } from '~/constants/release-config-ui';
 import { NoIntegrationAlert } from '~/components/Common/NoIntegrationAlert';
 
-export function BasicInfoForm({ config, onChange, tenantId, showValidation = false, hasScmIntegration = false }: BasicInfoFormProps) {
+export function BasicInfoForm({ config, onChange, appId, showValidation = false, hasScmIntegration = false }: BasicInfoFormProps) {
   const theme = useMantineTheme();
   const [branches, setBranches] = useState<Array<{ value: string; label: string }>>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
@@ -64,12 +64,12 @@ export function BasicInfoForm({ config, onChange, tenantId, showValidation = fal
   // Fetch branches from SCM integration (only if integration exists)
   useEffect(() => {
     const fetchBranches = async () => {
-      if (!tenantId || !hasScmIntegration) return;
+      if (!appId || !hasScmIntegration) return;
       
       setLoadingBranches(true);
       try {
         const branchesResult = await apiGet<{ branches: any[]; defaultBranch?: string }>(
-          SCM_API_ENDPOINTS.BRANCHES(tenantId)
+          SCM_API_ENDPOINTS.BRANCHES(appId)
         );
         
         if (branchesResult.success && branchesResult.data?.branches) {
@@ -104,7 +104,7 @@ export function BasicInfoForm({ config, onChange, tenantId, showValidation = fal
 
     fetchBranches();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId, hasScmIntegration]);
+  }, [appId, hasScmIntegration]);
 
   // Show SCM integration alert if no integration exists
   if (!hasScmIntegration) {
@@ -135,7 +135,7 @@ export function BasicInfoForm({ config, onChange, tenantId, showValidation = fal
 
         <NoIntegrationAlert
           category={IntegrationCategory.SOURCE_CONTROL}
-          tenantId={tenantId}
+          appId={appId}
           color="yellow"
         />
       </Stack>

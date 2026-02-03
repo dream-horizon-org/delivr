@@ -71,7 +71,7 @@ export class ReleaseManagementController {
    */
   createRelease = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const tenantId = req.params.tenantId;
+      const appId = req.params.appId;
       if (!req.user?.id) {
         return res.status(HTTP_STATUS.UNAUTHORIZED).json({ success: false, error: 'Unauthorized' });
       }
@@ -94,7 +94,7 @@ export class ReleaseManagementController {
 
       // STEP 3-8: Delegate to service
       const payload: CreateReleasePayload = {
-        tenantId,
+        appId,
         accountId,
         platformTargets: body.platformTargets.map(pt => ({
           platform: pt.platform,
@@ -152,10 +152,10 @@ export class ReleaseManagementController {
    */
   listReleases = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const tenantId = req.params.tenantId;
+      const appId = req.params.appId;
       const includeTasks = req.query.includeTasks === 'true';
       
-      const releases = await this.retrievalService.getAllReleases(tenantId, includeTasks);
+      const releases = await this.retrievalService.getAllReleases(appId, includeTasks);
       
       const responseBody: ReleaseListResponseBody = {
         success: true,
@@ -274,12 +274,12 @@ export class ReleaseManagementController {
    */
   getTasks = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const tenantId = req.params.tenantId;
+      const appId = req.params.appId;
       const releaseId = req.params.releaseId;
       const stage = req.query.stage as string | undefined;
 
       // Delegate to service
-      const result = await this.retrievalService.getTasksForRelease(releaseId, tenantId, stage);
+      const result = await this.retrievalService.getTasksForRelease(releaseId, appId, stage);
 
       if (result.success === false) {
         return res.status(result.statusCode).json({
@@ -306,12 +306,12 @@ export class ReleaseManagementController {
    */
   getTaskById = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const tenantId = req.params.tenantId;
+      const appId = req.params.appId;
       const releaseId = req.params.releaseId;
       const taskId = req.params.taskId;
 
       // Delegate to service
-      const result = await this.retrievalService.getTaskById(taskId, releaseId, tenantId);
+      const result = await this.retrievalService.getTaskById(taskId, releaseId, appId);
 
       if (result.success === false) {
         return res.status(result.statusCode).json({
@@ -337,11 +337,11 @@ export class ReleaseManagementController {
 
   /**
    * Trigger Stage 2 (Regression Testing)
-   * POST /tenants/:tenantId/releases/:releaseId/trigger-regression-testing
+   * POST /apps/:appId/releases/:releaseId/trigger-regression-testing
    */
   triggerRegressionTesting = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const tenantId = req.params.tenantId;
+      const appId = req.params.appId;
       const releaseId = req.params.releaseId;
 
       // Input validation (first-level)
@@ -353,7 +353,7 @@ export class ReleaseManagementController {
       }
 
       // Delegate to service
-      const result = await this.cronJobService.triggerStage2(releaseId, tenantId);
+      const result = await this.cronJobService.triggerStage2(releaseId, appId);
 
       if (result.success === false) {
         return res.status(result.statusCode).json({
@@ -380,11 +380,11 @@ export class ReleaseManagementController {
 
   /**
    * Trigger Stage 3 (Pre-Release) / Approve Regression Stage
-   * POST /tenants/:tenantId/releases/:releaseId/trigger-pre-release
+   * POST /apps/:appId/releases/:releaseId/trigger-pre-release
    */
   triggerPreRelease = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const tenantId = req.params.tenantId;
+      const appId = req.params.appId;
       const releaseId = req.params.releaseId;
       
       // Extract request body parameters
@@ -417,7 +417,7 @@ export class ReleaseManagementController {
       // Delegate to service
       const result = await this.cronJobService.triggerStage3(
         releaseId, 
-        tenantId, 
+        appId, 
         approvedBy,
         comments,
         forceApprove
@@ -451,11 +451,11 @@ export class ReleaseManagementController {
 
   /**
    * Trigger Stage 4 (Distribution) / Approve Pre-Release Stage
-   * POST /tenants/:tenantId/releases/:releaseId/trigger-distribution
+   * POST /apps/:appId/releases/:releaseId/trigger-distribution
    */
   triggerDistribution = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const tenantId = req.params.tenantId;
+      const appId = req.params.appId;
       const releaseId = req.params.releaseId;
       
       // Extract request body parameters
@@ -480,7 +480,7 @@ export class ReleaseManagementController {
       // Delegate to service
       const result = await this.cronJobService.triggerStage4(
         releaseId, 
-        tenantId, 
+        appId, 
         approvedBy,
         comments,
         forceApprove
@@ -514,7 +514,7 @@ export class ReleaseManagementController {
 
   /**
    * Archive (cancel) a release
-   * PUT /tenants/:tenantId/releases/:releaseId/archive
+   * PUT /apps/:appId/releases/:releaseId/archive
    */
   archiveRelease = async (req: Request, res: Response): Promise<Response> => {
     try {
@@ -599,14 +599,14 @@ export class ReleaseManagementController {
 
   /**
    * Check cherry pick status
-   * GET /tenants/:tenantId/releases/:releaseId/check-cherry-pick-status
+   * GET /apps/:appId/releases/:releaseId/check-cherry-pick-status
    */
   checkCherryPickStatus = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const { tenantId, releaseId } = req.params;
+      const { appId, releaseId } = req.params;
 
       // Delegate to service
-      const result = await this.statusService.getCherryPickStatus(releaseId, tenantId);
+      const result = await this.statusService.getCherryPickStatus(releaseId, appId);
 
       return res.status(HTTP_STATUS.OK).json({
         success: true,
@@ -700,7 +700,7 @@ export class ReleaseManagementController {
   /**
    * Retry a failed task
    * 
-   * POST /tenants/:tenantId/releases/:releaseId/tasks/:taskId/retry
+   * POST /apps/:appId/releases/:releaseId/tasks/:taskId/retry
    * 
    * Resets the task status to PENDING so the cron job can pick it up
    * and re-execute it. For build tasks, also resets failed build entries.
@@ -953,7 +953,7 @@ export class ReleaseManagementController {
    */
   pauseRelease = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const { tenantId, releaseId } = req.params;
+      const { appId, releaseId } = req.params;
 
       // Extract accountId from authenticated user
       if (!req.user?.id) {
@@ -969,7 +969,7 @@ export class ReleaseManagementController {
       }
 
       // Delegate to CronJobService
-      const result = await this.cronJobService.pauseRelease(releaseId, tenantId, accountId);
+      const result = await this.cronJobService.pauseRelease(releaseId, appId, accountId);
 
       if (result.success === false) {
         const statusCode = result.statusCode ?? HTTP_STATUS.BAD_REQUEST;
@@ -1005,7 +1005,7 @@ export class ReleaseManagementController {
    */
   resumeRelease = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const { tenantId, releaseId } = req.params;
+      const { appId, releaseId } = req.params;
 
       // Extract accountId from authenticated user
       if (!req.user?.id) {
@@ -1021,7 +1021,7 @@ export class ReleaseManagementController {
       }
 
       // Delegate to CronJobService
-      const result = await this.cronJobService.resumeRelease(releaseId, tenantId, accountId);
+      const result = await this.cronJobService.resumeRelease(releaseId, appId, accountId);
 
       if (result.success === false) {
         const statusCode = result.statusCode ?? HTTP_STATUS.BAD_REQUEST;

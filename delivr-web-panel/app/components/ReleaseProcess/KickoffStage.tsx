@@ -15,22 +15,22 @@ import { StageErrorBoundary } from './shared/StageErrorBoundary';
 import { TasksList } from './shared/TasksList';
 
 interface KickoffStageProps {
-  tenantId: string;
+  appId: string;
   releaseId: string;
   className?: string;
 }
 
-export function KickoffStage({ tenantId, releaseId, className }: KickoffStageProps) {
+export function KickoffStage({ appId, releaseId, className }: KickoffStageProps) {
   // Validate required props
-  validateStageProps({ tenantId, releaseId }, 'KickoffStage');
+  validateStageProps({ appId, releaseId }, 'KickoffStage');
 
-  const { data, isLoading, error, refetch, dataUpdatedAt } = useKickoffStage(tenantId, releaseId);
-  const { release } = useRelease(tenantId, releaseId);
+  const { data, isLoading, error, refetch, dataUpdatedAt } = useKickoffStage(appId, releaseId);
+  const { release } = useRelease(appId, releaseId);
   const isArchived = release?.status === ReleaseStatus.ARCHIVED;
 
   // Use shared task handlers
   const { handleRetry } = useTaskHandlers({
-    tenantId,
+    appId,
     releaseId,
     refetch,
   });
@@ -67,7 +67,7 @@ export function KickoffStage({ tenantId, releaseId, className }: KickoffStagePro
         {!isFetchingTasks && (
           <TasksList
             tasks={tasks}
-            tenantId={tenantId}
+            appId={appId}
             releaseId={releaseId}
             onRetry={handleRetry}
             emptyMessage={KICKOFF_LABELS.NO_TASKS}

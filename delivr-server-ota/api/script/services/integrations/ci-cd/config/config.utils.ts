@@ -47,7 +47,7 @@ export const dedupeIds = (ids: string[]): string[] => {
 
 export const validateAndNormalizeWorkflowsForConfig = (
   inputWorkflows: unknown[],
-  tenantId: string,
+  appId: string,
   createdByAccountId: string
 ): CreateWorkflowDto[] => {
   const hasNoWorkflows = !Array.isArray(inputWorkflows) || inputWorkflows.length === 0;
@@ -71,7 +71,7 @@ export const validateAndNormalizeWorkflowsForConfig = (
     const workflowType = (wf as any).workflowType;
     const providerIdentifiers = (wf as any).providerIdentifiers;
     const parameters = (wf as any).parameters;
-    const wfTenantId = (wf as any).tenantId;
+    const wfTenantId = (wf as any).appId;
 
     const integrationIdInvalid = !isNonEmptyString(integrationId);
     const displayNameInvalid = !isNonEmptyString(displayName);
@@ -98,14 +98,14 @@ export const validateAndNormalizeWorkflowsForConfig = (
     }
 
     const tenantIdProvided = wfTenantId !== undefined && wfTenantId !== null;
-    const tenantIdMismatch = tenantIdProvided && wfTenantId !== tenantId;
+    const tenantIdMismatch = tenantIdProvided && wfTenantId !== appId;
     if (tenantIdMismatch) {
       throw new Error(CICD_CONFIG_ERROR_MESSAGES.TENANT_MISMATCH);
     }
 
     const normalizedItem: CreateWorkflowDto = {
       id: shortid.generate(),
-      tenantId,
+      appId,
       providerType: providerType as CICDProviderType,
       integrationId: (integrationId as string).trim(),
       displayName: (displayName as string).trim(),

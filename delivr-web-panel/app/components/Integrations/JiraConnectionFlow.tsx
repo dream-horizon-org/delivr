@@ -44,7 +44,7 @@ interface JiraConnectionFormData {
 export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, existingData }: JiraConnectionFlowProps) {
   const theme = useMantineTheme();
   const params = useParams();
-  const tenantId = params.org;
+  const appId = params.org;
   const isInFlowRef = useRef(false);
 
   // State to store fetched integration data
@@ -52,7 +52,7 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
 
   const { formData, setFormData, isDraftRestored, markSaveSuccessful } = useDraftStorage<JiraConnectionFormData>(
     {
-      storageKey: generateStorageKey('jira-pm', tenantId || ''),
+      storageKey: generateStorageKey('jira-pm', appId || ''),
       sensitiveFields: ['apiToken'],
       shouldSaveDraft: (data) => !isInFlowRef.current && !isEditMode && !!(data.hostUrl || data.email || data.displayName),
     },
@@ -87,7 +87,7 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
       const fetchIntegrationDetails = async () => {
         try {
           const result = await apiGet<{ success: boolean; integration?: any }>(
-            `/api/v1/tenants/${tenantId}/integrations/project-management?providerType=JIRA`
+            `/api/v1/apps/${appId}/integrations/project-management?providerType=JIRA`
           );
           if (result.success && result.data?.integration) {
             setFetchedIntegrationData(result.data.integration);
@@ -98,7 +98,7 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
       };
       fetchIntegrationDetails();
     }
-  }, [isEditMode, existingData?.id, tenantId, fetchedIntegrationData]);
+  }, [isEditMode, existingData?.id, appId, fetchedIntegrationData]);
 
   // Check encryption configuration on mount
   useEffect(() => {
@@ -167,7 +167,7 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         _encrypted: true, // Flag to indicate encryption
       });
       const result = await apiPost<{ verified: boolean }>(
-        `/api/v1/tenants/${tenantId}/integrations/project-management/verify?providerType=JIRA`,
+        `/api/v1/apps/${appId}/integrations/project-management/verify?providerType=JIRA`,
         verifyPayload
       );
 
@@ -211,8 +211,8 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
 
       // For updates, include integrationId as query parameter
       const endpoint = isEditMode && existingData?.id
-        ? `/api/v1/tenants/${tenantId}/integrations/project-management?providerType=JIRA&integrationId=${existingData.id}`
-        : `/api/v1/tenants/${tenantId}/integrations/project-management?providerType=JIRA`;
+        ? `/api/v1/apps/${appId}/integrations/project-management?providerType=JIRA&integrationId=${existingData.id}`
+        : `/api/v1/apps/${appId}/integrations/project-management?providerType=JIRA`;
       
       const result = isEditMode && existingData?.id
         ? await apiPatch(endpoint, payload)

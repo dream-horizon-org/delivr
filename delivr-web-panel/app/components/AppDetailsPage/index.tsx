@@ -23,7 +23,7 @@ import { CollabaratorList } from "~/components/Pages/components/CollaboratorList
 import { DeploymentList } from "~/components/Pages/DeploymentList";
 import { ReleaseModal } from "~/components/ReleaseModal";
 import { CreateDeploymentForm } from "~/components/Pages/components/CreateDeploymentForm";
-import { useGetOrgList } from "~/components/Pages/components/OrgListNavbar/hooks/useGetOrgList";
+import { useGetAppList } from "~/components/Pages/components/OrgListNavbar/hooks/useGetAppList";
 import classes from "./index.module.css";
 
 export function AppDetailsPage() {
@@ -34,8 +34,8 @@ export function AppDetailsPage() {
   const [releaseModalOpen, setReleaseModalOpen] = useState(false);
   const [createDeploymentOpen, setCreateDeploymentOpen] = useState(false);
   
-  const { data: orgs } = useGetOrgList();
-  const currentOrg = orgs?.find((org) => org.id === orgId);
+  const { data: apps } = useGetAppList();
+  const currentApp = apps?.find((app) => app.id === orgId); // orgId is actually appId
 
   const handleBack = () => {
     navigate(route("/dashboard/:org/ota/apps", { org: orgId }));
@@ -61,7 +61,7 @@ export function AppDetailsPage() {
             
             <Group gap="xs" align="center">
               <Title order={3} className={classes.breadcrumbText}>
-                {currentOrg?.orgName || orgId}
+                {currentApp?.displayName || orgId}
               </Title>
               <Title order={3} c="dimmed" fw={400}>
                 /

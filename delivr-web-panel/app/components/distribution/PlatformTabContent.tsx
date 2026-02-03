@@ -7,7 +7,7 @@ import { Button, Card, Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import type { useFetcher } from '@remix-run/react';
 import { IconBrandAndroid, IconBrandApple, IconRocket } from '@tabler/icons-react';
 import { useCallback } from 'react';
-import { RejectedSubmissionView, RolloutControls } from '~/components/Distribution';
+import { RejectedSubmissionView, RolloutControls } from '~/components/distribution';
 import { DS_COLORS, DS_SPACING, DS_TYPOGRAPHY } from '~/constants/distribution/distribution-design.constants';
 import { PLATFORM_LABELS } from '~/constants/distribution/distribution.constants';
 import type { Submission } from '~/types/distribution/distribution.types';

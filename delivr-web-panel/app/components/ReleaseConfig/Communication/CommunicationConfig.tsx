@@ -16,11 +16,11 @@ export function CommunicationConfig({
   config,
   onChange,
   availableIntegrations,
-  tenantId,
+  appId,
 }: CommunicationConfigProps) {
   const theme = useMantineTheme();
   const params = useParams();
-  const orgId = params.org || tenantId || '';
+  const orgId = params.org || appId || '';
 
   // Check if any communication integrations are connected
   const hasSlack = availableIntegrations.slack.length > 0;
@@ -57,7 +57,7 @@ export function CommunicationConfig({
         {/* No Integration Warning */}
         <NoIntegrationAlert
           category={IntegrationCategory.COMMUNICATION}
-          tenantId={orgId}
+          appId={orgId}
           color="yellow"
         />
       </Stack>
@@ -96,7 +96,7 @@ export function CommunicationConfig({
           config={config}
           onChange={onChange}
           availableIntegrations={availableIntegrations.slack}
-          tenantId={tenantId}
+          appId={appId}
         />
       )}
     </Stack>

@@ -36,8 +36,8 @@ import { useCallback, useState } from 'react';
 import type { User } from '~/.server/services/Auth/auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import { Breadcrumb } from '~/components/Common';
-import { CancelSubmissionDialog } from '~/components/Distribution/CancelSubmissionDialog';
-import { ResubmissionDialog } from '~/components/Distribution/ReSubmissionDialog';
+import { CancelSubmissionDialog } from '~/components/distribution/CancelSubmissionDialog';
+import { ResubmissionDialog } from '~/components/distribution/ReSubmissionDialog';
 import { getBreadcrumbItems } from '~/constants/breadcrumbs';
 import { SUBMISSION_STATUS_LABELS } from '~/constants/distribution/distribution.constants';
 import {
@@ -428,7 +428,7 @@ export default function SubmissionDetailPage() {
       <ResubmissionDialog
         opened={retryDialogOpened}
         onClose={closeRetryDialog}
-        tenantId={org}
+        appId={org}
         releaseId={releaseId}
         distributionId={submission.distributionId}
         previousSubmission={submission}
@@ -438,7 +438,7 @@ export default function SubmissionDetailPage() {
       <CancelSubmissionDialog
         opened={cancelDialogOpened}
         onClose={closeCancelDialog}
-        tenantId={org}
+        appId={org}
         submissionId={submission.id}
         platform={submission.platform === Platform.ANDROID ? 'Android' : 'iOS'}
         version={submission.version}

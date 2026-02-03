@@ -32,26 +32,26 @@ import { StageApprovalSection, type ApprovalRequirement } from './shared/StageAp
 import { ApprovalConfirmationModal } from './shared/ApprovalConfirmationModal';
 
 interface RegressionStageProps {
-  tenantId: string;
+  appId: string;
   releaseId: string;
   className?: string;
 }
 
-export function RegressionStage({ tenantId, releaseId, className }: RegressionStageProps) {
+export function RegressionStage({ appId, releaseId, className }: RegressionStageProps) {
   // Validate required props
-  validateStageProps({ tenantId, releaseId }, 'RegressionStage');
+  validateStageProps({ appId, releaseId }, 'RegressionStage');
 
   // Enable polling to keep data fresh, especially for upcomingRegressions which can change
   // when slots are executed and removed on the backend
-  const { data, isLoading, error, refetch } = useRegressionStage(tenantId, releaseId, true);
+  const { data, isLoading, error, refetch } = useRegressionStage(appId, releaseId, true);
   
   // Get release data to access releaseConfigId
-  const { release } = useRelease(tenantId, releaseId);
+  const { release } = useRelease(appId, releaseId);
 
   // Get user data and check permissions
   const orgLayoutData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
   const userId = orgLayoutData?.user?.user?.id || '';
-  const { canPerformReleaseAction } = usePermissions(tenantId, userId);
+  const { canPerformReleaseAction } = usePermissions(appId, userId);
   const canPerform = canPerformReleaseAction(release?.releasePilotAccountId || null);
   
   // Get cached release configs from ConfigContext
@@ -68,12 +68,12 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
     releaseConfig.testManagementConfig
   );
   
-  const approveMutation = useApproveRegression(tenantId, releaseId);
+  const approveMutation = useApproveRegression(appId, releaseId);
   const [approvalModalOpened, setApprovalModalOpened] = useState(false);
 
   // Use shared task handlers
   const { handleRetry } = useTaskHandlers({
-    tenantId,
+    appId,
     releaseId,
     refetch,
   });
@@ -220,7 +220,7 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
             tasks={tasks}
             uploadedBuilds={uploadedBuilds}
             upcomingSlot={upcomingSlot ?? null}
-            tenantId={tenantId}
+            appId={appId}
             releaseId={releaseId}
             onRetryTask={handleRetry}
             isArchived={isArchived}

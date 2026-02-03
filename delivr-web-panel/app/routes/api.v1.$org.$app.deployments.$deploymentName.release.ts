@@ -31,7 +31,7 @@ export const action: ActionFunction = authenticateActionRequest({
       // Use CodepushService for consistent API handling
       const result = await CodepushService.createRelease({
         userId: user.user.id,
-        tenant: org, // org is the tenant ID
+        tenant: org, // org is the app id
         appId: app,
         deploymentName,
         packageFile,

@@ -8,7 +8,7 @@ import type { PlatformConfiguration } from '~types/integrations/test-management/
 
 export type TestManagementConfigAttributes = {
   id: string;
-  tenantId: string;
+  appId: string;
   integrationId: string;
   name: string;
   passThresholdPercent: number;
@@ -34,17 +34,17 @@ export const createTestManagementConfigModel = (
         primaryKey: true,
         allowNull: false
       },
-      tenantId: {
+      appId: {
         type: DataTypes.UUID,
         allowNull: false,
         field: 'tenant_id',
         references: {
-          model: 'tenants',
+          model: 'apps',  // Changed from 'tenants' to 'apps'
           key: 'id'
         },
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
-        comment: 'Tenant identifier (references tenants.id)'
+        comment: 'App identifier (references apps.id, renamed from tenants)'
       },
       integrationId: {
         type: DataTypes.UUID,

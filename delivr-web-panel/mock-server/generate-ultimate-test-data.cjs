@@ -144,7 +144,7 @@ function createDistribution(version, androidSubs, iosSubs, releasePhase = null) 
     id: releaseId,
     releaseId: releaseId,
     releaseConfigId: null,
-    tenantId: 'EkgmIbgGQx',
+    appId: 'EkgmIbgGQx',
     type: 'MINOR',
     status: 'IN_PROGRESS', // Default status for releases
     releasePhase: releasePhase || null,
@@ -172,7 +172,7 @@ function createDistribution(version, androidSubs, iosSubs, releasePhase = null) 
   // Create distribution object (status will be updated after submissions are added)
   const distribution = {
     id: distId,
-    tenantId: 'EkgmIbgGQx',
+    appId: 'EkgmIbgGQx',
     releaseId,
     status: 'PENDING', // Will be updated after submissions
     createdAt: daysAgo(15),

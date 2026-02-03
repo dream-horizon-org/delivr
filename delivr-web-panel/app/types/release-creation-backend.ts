@@ -4,7 +4,7 @@
  * These types match the exact backend API contract for release creation.
  * No 'any' or 'unknown' types - all fields are explicitly typed.
  * 
- * Backend Endpoint: POST /tenants/:tenantId/releases
+ * Backend Endpoint: POST /apps/:appId/releases
  */
 
 

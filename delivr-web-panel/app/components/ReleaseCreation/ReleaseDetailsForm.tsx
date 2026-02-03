@@ -34,7 +34,7 @@ interface ReleaseDetailsFormProps {
   onChange: (state: Partial<ReleaseCreationState>) => void;
   config?: ReleaseConfiguration; // Configuration template (if WITH_CONFIG mode)
   latestVersion?: string; // For auto-generating version
-  tenantId: string; // For fetching branches
+  appId: string; // For fetching branches
   errors?: Record<string, string>;
   disablePlatformTargets?: boolean; // Disable platform target editing (for edit mode pre-kickoff)
   releases?: BackendReleaseResponse[]; // For calculating branch name suggestions
@@ -56,7 +56,7 @@ export function ReleaseDetailsForm({
   onChange,
   config,
   latestVersion,
-  tenantId,
+  appId,
   errors = {},
   disablePlatformTargets = false,
   releases = [],
@@ -75,7 +75,7 @@ export function ReleaseDetailsForm({
         const result = await apiGet<{
           branches?: Array<{ name: string; default?: boolean }>;
           defaultBranch?: string;
-        }>(`/api/v1/tenants/${tenantId}/integrations/scm/branches`);
+        }>(`/api/v1/apps/${appId}/integrations/scm/branches`);
 
         if (result.success && result.data?.branches) {
         const branchOptions = result.data.branches.map((branch: { name: string; default?: boolean }) => ({
@@ -99,10 +99,10 @@ export function ReleaseDetailsForm({
       }
     };
 
-    if (tenantId) {
+    if (appId) {
       fetchBranches();
     }
-  }, [tenantId]);
+  }, [appId]);
 
   // Pre-fill baseBranch from config (prioritize config.baseBranch over repository default)
   useEffect(() => {

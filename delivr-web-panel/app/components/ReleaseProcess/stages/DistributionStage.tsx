@@ -56,7 +56,7 @@ import { formatStatus } from '~/utils/distribution/distribution-ui.utils';
 import { AppBadge } from '~/components/Common/AppBadge';
 
 interface DistributionStageProps {
-  tenantId: string;
+  appId: string;
   releaseId: string;
   className?: string;
 }
@@ -129,14 +129,14 @@ function NoDistributionState() {
  * Main DistributionStage component
  */
 export function DistributionStage({
-  tenantId,
+  appId,
   releaseId,
   className,
 }: DistributionStageProps) {
-  console.log('[DistributionStage] Rendering with:', { tenantId, releaseId });
+  console.log('[DistributionStage] Rendering with:', { appId, releaseId });
   
-  const { distribution, isLoading, error, refetch } = useDistributionStage(tenantId, releaseId);
-  const { release } = useRelease(tenantId, releaseId);
+  const { distribution, isLoading, error, refetch } = useDistributionStage(appId, releaseId);
+  const { release } = useRelease(appId, releaseId);
   const isArchived = release?.status === ReleaseStatus.ARCHIVED;
   
   console.log('[DistributionStage] Hook state:', { 
@@ -295,7 +295,7 @@ export function DistributionStage({
               </Text>
               <Button
                 component={Link}
-                to={`/dashboard/${tenantId}/distributions/${distribution.id}`}
+                to={`/dashboard/${appId}/distributions/${distribution.id}`}
                 variant="subtle"
                 size="xs"
                 rightSection={<IconExternalLink size={14} />}
@@ -338,7 +338,7 @@ export function DistributionStage({
                     {/* Latest Submission Card - LIMITED MODE: Only show Promote if PENDING */}
                     <LatestSubmissionCard
                       submission={latestAndroidSubmission}
-                      tenantId={tenantId}
+                      appId={appId}
                       // LIMITED MODE: Only pass onPromote if PENDING
                       {...(latestAndroidSubmission.status === SubmissionStatus.PENDING && {
                         onPromote: handleOpenPromoteAndroidDialog
@@ -353,7 +353,7 @@ export function DistributionStage({
                           For promotion, rollout management, and other actions, visit the{' '}
                           <Text
                             component={Link}
-                            to={`/dashboard/${tenantId}/distributions/${distribution.id}`}
+                            to={`/dashboard/${appId}/distributions/${distribution.id}`}
                             size="xs"
                             fw={600}
                             c="blue"
@@ -383,7 +383,7 @@ export function DistributionStage({
                     {/* Latest Submission Card - LIMITED MODE: Only show Promote if PENDING */}
                     <LatestSubmissionCard
                       submission={latestIOSSubmission}
-                      tenantId={tenantId}
+                      appId={appId}
                       // LIMITED MODE: Only pass onPromote if PENDING
                       {...(latestIOSSubmission.status === SubmissionStatus.PENDING && {
                         onPromote: handleOpenPromoteIOSDialog
@@ -398,7 +398,7 @@ export function DistributionStage({
                           For promotion, rollout management, and other actions, visit the{' '}
                           <Text
                             component={Link}
-                            to={`/dashboard/${tenantId}/distributions/${distribution.id}`}
+                            to={`/dashboard/${appId}/distributions/${distribution.id}`}
                             size="xs"
                             fw={600}
                             c="blue"
@@ -429,7 +429,7 @@ export function DistributionStage({
           releaseId={releaseId}
           onClose={() => setIsPromoteAndroidDialogOpen(false)}
           onPromoteComplete={handlePromoteComplete}
-          action={`/dashboard/${tenantId}/distributions/${distribution.id}`}
+          action={`/dashboard/${appId}/distributions/${distribution.id}`}
         />
       )}
 
@@ -440,7 +440,7 @@ export function DistributionStage({
           releaseId={releaseId}
           onClose={() => setIsPromoteIOSDialogOpen(false)}
           onPromoteComplete={handlePromoteComplete}
-          action={`/dashboard/${tenantId}/distributions/${distribution.id}`}
+          action={`/dashboard/${appId}/distributions/${distribution.id}`}
         />
       )}
     </Stack>

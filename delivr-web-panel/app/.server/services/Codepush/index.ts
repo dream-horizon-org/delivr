@@ -79,11 +79,16 @@ class Codepush {
   }
 
   async getTenants(userId: string) {
+    // Legacy method - delegates to getApps for backward compatibility
+    return this.getApps(userId);
+  }
+
+  async getApps(userId: string) {
     const headers: TenantsRequest = {
       userId,
     };
 
-    return this.__client.get<null, AxiosResponse<TenantsResponse>>("/tenants", {
+    return this.__client.get<null, AxiosResponse<TenantsResponse>>("/apps", {
       headers,
     });
   }
@@ -131,7 +136,7 @@ class Codepush {
     const headers: Omit<AppsRequest, "userId"> = data;
 
     return this.__client.delete<null, AxiosResponse<DeleteTenantResponse>>(
-      `/tenants/${encodeURIComponent(data.tenant)}`,
+      `/apps/${encodeURIComponent(data.tenant)}`,
       {
         headers,
       }
@@ -139,7 +144,7 @@ class Codepush {
   }
 
   async getDeployentsForApp(data: DeploymentsRequest) {
-    const headers: DeploymentsRequest = data;
+    const headers = { ...data, app: data.tenant, tenant: data.tenant };
 
     return this.__client.get<null, AxiosResponse<DeploymentsResponse>>(
       `/apps/${encodeURIComponent(data.appId)}/deployments`,
@@ -150,7 +155,7 @@ class Codepush {
   }
 
   async deleteDeployentsForApp(data: DeleteDeploymentsRequest) {
-    const headers: DeleteDeploymentsRequest = data;
+    const headers = { ...data, app: data.tenant, tenant: data.tenant };
 
     return this.__client.delete<null, AxiosResponse<DeleteDeploymentsResponse>>(
       `/apps/${encodeURIComponent(data.appId)}/deployments/${encodeURIComponent(
@@ -163,7 +168,7 @@ class Codepush {
   }
 
   async getCollaboratorForApp(data: CollabaratorsRequest) {
-    const headers: CollabaratorsRequest = data;
+    const headers = { ...data, app: data.tenant, tenant: data.tenant };
 
     return this.__client.get<null, AxiosResponse<CollabaratorsResponse>>(
       `/apps/${encodeURIComponent(data.appId)}/collaborators`,
@@ -185,7 +190,7 @@ class Codepush {
   }
 
   async addCollaboratorForApp(data: AddCollabaratorsRequest) {
-    const headers: AddCollabaratorsRequest = data;
+    const headers = { ...data, app: data.tenant, tenant: data.tenant };
 
     return this.__client.post<null, AxiosResponse<AddCollabaratorsResponse>>(
       `/apps/${encodeURIComponent(
@@ -199,7 +204,7 @@ class Codepush {
   }
 
   async removeCollaboratorForApp(data: RemoveCollabaratorsRequest) {
-    const headers: RemoveCollabaratorsRequest = data;
+    const headers = { ...data, app: data.tenant, tenant: data.tenant };
 
     return this.__client.delete<
       null,
@@ -215,7 +220,7 @@ class Codepush {
   }
 
   async updateCollaboratorPermissionForApp(data: UpdateCollabaratorsRequest) {
-    const headers: UpdateCollabaratorsRequest = data;
+    const headers = { ...data, app: data.tenant, tenant: data.tenant };
 
     return this.__client.patch<
       null,
@@ -234,7 +239,7 @@ class Codepush {
   }
 
   async createDeployentsForApp(data: CreateDeploymentsRequest) {
-    const headers: CreateDeploymentsRequest = data;
+    const headers = { ...data, app: data.tenant, tenant: data.tenant };
 
     return this.__client.post<null, AxiosResponse<CreateDeploymentsResponse>>(
       `/apps/${encodeURIComponent(data.appId)}/deployments`,
@@ -248,7 +253,7 @@ class Codepush {
   }
 
   async getReleasesForDeployentsForApp(data: DeploymentsReleaseRequest) {
-    const headers: DeploymentsReleaseRequest = data;
+    const headers = { ...data, app: data.tenant, tenant: data.tenant };
 
     return this.__client.get<null, AxiosResponse<DeploymentsReleaseResponse>>(
       `/apps/${encodeURIComponent(data.appId)}/deployments/${encodeURIComponent(
@@ -261,8 +266,7 @@ class Codepush {
   }
 
   async updateReleaseForDeployentForApp(data: UpdateDeploymentsReleaseRequest) {
-    const headers: Pick<UpdateDeploymentsReleaseRequest, "tenant" | "userId"> =
-      data;
+    const headers = { userId: data.userId, app: data.tenant, tenant: data.tenant };
     const body: UpdatePackageRequest = { ...data };
 
     return this.__client.patch<null, AxiosResponse<DeploymentsReleaseResponse>>(
@@ -316,10 +320,7 @@ class Codepush {
   }
 
   async promoteReleaseFromDeployment(data: PromoteReleaseToDeploymentRequest) {
-    const headers: Pick<
-      PromoteReleaseToDeploymentRequest,
-      "userId" | "tenant"
-    > = data;
+    const headers = { userId: data.userId, app: data.tenant, tenant: data.tenant };
 
     return this.__client.post<
       null,
@@ -352,6 +353,7 @@ class Codepush {
 
     const headers = {
       "userId": data.userId,
+      "app": data.tenant,
       "tenant": data.tenant,
       "Accept": "application/vnd.code-push.v1+json",
     };
@@ -413,29 +415,37 @@ class Codepush {
   }
 
   async createOrganization(displayName: string, userId: string) {
+    // Legacy method - delegates to createApp for backward compatibility
+    return this.createApp(displayName, undefined, userId);
+  }
+
+  async createApp(displayName: string, description?: string, userId?: string) {
+    const actualUserId = userId || '';
     return this.__client.post<
-      { displayName: string },
-      AxiosResponse<{ organisation: { id: string; displayName: string; role: string; createdBy: string; createdTime: number } }>
+      { displayName: string; name?: string; description?: string },
+      AxiosResponse<{ app?: { id: string; displayName: string; role: string; createdBy: string; createdTime: number }; organisation?: { id: string; displayName: string; role: string; createdBy: string; createdTime: number } }>
     >(
-      "/tenants",
+      "/apps",
       {
         displayName,
+        name: displayName, // Use displayName as name if not provided
+        ...(description && { description }),
       },
       {
         headers: {
-          userId: userId,
+          userId: actualUserId,
         },
       }
     );
   }
 
   // Tenant Collaborator Methods
-  async getTenantCollaborators(tenantId: string, userId: string) {
+  async getTenantCollaborators(appId: string, userId: string) {
     return this.__client.get<
       null,
       AxiosResponse<{ collaborators: Record<string, { accountId: string; permission: string }> }>
     >(
-      `/tenants/${tenantId}/collaborators`,
+      `/apps/${appId}/collaborators`,
       {
         headers: {
           userId: userId,
@@ -444,12 +454,12 @@ class Codepush {
     );
   }
 
-  async addTenantCollaborator(tenantId: string, email: string, permission: string, userId: string) {
+  async addTenantCollaborator(appId: string, email: string, permission: string, userId: string) {
     return this.__client.post<
       { email: string; permission: string },
       AxiosResponse<{ message: string }>
     >(
-      `/tenants/${tenantId}/collaborators`,
+      `/apps/${appId}/collaborators`,
       {
         email,
         permission,
@@ -462,12 +472,12 @@ class Codepush {
     );
   }
 
-  async updateTenantCollaborator(tenantId: string, email: string, permission: string, userId: string) {
+  async updateTenantCollaborator(appId: string, email: string, permission: string, userId: string) {
     return this.__client.patch<
       { permission: string },
       AxiosResponse<{ message: string }>
     >(
-      `/tenants/${tenantId}/collaborators/${encodeURIComponent(email)}`,
+      `/apps/${appId}/collaborators/${encodeURIComponent(email)}`,
       {
         permission,
       },
@@ -479,12 +489,12 @@ class Codepush {
     );
   }
 
-  async removeTenantCollaborator(tenantId: string, email: string, userId: string) {
+  async removeTenantCollaborator(appId: string, email: string, userId: string) {
     return this.__client.delete<
       null,
       AxiosResponse<{ message: string }>
     >(
-      `/tenants/${tenantId}/collaborators/${encodeURIComponent(email)}`,
+      `/apps/${appId}/collaborators/${encodeURIComponent(email)}`,
       {
         headers: {
           userId: userId,
@@ -495,14 +505,70 @@ class Codepush {
 
   /**
    * Get tenant info with release management setup status
+   * Legacy method - delegates to getAppInfo
    */
   async getTenantInfo(data: TenantInfoRequest) {
-    const headers: Pick<TenantInfoRequest, "userId"> = {
+    return this.getAppInfo(data);
+  }
+
+  /**
+   * Get app info with release management setup status
+   */
+  async getAppInfo(data: TenantInfoRequest) {
+    const headers: TenantInfoRequest & { app?: string } = {
       userId: data.userId,
+      appId: data.appId,
+      app: data.appId,
     };
-    
+
     return this.__client.get<TenantInfoResponse>(
-      `/tenants/${data.tenantId}`,
+      `/apps/${data.appId}`,
+      { headers }
+    );
+  }
+
+  /**
+   * Update an app (displayName, name, description).
+   * PUT /apps/:appId
+   */
+  async updateApp(data: {
+    userId: string;
+    appId: string;
+    body: {
+      displayName?: string;
+      name?: string;
+      description?: string;
+    };
+  }) {
+    const headers = {
+      userId: data.userId,
+      app: data.appId,
+    };
+
+    return this.__client.put<Record<string, unknown>>(
+      `/apps/${encodeURIComponent(data.appId)}`,
+      data.body,
+      { headers }
+    );
+  }
+
+  /**
+   * Configure platform targets for an app (replace all).
+   * PUT /apps/:appId/platform-targets
+   */
+  async putPlatformTargets(data: {
+    userId: string;
+    appId: string;
+    platformTargets: Array<{ platform: string; target: string }>;
+  }) {
+    const headers = {
+      userId: data.userId,
+      app: data.appId,
+    };
+
+    return this.__client.put<Record<string, unknown>>(
+      `/apps/${encodeURIComponent(data.appId)}/platform-targets`,
+      { platformTargets: data.platformTargets },
       { headers }
     );
   }

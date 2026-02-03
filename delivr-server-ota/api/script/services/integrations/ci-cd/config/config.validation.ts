@@ -33,11 +33,11 @@ const isValidProviderType = (value: unknown): value is CICDProviderType => {
   return typeof value === 'string' && values.includes(value);
 };
 
-const getGithubTokenForTenant = async (tenantId: string): Promise<string | null> => {
+const getGithubTokenForTenant = async (appId: string): Promise<string | null> => {
   const storage = getStorage() as any;
   const repo = storage?.cicdIntegrationRepository;
   if (!repo) return null;
-  const gha = await repo.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
+  const gha = await repo.findByAppAndProvider(appId, CICDProviderType.GITHUB_ACTIONS);
   const hasToken = !!gha && isNonEmptyString((gha as any).apiToken);
   return hasToken ? (gha as any).apiToken as string : null;
 };
@@ -70,7 +70,7 @@ const containsWorkflowDispatch = (yaml: string): boolean => {
 const validateGithubWorkflow = async (
   wf: CreateWorkflowDto,
   index: number,
-  tenantId: string
+  appId: string
 ): Promise<FieldError[]> => {
   const errors: FieldError[] = [];
 
@@ -88,7 +88,7 @@ const validateGithubWorkflow = async (
     return errors;
   }
 
-  const token = await getGithubTokenForTenant(tenantId);
+  const token = await getGithubTokenForTenant(appId);
   const noToken = !isNonEmptyString(token);
   if (noToken) {
     errors.push({ field: `workflows[${index}].workflowUrl`, message: ERROR_MESSAGES.GHA_NO_TOKEN_AVAILABLE });
@@ -122,7 +122,7 @@ export class CICDConfigValidationError extends Error {
 
 export const validateWorkflowsForCreateConfig = async (
   inputWorkflows: CreateWorkflowDto[],
-  tenantId: string
+  appId: string
 ): Promise<{ errors: FieldError[] }> => {
   const errors: FieldError[] = [];
 
@@ -152,11 +152,11 @@ export const validateWorkflowsForCreateConfig = async (
     }
 
     // Tenant mismatch if provided
-    const wfTenantId = wf.tenantId;
+    const wfTenantId = wf.appId;
     const tenantProvided = isNonEmptyString(wfTenantId);
-    const mismatch = tenantProvided && (wfTenantId as string) !== tenantId;
+    const mismatch = tenantProvided && (wfTenantId as string) !== appId;
     if (mismatch) {
-      errors.push({ field: `workflows[${i}].tenantId`, message: CICD_CONFIG_ERROR_MESSAGES.TENANT_MISMATCH });
+      errors.push({ field: `workflows[${i}].appId`, message: CICD_CONFIG_ERROR_MESSAGES.TENANT_MISMATCH });
     }
 
     // Provider/workflow type enum validation
@@ -177,7 +177,7 @@ export const validateWorkflowsForCreateConfig = async (
 
     // Provider-specific validations
     if (isValidProviderType(providerType) && providerType === CICDProviderType.GITHUB_ACTIONS) {
-      const ghaErrors = await validateGithubWorkflow(wf, i, tenantId);
+      const ghaErrors = await validateGithubWorkflow(wf, i, appId);
       if (ghaErrors.length) {
         errors.push(...ghaErrors);
       }

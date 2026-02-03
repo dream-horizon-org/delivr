@@ -50,7 +50,7 @@ export class MessagingService {
       throw new Error(`Channel configuration not found: ${configId}`);
     }
 
-    // 2. Get integration by config.integrationId (NOT by tenantId!)
+    // 2. Get integration by config.integrationId (NOT by appId!)
     const integration = await this.commIntegrationService.getIntegrationById(
       channelConfig.integrationId
     );

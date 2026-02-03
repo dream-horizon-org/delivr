@@ -22,7 +22,7 @@ class AppDistributionIntegrationService extends IntegrationService {
    * POST /integrations/store/verify
    */
   async verifyStore(
-    tenantId: string,
+    appId: string,
     userId: string,
     request: VerifyStoreRequest
   ): Promise<VerifyStoreResponse> {
@@ -31,7 +31,7 @@ class AppDistributionIntegrationService extends IntegrationService {
         APP_DISTRIBUTION.verify,
         {
           ...request,
-          tenantId,
+          appId,
           userId,
         },
         userId
@@ -50,7 +50,7 @@ class AppDistributionIntegrationService extends IntegrationService {
    * PUT /integrations/store/connect
    */
   async connectStore(
-    tenantId: string,
+    appId: string,
     userId: string,
     request: ConnectStoreRequest
   ): Promise<ConnectStoreResponse> {
@@ -59,7 +59,7 @@ class AppDistributionIntegrationService extends IntegrationService {
         APP_DISTRIBUTION.connect,
         {
           ...request,
-          tenantId,
+          appId,
           userId,
         },
         userId
@@ -78,7 +78,7 @@ class AppDistributionIntegrationService extends IntegrationService {
    * PATCH /integrations/store/:integrationId
    */
   async updateStore(
-    tenantId: string,
+    appId: string,
     integrationId: string,
     payload: any,
     userId: string
@@ -88,7 +88,7 @@ class AppDistributionIntegrationService extends IntegrationService {
         APP_DISTRIBUTION.update(integrationId),
         { 
           payload,
-          tenantId,
+          appId,
           userId,
         },
         userId
@@ -104,12 +104,12 @@ class AppDistributionIntegrationService extends IntegrationService {
 
   /**
    * List all store integrations for tenant (grouped by platform)
-   * GET /integrations/store/tenant/:tenantId
+   * GET /integrations/store/tenant/:appId
    */
-  async listIntegrations(tenantId: string, userId: string): Promise<ListDistributionsResponse> {
+  async listIntegrations(appId: string, userId: string): Promise<ListDistributionsResponse> {
     try {
       const response = await this.get<ListDistributionsResponse>(
-        APP_DISTRIBUTION.list(tenantId),
+        APP_DISTRIBUTION.list(appId),
         userId
       );
       return response;
@@ -145,17 +145,17 @@ class AppDistributionIntegrationService extends IntegrationService {
 
   /**
    * Revoke store integration
-   * PATCH /integrations/store/tenant/:tenantId/revoke
+   * PATCH /integrations/store/tenant/:appId/revoke
    */
   async revokeIntegration(
-    tenantId: string,
+    appId: string,
     storeType: StoreType,
     platform: Platform,
     userId: string
   ): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       const response = await this.patch<{ success: boolean; message?: string }>(
-        APP_DISTRIBUTION.revoke(tenantId, storeType, platform),
+        APP_DISTRIBUTION.revoke(appId, storeType, platform),
         {},
         userId
       );

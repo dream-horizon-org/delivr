@@ -1,6 +1,6 @@
 import { Flex, Box, useMantineTheme } from '@mantine/core';
 import { useRouteLoaderData } from '@remix-run/react';
-import { OrgsPage } from "~/components/Pages/components/OrgsPage";
+import { AppsPage } from "~/components/Pages/components/AppsPage";
 import { AuthErrorFallback } from '~/components/Auth/AuthErrorFallback';
 import type { DashboardLoaderData } from './dashboard';
 
@@ -20,5 +20,5 @@ export default function DashboardIndex() {
     );
   }
   
-  return <OrgsPage />;
+  return <AppsPage />;
 }

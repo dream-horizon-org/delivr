@@ -24,7 +24,7 @@ export function createStoreIntegrationModel(sequelize: Sequelize) {
   class StoreIntegrationModel extends Model<StoreIntegration> 
     implements StoreIntegration {
     declare id: string;
-    declare tenantId: string;
+    declare appId: string;
     declare storeType: StoreType;
     declare platform: 'ANDROID' | 'IOS';
     declare displayName: string;
@@ -48,10 +48,14 @@ export function createStoreIntegrationModel(sequelize: Sequelize) {
         allowNull: false,
         comment: 'Unique identifier (nanoid)',
       },
-      tenantId: {
-        type: 'CHAR(36) CHARACTER SET latin1 COLLATE latin1_bin',
+      appId: {
+        type: DataTypes.UUID,  // Changed from CHAR(36) to UUID to match App.id
         allowNull: false,
-        comment: 'Reference to tenants table',
+        references: {
+          model: 'apps',  // Changed from 'tenants' to 'apps' (renamed table)
+          key: 'id',
+        },
+        comment: 'Reference to apps table (renamed from tenants)',
       },
       storeType: {
         type: DataTypes.ENUM(...Object.values(StoreType)),
@@ -129,7 +133,7 @@ export function createStoreIntegrationModel(sequelize: Sequelize) {
       indexes: [
         {
           name: 'idx_store_tenant',
-          fields: ['tenantId', 'status'],
+          fields: ['appId', 'status'],
         },
         {
           name: 'idx_store_type',

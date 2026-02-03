@@ -24,17 +24,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '~/.server/services/Auth/auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import { Breadcrumb } from '~/components/Common';
-import { ActivityHistoryLog } from '~/components/Distribution/ActivityHistoryLog';
-import { CancelSubmissionDialog } from '~/components/Distribution/CancelSubmissionDialog';
-import { ErrorState, StaleDataWarning } from '~/components/Distribution/ErrorRecovery';
-import { LatestSubmissionCard } from '~/components/Distribution/LatestSubmissionCard';
-import { PauseRolloutDialog } from '~/components/Distribution/PauseRolloutDialog';
-import { PromoteAndroidSubmissionDialog } from '~/components/Distribution/PromoteAndroidSubmissionDialog';
-import { PromoteIOSSubmissionDialog } from '~/components/Distribution/PromoteIOSSubmissionDialog';
-import { ResubmissionDialog } from '~/components/Distribution/ReSubmissionDialog';
-import { ResumeRolloutDialog } from '~/components/Distribution/ResumeRolloutDialog';
-import { SubmissionHistoryTimeline } from '~/components/Distribution/SubmissionHistoryTimeline';
-import { UpdateRolloutDialog } from '~/components/Distribution/UpdateRolloutDialog';
+import { ActivityHistoryLog } from '~/components/distribution/ActivityHistoryLog';
+import { CancelSubmissionDialog } from '~/components/distribution/CancelSubmissionDialog';
+import { ErrorState, StaleDataWarning } from '~/components/distribution/ErrorRecovery';
+import { LatestSubmissionCard } from '~/components/distribution/LatestSubmissionCard';
+import { PauseRolloutDialog } from '~/components/distribution/PauseRolloutDialog';
+import { PromoteAndroidSubmissionDialog } from '~/components/distribution/PromoteAndroidSubmissionDialog';
+import { PromoteIOSSubmissionDialog } from '~/components/distribution/PromoteIOSSubmissionDialog';
+import { ResubmissionDialog } from '~/components/distribution/ReSubmissionDialog';
+import { ResumeRolloutDialog } from '~/components/distribution/ResumeRolloutDialog';
+import { SubmissionHistoryTimeline } from '~/components/distribution/SubmissionHistoryTimeline';
+import { UpdateRolloutDialog } from '~/components/distribution/UpdateRolloutDialog';
 import { getBreadcrumbItems } from '~/constants/breadcrumbs';
 import {
   DISTRIBUTION_MANAGEMENT_UI,
@@ -69,7 +69,7 @@ export const loader = authenticateLoaderRequest(
 
     try {
       // Fetch distribution details by distributionId
-      // This calls GET /api/v1/tenants/:tenantId/distributions/:distributionId
+      // This calls GET /api/v1/apps/:appId/distributions/:distributionId
       const response = await DistributionService.getDistribution(org, distributionId);
       const distribution = response.data.data;
 
@@ -790,7 +790,7 @@ export default function DistributionDetailPage() {
                 {latestAndroidSubmission ? (
                   <LatestSubmissionCard
                     submission={latestAndroidSubmission}
-                    tenantId={org}
+                    appId={org}
                     onPromote={handleOpenAndroidPromoteDialog}
                     onUpdateRollout={handleOpenAndroidUpdateRolloutDialog}
                     onPause={handleOpenAndroidPauseDialog}
@@ -830,7 +830,7 @@ export default function DistributionDetailPage() {
                   <SubmissionHistoryTimeline
                     submissions={historicalAndroidSubmissions}
                     platform={Platform.ANDROID}
-                    tenantId={org}
+                    appId={org}
                   />
                 ) : (
                   <Paper p="xl" radius="md" withBorder className="text-center">
@@ -867,7 +867,7 @@ export default function DistributionDetailPage() {
                 {latestIOSSubmission ? (
                   <LatestSubmissionCard
                     submission={latestIOSSubmission}
-                    tenantId={org}
+                    appId={org}
                     onPromote={handleOpenIOSPromoteDialog}
                     onUpdateRollout={handleOpenIOSUpdateRolloutDialog}
                     onPause={handleOpenIOSPauseDialog}
@@ -906,7 +906,7 @@ export default function DistributionDetailPage() {
                   <SubmissionHistoryTimeline
                     submissions={historicalIOSSubmissions}
                     platform={Platform.IOS}
-                    tenantId={org}
+                    appId={org}
                   />
                 ) : (
                   <Paper p="xl" radius="md" withBorder className="text-center">
@@ -984,7 +984,7 @@ export default function DistributionDetailPage() {
           <CancelSubmissionDialog
             opened={isCancelDialogOpen}
             onClose={handleCloseDialogs}
-            tenantId={org}
+            appId={org}
             submissionId={selectedSubmission.id}
             platform={selectedSubmission.platform}
             version={selectedSubmission.version}
@@ -1014,7 +1014,7 @@ export default function DistributionDetailPage() {
             <ResubmissionDialog
               opened={isResubmitDialogOpen}
               onClose={handleCloseDialogs}
-              tenantId={org}
+              appId={org}
               releaseId={distribution.releaseId}
               distributionId={distribution.id}
               previousSubmission={selectedSubmission}

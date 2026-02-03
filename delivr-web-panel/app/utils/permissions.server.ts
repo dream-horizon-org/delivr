@@ -5,9 +5,8 @@
  * Uses CodepushService directly - no API calls needed
  */
 
-import { TenantRole, type TenantRoleType } from '~/constants/permissions';
+import { AppLevelRole, type AppLevelRoleType } from '~/constants/permissions';
 import { CodepushService } from '~/.server/services/Codepush';
-import type { TenantsResponse } from '~/.server/services/Codepush/types';
 
 /**
  * Permission Service - Server-side only
@@ -17,26 +16,33 @@ export const PermissionService = {
   /**
    * Get user's role for a tenant (server-side only)
    */
-  async getTenantRole(tenantId: string, userId: string): Promise<TenantRoleType> {
+  async getAppLevelRole(appId: string, userId: string): Promise<AppLevelRoleType> {
     try {
-      const response = await CodepushService.getTenants(userId);
-      if (!response.data) {
+      const response = await CodepushService.getApps(userId);
+      const body = response?.data as Record<string, unknown> | null | undefined;
+      if (!body) {
         console.warn('[PermissionService] Failed to fetch tenants from service');
         return null;
       }
-      
-      const org = response.data.organisations.find((o) => o.id === tenantId);
-      if (!org) {
-        console.warn(`[PermissionService] Organization ${tenantId} not found`);
+
+      // Backend may return { data: { apps, organisations } } or { organisations }
+      const payload = (body.data ?? body) as Record<string, unknown>;
+      const apps = Array.isArray(payload?.apps) ? payload.apps : [];
+      const orgs = Array.isArray(payload?.organisations) ? payload.organisations : [];
+      const list = [...apps, ...orgs];
+
+      const app = list.find((o: { id: string }) => o.id === appId);
+      if (!app) {
+        console.warn(`[PermissionService] Organization ${appId} not found`);
         return null;
       }
       
       // Map role (handle Collaborator -> Viewer)
-      if (org.role === 'Collaborator') return TenantRole.VIEWER;
-      if (org.role === TenantRole.OWNER) return TenantRole.OWNER;
-      if (org.role === TenantRole.EDITOR) return TenantRole.EDITOR;
-      if (org.role === TenantRole.VIEWER) return TenantRole.VIEWER;
-      return TenantRole.VIEWER; // Fallback
+      if (app.role === 'Collaborator') return AppLevelRole.VIEWER;
+      if (app.role === AppLevelRole.OWNER) return AppLevelRole.OWNER;
+      if (app.role === AppLevelRole.EDITOR) return AppLevelRole.EDITOR;
+      if (app.role === AppLevelRole.VIEWER) return AppLevelRole.VIEWER;
+      return AppLevelRole.VIEWER; // Fallback
     } catch (error) {
       console.error('[PermissionService] Error fetching tenant role:', error);
       return null;
@@ -46,10 +52,10 @@ export const PermissionService = {
   /**
    * Check if user is tenant owner (server-side only)
    */
-  async isTenantOwner(tenantId: string, userId: string): Promise<boolean> {
+  async isAppOwner(appId: string, userId: string): Promise<boolean> {
     try {
-      const role = await this.getTenantRole(tenantId, userId);
-      return role === TenantRole.OWNER;
+      const role = await this.getAppLevelRole(appId, userId);
+      return role === AppLevelRole.OWNER;
     } catch (error) {
       console.error('[PermissionService] Error checking tenant owner:', error);
       return false; // Fail closed
@@ -59,10 +65,10 @@ export const PermissionService = {
   /**
    * Check if user is tenant editor or owner (server-side only)
    */
-  async isTenantEditor(tenantId: string, userId: string): Promise<boolean> {
+  async isAppEditor(appId: string, userId: string): Promise<boolean> {
     try {
-      const role = await this.getTenantRole(tenantId, userId);
-      return role === TenantRole.EDITOR || role === TenantRole.OWNER;
+      const role = await this.getAppLevelRole(appId, userId);
+      return role === AppLevelRole.EDITOR || role === AppLevelRole.OWNER;
     } catch (error) {
       console.error('[PermissionService] Error checking tenant editor:', error);
       return false; // Fail closed
@@ -83,7 +89,7 @@ export const PermissionService = {
    * - Tenant owner
    */
   async canPerformReleaseAction(
-    tenantId: string,
+    appId: string,
     userId: string,
     releasePilotAccountId: string | null
   ): Promise<boolean> {
@@ -93,7 +99,7 @@ export const PermissionService = {
     }
 
     // Check tenant owner (async)
-    return await this.isTenantOwner(tenantId, userId);
+    return await this.isAppOwner(appId, userId);
   },
 };
 

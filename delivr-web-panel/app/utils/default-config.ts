@@ -8,13 +8,13 @@ import type { ReleaseConfiguration } from '~/types/release-config';
 /**
  * Create a default configuration object for a new release configuration
  * 
- * @param tenantId - Organization/Tenant ID
+ * @param appId - Organization/app id
  * @returns Partial release configuration with sensible defaults
  */
-export function createDefaultConfig(tenantId: string): Partial<ReleaseConfiguration> {
+export function createDefaultConfig(appId: string): Partial<ReleaseConfiguration> {
   return {
     // id is omitted - backend will generate it on save
-    tenantId,
+    appId,
     name: '',
     releaseType: 'MINOR',
     isDefault: true,

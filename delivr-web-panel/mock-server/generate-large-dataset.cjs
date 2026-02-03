@@ -82,7 +82,7 @@ for (let i = 0; i < 30; i++) {
   db.releases.push({
     id: releaseId,
     releaseId: `REL-2025-${String(i + 1).padStart(3, '0')}`,
-    tenantId: 'EkgmIbgGQx',
+    appId: 'EkgmIbgGQx',
     branch: `release/${version}`,
     version: version,
     status: 'SUBMITTED',
@@ -159,7 +159,7 @@ for (let i = 0; i < 30; i++) {
       id: `asb_${String(i + 1).padStart(3, '0')}`,
       distributionId: distId,
       releaseId: releaseId,
-      tenantId: 'EkgmIbgGQx',
+      appId: 'EkgmIbgGQx',
       storeType: 'PLAY_STORE',
       status: androidStatus,
       version: version,
@@ -191,7 +191,7 @@ for (let i = 0; i < 30; i++) {
       id: `isb_${String(i + 1).padStart(3, '0')}`,
       distributionId: distId,
       releaseId: releaseId,
-      tenantId: 'EkgmIbgGQx',
+      appId: 'EkgmIbgGQx',
       storeType: 'APP_STORE',
       status: iosStatus,
       version: version,
@@ -219,7 +219,7 @@ for (let i = 0; i < 30; i++) {
   // Create distribution with calculated status
   db.store_distribution.push({
     id: distId,
-    tenantId: 'EkgmIbgGQx',
+    appId: 'EkgmIbgGQx',
     releaseId: releaseId,
     status: distStatus,
     createdAt: daysAgo(30 - i),

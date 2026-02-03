@@ -23,21 +23,21 @@ export function createSCMIntegrationRoutes(storage: Storage): Router {
   // Get available SCM providers (public endpoint)
   router.get(
     "/integrations/scm/providers",
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     getAvailableSCMProviders
   );
 
   // Generic branches endpoint - auto-detects SCM provider and routes to correct handler
   router.get(
-    "/tenants/:tenantId/integrations/scm/branches",
-    tenantPermissions.requireTenantMembership({ storage }),
+    "/apps/:appId/integrations/scm/branches",
+    tenantPermissions.requireAppMembership({ storage }),
     async (req: any, res: any) => {
-      const tenantId = req.params.tenantId;
+      const appId = req.params.appId;
       
       try {
         // Get the active SCM integration for this tenant
         const scmController = (storage as any).scmController;
-        const integration = await scmController.findActiveByTenantWithTokens(tenantId);
+        const integration = await scmController.findActiveByAppWithTokens(appId);
         
         if (!integration) {
           return res.status(404).json({

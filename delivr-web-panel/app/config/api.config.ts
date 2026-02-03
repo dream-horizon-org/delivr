@@ -51,30 +51,30 @@ export const API_CONFIG = {
  */
 export const DISTRIBUTION_API_PATTERNS = [
   // Distribution Management (tenant-scoped)
-  '/api/v1/tenants/*/distributions',
-  '/api/v1/tenants/*/distributions/*',
-  '/api/v1/tenants/*/distributions/*/submissions',
-  '/api/v1/tenants/*/distributions/*/history',
-  '/api/v1/tenants/*/releases/*/distribution',
+  '/api/v1/apps/*/distributions',
+  '/api/v1/apps/*/distributions/*',
+  '/api/v1/apps/*/distributions/*/submissions',
+  '/api/v1/apps/*/distributions/*/history',
+  '/api/v1/apps/*/releases/*/distribution',
   
   // Pre-Release Stage (tenant-scoped)
-  '/api/v1/tenants/*/releases/*/builds',
-  '/api/v1/tenants/*/releases/*/builds/*',
-  '/api/v1/tenants/*/releases/*/builds/upload-aab',
-  '/api/v1/tenants/*/releases/*/builds/verify-testflight',
-  '/api/v1/tenants/*/releases/*/extra-commits',
-  '/api/v1/tenants/*/releases/*/pm-status',
-  '/api/v1/tenants/*/releases/*/approve',
+  '/api/v1/apps/*/releases/*/builds',
+  '/api/v1/apps/*/releases/*/builds/*',
+  '/api/v1/apps/*/releases/*/builds/upload-aab',
+  '/api/v1/apps/*/releases/*/builds/verify-testflight',
+  '/api/v1/apps/*/releases/*/extra-commits',
+  '/api/v1/apps/*/releases/*/pm-status',
+  '/api/v1/apps/*/releases/*/approve',
   
   // Submission Management (tenant-scoped per API spec)
-  '/api/v1/tenants/*/submissions/*',
-  '/api/v1/tenants/*/submissions/*/submit',
-  '/api/v1/tenants/*/submissions/*/cancel',
-  '/api/v1/tenants/*/submissions/*/rollout',
-  '/api/v1/tenants/*/submissions/*/rollout/pause',
-  '/api/v1/tenants/*/submissions/*/rollout/resume',
-  '/api/v1/tenants/*/submissions/*/rollout/halt',
-  '/api/v1/tenants/*/submissions/*/artifact',
+  '/api/v1/apps/*/submissions/*',
+  '/api/v1/apps/*/submissions/*/submit',
+  '/api/v1/apps/*/submissions/*/cancel',
+  '/api/v1/apps/*/submissions/*/rollout',
+  '/api/v1/apps/*/submissions/*/rollout/pause',
+  '/api/v1/apps/*/submissions/*/rollout/resume',
+  '/api/v1/apps/*/submissions/*/rollout/halt',
+  '/api/v1/apps/*/submissions/*/artifact',
 ] as const;
 
 /**
@@ -82,21 +82,21 @@ export const DISTRIBUTION_API_PATTERNS = [
  * Updated to match backend contract endpoints
  */
 export const RELEASE_PROCESS_API_PATTERNS = [
-  '/api/v1/tenants/*/releases/*',                    // Get Release Details (API #1)
-  '/api/v1/tenants/*/releases/*/tasks',               // Get Stage Tasks (API #2) - with ?stage= query param
-  '/api/v1/tenants/*/releases/*/tasks/*/retry',      // Retry Task (API #8)
-  '/api/v1/tenants/*/releases/*/builds',            // Get All Builds (API #14)
-  '/api/v1/tenants/*/releases/*/stages/*/builds/*',  // Upload Build (API #15) - Backend route: /stages/:stage/builds/:platform
-  '/api/v1/tenants/*/releases/*/builds/*',           // Delete Build (API #16)
-  '/api/v1/tenants/*/releases/*/test-management-run-status',  // Test Management Status (API #17)
-  '/api/v1/tenants/*/releases/*/project-management-run-status',  // Project Management Status (API #18)
-  '/api/v1/tenants/*/releases/*/check-cherry-pick-status',  // Cherry Pick Status (API #19)
-  '/api/v1/tenants/*/releases/*/trigger-pre-release',  // Approve Regression (API #11)
-  '/api/v1/tenants/*/releases/*/trigger-distribution',  // Complete Pre-Release (API #12)
-  '/api/v1/tenants/*/releases/*/notifications',       // Get Notifications (API #20)
-  '/api/v1/tenants/*/releases/*/notify',              // Send Notification (API #21)
-  '/api/v1/tenants/*/releases/*/activity-logs',       // Activity Logs (API #23)
-  '/api/v1/tenants/*/releases/*/pause-resume',        // Pause/Resume Release (API #29, #30)
+  '/api/v1/apps/*/releases/*',                    // Get Release Details (API #1)
+  '/api/v1/apps/*/releases/*/tasks',               // Get Stage Tasks (API #2) - with ?stage= query param
+  '/api/v1/apps/*/releases/*/tasks/*/retry',      // Retry Task (API #8)
+  '/api/v1/apps/*/releases/*/builds',            // Get All Builds (API #14)
+  '/api/v1/apps/*/releases/*/stages/*/builds/*',  // Upload Build (API #15) - Backend route: /stages/:stage/builds/:platform
+  '/api/v1/apps/*/releases/*/builds/*',           // Delete Build (API #16)
+  '/api/v1/apps/*/releases/*/test-management-run-status',  // Test Management Status (API #17)
+  '/api/v1/apps/*/releases/*/project-management-run-status',  // Project Management Status (API #18)
+  '/api/v1/apps/*/releases/*/check-cherry-pick-status',  // Cherry Pick Status (API #19)
+  '/api/v1/apps/*/releases/*/trigger-pre-release',  // Approve Regression (API #11)
+  '/api/v1/apps/*/releases/*/trigger-distribution',  // Complete Pre-Release (API #12)
+  '/api/v1/apps/*/releases/*/notifications',       // Get Notifications (API #20)
+  '/api/v1/apps/*/releases/*/notify',              // Send Notification (API #21)
+  '/api/v1/apps/*/releases/*/activity-logs',       // Activity Logs (API #23)
+  '/api/v1/apps/*/releases/*/pause-resume',        // Pause/Resume Release (API #29, #30)
 ] as const;
 
 /**
@@ -124,7 +124,7 @@ export function isReleaseProcessAPI(url: string): boolean {
   const path = url.replace(/^https?:\/\/[^/]+/, '');
   
   return RELEASE_PROCESS_API_PATTERNS.some(pattern => {
-    // Convert pattern to regex: /api/v1/tenants/*/releases/*/stages/* -> /api/v1/tenants/[^/]+/releases/[^/]+/stages/[^/]+
+    // Convert pattern to regex: /api/v1/apps/*/releases/*/stages/* -> /api/v1/apps/[^/]+/releases/[^/]+/stages/[^/]+
     const regexPattern = pattern
       .replace(/\*/g, '[^/]+')
       .replace(/\//g, '\\/');
@@ -179,66 +179,66 @@ export const API_ENDPOINTS = {
   // ============================================================================
   
   // Get Distribution (API Spec Line 303)
-  GET_RELEASE_DISTRIBUTION: (tenantId: string, releaseId: string) => 
-    `/api/v1/tenants/${tenantId}/releases/${releaseId}/distribution`,
+  GET_RELEASE_DISTRIBUTION: (appId: string, releaseId: string) => 
+    `/api/v1/apps/${appId}/releases/${releaseId}/distribution`,
   
   // List Distributions (API Spec Line 536)
-  LIST_DISTRIBUTIONS: (tenantId: string) => 
-    `/api/v1/tenants/${tenantId}/distributions`,
+  LIST_DISTRIBUTIONS: (appId: string) => 
+    `/api/v1/apps/${appId}/distributions`,
   
   // Get Distribution Details (API Spec Line 844)
-  GET_DISTRIBUTION: (tenantId: string, distributionId: string) => 
-    `/api/v1/tenants/${tenantId}/distributions/${distributionId}`,
+  GET_DISTRIBUTION: (appId: string, distributionId: string) => 
+    `/api/v1/apps/${appId}/distributions/${distributionId}`,
   
   // Get Submission Details (API Spec Line 971)
-  GET_SUBMISSION: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
-    `/api/v1/tenants/${tenantId}/submissions/${submissionId}?platform=${platform}`,
+  GET_SUBMISSION: (appId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/apps/${appId}/submissions/${submissionId}?platform=${platform}`,
   
   // ============================================================================
   // SUBMISSION MANAGEMENT (DISTRIBUTION_API_SPEC.md) - Tenant-Scoped
   // ============================================================================
   
   // Submit Existing Submission (API Spec Line 711)
-  SUBMIT_SUBMISSION: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
-    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/submit?platform=${platform}`,
+  SUBMIT_SUBMISSION: (appId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/apps/${appId}/submissions/${submissionId}/submit?platform=${platform}`,
   
   // Create Resubmission (API Spec Line 1206)
-  CREATE_RESUBMISSION: (tenantId: string, distributionId: string) => 
-    `/api/v1/tenants/${tenantId}/distributions/${distributionId}/submissions`,
+  CREATE_RESUBMISSION: (appId: string, distributionId: string) => 
+    `/api/v1/apps/${appId}/distributions/${distributionId}/submissions`,
   
   // Cancel Submission (API Spec Line 1345)
-  CANCEL_SUBMISSION: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
-    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/cancel?platform=${platform}`,
+  CANCEL_SUBMISSION: (appId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/apps/${appId}/submissions/${submissionId}/cancel?platform=${platform}`,
   
   // ============================================================================
   // ROLLOUT CONTROL (DISTRIBUTION_API_SPEC.md) - Tenant-Scoped
   // ============================================================================
   
   // Update Rollout (API Spec Line 1106)
-  UPDATE_ROLLOUT: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
-    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout?platform=${platform}`,
+  UPDATE_ROLLOUT: (appId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/apps/${appId}/submissions/${submissionId}/rollout?platform=${platform}`,
   
   // Pause Rollout - Both Platforms (API Spec Line 1454)
   // Android: IN_PROGRESS → HALTED, iOS: LIVE → PAUSED
-  PAUSE_ROLLOUT: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
-    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout/pause?platform=${platform}`,
+  PAUSE_ROLLOUT: (appId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/apps/${appId}/submissions/${submissionId}/rollout/pause?platform=${platform}`,
   
   // Resume Rollout - Both Platforms (API Spec Line 1509)
   // Android: HALTED → IN_PROGRESS, iOS: PAUSED → LIVE
-  RESUME_ROLLOUT: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
-    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout/resume?platform=${platform}`,
+  RESUME_ROLLOUT: (appId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/apps/${appId}/submissions/${submissionId}/rollout/resume?platform=${platform}`,
   
   // Halt Rollout - Emergency Stop (API Spec)
-  HALT_ROLLOUT: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
-    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/rollout/halt?platform=${platform}`,
+  HALT_ROLLOUT: (appId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/apps/${appId}/submissions/${submissionId}/rollout/halt?platform=${platform}`,
   
   // Get Distribution History (API Spec)
-  GET_DISTRIBUTION_HISTORY: (tenantId: string, distributionId: string) => 
-    `/api/v1/tenants/${tenantId}/distributions/${distributionId}/history`,
+  GET_DISTRIBUTION_HISTORY: (appId: string, distributionId: string) => 
+    `/api/v1/apps/${appId}/distributions/${distributionId}/history`,
   
   // Get Artifact Download URL (API Spec)
-  GET_ARTIFACT: (tenantId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
-    `/api/v1/tenants/${tenantId}/submissions/${submissionId}/artifact?platform=${platform}`,
+  GET_ARTIFACT: (appId: string, submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/apps/${appId}/submissions/${submissionId}/artifact?platform=${platform}`,
 } as const;
 
 /**

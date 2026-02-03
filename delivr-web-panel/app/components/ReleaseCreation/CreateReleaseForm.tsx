@@ -886,7 +886,7 @@ export function CreateReleaseForm({
               onChange={handleStateChange}
               config={selectedConfig}
               latestVersion="v1.0.0" // TODO: Fetch from API
-              tenantId={org}
+              appId={org}
               errors={errors}
               disablePlatformTargets={isEditMode && isUpcoming}
               releases={releases}

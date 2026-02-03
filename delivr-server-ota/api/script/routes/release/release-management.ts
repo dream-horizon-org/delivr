@@ -113,7 +113,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   router.get(
     "/health",
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     (req: Request, res: Response): Response => {
       return res.status(HTTP_STATUS.OK).json({
         service: "Release Management",
@@ -129,35 +129,35 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
 
   // Create a new release
   router.post(
-    "/tenants/:tenantId/releases",
+    "/apps/:appId/releases",
     tenantPermissions.requireEditor({ storage }),
     controller.createRelease
   );
 
   // Get a specific release
   router.get(
-    "/tenants/:tenantId/releases/:releaseId",
-    tenantPermissions.requireTenantMembership({ storage }),
+    "/apps/:appId/releases/:releaseId",
+    tenantPermissions.requireAppMembership({ storage }),
     controller.getRelease
   );
 
   // Get all releases for a tenant
   router.get(
-    "/tenants/:tenantId/releases",
-    tenantPermissions.requireTenantMembership({ storage }),
+    "/apps/:appId/releases",
+    tenantPermissions.requireAppMembership({ storage }),
     controller.listReleases
   );
 
   // Update a release
   router.patch(
-    "/tenants/:tenantId/releases/:releaseId",
+    "/apps/:appId/releases/:releaseId",
     tenantPermissions.requireEditor({ storage }),
     controller.updateRelease
   );
 
   // Delete a release
   router.delete(
-    "/tenants/:tenantId/releases/:releaseId",
+    "/apps/:appId/releases/:releaseId",
     releasePermissions.requireReleaseOwner({ storage }),
     async (req: Request, res: Response): Promise<Response> => {
       // TODO: Delegate to controller.deleteRelease
@@ -174,21 +174,21 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   
   // Get tasks for a release
   router.get(
-    "/tenants/:tenantId/releases/:releaseId/tasks",
-    tenantPermissions.requireTenantMembership({ storage }),
+    "/apps/:appId/releases/:releaseId/tasks",
+    tenantPermissions.requireAppMembership({ storage }),
     controller.getTasks
   );
 
   // Get a specific task
   router.get(
-    "/tenants/:tenantId/releases/:releaseId/tasks/:taskId",
-    tenantPermissions.requireTenantMembership({ storage }),
+    "/apps/:appId/releases/:releaseId/tasks/:taskId",
+    tenantPermissions.requireAppMembership({ storage }),
     controller.getTaskById
   );
 
   // Update task status
   router.put(
-    "/tenants/:tenantId/releases/:releaseId/tasks/:taskId",
+    "/apps/:appId/releases/:releaseId/tasks/:taskId",
     tenantPermissions.requireOwner({ storage }),
     async (req: Request, res: Response): Promise<Response> => {
       // TODO: Delegate to controller.updateTaskStatus
@@ -201,7 +201,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   
   // Start cron job
   router.post(
-    "/tenants/:tenantId/releases/:releaseId/cron/start",
+    "/apps/:appId/releases/:releaseId/cron/start",
     tenantPermissions.requireOwner({ storage }),
     async (req: Request, res: Response): Promise<Response> => {
       // TODO: Delegate to controller.startCronJob
@@ -217,7 +217,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
 
   /**
-   * POST /tenants/:tenantId/releases/:releaseId/trigger-regression-testing
+   * POST /apps/:appId/releases/:releaseId/trigger-regression-testing
    * 
    * Manually trigger Stage 2 (Regression Testing) after manual build upload.
    * This is used when hasManualBuildUpload = true.
@@ -232,7 +232,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
    * - Starts regression cron job
    */
   router.post(
-    "/tenants/:tenantId/releases/:releaseId/trigger-regression-testing",
+    "/apps/:appId/releases/:releaseId/trigger-regression-testing",
     tenantPermissions.requireEditor({ storage }),
     controller.triggerRegressionTesting
   );
@@ -243,14 +243,14 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   
   // Pause release (user-requested)
   router.post(
-    "/tenants/:tenantId/releases/:releaseId/pause",
+    "/apps/:appId/releases/:releaseId/pause",
     tenantPermissions.requireEditor({ storage }),
     controller.pauseRelease
   );
 
   // Resume release (user-paused)
   router.post(
-    "/tenants/:tenantId/releases/:releaseId/resume",
+    "/apps/:appId/releases/:releaseId/resume",
     tenantPermissions.requireEditor({ storage }),
     controller.resumeRelease
   );
@@ -264,7 +264,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   
   // Get release timeline
   router.get(
-    "/tenants/:tenantId/releases/:releaseId/timeline",
+    "/apps/:appId/releases/:releaseId/timeline",
     tenantPermissions.requireOwner({ storage }),
     async (req: Request, res: Response): Promise<Response> => {
       // TODO: Delegate to controller.getTimeline
@@ -282,7 +282,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // Retry a failed task
   // Resets task status to PENDING, cron will re-execute on next tick
   router.post(
-    "/tenants/:tenantId/releases/:releaseId/tasks/:taskId/retry",
+    "/apps/:appId/releases/:releaseId/tasks/:taskId/retry",
     tenantPermissions.requireEditor({ storage }),
     controller.retryTask
   );
@@ -292,7 +292,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
 
   /**
-   * PUT /tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform
+   * PUT /apps/:appId/releases/:releaseId/stages/:stage/builds/:platform
    * 
    * Upload a build artifact manually for a specific platform.
    * Used when hasManualBuildUpload = true.
@@ -306,7 +306,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
    * - Returns upload status (all platforms ready or not)
    */
   router.put(
-    "/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform",
+    "/apps/:appId/releases/:releaseId/stages/:stage/builds/:platform",
     tenantPermissions.requireEditor({ storage }),
     upload.single('artifact'),
     controller.uploadManualBuild
@@ -343,7 +343,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
 
   // Archive (cancel) a release
   router.put(
-    "/tenants/:tenantId/releases/:releaseId/archive",
+    "/apps/:appId/releases/:releaseId/archive",
     releasePermissions.requireReleaseOwner({ storage }),
     controller.archiveRelease
   );
@@ -354,7 +354,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   
   // Trigger Pre-Release (Stage 3)
   router.post(
-    "/tenants/:tenantId/releases/:releaseId/trigger-pre-release",
+    "/apps/:appId/releases/:releaseId/trigger-pre-release",
     tenantPermissions.requireEditor({ storage }),
     controller.triggerPreRelease
   );
@@ -365,7 +365,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   
   // Trigger Distribution (Stage 4)
   router.post(
-    "/tenants/:tenantId/releases/:releaseId/trigger-distribution",
+    "/apps/:appId/releases/:releaseId/trigger-distribution",
     tenantPermissions.requireEditor({ storage }),
     controller.triggerDistribution
   );
@@ -376,7 +376,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   
   // Store What's New
   router.post(
-    "/tenants/:tenantId/releases/:releaseId/whats-new",
+    "/apps/:appId/releases/:releaseId/whats-new",
     tenantPermissions.requireOwner({ storage }),
     async (req: Request, res: Response): Promise<Response> => {
       // TODO: Delegate to controller.saveWhatsNew
@@ -389,22 +389,22 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
 
   // Check Cherry Pick Status
   router.get(
-    "/tenants/:tenantId/releases/:releaseId/check-cherry-pick-status",
-    tenantPermissions.requireTenantMembership({ storage }),
+    "/apps/:appId/releases/:releaseId/check-cherry-pick-status",
+    tenantPermissions.requireAppMembership({ storage }),
     controller.checkCherryPickStatus
   );
 
   // Check project management run status
   router.get(
-    "/tenants/:tenantId/releases/:releaseId/project-management-run-status",
-    tenantPermissions.requireTenantMembership({ storage }),
+    "/apps/:appId/releases/:releaseId/project-management-run-status",
+    tenantPermissions.requireAppMembership({ storage }),
     controller.checkProjectManagementRunStatus
   );
 
   // Check test management run status
   router.get(
-    "/tenants/:tenantId/releases/:releaseId/test-management-run-status",
-    tenantPermissions.requireTenantMembership({ storage }),
+    "/apps/:appId/releases/:releaseId/test-management-run-status",
+    tenantPermissions.requireAppMembership({ storage }),
     controller.checkTestManagementRunStatus
   );
 
@@ -414,8 +414,8 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
 
   // Get activity logs for a release
   router.get(
-    "/tenants/:tenantId/releases/:releaseId/activity-logs",
-    tenantPermissions.requireTenantMembership({ storage }),
+    "/apps/:appId/releases/:releaseId/activity-logs",
+    tenantPermissions.requireAppMembership({ storage }),
     controller.getActivityLogs
   );
 
@@ -424,7 +424,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
 
   router.post(
-    "/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight",
+    "/apps/:appId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight",
     tenantPermissions.requireEditor({ storage }),
     verifyTestFlightBuild
   );
@@ -450,16 +450,16 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
 
   // Get build artifacts
   router.get(
-    "/tenants/:tenantId/releases/:releaseId/builds/artifacts",
-    tenantPermissions.requireTenantMembership({ storage }),
+    "/apps/:appId/releases/:releaseId/builds/artifacts",
+    tenantPermissions.requireAppMembership({ storage }),
     createBuildListArtifactsHandler(storage)
   );
 
   // Download build artifact
-  // GET /tenants/:tenantId/builds/:buildId/artifact
+  // GET /apps/:appId/builds/:buildId/artifact
   // Returns presigned download URL with expiry timestamp
   router.get(
-    "/tenants/:tenantId/builds/:buildId/artifact",
+    "/apps/:appId/builds/:buildId/artifact",
     tenantPermissions.requireOwner({ storage }),
     createBuildDownloadArtifactHandler(storage)
   );

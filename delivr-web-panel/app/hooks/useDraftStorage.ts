@@ -88,7 +88,7 @@ function loadDraftFromLocalStorage<T>(
  * @example
  * ```tsx
  * const { formData, setFormData, isDraftRestored, clearDraft } = useDraftStorage({
- *   storageKey: 'release-config-draft-{tenantId}',
+ *   storageKey: 'release-config-draft-{appId}',
  *   sensitiveFields: ['githubToken', 'slackWebhook'],
  *   shouldSaveDraft: (data) => !!data.name || !!data.description,
  * }, initialFormData, isEditMode ? existingData : undefined);
@@ -320,10 +320,10 @@ export function useDraftStorage<T extends Record<string, any>>(
  */
 export function generateStorageKey(
   formType: string,
-  tenantId: string,
+  appId: string,
   additionalContext?: string
 ): string {
-  const parts = ['draft', formType, tenantId];
+  const parts = ['draft', formType, appId];
   if (additionalContext) {
     parts.push(additionalContext);
   }

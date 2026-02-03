@@ -40,7 +40,7 @@ export interface WorkflowListProps {
     jenkins: Array<{ id: string; name: string }>;
     githubActions: Array<{ id: string; name: string }>;
   };
-  tenantId: string;
+  appId: string;
   onRefresh: () => void;
   onCreate: (workflow: any) => Promise<void>;
   onUpdate?: (workflowId: string, workflow: any) => Promise<void>;
@@ -50,7 +50,7 @@ export interface WorkflowListProps {
 export function WorkflowList({
   workflows,
   availableIntegrations,
-  tenantId,
+  appId,
   onRefresh,
   onCreate,
   onUpdate,
@@ -65,7 +65,7 @@ export function WorkflowList({
 
   const handleEdit = (workflow: CICDWorkflow) => {
     // Navigate to edit page using client-side navigation (no reload)
-    navigate(`/dashboard/${tenantId}/releases/workflows/${workflow.id}`);
+    navigate(`/dashboard/${appId}/releases/workflows/${workflow.id}`);
   };
 
   const handleDeleteClick = (workflow: CICDWorkflow) => {

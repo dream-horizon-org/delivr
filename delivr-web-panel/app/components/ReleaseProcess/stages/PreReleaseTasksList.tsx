@@ -10,7 +10,7 @@ import { TasksList } from '../shared/TasksList';
 
 interface PreReleaseTasksListProps {
   tasks: Task[];
-  tenantId: string;
+  appId: string;
   releaseId: string;
   onRetry: (taskId: string) => void;
   uploadedBuilds?: BuildInfo[];
@@ -20,7 +20,7 @@ interface PreReleaseTasksListProps {
 
 export function PreReleaseTasksList({
   tasks,
-  tenantId,
+  appId,
   releaseId,
   onRetry,
   uploadedBuilds = [],
@@ -30,7 +30,7 @@ export function PreReleaseTasksList({
   return (
     <TasksList
       tasks={tasks}
-      tenantId={tenantId}
+      appId={appId}
       releaseId={releaseId}
       onRetry={onRetry}
       emptyMessage={PRE_RELEASE_LABELS.NO_TASKS || 'No tasks available'}

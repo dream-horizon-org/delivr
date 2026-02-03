@@ -16,17 +16,17 @@ import type { CreateReleaseBackendRequest } from '~/types/release-creation-backe
 import { logApiError } from '~/utils/api-route-helpers';
 
 /**
- * GET /api/v1/tenants/:tenantId/releases
+ * GET /api/v1/apps/:appId/releases
  * Fetch releases from backend API
  * 
  * BFF route that calls the release retrieval service
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, request, user }: LoaderFunctionArgs & { user: User }) => {
-    const { tenantId } = params;
+    const { appId } = params;
 
-    if (!tenantId) {
-      return json({ success: false, error: 'Tenant ID required' }, { status: 400 });
+    if (!appId) {
+      return json({ success: false, error: 'app id required' }, { status: 400 });
     }
 
     try {
@@ -34,9 +34,9 @@ export const loader = authenticateLoaderRequest(
     const url = new URL(request.url);
     const includeTasks = url.searchParams.get('includeTasks') === 'true';
 
-    console.log('[BFF] Fetching releases for tenant:', tenantId);
+    console.log('[BFF] Fetching releases for tenant:', appId);
 
-    const result = await listReleases(tenantId, userId, { includeTasks });
+    const result = await listReleases(appId, userId, { includeTasks });
     console.log('[BFF] Result:', result);
 
     if (!result.success) {
@@ -67,7 +67,7 @@ export const loader = authenticateLoaderRequest(
 );
 
 /**
- * POST /api/v1/tenants/:tenantId/releases
+ * POST /api/v1/apps/:appId/releases
  * Create a new release
  * 
  * BFF route that calls the release-creation service to create releases.
@@ -75,10 +75,10 @@ export const loader = authenticateLoaderRequest(
  */
 export const action = authenticateActionRequest({
   POST: async ({ request, params, user }: ActionFunctionArgs & { user: User }) => {
-    const { tenantId } = params;
+    const { appId } = params;
 
-    if (!tenantId) {
-      return json({ success: false, error: 'Tenant ID required' }, { status: 400 });
+    if (!appId) {
+      return json({ success: false, error: 'app id required' }, { status: 400 });
     }
 
     try {
@@ -86,13 +86,13 @@ export const action = authenticateActionRequest({
       const backendRequest = (await request.json()) as CreateReleaseBackendRequest;
 
       console.log('[BFF] Creating release:', {
-        tenantId,
+        appId,
         releaseType: backendRequest.type,
         releaseConfigId: backendRequest.releaseConfigId,
       });
 
       // Call server-side service which calls backend API
-      const result = await createRelease(backendRequest, tenantId, userId);
+      const result = await createRelease(backendRequest, appId, userId);
 
       if (!result.success) {
         console.error('[BFF] Create failed:', result.error);

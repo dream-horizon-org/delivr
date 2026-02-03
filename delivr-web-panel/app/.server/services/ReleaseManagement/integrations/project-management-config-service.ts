@@ -27,7 +27,7 @@ class ProjectManagementConfigServiceClass extends IntegrationService {
    * Create PM configuration
    */
   async createConfig(
-    tenantId: string,
+    appId: string,
     userId: string,
     config: {
       integrationId: string;
@@ -35,7 +35,7 @@ class ProjectManagementConfigServiceClass extends IntegrationService {
       platformConfigurations: any[];
     }
   ): Promise<PMConfigResponse> {
-    const endpoint = PROJECT_MANAGEMENT.config.create(tenantId);
+    const endpoint = PROJECT_MANAGEMENT.config.create(appId);
     this.logRequest('POST', endpoint);
     
     try {
@@ -43,7 +43,7 @@ class ProjectManagementConfigServiceClass extends IntegrationService {
         endpoint,
         {
           ...config,
-          projectId: tenantId, // Backend expects projectId
+          projectId: appId, // Backend expects projectId
           createdByAccountId: userId,
         },
         userId
@@ -67,11 +67,11 @@ class ProjectManagementConfigServiceClass extends IntegrationService {
    * Get PM configuration by ID
    */
   async getConfig(
-    tenantId: string,
+    appId: string,
     configId: string,
     userId: string
   ): Promise<PMConfigResponse> {
-    const endpoint = PROJECT_MANAGEMENT.config.get(tenantId, configId);
+    const endpoint = PROJECT_MANAGEMENT.config.get(appId, configId);
     this.logRequest('GET', endpoint);
     
     try {
@@ -98,7 +98,7 @@ class ProjectManagementConfigServiceClass extends IntegrationService {
    * Update PM configuration
    */
   async updateConfig(
-    tenantId: string,
+    appId: string,
     configId: string,
     userId: string,
     updates: Partial<{
@@ -106,7 +106,7 @@ class ProjectManagementConfigServiceClass extends IntegrationService {
       platformConfigurations: any[];
     }>
   ): Promise<PMConfigResponse> {
-    const endpoint = PROJECT_MANAGEMENT.config.update(tenantId, configId);
+    const endpoint = PROJECT_MANAGEMENT.config.update(appId, configId);
     this.logRequest('PUT', endpoint);
     
     try {
@@ -134,11 +134,11 @@ class ProjectManagementConfigServiceClass extends IntegrationService {
    * Delete PM configuration
    */
   async deleteConfig(
-    tenantId: string,
+    appId: string,
     configId: string,
     userId: string
   ): Promise<{ success: boolean; message?: string; error?: string }> {
-    const endpoint = PROJECT_MANAGEMENT.config.delete(tenantId, configId);
+    const endpoint = PROJECT_MANAGEMENT.config.delete(appId, configId);
     this.logRequest('DELETE', endpoint);
     
     try {

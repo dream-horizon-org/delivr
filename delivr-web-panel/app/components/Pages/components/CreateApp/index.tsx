@@ -7,7 +7,7 @@ import {
   TagsInput,
   Skeleton,
 } from "@mantine/core";
-import { useGetOrgList } from "../OrgListNavbar/hooks/useGetOrgList";
+import { useGetAppList } from "../OrgListNavbar/hooks/useGetAppList";
 import { useCreateApp } from "./hooks/useCreateApp";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "@remix-run/react";
@@ -22,7 +22,7 @@ export function CreateAppForm({ onSuccess }: CreateAppFormProps = {}) {
   const { mutate, isLoading } = useCreateApp();
   const navigation = useNavigate();
   const params = useParams();
-  const orgs = useGetOrgList();
+  const orgs = useGetAppList();
   const [org, setOrg] = useState({
     value: "",
     error: "",
@@ -61,10 +61,10 @@ export function CreateAppForm({ onSuccess }: CreateAppFormProps = {}) {
 
   useEffect(() => {
     // If we have an org in params, use it (coming from app list page)
-    const currentOrg = orgs.data?.find((o) => o.id === params.org);
-    if (currentOrg) {
+    const currentApp = orgs.data?.find((o) => o.id === params.org);
+    if (currentApp) {
       setOrg({
-        value: currentOrg.orgName,
+        value: currentApp?.displayName,
         error: "",
       });
     } else if (!params.org && orgs.data?.length) {

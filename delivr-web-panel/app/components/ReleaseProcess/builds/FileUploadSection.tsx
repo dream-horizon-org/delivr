@@ -19,7 +19,7 @@ import { handleStageError } from '~/utils/stage-error-handling';
 import { showSuccessToast } from '~/utils/toast';
 
 interface FileUploadSectionProps {
-  tenantId: string;
+  appId: string;
   releaseId: string;
   stage: BuildUploadStage;
   availablePlatforms: Platform[];
@@ -49,7 +49,7 @@ function validateFile(file: File, platform: Platform): string | null {
 }
 
 export function FileUploadSection({
-  tenantId,
+  appId,
   releaseId,
   stage,
   availablePlatforms,
@@ -62,7 +62,7 @@ export function FileUploadSection({
   const [validationError, setValidationError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const uploadMutation = useManualBuildUpload(tenantId, releaseId);
+  const uploadMutation = useManualBuildUpload(appId, releaseId);
 
   const handleFileSelect = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {

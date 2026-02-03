@@ -69,7 +69,7 @@ export function CheckmateConfigFormEnhanced({
   availableIntegrations,
   selectedTargets, // NEW: Receive selected targets
   integrationId, // Optional: if provided, use this integration (one-to-one mapping)
-  tenantId, // Required for new API format
+  appId, // Required for new API format
 }: CheckmateConfigFormEnhancedProps) {
   // ✅ Use provided integrationId or fallback to config
   const selectedIntegrationId = integrationId || config?.integrationId || '';
@@ -114,7 +114,7 @@ export function CheckmateConfigFormEnhanced({
 
     try {
       const result = await apiGet<{ projectsList: any[] }>(
-        `/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}/metadata/projects`
+        `/api/v1/apps/${appId}/integrations/test-management/${integrationId}/metadata/projects`
       );
       
       if (result.success && result.data?.projectsList) {
@@ -130,7 +130,7 @@ export function CheckmateConfigFormEnhanced({
     } finally {
       setIsLoadingProjects(false);
     }
-  }, [tenantId]);
+  }, [appId]);
 
   const fetchMetadata = useCallback(async (integrationId: string, projectId: number) => {
     setIsLoadingMetadata(true);
@@ -138,9 +138,9 @@ export function CheckmateConfigFormEnhanced({
 
     try {
       const [sectionsData, labelsData, squadsData] = await Promise.all([
-        apiGet<any[]>(`/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}/metadata/sections?projectId=${projectId}`),
-        apiGet<any[]>(`/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}/metadata/labels?projectId=${projectId}`),
-        apiGet<any[]>(`/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}/metadata/squads?projectId=${projectId}`),
+        apiGet<any[]>(`/api/v1/apps/${appId}/integrations/test-management/${integrationId}/metadata/sections?projectId=${projectId}`),
+        apiGet<any[]>(`/api/v1/apps/${appId}/integrations/test-management/${integrationId}/metadata/labels?projectId=${projectId}`),
+        apiGet<any[]>(`/api/v1/apps/${appId}/integrations/test-management/${integrationId}/metadata/squads?projectId=${projectId}`),
       ]);
 
       setSections(sectionsData.data || []);
@@ -151,7 +151,7 @@ export function CheckmateConfigFormEnhanced({
     } finally {
       setIsLoadingMetadata(false);
     }
-  }, [tenantId]);
+  }, [appId]);
 
   // Store platform-specific metadata (projects are shared, metadata is platform-specific)
   const [platformSections, setPlatformSections] = useState<Record<string, CheckmateSection[]>>({});
@@ -171,7 +171,7 @@ export function CheckmateConfigFormEnhanced({
 
   // Fetch platform-specific metadata (sequential calls to avoid parallelization issues)
   const fetchPlatformMetadata = useCallback(async (platform: string, projectId: number) => {
-    if (!selectedIntegrationId || !projectId || !tenantId) return;
+    if (!selectedIntegrationId || !projectId || !appId) return;
     
     setLoadingMetadataForPlatform(prev => ({ ...prev, [platform]: true }));
     setMetadataErrorForPlatform(prev => ({ ...prev, [platform]: false }));
@@ -180,10 +180,10 @@ export function CheckmateConfigFormEnhanced({
     
     try {
       // Sequential API calls instead of parallel to avoid failures
-      // UPDATED: Use new endpoint format with tenantId
-      const sectionsData = await apiGet<any[]>(`/api/v1/tenants/${tenantId}/integrations/test-management/${selectedIntegrationId}/metadata/sections?projectId=${projectId}`);
-      const labelsData = await apiGet<any[]>(`/api/v1/tenants/${tenantId}/integrations/test-management/${selectedIntegrationId}/metadata/labels?projectId=${projectId}`);
-      const squadsData = await apiGet<any[]>(`/api/v1/tenants/${tenantId}/integrations/test-management/${selectedIntegrationId}/metadata/squads?projectId=${projectId}`);
+      // UPDATED: Use new endpoint format with appId
+      const sectionsData = await apiGet<any[]>(`/api/v1/apps/${appId}/integrations/test-management/${selectedIntegrationId}/metadata/sections?projectId=${projectId}`);
+      const labelsData = await apiGet<any[]>(`/api/v1/apps/${appId}/integrations/test-management/${selectedIntegrationId}/metadata/labels?projectId=${projectId}`);
+      const squadsData = await apiGet<any[]>(`/api/v1/apps/${appId}/integrations/test-management/${selectedIntegrationId}/metadata/squads?projectId=${projectId}`);
 
       // Only update if all calls succeeded
       if (sectionsData.success && labelsData.success && squadsData.success) {
@@ -216,7 +216,7 @@ export function CheckmateConfigFormEnhanced({
     } finally {
       setLoadingMetadataForPlatform(prev => ({ ...prev, [platform]: false }));
     }
-  }, [selectedIntegrationId, tenantId]);
+  }, [selectedIntegrationId, appId]);
 
   // In edit mode: Fetch metadata for existing platform configurations
   // This ensures dropdowns show names instead of IDs when editing

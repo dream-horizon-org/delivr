@@ -8,7 +8,7 @@ import type { ReleaseConfiguration } from '~types/release-configs/release-config
 
 export type ReleaseConfigAttributes = {
   id: string;
-  tenantId: string;
+  appId: string;
   name: string;
   description: string | null;
   releaseType: 'MAJOR' | 'MINOR' | 'HOTFIX';
@@ -42,14 +42,17 @@ export const createReleaseConfigModel = (
         primaryKey: true,
         allowNull: false
       },
-      tenantId: {
+      appId: {
         type: DataTypes.UUID,
         allowNull: false,
-        field: 'tenantId',
+        field: 'appId',
         references: {
-          model: 'tenants',
+          model: 'apps',  // Changed from 'tenants' to 'apps'
           key: 'id'
-        }
+        },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+        comment: 'Reference to apps table (renamed from tenants)'
       },
       name: {
         type: DataTypes.STRING(255),

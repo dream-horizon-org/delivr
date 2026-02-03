@@ -10,8 +10,8 @@ export class GitHubActionsWorkflowService extends WorkflowService {
   /**
    * Resolve a GitHub token for the tenant if available from CI/CD integration.
    */
-  private getGithubTokenForTenant = async (tenantId: string): Promise<string | null> => {
-    const gha = await this.integrationRepository.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
+  private getGithubTokenForTenant = async (appId: string): Promise<string | null> => {
+    const gha = await this.integrationRepository.findByAppAndProvider(appId, CICDProviderType.GITHUB_ACTIONS);
     if (gha?.apiToken) return gha.apiToken as string;
     // TODO: consider retrieving token from SCM integration repository if needed
     return null;
@@ -50,12 +50,12 @@ export class GitHubActionsWorkflowService extends WorkflowService {
   /**
    * Read workflow file and extract workflow_dispatch inputs as parameters.
    */
-  fetchWorkflowInputs = async (tenantId: string, workflowUrl: string): Promise<{ parameters: Array<{
+  fetchWorkflowInputs = async (appId: string, workflowUrl: string): Promise<{ parameters: Array<{
     name: string; type: string; description?: string; defaultValue?: unknown; options?: string[]; required?: boolean;
   }>}> => {
     validateGitHubWorkflowUrl(workflowUrl);
     
-    const token = await this.getGithubTokenForTenant(tenantId);
+    const token = await this.getGithubTokenForTenant(appId);
     if (!token) throw new Error(ERROR_MESSAGES.GHA_NO_TOKEN_AVAILABLE);
     const provider = await ProviderFactory.getProvider(CICDProviderType.GITHUB_ACTIONS) as GitHubActionsProviderContract;
     const args: GHAWorkflowInputsParams = {
@@ -74,7 +74,7 @@ export class GitHubActionsWorkflowService extends WorkflowService {
    * Accepts either workflowId or (workflowType + platform) to resolve the workflow.
    * Attempts to find a human URL to the dispatched run for convenience.
    */
-  trigger = async (tenantId: string, input: {
+  trigger = async (appId: string, input: {
     workflowId?: string;
     workflowType?: string;
     platform?: string;
@@ -90,12 +90,12 @@ export class GitHubActionsWorkflowService extends WorkflowService {
     let workflow: any;
     if (hasWorkflowId) {
       const item = await this.workflowRepository.findById(input.workflowId as string);
-      const invalid = !item || item.tenantId !== tenantId || item.providerType !== CICDProviderType.GITHUB_ACTIONS;
+      const invalid = !item || item.appId !== appId || item.providerType !== CICDProviderType.GITHUB_ACTIONS;
       if (invalid) throw new Error(ERROR_MESSAGES.WORKFLOW_NOT_FOUND);
       workflow = item;
     } else {
       const items = await this.workflowRepository.findAll({
-        tenantId,
+        appId,
         providerType: CICDProviderType.GITHUB_ACTIONS as any,
         workflowType: input.workflowType as any,
         platform: input.platform
@@ -112,7 +112,7 @@ export class GitHubActionsWorkflowService extends WorkflowService {
       throw new Error(ERROR_MESSAGES.GHA_INVALID_WORKFLOW_URL);
     }
 
-    const token = await this.getGithubTokenForTenant(tenantId);
+    const token = await this.getGithubTokenForTenant(appId);
     if (!token) throw new Error(ERROR_MESSAGES.GHA_NO_TOKEN_AVAILABLE);
 
     // Merge workflow defaults with provided job parameters (ignores extra keys from overrides)
@@ -182,7 +182,7 @@ export class GitHubActionsWorkflowService extends WorkflowService {
    * 
    * @returns 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
    */
-  getRunStatus = async (tenantId: string, input: { runUrl?: string; owner?: string; repo?: string; runId?: string; }): Promise<WorkflowStatus> => {
+  getRunStatus = async (appId: string, input: { runUrl?: string; owner?: string; repo?: string; runId?: string; }): Promise<WorkflowStatus> => {
     let parsed = { owner: input.owner, repo: input.repo, runId: input.runId };
     if (input.runUrl) {
       const p = parseGitHubRunUrl(input.runUrl);
@@ -190,7 +190,7 @@ export class GitHubActionsWorkflowService extends WorkflowService {
       parsed = p;
     }
     if (!parsed.owner || !parsed.repo || !parsed.runId) throw new Error(ERROR_MESSAGES.GHA_RUN_IDENTIFIERS_REQUIRED);
-    const token = await this.getGithubTokenForTenant(tenantId);
+    const token = await this.getGithubTokenForTenant(appId);
     if (!token) throw new Error(ERROR_MESSAGES.GHA_NO_TOKEN_AVAILABLE);
     const provider = await ProviderFactory.getProvider(CICDProviderType.GITHUB_ACTIONS) as GitHubActionsProviderContract;
     const args: GHARunStatusParams = {

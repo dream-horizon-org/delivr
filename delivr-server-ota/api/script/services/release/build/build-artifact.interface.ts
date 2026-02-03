@@ -30,7 +30,7 @@ import type {
  * For AAB builds:
  * - CI provides buildNumber (versionCode) after uploading to Play Store
  * - System generates internalTrackLink using: https://play.google.com/apps/test/{packageName}/{versionCode}
- * - packageName is fetched from store_integrations table using tenantId
+ * - packageName is fetched from store_integrations table using appId
  */
 export type UploadBuildArtifactInput = {
   ciRunId: string;
@@ -43,10 +43,10 @@ export type UploadBuildArtifactInput = {
 };
 
 /**
- * Input for listing build artifacts (tenantId and releaseId required, rest optional)
+ * Input for listing build artifacts (appId and releaseId required, rest optional)
  */
 export type ListBuildArtifactsInput = {
-  tenantId: string;
+  appId: string;
   releaseId: string;
   platform?: BuildPlatform | null;
   buildStage?: BuildStage | null;
@@ -121,7 +121,7 @@ export type UpdateInternalTrackInfoInput = {
  * Creates a new build record after verification.
  */
 export type ManualTestflightVerifyInput = {
-  tenantId: string;
+  appId: string;
   releaseId: string;
   testflightNumber: string;
   buildStage: BuildStage;
@@ -156,7 +156,7 @@ export type TestflightVerifyResult = {
  * Does NOT create a build record - that happens when TaskExecutor consumes the upload.
  */
 export type UploadStagingArtifactInput = {
-  tenantId: string;
+  appId: string;
   releaseId: string;
   platform: string;
   artifactVersionName: string;  // Version from release_platform_target_mapping

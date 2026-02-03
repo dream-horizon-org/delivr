@@ -27,12 +27,12 @@ type AuthenticatedRequest = Request & {
 
 /**
  * Create new project management configuration
- * POST /tenants/:tenantId/project-management/configs
+ * POST /apps/:appId/project-management/configs
  */
 const createConfigHandler = (service: ProjectManagementConfigService) =>
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const { tenantId } = req.params;
+      const { appId } = req.params;
       const { integrationId, name, description, platformConfigurations } = req.body;
 
       // Validate name
@@ -60,7 +60,7 @@ const createConfigHandler = (service: ProjectManagementConfigService) =>
       }
 
       const data: CreateProjectManagementConfigDto = {
-        tenantId,
+        appId,
         integrationId,
         name,
         description,
@@ -80,14 +80,14 @@ const createConfigHandler = (service: ProjectManagementConfigService) =>
 
 /**
  * List all configurations for a tenant
- * GET /tenants/:tenantId/project-management/configs
+ * GET /apps/:appId/project-management/configs
  */
 const listConfigsHandler = (service: ProjectManagementConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tenantId } = req.params;
+      const { appId } = req.params;
 
-      const configs = await service.listConfigsByProject(tenantId);
+      const configs = await service.listConfigsByProject(appId);
 
       res.status(HTTP_STATUS.OK).json(successResponse(configs));
     } catch (error) {
@@ -100,7 +100,7 @@ const listConfigsHandler = (service: ProjectManagementConfigService) =>
 
 /**
  * Get single configuration by ID
- * GET /tenants/:tenantId/project-management/configs/:configId
+ * GET /apps/:appId/project-management/configs/:configId
  */
 const getConfigHandler = (service: ProjectManagementConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -128,7 +128,7 @@ const getConfigHandler = (service: ProjectManagementConfigService) =>
 
 /**
  * Update configuration
- * PUT /tenants/:tenantId/project-management/configs/:configId
+ * PUT /apps/:appId/project-management/configs/:configId
  */
 const updateConfigHandler = (service: ProjectManagementConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -182,7 +182,7 @@ const updateConfigHandler = (service: ProjectManagementConfigService) =>
 
 /**
  * Delete configuration
- * DELETE /tenants/:tenantId/project-management/configs/:configId
+ * DELETE /apps/:appId/project-management/configs/:configId
  */
 const deleteConfigHandler = (service: ProjectManagementConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -212,7 +212,7 @@ const deleteConfigHandler = (service: ProjectManagementConfigService) =>
 
 /**
  * Verify configuration
- * POST /tenants/:tenantId/project-management/configs/:configId/verify
+ * POST /apps/:appId/project-management/configs/:configId/verify
  */
 const verifyConfigHandler = (service: ProjectManagementConfigService) =>
   async (req: Request, res: Response): Promise<void> => {

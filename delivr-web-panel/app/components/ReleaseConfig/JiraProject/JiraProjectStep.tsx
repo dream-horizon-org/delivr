@@ -34,11 +34,11 @@ export function JiraProjectStep({
   onChange,
   availableIntegrations,
   selectedPlatforms = [],
-  tenantId,
+  appId,
 }: JiraProjectStepProps) {
   const theme = useMantineTheme();
   const params = useParams();
-  const orgId = params.org || tenantId || '';
+  const orgId = params.org || appId || '';
 
   const isEnabled = config.enabled ?? false;
   const platformConfigurations = config.platformConfigurations ?? [];
@@ -75,7 +75,7 @@ export function JiraProjectStep({
   };
 
   const fetchProjects = useCallback(async (integrationId: string) => {
-    if (!tenantId || !integrationId) return;
+    if (!appId || !integrationId) return;
 
     setIsLoadingProjects(true);
     setProjectsError(null);
@@ -83,7 +83,7 @@ export function JiraProjectStep({
 
     try {
       const result = await apiGet<{ success: boolean; data: Array<{ key: string; name: string }> }>(
-        `/api/v1/tenants/${tenantId}/integrations/project-management/${integrationId}/jira/metadata/projects`
+        `/api/v1/apps/${appId}/integrations/project-management/${integrationId}/jira/metadata/projects`
       );
 
       if (result.success && result.data) {
@@ -102,7 +102,7 @@ export function JiraProjectStep({
     } finally {
       setIsLoadingProjects(false);
     }
-  }, [tenantId]);
+  }, [appId]);
 
   useEffect(() => {
     if (config.integrationId && !projectsLoaded && !isLoadingProjects && !projectsError) {
@@ -237,7 +237,7 @@ export function JiraProjectStep({
                   ) : (
                     <NoIntegrationAlert
                       category={IntegrationCategory.PROJECT_MANAGEMENT}
-                      tenantId={orgId}
+                      appId={orgId}
                       color="yellow"
                     />
                   )}

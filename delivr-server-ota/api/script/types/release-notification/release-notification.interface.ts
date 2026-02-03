@@ -84,7 +84,7 @@ export type DeliveryStatus = Record<string, ChannelDeliveryResponse>;
  */
 export type ReleaseNotification = {
   id: number;
-  tenantId: string;
+  appId: string;
   releaseId: string;
   notificationType: NotificationType;
   isSystemGenerated: boolean;
@@ -102,7 +102,7 @@ export type ReleaseNotification = {
  * DTO for creating a new notification record
  */
 export type CreateReleaseNotificationDto = {
-  tenantId: string;
+  appId: string;
   releaseId: string;
   notificationType: NotificationType;
   isSystemGenerated?: boolean;
@@ -126,7 +126,7 @@ export type UpdateReleaseNotificationDto = {
  * Filters for querying notifications
  */
 export type NotificationQueryFilters = {
-  tenantId?: string;
+  appId?: string;
   releaseId?: string;
   notificationType?: NotificationType;
   isSystemGenerated?: boolean;
@@ -161,7 +161,7 @@ export const PLATFORM_SPECIFIC_NOTIFICATION_TYPES: NotificationType[] = [
  * Base payload fields required for all notification types
  */
 export type BaseNotificationPayload = {
-  tenantId: string;
+  appId: string;
   releaseId: string;
   isSystemGenerated?: boolean;
   userId?: string;
@@ -423,7 +423,7 @@ export type ManualBuildUploadReminderPayload = BaseNotificationPayload & {
  * ```typescript
  * const payload: NotificationPayload = {
  *   type: NotificationType.PRE_KICKOFF_REMINDER,
- *   tenantId: 'tenant-123',
+ *   appId: 'tenant-123',
  *   releaseId: 'release-456',
  *   releaseType: 'planned',
  *   version: 'v6.5.0',

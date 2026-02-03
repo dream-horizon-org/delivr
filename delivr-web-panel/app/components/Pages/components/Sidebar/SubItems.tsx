@@ -1,12 +1,12 @@
 import { Box, Stack, useMantineTheme } from "@mantine/core";
 import { useLocation } from "@remix-run/react";
 import type { SubItem } from "./navigation-data";
-import type { Organization } from "./types";
+import type { App } from "./types";
 import { SubItem as SubItemComponent } from "./SubItem";
 
 interface SubItemsProps {
   subItems: SubItem[];
-  org: Organization;
+  org: App;
   moduleMainRoute: string;
 }
 

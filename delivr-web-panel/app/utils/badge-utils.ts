@@ -69,12 +69,14 @@ export const BADGE_COLORS = {
     WEB: 'cyan',
   },
   
-  // Target Colors - Green/Blue/Cyan family
+  // Target Colors - Green/Blue/Cyan/Teal family
   // Matches platforms (intentional overlap - they represent the same platforms)
+  // DOTA (Over-the-Air) uses teal for distinct OTA distribution
   TARGET: {
     PLAY_STORE: 'green',
     APP_STORE: 'blue',
     WEB: 'cyan',
+    DOTA: 'teal',
   },
   
   // Build Environment Colors - Purple/Grape/Indigo family ONLY
@@ -211,6 +213,7 @@ export function getTargetBadgeColor(target: TargetPlatform | string): string {
   if (targetUpper === TARGET_PLATFORMS.PLAY_STORE) return BADGE_COLORS.TARGET.PLAY_STORE;
   if (targetUpper === TARGET_PLATFORMS.APP_STORE) return BADGE_COLORS.TARGET.APP_STORE;
   if (targetUpper === TARGET_PLATFORMS.WEB) return BADGE_COLORS.TARGET.WEB;
+  if (targetUpper === 'DOTA') return BADGE_COLORS.TARGET.DOTA;
   return BADGE_COLORS.STATUS.NEUTRAL;
 }
 

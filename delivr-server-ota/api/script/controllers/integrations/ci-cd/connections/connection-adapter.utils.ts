@@ -8,8 +8,8 @@ export type VerifyResult = { isValid: boolean; message: string };
 
 export type ConnectionAdapter = {
   verify: (body: Record<string, unknown>) => Promise<VerifyResult>;
-  create: (tenantId: string, accountId: string, body: Record<string, unknown>) => Promise<unknown>;
-  update?: (tenantId: string, updateData: UpdateCICDIntegrationDto) => Promise<SafeCICDIntegration>;
+  create: (appId: string, accountId: string, body: Record<string, unknown>) => Promise<unknown>;
+  update?: (appId: string, updateData: UpdateCICDIntegrationDto) => Promise<SafeCICDIntegration>;
 };
 
 export const getConnectionAdapter = (provider: CICDProviderType): ConnectionAdapter => {

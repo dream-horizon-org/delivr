@@ -21,7 +21,7 @@ export type PlatformConfiguration = {
  */
 export type TestManagementConfig = {
   id: string;
-  tenantId: string;
+  appId: string;
   integrationId: string;
   name: string;
   passThresholdPercent: number;
@@ -35,7 +35,7 @@ export type TestManagementConfig = {
  * DTO for creating test management config
  */
 export type CreateTestManagementConfigDto = {
-  tenantId: string;
+  appId: string;
   integrationId: string;
   name: string;
   passThresholdPercent: number;

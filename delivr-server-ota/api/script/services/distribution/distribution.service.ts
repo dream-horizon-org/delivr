@@ -211,7 +211,7 @@ export class DistributionService {
     );
 
     // Enrich iOS submissions with totalPauseDuration from Apple API
-    await this.enrichIosSubmissionsWithPauseDuration(formattedIosSubmissions, distribution.tenantId);
+    await this.enrichIosSubmissionsWithPauseDuration(formattedIosSubmissions, distribution.appId);
 
     // Format Android submissions to match expected response structure
     const formattedAndroidSubmissions = await Promise.all(
@@ -410,7 +410,7 @@ export class DistributionService {
     filters: {
       status?: string;
       platform?: string;
-      tenantId?: string;
+      appId?: string;
     } = {},
     page: number = 1,
     pageSize: number = 10
@@ -457,8 +457,8 @@ export class DistributionService {
     if (filters.status) {
       repositoryFilters.status = filters.status as DistributionStatus;
     }
-    if (filters.tenantId) {
-      repositoryFilters.tenantId = filters.tenantId;
+    if (filters.appId) {
+      repositoryFilters.appId = filters.appId;
     }
 
     // Get paginated distributions
@@ -543,7 +543,7 @@ export class DistributionService {
         }>;
         
         if (iosSubmissions.length > 0) {
-          await this.enrichIosSubmissionsWithRolloutPercentage(iosSubmissions, distribution.tenantId);
+          await this.enrichIosSubmissionsWithRolloutPercentage(iosSubmissions, distribution.appId);
         }
 
         // Calculate distribution's statusUpdatedAt as max of all submissions' statusUpdatedAt
@@ -664,7 +664,7 @@ export class DistributionService {
    * Create distribution and submissions from release builds
    * 
    * This function:
-   * 1. Validates releaseId and tenantId exist in releases table
+   * 1. Validates releaseId and appId exist in releases table
    * 2. Gets platform & target mappings from release_platforms_targets_mapping
    * 3. Creates a distribution entry with platform & store type mappings
    * 4. Creates Android/iOS submission entries based on builds table data
@@ -672,15 +672,15 @@ export class DistributionService {
    * 6. Rolls back (deletes distribution) if any platform is missing a submission
    * 
    * @param releaseId - Release ID to create distribution for
-   * @param tenantId - Tenant ID to validate against release
+   * @param appId - app id to validate against release
    * @returns Object with distributionId and message on success, or distributionId: null and error on failure
    */
   async createDistributionFromRelease(
     releaseId: string,
-    tenantId: string
+    appId: string
   ): Promise<{ distributionId: string | null; message?: string; error?: string }> {
     try {
-      // Step 1: Validate releaseId and tenantId exist in releases table
+      // Step 1: Validate releaseId and appId exist in releases table
       const release = await this.releaseRepository.findById(releaseId);
       if (!release) {
         return {
@@ -689,10 +689,10 @@ export class DistributionService {
         };
       }
       
-      if (release.tenantId !== tenantId) {
+      if (release.appId !== appId) {
         return {
           distributionId: null,
-          error: `Release ${releaseId} does not belong to tenant ${tenantId}`
+          error: `Release ${releaseId} does not belong to tenant ${appId}`
         };
       }
 
@@ -725,7 +725,7 @@ export class DistributionService {
       const distributionId = uuidv4();
       const distribution = await this.distributionRepository.create({
         id: distributionId,
-        tenantId,
+        appId,
         releaseId,
         branch: release.branch ?? 'master',
         configuredListOfPlatforms: filteredPlatforms,
@@ -759,10 +759,10 @@ export class DistributionService {
         if (mapping.platform === BUILD_PLATFORM.ANDROID) {
           try {
             // Get Android build data from builds table
-            // Query: releaseId, tenantId, platform='ANDROID', storeType, buildStage='PRE_RELEASE', buildUploadStatus='UPLOADED'
+            // Query: releaseId, appId, platform='ANDROID', storeType, buildStage='PRE_RELEASE', buildUploadStatus='UPLOADED'
             const androidBuilds = await this.buildRepository.findBuilds({
               releaseId,
-              tenantId,
+              appId,
               platform: BUILD_PLATFORM.ANDROID,
               storeType: storeType,
               buildStage: BUILD_STAGE.PRE_RELEASE,
@@ -800,10 +800,10 @@ export class DistributionService {
         } else if (mapping.platform === BUILD_PLATFORM.IOS) {
           try {
             // Get iOS build data from builds table
-            // Query: releaseId, tenantId, platform='IOS', storeType, buildStage='PRE_RELEASE', buildUploadStatus='UPLOADED'
+            // Query: releaseId, appId, platform='IOS', storeType, buildStage='PRE_RELEASE', buildUploadStatus='UPLOADED'
             const iosBuilds = await this.buildRepository.findBuilds({
               releaseId,
-              tenantId,
+              appId,
               platform: BUILD_PLATFORM.IOS,
               storeType: storeType,
               buildStage: BUILD_STAGE.PRE_RELEASE,
@@ -896,12 +896,12 @@ export class DistributionService {
    * - totalRemainingPauseDuration: Remaining pause days allowed (30 - totalPauseDuration)
    * 
    * @param submissions - Array of formatted iOS submissions
-   * @param tenantId - Tenant ID to fetch store integration
+   * @param appId - app id to fetch store integration
    * @returns Promise resolving when enrichment is complete (modifies submissions in place)
    */
   private async enrichIosSubmissionsWithPauseDuration(
     submissions: Array<FormattedSubmission & { platform: 'IOS' }>,
-    tenantId: string
+    appId: string
   ): Promise<void> {
     // Filter submissions that need Apple API enrichment
     const submissionsNeedingEnrichment = submissions.filter(sub => 
@@ -934,13 +934,13 @@ export class DistributionService {
 
       // Find iOS App Store integration for tenant
       const integrations = await storeIntegrationController.findAll({
-        tenantId,
+        appId,
         platform: 'IOS',
         storeType: StoreType.APP_STORE
       });
 
       if (integrations.length === 0) {
-        console.warn(`[DistributionService] No iOS store integration found for tenant ${tenantId}`);
+        console.warn(`[DistributionService] No iOS store integration found for tenant ${appId}`);
         return;
       }
 
@@ -1066,7 +1066,7 @@ export class DistributionService {
    * 3. Updates in-memory submission object
    * 
    * @param submissions - Array of iOS submissions (lightweight format for list API)
-   * @param tenantId - Tenant ID to fetch store integration
+   * @param appId - app id to fetch store integration
    * @returns Promise resolving when enrichment is complete (modifies submissions in place)
    */
   private async enrichIosSubmissionsWithRolloutPercentage(
@@ -1078,7 +1078,7 @@ export class DistributionService {
       rolloutPercentage: number;
       isActive: boolean;
     }>,
-    tenantId: string
+    appId: string
   ): Promise<void> {
     // Filter submissions that need Apple API enrichment
     const submissionsNeedingEnrichment = submissions.filter(sub => 
@@ -1110,13 +1110,13 @@ export class DistributionService {
 
       // Find iOS App Store integration for tenant
       const integrations = await storeIntegrationController.findAll({
-        tenantId,
+        appId,
         platform: 'IOS',
         storeType: StoreType.APP_STORE
       });
 
       if (integrations.length === 0) {
-        console.warn(`[DistributionService] No iOS store integration found for tenant ${tenantId}`);
+        console.warn(`[DistributionService] No iOS store integration found for tenant ${appId}`);
         return;
       }
 

@@ -1,13 +1,13 @@
 import { Box, Text, UnstyledButton, useMantineTheme, Group } from "@mantine/core";
 import { Link, useRouteLoaderData } from "@remix-run/react";
 import type { SubItem as SubItemType } from "./navigation-data";
-import type { Organization } from "./types";
+import type { App } from "./types";
 import { usePermissions } from "~/hooks/usePermissions";
 import type { OrgLayoutLoaderData } from "~/routes/dashboard.$org";
 
 interface SubItemProps {
   subItem: SubItemType;
-  org: Organization;
+  org: App;
   isActive: boolean;
 }
 

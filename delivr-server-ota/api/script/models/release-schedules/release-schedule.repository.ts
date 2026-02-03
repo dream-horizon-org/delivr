@@ -26,7 +26,7 @@ export class ReleaseScheduleRepository {
     const schedule = await this.model.create({
       id: data.id,
       releaseConfigId: data.releaseConfigId, // FK to release_configurations
-      tenantId: data.tenantId,
+      appId: data.appId,
       releaseFrequency: data.releaseFrequency,
       firstReleaseKickoffDate: data.firstReleaseKickoffDate,
       initialVersions: data.initialVersions,
@@ -58,9 +58,9 @@ export class ReleaseScheduleRepository {
     return this.toPlainObject(schedule);
   };
 
-  findByTenantId = async (tenantId: string): Promise<ReleaseScheduleRecord[]> => {
+  findByAppId = async (appId: string): Promise<ReleaseScheduleRecord[]> => {
     const schedules = await this.model.findAll({
-      where: { tenantId },
+      where: { appId },
       order: [['createdAt', 'DESC']]
     });
 

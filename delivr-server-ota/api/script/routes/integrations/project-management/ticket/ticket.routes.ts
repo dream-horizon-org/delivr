@@ -22,7 +22,7 @@ export const createTicketRoutes = (
   // Check ticket status (optional helper)
   router.get(
     '/project-management/tickets/check-status',
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     controller.checkTicketStatus
   );
 

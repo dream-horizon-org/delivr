@@ -20,7 +20,7 @@ export function createCICDIntegrationRoutes(storage: Storage): Router {
   // Get available CI/CD providers
   router.get(
     "/integrations/ci-cd/providers",
-    tenantPermissions.requireTenantMembership({ storage }),
+    tenantPermissions.requireAppMembership({ storage }),
     getAvailableCICDProviders
   );
 
@@ -31,37 +31,37 @@ export function createCICDIntegrationRoutes(storage: Storage): Router {
 
   // Provider-agnostic workflows CRUD stays here
   router.post(
-    "/tenants/:tenantId/integrations/ci-cd/workflows",
-    validateCICD.validateTenantId,
+    "/apps/:appId/integrations/ci-cd/workflows",
+    validateCICD.validateAppId,
     tenantPermissions.requireEditor({ storage }),
     validateCICD.validateCreateWorkflowBody,
     createWorkflow
   );
 
   router.get(
-    "/tenants/:tenantId/integrations/ci-cd/workflows",
-    validateCICD.validateTenantId,
-    tenantPermissions.requireTenantMembership({ storage }),
+    "/apps/:appId/integrations/ci-cd/workflows",
+    validateCICD.validateAppId,
+    tenantPermissions.requireAppMembership({ storage }),
     listWorkflows
   );
 
   router.get(
-    "/tenants/:tenantId/integrations/ci-cd/workflows/:workflowId",
-    validateCICD.validateTenantId,
-    tenantPermissions.requireTenantMembership({ storage }),
+    "/apps/:appId/integrations/ci-cd/workflows/:workflowId",
+    validateCICD.validateAppId,
+    tenantPermissions.requireAppMembership({ storage }),
     getWorkflowById
   );
 
   router.patch(
-    "/tenants/:tenantId/integrations/ci-cd/workflows/:workflowId",
-    validateCICD.validateTenantId,
+    "/apps/:appId/integrations/ci-cd/workflows/:workflowId",
+    validateCICD.validateAppId,
     tenantPermissions.requireEditor({ storage }),
     updateWorkflow
   );
 
   router.delete(
-    "/tenants/:tenantId/integrations/ci-cd/workflows/:workflowId",
-    validateCICD.validateTenantId,
+    "/apps/:appId/integrations/ci-cd/workflows/:workflowId",
+    validateCICD.validateAppId,
     tenantPermissions.requireEditor({ storage }),
     deleteWorkflow
   );

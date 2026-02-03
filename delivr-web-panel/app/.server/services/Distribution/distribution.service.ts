@@ -197,7 +197,7 @@ class Distribution {
    * List all active distributions across all releases (paginated)
    * Aggregates release + submission data from distribution, android_submissions, and ios_submissions tables
    * 
-   * @param tenantId - Tenant/Organization ID (required)
+   * @param appId - Tenant/Organization ID (required)
    * @param page - Page number (1-indexed)
    * @param pageSize - Number of items per page
    * @param status - Filter by distribution status (optional)
@@ -205,13 +205,13 @@ class Distribution {
    * @returns Paginated list of distributions with their submissions
    */
   async listDistributions(
-    tenantId: string,
+    appId: string,
     page: number = 1,
     pageSize: number = 10,
     status: string | null = null,
     platform: string | null = null
   ) {
-    const params: Record<string, string | number> = { tenantId, page, pageSize };
+    const params: Record<string, string | number> = { appId, page, pageSize };
     if (status) {
       params.status = status;
     }
@@ -236,25 +236,25 @@ class Distribution {
 
   /**
    * Get single submission details
-   * @param tenantId - Tenant ID for authorization
+   * @param appId - app id for authorization
    * @param submissionId - Submission ID
    * @param platform - Required for backend to identify which table to query (android_submission_builds or ios_submission_builds)
    */
-  async getSubmission(tenantId: string, submissionId: string, platform: Platform) {
+  async getSubmission(appId: string, submissionId: string, platform: Platform) {
     return this.__client.get<null, SubmissionResponse>(
-      `/api/v1/tenants/${tenantId}/submissions/${submissionId}?platform=${platform}`
+      `/api/v1/apps/${appId}/submissions/${submissionId}?platform=${platform}`
     );
   }
 
   /**
    * Get distribution details by distributionId
    * Returns full distribution object with all submissions and artifacts
-   * @param tenantId - Tenant ID for authorization
+   * @param appId - app id for authorization
    * @param distributionId - Distribution ID
    */
-  async getDistribution(tenantId: string, distributionId: string) {
+  async getDistribution(appId: string, distributionId: string) {
     return this.__client.get<null, AxiosResponse<APISuccessResponse<DistributionWithSubmissions>>>(
-      `/api/v1/tenants/${tenantId}/distributions/${distributionId}`
+      `/api/v1/apps/${appId}/distributions/${distributionId}`
     );
   }
 
@@ -262,27 +262,27 @@ class Distribution {
    * Get distribution details by releaseId (for release process distribution step)
    * Returns full distribution object with all submissions and artifacts
    * Reference: DISTRIBUTION_API_SPEC.md - Line 303
-   * @param tenantId - Tenant ID for authorization
+   * @param appId - app id for authorization
    * @param releaseId - Release ID
    */
-  async getReleaseDistribution(tenantId: string, releaseId: string) {
+  async getReleaseDistribution(appId: string, releaseId: string) {
     return this.__client.get<null, AxiosResponse<APISuccessResponse<DistributionWithSubmissions>>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/distribution`
+      `/api/v1/apps/${appId}/releases/${releaseId}/distribution`
     );
   }
 
   /**
    * Submit an existing PENDING submission (first-time submission)
    * Updates submission details and changes status from PENDING to IN_REVIEW
-   * @param tenantId - Tenant ID for authorization
+   * @param appId - app id for authorization
    * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param request - Submission details
    * @param platform - Required for backend to identify which table to query (android_submission_builds or ios_submission_builds)
    */
-  async submitSubmission(tenantId: string, releaseId: string, submissionId: string, request: SubmitSubmissionRequest, platform: Platform) {
+  async submitSubmission(appId: string, releaseId: string, submissionId: string, request: SubmitSubmissionRequest, platform: Platform) {
     return this.__client.put<SubmitSubmissionRequest, AxiosResponse<SubmissionResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/submit?platform=${platform}`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/submissions/${submissionId}/submit?platform=${platform}`,
       request
     );
   }
@@ -292,13 +292,13 @@ class Distribution {
    * Creates completely new submission with new artifact
    * For Android: Handles multipart/form-data with AAB upload
    * For iOS: Handles application/json with TestFlight build number
-   * @param tenantId - Tenant ID for authorization
+   * @param appId - app id for authorization
    * @param releaseId - Release ID for ownership validation
    * @param distributionId - Distribution ID
    * @param request - Request data (FormData for Android, JSON for iOS)
    */
   async createResubmission(
-    tenantId: string,
+    appId: string,
     releaseId: string,
     distributionId: string,
     request: CreateResubmissionRequest | FormData
@@ -307,7 +307,7 @@ class Distribution {
       CreateResubmissionRequest | FormData,
       AxiosResponse<SubmissionResponse>
     >(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/distributions/${distributionId}/submissions`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/distributions/${distributionId}/submissions`,
       request,
       {
         headers:
@@ -324,32 +324,32 @@ class Distribution {
    */
   /**
    * Cancel a submission (IN_REVIEW, APPROVED, etc.)
-   * @param tenantId - Tenant ID for authorization
+   * @param appId - app id for authorization
    * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param request - Cancel request with reason
    * @param platform - Required for backend to identify which table to update (android_submission_builds or ios_submission_builds)
    */
-  async cancelSubmission(tenantId: string, releaseId: string, submissionId: string, request: { reason?: string }, platform: Platform) {
+  async cancelSubmission(appId: string, releaseId: string, submissionId: string, request: { reason?: string }, platform: Platform) {
     return this.__client.patch<{ reason: string }, SubmissionResponse>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/cancel?platform=${platform}`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/submissions/${submissionId}/cancel?platform=${platform}`,
       request
     );
   }
 
   /**
    * Edit existing submission (stage-dependent fields only)
-   * @param tenantId - Tenant ID for authorization
+   * @param appId - app id for authorization
    * @param submissionId - Submission ID
    * @param updates - Fields to update
    */
-  async editSubmission(tenantId: string, submissionId: string, updates: Partial<{
+  async editSubmission(appId: string, submissionId: string, updates: Partial<{
     releaseNotes: string;
     rolloutPercentage: number;
     releaseType: string;
   }>) {
     return this.__client.patch<typeof updates, SubmissionResponse>(
-      `/api/v1/tenants/${tenantId}/submissions/${submissionId}`,
+      `/api/v1/apps/${appId}/submissions/${submissionId}`,
       updates
     );
   }
@@ -360,60 +360,60 @@ class Distribution {
 
   /**
    * Update rollout percentage
-   * @param tenantId - Tenant ID for authorization
+   * @param appId - app id for authorization
    * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param request - Rollout update request
    * @param platform - Required for backend to identify which table to update (android_submission_builds or ios_submission_builds)
    */
-  async updateRollout(tenantId: string, releaseId: string, submissionId: string, request: UpdateRolloutRequest, platform: Platform) {
+  async updateRollout(appId: string, releaseId: string, submissionId: string, request: UpdateRolloutRequest, platform: Platform) {
     return this.__client.patch<UpdateRolloutRequest, RolloutUpdateResponse>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/rollout?platform=${platform}`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/submissions/${submissionId}/rollout?platform=${platform}`,
       request
     );
   }
 
   /**
    * Pause rollout (iOS only)
-   * @param tenantId - Tenant ID for authorization
+   * @param appId - app id for authorization
    * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param request - Pause request with reason
    * @param platform - Must be "IOS" (Android does not support pause)
    */
-  async pauseRollout(tenantId: string, releaseId: string, submissionId: string, request: PauseRolloutRequest, platform: Platform) {
+  async pauseRollout(appId: string, releaseId: string, submissionId: string, request: PauseRolloutRequest, platform: Platform) {
     return this.__client.patch<PauseRolloutRequest, RolloutUpdateResponse>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/rollout/pause?platform=${platform}`,
+      `/api/v1/apps/${appId}/releases/${releaseId}/submissions/${submissionId}/rollout/pause?platform=${platform}`,
       request
     );
   }
 
   /**
    * Resume rollout (iOS only)
-   * @param tenantId - Tenant ID for authorization
+   * @param appId - app id for authorization
    * @param releaseId - Release ID for ownership validation
    * @param submissionId - Submission ID
    * @param platform - Must be "IOS" (Android does not support resume)
    */
-  async resumeRollout(tenantId: string, releaseId: string, submissionId: string, platform: Platform) {
+  async resumeRollout(appId: string, releaseId: string, submissionId: string, platform: Platform) {
     return this.__client.patch<null, RolloutUpdateResponse>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/submissions/${submissionId}/rollout/resume?platform=${platform}`
+      `/api/v1/apps/${appId}/releases/${releaseId}/submissions/${submissionId}/rollout/resume?platform=${platform}`
     );
   }
 
   /**
    * Get presigned artifact download URL
    * Returns a time-limited S3 URL to download the submission artifact (AAB or IPA)
-   * @param tenantId - Required for authorization (ensures user has access to this submission)
+   * @param appId - Required for authorization (ensures user has access to this submission)
    * @param submissionId - Submission ID
    * @param platform - ANDROID or IOS (determines artifact type)
    */
-  async getArtifactDownloadUrl(tenantId: string, submissionId: string, platform: Platform) {
+  async getArtifactDownloadUrl(appId: string, submissionId: string, platform: Platform) {
     return this.__client.get<null, AxiosResponse<APISuccessResponse<{
       url: string;
       expiresAt: string;
     }>>>(
-      `/api/v1/tenants/${tenantId}/submissions/${submissionId}/artifact?platform=${platform}`
+      `/api/v1/apps/${appId}/submissions/${submissionId}/artifact?platform=${platform}`
     );
   }
 

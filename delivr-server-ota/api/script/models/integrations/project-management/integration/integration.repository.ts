@@ -8,7 +8,7 @@ import type { ProjectManagementIntegrationModelType } from './integration.sequel
 import { encryptConfigFields, decryptConfigFields, decryptFields } from '~utils/encryption';
 
 export type FindProjectManagementIntegrationsFilter = {
-  tenantId: string;
+  appId: string;
   providerType?: string;
   isEnabled?: boolean;
 };
@@ -57,7 +57,7 @@ export class ProjectManagementIntegrationRepository {
     
     const integration = await this.model.create({
       id: this.generateId(),
-      tenantId: data.tenantId,
+      appId: data.appId,
       name: data.name,
       providerType: data.providerType,
       config: encryptedConfig,
@@ -92,7 +92,7 @@ export class ProjectManagementIntegrationRepository {
     filter: FindProjectManagementIntegrationsFilter
   ): Promise<ProjectManagementIntegration[]> => {
     const where: Record<string, unknown> = {
-      tenantId: filter.tenantId
+      appId: filter.appId
     };
 
     if (filter.providerType !== undefined) {

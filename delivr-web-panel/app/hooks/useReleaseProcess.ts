@@ -59,16 +59,16 @@ function extractErrorFromResponse(response: ApiResponse<unknown>): string | unde
 
 // Query Keys
 const QUERY_KEYS = {
-  stage: (tenantId: string, releaseId: string, stage: TaskStage) =>
-    ['release-process', 'stage', tenantId, releaseId, stage],
-  testManagementStatus: (tenantId: string, releaseId: string, platform?: string) =>
-    ['release-process', 'test-management', tenantId, releaseId, platform],
-  projectManagementStatus: (tenantId: string, releaseId: string) =>
-    ['release-process', 'project-management', tenantId, releaseId],
-  cherryPickStatus: (tenantId: string, releaseId: string) =>
-    ['release-process', 'cherry-picks', tenantId, releaseId],
-  activityLog: (tenantId: string, releaseId: string, filters?: unknown) =>
-    ['release-process', 'activity', tenantId, releaseId, filters],
+  stage: (appId: string, releaseId: string, stage: TaskStage) =>
+    ['release-process', 'stage', appId, releaseId, stage],
+  testManagementStatus: (appId: string, releaseId: string, platform?: string) =>
+    ['release-process', 'test-management', appId, releaseId, platform],
+  projectManagementStatus: (appId: string, releaseId: string) =>
+    ['release-process', 'project-management', appId, releaseId],
+  cherryPickStatus: (appId: string, releaseId: string) =>
+    ['release-process', 'cherry-picks', appId, releaseId],
+  activityLog: (appId: string, releaseId: string, filters?: unknown) =>
+    ['release-process', 'activity', appId, releaseId, filters],
 };
 
 // ======================
@@ -79,22 +79,22 @@ const QUERY_KEYS = {
  * Get kickoff stage data
  */
 export function useKickoffStage(
-  tenantId?: string, 
+  appId?: string, 
   releaseId?: string,
   shouldPoll: boolean = false
 ) {
-  const isEnabled = !!tenantId && !!releaseId;
+  const isEnabled = !!appId && !!releaseId;
 
   
   return useQuery<KickoffStageResponse, Error>(
-    QUERY_KEYS.stage(tenantId || '', releaseId || '', TaskStage.KICKOFF),
+    QUERY_KEYS.stage(appId || '', releaseId || '', TaskStage.KICKOFF),
     async () => {
       
-      if (!tenantId || !releaseId) {
-        throw new Error('tenantId and releaseId are required');
+      if (!appId || !releaseId) {
+        throw new Error('appId and releaseId are required');
       }
 
-      const endpoint = `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/kickoff`;
+      const endpoint = `/api/v1/apps/${appId}/releases/${releaseId}/stages/kickoff`;
 
       const result = await apiGet<KickoffStageResponse>(endpoint);
 
@@ -131,24 +131,24 @@ export function useKickoffStage(
  * Get regression stage data
  */
 export function useRegressionStage(
-  tenantId?: string, 
+  appId?: string, 
   releaseId?: string,
   shouldPoll: boolean = false
 ) {
-  const isEnabled = !!tenantId && !!releaseId;
+  const isEnabled = !!appId && !!releaseId;
   
-  // console.log('[useRegressionStage] Hook called with:', { tenantId, releaseId, isEnabled, shouldPoll });
+  // console.log('[useRegressionStage] Hook called with:', { appId, releaseId, isEnabled, shouldPoll });
   
   return useQuery<RegressionStageResponse, Error>(
-    QUERY_KEYS.stage(tenantId || '', releaseId || '', TaskStage.REGRESSION),
+    QUERY_KEYS.stage(appId || '', releaseId || '', TaskStage.REGRESSION),
     async () => {
       console.log('[useRegressionStage] Query function executing...');
       
-      if (!tenantId || !releaseId) {
-        throw new Error('tenantId and releaseId are required');
+      if (!appId || !releaseId) {
+        throw new Error('appId and releaseId are required');
       }
 
-      const endpoint = `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/regression`;
+      const endpoint = `/api/v1/apps/${appId}/releases/${releaseId}/stages/regression`;
 
       const result = await apiGet<RegressionStageResponse>(endpoint);
 
@@ -183,21 +183,21 @@ export function useRegressionStage(
  * Get pre-release stage data
  */
 export function usePreReleaseStage(
-  tenantId?: string, 
+  appId?: string, 
   releaseId?: string,
   shouldPoll: boolean = false
 ) {
-  const isEnabled = !!tenantId && !!releaseId;
+  const isEnabled = !!appId && !!releaseId;
   
   return useQuery<PreReleaseStageResponse, Error>(
-    QUERY_KEYS.stage(tenantId || '', releaseId || '', TaskStage.PRE_RELEASE),
+    QUERY_KEYS.stage(appId || '', releaseId || '', TaskStage.PRE_RELEASE),
     async () => {
-      if (!tenantId || !releaseId) {
-        throw new Error('tenantId and releaseId are required');
+      if (!appId || !releaseId) {
+        throw new Error('appId and releaseId are required');
       }
 
       const result = await apiGet<PreReleaseStageResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/pre-release`
+        `/api/v1/apps/${appId}/releases/${releaseId}/stages/pre-release`
       );
 
       if (!result.success || !result.data) {
@@ -234,17 +234,17 @@ export function usePreReleaseStage(
  * Retry a failed task
  * Backend contract: POST /tasks/:taskId/retry (no request body)
  */
-export function useRetryTask(tenantId?: string, releaseId?: string) {
+export function useRetryTask(appId?: string, releaseId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation<RetryTaskResponse, Error, { taskId: string }>(
     async ({ taskId }) => {
-      if (!tenantId || !releaseId) {
-        throw new Error('tenantId and releaseId are required');
+      if (!appId || !releaseId) {
+        throw new Error('appId and releaseId are required');
       }
 
       const result = await apiPost<RetryTaskResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/tasks/${taskId}/retry`
+        `/api/v1/apps/${appId}/releases/${releaseId}/tasks/${taskId}/retry`
       );
 
       if (!result.success || !result.data) {
@@ -259,14 +259,14 @@ export function useRetryTask(tenantId?: string, releaseId?: string) {
     {
       onSuccess: () => {
         // Invalidate all stage queries to refetch updated data
-        if (tenantId && releaseId) {
+        if (appId && releaseId) {
           Object.values(TaskStage).forEach((stage) => {
-            queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, stage));
+            queryClient.invalidateQueries(QUERY_KEYS.stage(appId, releaseId, stage));
           });
           // Invalidate current release to reflect task status changes
-          queryClient.invalidateQueries(['release', tenantId, releaseId]);
+          queryClient.invalidateQueries(['release', appId, releaseId]);
           // Invalidate activity logs to show retry action
-          queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
+          queryClient.invalidateQueries(QUERY_KEYS.activityLog(appId, releaseId));
         }
       },
     }
@@ -279,10 +279,10 @@ export function useRetryTask(tenantId?: string, releaseId?: string) {
 
 /**
  * Upload manual build
- * Uses BFF route: POST /api/v1/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform
+ * Uses BFF route: POST /api/v1/apps/:appId/releases/:releaseId/stages/:stage/builds/:platform
  * BFF route handles mapping BuildUploadStage to TaskStage and renaming 'file' to 'artifact'
  */
-export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
+export function useManualBuildUpload(appId?: string, releaseId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation<
@@ -291,8 +291,8 @@ export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
     { file: File; platform: Platform; stage: BuildUploadStage }
   >(
     async ({ file, platform, stage }) => {
-      if (!tenantId || !releaseId) {
-        throw new Error('tenantId and releaseId are required');
+      if (!appId || !releaseId) {
+        throw new Error('appId and releaseId are required');
       }
 
       // Create form data with only the file (stage and platform are in path)
@@ -302,7 +302,7 @@ export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
       // Use centralized upload function with 5-minute timeout
       // BFF route will map BuildUploadStage to TaskStage and forward to backend
       const result = await apiUpload<BuildUploadResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/${stage}/builds/${platform}`,
+        `/api/v1/apps/${appId}/releases/${releaseId}/stages/${stage}/builds/${platform}`,
         formData
       );
 
@@ -317,12 +317,12 @@ export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
     {
       onSuccess: (_, variables) => {
         // Invalidate artifacts query to show uploaded artifact
-        if (tenantId && releaseId) {
-          queryClient.invalidateQueries(['release-process', 'artifacts', tenantId, releaseId]);
+        if (appId && releaseId) {
+          queryClient.invalidateQueries(['release-process', 'artifacts', appId, releaseId]);
         }
         
         // Invalidate the appropriate stage based on upload stage
-        if (tenantId && releaseId) {
+        if (appId && releaseId) {
           let stageToInvalidate: TaskStage;
           switch (variables.stage) {
             case BuildUploadStage.PRE_REGRESSION:
@@ -337,9 +337,9 @@ export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
             default:
               stageToInvalidate = TaskStage.REGRESSION;
           }
-          queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, stageToInvalidate));
+          queryClient.invalidateQueries(QUERY_KEYS.stage(appId, releaseId, stageToInvalidate));
           // Invalidate activity logs to show upload action
-          queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
+          queryClient.invalidateQueries(QUERY_KEYS.activityLog(appId, releaseId));
         }
       },
     }
@@ -348,9 +348,9 @@ export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
 
 /**
  * Verify TestFlight build
- * Uses BFF route: POST /api/v1/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight
+ * Uses BFF route: POST /api/v1/apps/:appId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight
  */
-export function useVerifyTestFlight(tenantId?: string, releaseId?: string) {
+export function useVerifyTestFlight(appId?: string, releaseId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation<
@@ -359,12 +359,12 @@ export function useVerifyTestFlight(tenantId?: string, releaseId?: string) {
     { stage: BuildUploadStage; testflightBuildNumber: string }
   >(
     async ({ stage, testflightBuildNumber }) => {
-      if (!tenantId || !releaseId) {
-        throw new Error('tenantId and releaseId are required');
+      if (!appId || !releaseId) {
+        throw new Error('appId and releaseId are required');
       }
 
       const result = await apiPost<BuildUploadResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/${stage}/builds/ios/verify-testflight`,
+        `/api/v1/apps/${appId}/releases/${releaseId}/stages/${stage}/builds/ios/verify-testflight`,
         {
           testflightBuildNumber,
         }
@@ -381,12 +381,12 @@ export function useVerifyTestFlight(tenantId?: string, releaseId?: string) {
     {
       onSuccess: (_, variables) => {
         // Invalidate artifacts query to show verified build
-        if (tenantId && releaseId) {
-          queryClient.invalidateQueries(['release-process', 'artifacts', tenantId, releaseId]);
+        if (appId && releaseId) {
+          queryClient.invalidateQueries(['release-process', 'artifacts', appId, releaseId]);
         }
         
         // Invalidate the appropriate stage
-        if (tenantId && releaseId) {
+        if (appId && releaseId) {
           let stageToInvalidate: TaskStage;
           switch (variables.stage) {
             case BuildUploadStage.PRE_REGRESSION:
@@ -403,9 +403,9 @@ export function useVerifyTestFlight(tenantId?: string, releaseId?: string) {
               console.warn(`[useVerifyTestFlight] Unexpected stage: ${variables.stage}, defaulting to REGRESSION`);
               stageToInvalidate = TaskStage.REGRESSION;
           }
-          queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, stageToInvalidate));
+          queryClient.invalidateQueries(QUERY_KEYS.stage(appId, releaseId, stageToInvalidate));
           // Invalidate activity logs to show verification action
-          queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
+          queryClient.invalidateQueries(QUERY_KEYS.activityLog(appId, releaseId));
         }
       },
     }
@@ -421,21 +421,21 @@ export function useVerifyTestFlight(tenantId?: string, releaseId?: string) {
  * Backend contract: GET /test-management-run-status?platform={platform}
  */
 export function useTestManagementStatus(
-  tenantId?: string, 
+  appId?: string, 
   releaseId?: string, 
   platform?: Platform,
   enabled: boolean = true // NEW: Add enabled parameter
 ) {
   return useQuery<TestManagementStatusResponse, Error>(
-    QUERY_KEYS.testManagementStatus(tenantId || '', releaseId || '', platform),
+    QUERY_KEYS.testManagementStatus(appId || '', releaseId || '', platform),
     async () => {
-      if (!tenantId || !releaseId) {
-        throw new Error('tenantId and releaseId are required');
+      if (!appId || !releaseId) {
+        throw new Error('appId and releaseId are required');
       }
 
       const params = platform ? `?platform=${platform}` : '';
       const result = await apiGet<TestManagementStatusResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/test-management-run-status${params}`
+        `/api/v1/apps/${appId}/releases/${releaseId}/test-management-run-status${params}`
       );
 
       if (!result.success || !result.data) {
@@ -446,7 +446,7 @@ export function useTestManagementStatus(
       return result.data;
     },
     {
-      enabled: enabled && !!tenantId && !!releaseId, // NEW: Use enabled parameter
+      enabled: enabled && !!appId && !!releaseId, // NEW: Use enabled parameter
       staleTime: ACTIVITY_LOGS_STALE_TIME,
       cacheTime: ACTIVITY_LOGS_CACHE_TIME,
       retry: shouldRetryOnError, // Smart retry prevents retries on 5xx errors, which naturally stops polling
@@ -460,21 +460,21 @@ export function useTestManagementStatus(
  * Backend contract: GET /project-management-run-status?platform={platform}
  */
 export function useProjectManagementStatus(
-  tenantId?: string, 
+  appId?: string, 
   releaseId?: string, 
   platform?: Platform,
   enabled: boolean = true // NEW: Add enabled parameter
 ) {
   return useQuery<ProjectManagementStatusResponse, Error>(
-    QUERY_KEYS.projectManagementStatus(tenantId || '', releaseId || ''),
+    QUERY_KEYS.projectManagementStatus(appId || '', releaseId || ''),
     async () => {
-      if (!tenantId || !releaseId) {
-        throw new Error('tenantId and releaseId are required');
+      if (!appId || !releaseId) {
+        throw new Error('appId and releaseId are required');
       }
 
       const params = platform ? `?platform=${platform}` : '';
       const result = await apiGet<ProjectManagementStatusResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/project-management-run-status${params}`
+        `/api/v1/apps/${appId}/releases/${releaseId}/project-management-run-status${params}`
       );
 
       if (!result.success || !result.data) {
@@ -485,7 +485,7 @@ export function useProjectManagementStatus(
       return result.data;
     },
     {
-      enabled: enabled && !!tenantId && !!releaseId, // NEW: Use enabled parameter
+      enabled: enabled && !!appId && !!releaseId, // NEW: Use enabled parameter
       staleTime: ACTIVITY_LOGS_STALE_TIME,
       cacheTime: ACTIVITY_LOGS_CACHE_TIME,
       retry: shouldRetryOnError, // Smart retry prevents retries on 5xx errors, which naturally stops polling
@@ -498,24 +498,24 @@ export function useProjectManagementStatus(
  * Get cherry pick status
  * Backend contract: GET /check-cherry-pick-status
  * 
- * @param tenantId - Tenant ID
+ * @param appId - app id
  * @param releaseId - Release ID
  * @param enabled - Whether the query should be enabled (default: true)
  */
 export function useCherryPickStatus(
-  tenantId?: string, 
+  appId?: string, 
   releaseId?: string,
   enabled: boolean = true
 ) {
   return useQuery<CherryPickStatusResponse, Error>(
-    QUERY_KEYS.cherryPickStatus(tenantId || '', releaseId || ''),
+    QUERY_KEYS.cherryPickStatus(appId || '', releaseId || ''),
     async () => {
-      if (!tenantId || !releaseId) {
-        throw new Error('tenantId and releaseId are required');
+      if (!appId || !releaseId) {
+        throw new Error('appId and releaseId are required');
       }
 
       const result = await apiGet<CherryPickStatusResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/check-cherry-pick-status`
+        `/api/v1/apps/${appId}/releases/${releaseId}/check-cherry-pick-status`
       );
 
       if (!result.success || !result.data) {
@@ -526,7 +526,7 @@ export function useCherryPickStatus(
       return result.data;
     },
     {
-      enabled: enabled && !!tenantId && !!releaseId,
+      enabled: enabled && !!appId && !!releaseId,
       staleTime: CHERRY_PICK_STALE_TIME,
       cacheTime: CHERRY_PICK_CACHE_TIME,
       retry: shouldRetryOnError, // Smart retry prevents retries on 5xx errors, which naturally stops polling
@@ -541,19 +541,19 @@ export function useCherryPickStatus(
 
 /**
  * Approve regression stage
- * Backend contract: POST /api/v1/tenants/{tenantId}/releases/{releaseId}/trigger-pre-release
+ * Backend contract: POST /api/v1/apps/{appId}/releases/{releaseId}/trigger-pre-release
  */
-export function useApproveRegression(tenantId?: string, releaseId?: string) {
+export function useApproveRegression(appId?: string, releaseId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation<ApproveRegressionStageResponse, Error, ApproveRegressionStageRequest>(
     async (request) => {
-      if (!tenantId || !releaseId) {
-        throw new Error('tenantId and releaseId are required');
+      if (!appId || !releaseId) {
+        throw new Error('appId and releaseId are required');
       }
 
       const response = await apiPost<ApproveRegressionStageResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/trigger-pre-release`,
+        `/api/v1/apps/${appId}/releases/${releaseId}/trigger-pre-release`,
         request
       );
       if (!response.success || !response.data) {
@@ -563,14 +563,14 @@ export function useApproveRegression(tenantId?: string, releaseId?: string) {
     },
     {
       onSuccess: () => {
-        if (tenantId && releaseId) {
+        if (appId && releaseId) {
           // Invalidate both REGRESSION (current) and PRE_RELEASE (next stage that gets triggered)
-          queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.REGRESSION));
-          queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.PRE_RELEASE));
+          queryClient.invalidateQueries(QUERY_KEYS.stage(appId, releaseId, TaskStage.REGRESSION));
+          queryClient.invalidateQueries(QUERY_KEYS.stage(appId, releaseId, TaskStage.PRE_RELEASE));
           // Invalidate release query so phase gets recalculated and navigation happens
-          queryClient.invalidateQueries(['release', tenantId, releaseId]);
+          queryClient.invalidateQueries(['release', appId, releaseId]);
           // Invalidate activity logs to show approval action
-          queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
+          queryClient.invalidateQueries(QUERY_KEYS.activityLog(appId, releaseId));
         }
       },
     }
@@ -579,19 +579,19 @@ export function useApproveRegression(tenantId?: string, releaseId?: string) {
 
 /**
  * Complete pre-release stage / Trigger Distribution
- * Backend contract: POST /api/v1/tenants/{tenantId}/releases/{releaseId}/trigger-distribution
+ * Backend contract: POST /api/v1/apps/{appId}/releases/{releaseId}/trigger-distribution
  */
-export function useCompletePreReleaseStage(tenantId?: string, releaseId?: string) {
+export function useCompletePreReleaseStage(appId?: string, releaseId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation<CompletePreReleaseResponse, Error, CompletePreReleaseRequest | undefined>(
     async (request) => {
-      if (!tenantId || !releaseId) {
-        throw new Error('tenantId and releaseId are required');
+      if (!appId || !releaseId) {
+        throw new Error('appId and releaseId are required');
       }
 
       const result = await apiPost<CompletePreReleaseResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/trigger-distribution`,
+        `/api/v1/apps/${appId}/releases/${releaseId}/trigger-distribution`,
         request || {}
       );
 
@@ -604,13 +604,13 @@ export function useCompletePreReleaseStage(tenantId?: string, releaseId?: string
     },
     {
       onSuccess: () => {
-        if (tenantId && releaseId) {
-          queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.PRE_RELEASE));
-          queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.DISTRIBUTION));
+        if (appId && releaseId) {
+          queryClient.invalidateQueries(QUERY_KEYS.stage(appId, releaseId, TaskStage.PRE_RELEASE));
+          queryClient.invalidateQueries(QUERY_KEYS.stage(appId, releaseId, TaskStage.DISTRIBUTION));
           // Invalidate release query so phase gets recalculated and navigation happens
-          queryClient.invalidateQueries(['release', tenantId, releaseId]);
+          queryClient.invalidateQueries(['release', appId, releaseId]);
           // Invalidate activity logs to show completion action
-          queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
+          queryClient.invalidateQueries(QUERY_KEYS.activityLog(appId, releaseId));
         }
       },
     }
@@ -625,16 +625,16 @@ export function useCompletePreReleaseStage(tenantId?: string, releaseId?: string
  * Get release notifications
  * Backend contract: GET /notifications
  */
-export function useNotifications(tenantId?: string, releaseId?: string) {
+export function useNotifications(appId?: string, releaseId?: string) {
   return useQuery<NotificationsResponse, Error>(
-    ['release-process', 'notifications', tenantId, releaseId],
+    ['release-process', 'notifications', appId, releaseId],
     async () => {
-      if (!tenantId || !releaseId) {
-        throw new Error('tenantId and releaseId are required');
+      if (!appId || !releaseId) {
+        throw new Error('appId and releaseId are required');
       }
 
       const result = await apiGet<NotificationsResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/notifications`
+        `/api/v1/apps/${appId}/releases/${releaseId}/notifications`
       );
 
       if (!result.success || !result.data) {
@@ -645,7 +645,7 @@ export function useNotifications(tenantId?: string, releaseId?: string) {
       return result.data;
     },
     {
-      enabled: !!tenantId && !!releaseId,
+      enabled: !!appId && !!releaseId,
       staleTime: CHERRY_PICK_STALE_TIME,
       cacheTime: CHERRY_PICK_CACHE_TIME,
       refetchOnWindowFocus: false,
@@ -658,17 +658,17 @@ export function useNotifications(tenantId?: string, releaseId?: string) {
  * Send release notification
  * Backend contract: POST /notify
  */
-export function useSendNotification(tenantId?: string, releaseId?: string) {
+export function useSendNotification(appId?: string, releaseId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation<SendNotificationResponse, Error, NotificationRequest>(
     async (request) => {
-      if (!tenantId || !releaseId) {
-        throw new Error('tenantId and releaseId are required');
+      if (!appId || !releaseId) {
+        throw new Error('appId and releaseId are required');
       }
 
       const result = await apiPost<SendNotificationResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/notify`,
+        `/api/v1/apps/${appId}/releases/${releaseId}/notify`,
         request
       );
 
@@ -681,10 +681,10 @@ export function useSendNotification(tenantId?: string, releaseId?: string) {
     },
     {
       onSuccess: () => {
-        if (tenantId && releaseId) {
-          queryClient.invalidateQueries(['release-process', 'notifications', tenantId, releaseId]);
+        if (appId && releaseId) {
+          queryClient.invalidateQueries(['release-process', 'notifications', appId, releaseId]);
           // Invalidate activity logs to show notification action
-          queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
+          queryClient.invalidateQueries(QUERY_KEYS.activityLog(appId, releaseId));
         }
       },
     }
@@ -699,16 +699,16 @@ export function useSendNotification(tenantId?: string, releaseId?: string) {
  * Get activity logs
  * Backend contract: GET /activity-logs
  */
-export function useActivityLogs(tenantId?: string, releaseId?: string) {
+export function useActivityLogs(appId?: string, releaseId?: string) {
   return useQuery<ActivityLogsResponse, Error>(
-    QUERY_KEYS.activityLog(tenantId || '', releaseId || '', undefined),
+    QUERY_KEYS.activityLog(appId || '', releaseId || '', undefined),
     async () => {
-      if (!tenantId || !releaseId) {
-        throw new Error('tenantId and releaseId are required');
+      if (!appId || !releaseId) {
+        throw new Error('appId and releaseId are required');
       }
 
       const result = await apiGet<ActivityLogsResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/activity-logs`
+        `/api/v1/apps/${appId}/releases/${releaseId}/activity-logs`
       );
 
       if (!result.success || !result.data) {
@@ -719,7 +719,7 @@ export function useActivityLogs(tenantId?: string, releaseId?: string) {
       return result.data;
     },
     {
-      enabled: !!tenantId && !!releaseId,
+      enabled: !!appId && !!releaseId,
       staleTime: CHERRY_PICK_STALE_TIME,
       cacheTime: CHERRY_PICK_CACHE_TIME,
       refetchOnWindowFocus: false,
@@ -734,18 +734,18 @@ export function useActivityLogs(tenantId?: string, releaseId?: string) {
 
 /**
  * List build artifacts
- * Backend contract: GET /tenants/:tenantId/releases/:releaseId/builds/artifacts
+ * Backend contract: GET /apps/:appId/releases/:releaseId/builds/artifacts
  */
 export function useBuildArtifacts(
-  tenantId?: string,
+  appId?: string,
   releaseId?: string,
   filters?: { platform?: Platform; buildStage?: string }
 ) {
   return useQuery<ListBuildArtifactsResponse, Error>(
-    ['release-process', 'artifacts', tenantId, releaseId, filters],
+    ['release-process', 'artifacts', appId, releaseId, filters],
     async () => {
-      if (!tenantId || !releaseId) {
-        throw new Error('tenantId and releaseId are required');
+      if (!appId || !releaseId) {
+        throw new Error('appId and releaseId are required');
       }
 
       const params = new URLSearchParams();
@@ -753,7 +753,7 @@ export function useBuildArtifacts(
       if (filters?.buildStage) params.append('buildStage', filters.buildStage);
 
       const queryString = params.toString();
-      const endpoint = `/api/v1/tenants/${tenantId}/releases/${releaseId}/builds/artifacts${queryString ? `?${queryString}` : ''}`;
+      const endpoint = `/api/v1/apps/${appId}/releases/${releaseId}/builds/artifacts${queryString ? `?${queryString}` : ''}`;
 
       const result = await apiGet<ListBuildArtifactsResponse>(endpoint);
 
@@ -782,7 +782,7 @@ export function useBuildArtifacts(
       return responseData as ListBuildArtifactsResponse;
     },
     {
-      enabled: !!tenantId && !!releaseId,
+      enabled: !!appId && !!releaseId,
       staleTime: ACTIVITY_LOGS_STALE_TIME,
       cacheTime: ACTIVITY_LOGS_CACHE_TIME,
       refetchOnWindowFocus: true,
@@ -800,10 +800,10 @@ export function useDownloadBuildArtifact() {
   return useMutation<
     { url: string; expiresAt: string },
     Error,
-    { tenantId: string; buildId: string }
+    { appId: string; buildId: string }
   >(
-    async ({ tenantId, buildId }) => {
-      const endpoint = `/api/v1/tenants/${tenantId}/builds/${buildId}/artifact`;
+    async ({ appId, buildId }) => {
+      const endpoint = `/api/v1/apps/${appId}/builds/${buildId}/artifact`;
       // API returns { success: true, data: { url, expiresAt } }
       // apiGet unwraps it, so result.data is { url, expiresAt }
       const result = await apiGet<{ url: string; expiresAt: string }>(endpoint);
@@ -837,16 +837,16 @@ export function useDownloadBuildArtifact() {
 
 /**
  * Pause or resume release (stop/start cron job)
- * POST /api/v1/tenants/:tenantId/releases/:releaseId/pause-resume
+ * POST /api/v1/apps/:appId/releases/:releaseId/pause-resume
  * Backend implementation:
  *   - Pause: POST /api/releases/:releaseId/cron/stop
  *   - Resume: POST /api/releases/:releaseId/cron/start
  * 
- * @param tenantId - Tenant UUID
+ * @param appId - Tenant UUID
  * @param releaseId - Release UUID
  * @returns Mutation that accepts { action: 'pause' | 'resume' }
  */
-export function usePauseResumeRelease(tenantId?: string, releaseId?: string) {
+export function usePauseResumeRelease(appId?: string, releaseId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation<
@@ -855,12 +855,12 @@ export function usePauseResumeRelease(tenantId?: string, releaseId?: string) {
     { action: 'pause' | 'resume' }
   >(
     async ({ action }) => {
-      if (!tenantId || !releaseId) {
-        throw new Error('tenantId and releaseId are required');
+      if (!appId || !releaseId) {
+        throw new Error('appId and releaseId are required');
       }
 
       const result = await apiPost<{ success: boolean; message: string; releaseId: string }>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/pause-resume`,
+        `/api/v1/apps/${appId}/releases/${releaseId}/pause-resume`,
         { action }
       );
 
@@ -874,11 +874,11 @@ export function usePauseResumeRelease(tenantId?: string, releaseId?: string) {
     {
       onSuccess: () => {
         // Invalidate release queries to refresh data
-        queryClient.invalidateQueries(['release', tenantId, releaseId]);
-        queryClient.invalidateQueries(['release-process', 'stage', tenantId, releaseId]);
+        queryClient.invalidateQueries(['release', appId, releaseId]);
+        queryClient.invalidateQueries(['release-process', 'stage', appId, releaseId]);
         // Invalidate activity logs to show pause/resume action
-        if (tenantId && releaseId) {
-          queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
+        if (appId && releaseId) {
+          queryClient.invalidateQueries(QUERY_KEYS.activityLog(appId, releaseId));
         }
       },
     }
@@ -887,14 +887,14 @@ export function usePauseResumeRelease(tenantId?: string, releaseId?: string) {
 
 /**
  * Archive release
- * PUT /api/v1/tenants/:tenantId/releases/:releaseId/archive
- * Backend implementation: PUT /api/v1/tenants/:tenantId/releases/:releaseId/archive
+ * PUT /api/v1/apps/:appId/releases/:releaseId/archive
+ * Backend implementation: PUT /api/v1/apps/:appId/releases/:releaseId/archive
  * 
- * @param tenantId - Tenant UUID
+ * @param appId - Tenant UUID
  * @param releaseId - Release UUID
  * @returns Mutation that accepts no parameters
  */
-export function useArchiveRelease(tenantId?: string, releaseId?: string) {
+export function useArchiveRelease(appId?: string, releaseId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation<
@@ -903,12 +903,12 @@ export function useArchiveRelease(tenantId?: string, releaseId?: string) {
     void
   >(
     async () => {
-      if (!tenantId || !releaseId) {
-        throw new Error('tenantId and releaseId are required');
+      if (!appId || !releaseId) {
+        throw new Error('appId and releaseId are required');
       }
 
       const result = await apiPut<{ success: boolean; message: string }>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/archive`
+        `/api/v1/apps/${appId}/releases/${releaseId}/archive`
       );
 
       if (!result.success || !result.data) {
@@ -920,11 +920,11 @@ export function useArchiveRelease(tenantId?: string, releaseId?: string) {
     },
     {
       onSuccess: () => {
-        if (!tenantId || !releaseId) return;
+        if (!appId || !releaseId) return;
         
         // Optimistically update releases list to mark release as ARCHIVED
         queryClient.setQueryData<{ success: boolean; releases?: BackendReleaseResponse[]; error?: string }>(
-          ['releases', tenantId],
+          ['releases', appId],
           (old) => {
             if (!old?.releases) {
               return old || { success: false, releases: [] };
@@ -941,7 +941,7 @@ export function useArchiveRelease(tenantId?: string, releaseId?: string) {
         );
         
         // Invalidate releases list query to trigger refetch and update tab counts
-        queryClient.invalidateQueries(['releases', tenantId]);
+        queryClient.invalidateQueries(['releases', appId]);
       },
     }
   );

@@ -24,7 +24,7 @@ export type ServiceValidationResult = {
  * This is a synchronous validation that operates on an already-fetched config.
  * 
  * @param config - The release config fetched from database (null if not found)
- * @param payload - The create release payload containing tenantId and releaseConfigId
+ * @param payload - The create release payload containing appId and releaseConfigId
  */
 export const validateReleaseConfigExists = (
   config: ReleaseConfiguration | null,
@@ -39,11 +39,11 @@ export const validateReleaseConfigExists = (
   }
 
   // Check if release config belongs to the tenant (security check)
-  const belongsToTenant = config.tenantId === payload.tenantId;
+  const belongsToTenant = config.appId === payload.appId;
   if (!belongsToTenant) {
     return {
       isValid: false,
-      error: `Release config '${payload.releaseConfigId}' does not belong to tenant '${payload.tenantId}'`
+      error: `Release config '${payload.releaseConfigId}' does not belong to tenant '${payload.appId}'`
     };
   }
 
@@ -109,12 +109,12 @@ export const validateBaseRelease = async (
     return { isValid: true };
   }
 
-  const baseRelease = await releaseRepo.findByBaseReleaseId(payload.baseReleaseId, payload.tenantId);
+  const baseRelease = await releaseRepo.findByBaseReleaseId(payload.baseReleaseId, payload.appId);
   
   if (!baseRelease) {
     return {
       isValid: false,
-      error: `Base release with ID '${payload.baseReleaseId}' not found for tenant '${payload.tenantId}'`
+      error: `Base release with ID '${payload.baseReleaseId}' not found for tenant '${payload.appId}'`
     };
   }
 
@@ -139,7 +139,7 @@ export const validateVersions = async (
 
   for (const pt of payload.platformTargets) {
     const result = await releaseVersionService.validateVersion(
-      payload.tenantId,
+      payload.appId,
       pt.platform as Platform,
       pt.target as Target,
       pt.version,

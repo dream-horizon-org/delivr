@@ -190,7 +190,7 @@ export const buildScheduledReleasePayload = (
   // 6. Build the payload
   const payload: CreateReleasePayload = {
     // From config
-    tenantId: config.tenantId,
+    appId: config.appId,
     releaseConfigId: config.id,
     type: config.releaseType,
     baseBranch: config.baseBranch ?? undefined,

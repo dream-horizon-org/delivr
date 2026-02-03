@@ -27,12 +27,12 @@ import {
 } from "@tabler/icons-react";
 import { useNavigate } from "@remix-run/react";
 import { route } from "routes-gen";
-import { useGetOrgList } from "../OrgListNavbar/hooks/useGetOrgList";
-import { OrgCard } from "./components/OrgCard";
+import { useGetAppList } from "../OrgListNavbar/hooks/useGetAppList";
+import { AppCard } from "../AppsPage/components/AppCard";
 import { Intro } from "../../Intro";
 import { CTAButton } from "~/components/Common/CTAButton";
 import { useState, useEffect } from "react";
-import { CreateOrgModal } from "./components/CreateOrgModal";
+import { CreateAppModal } from "../AppsPage/components/CreateAppModal";
 import { ACTION_EVENTS, actions } from "~/utils/event-emitter";
 import { DeleteModal, type DeleteModalData } from "~/components/Common/DeleteModal";
 
@@ -119,7 +119,7 @@ function FeatureCard({
 export function OrgsPage() {
   const theme = useMantineTheme();
   const navigate = useNavigate();
-  const { data, isLoading, isError, refetch } = useGetOrgList();
+  const { data, isLoading, isError, refetch } = useGetAppList();
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
   const [deleteModalData, setDeleteModalData] = useState<DeleteModalData | null>(null);
 
@@ -238,18 +238,18 @@ export function OrgsPage() {
             spacing={20}
             verticalSpacing={20}
           >
-            {data?.map((org) => (
-              <OrgCard
-                key={org.id}
-                org={org}
+            {data?.map((app) => (
+              <AppCard
+                key={app.id}
+                org={app} // org prop accepts both App and Organization types
                 onNavigate={() => {
-                  navigate(route("/dashboard/:org/releases", { org: org.id }));
+                  navigate(route("/dashboard/:org/releases", { org: app.id })); // Route param is still $org
                 }}
                 onDelete={() => {
                   setDeleteModalData({
-                    type: 'org',
-                    orgId: org.id,
-                    orgName: org.orgName,
+                    type: 'org', // Keep type as 'org' for backward compatibility
+                    orgId: app.id, // orgId is actually appId
+                    orgName: app.displayName || app.name, // orgName is actually app displayName
                   });
                 }}
               />
@@ -315,7 +315,7 @@ export function OrgsPage() {
         radius="md"
         overlayProps={{ backgroundOpacity: 0.2, blur: 2 }}
       >
-        <CreateOrgModal
+        <CreateAppModal
           onSuccess={() => {
             actions.trigger(ACTION_EVENTS.REFETCH_ORGS);
             setCreateOrgOpen(false);

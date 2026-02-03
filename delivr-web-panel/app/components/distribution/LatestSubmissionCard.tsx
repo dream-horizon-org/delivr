@@ -61,7 +61,7 @@ const { LABELS } = DISTRIBUTION_MANAGEMENT_UI;
 
 export interface LatestSubmissionCardProps {
   submission: Submission;
-  tenantId: string;
+  appId: string;
   onPromote?: () => void;
   onUpdateRollout?: () => void;
   onPause?: () => void;
@@ -73,7 +73,7 @@ export interface LatestSubmissionCardProps {
 
 export function LatestSubmissionCard({
   submission,
-  tenantId,
+  appId,
   onPromote,
   onUpdateRollout,
   onPause,
@@ -142,7 +142,7 @@ export function LatestSubmissionCard({
   // Artifact download handler - uses centralized API route builder
   const handleDownloadArtifact = async () => {
     try {
-      const apiUrl = API_ROUTES.getArtifactDownloadUrl(tenantId, submission.id, submission.platform);
+      const apiUrl = API_ROUTES.getArtifactDownloadUrl(appId, submission.id, submission.platform);
       const response = await fetch(apiUrl);
       
       if (!response.ok) throw new Error('Failed to get download URL');

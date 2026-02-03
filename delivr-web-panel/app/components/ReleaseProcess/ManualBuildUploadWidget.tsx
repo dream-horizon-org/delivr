@@ -22,7 +22,7 @@ import { UploadedBuildDisplay } from './builds/UploadedBuildDisplay';
 import { PlatformBadge } from '~/components/Common/AppBadge';
 
 interface ManualBuildUploadWidgetProps {
-  tenantId: string;
+  appId: string;
   releaseId: string;
   stage: BuildUploadStage;
   taskType: TaskType;
@@ -35,7 +35,7 @@ interface ManualBuildUploadWidgetProps {
 }
 
 export function ManualBuildUploadWidget({
-  tenantId,
+  appId,
   releaseId,
   stage,
   taskType,
@@ -52,12 +52,12 @@ export function ManualBuildUploadWidget({
   // Track recently uploaded platforms (showing loading state)
   const [loadingPlatforms, setLoadingPlatforms] = useState<Set<Platform>>(new Set());
   
-  const { release } = useRelease(tenantId, releaseId);
+  const { release } = useRelease(appId, releaseId);
 
   // Get user data and check permissions
   const orgLayoutData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
   const userId = orgLayoutData?.user?.user?.id || '';
-  const { canPerformReleaseAction } = usePermissions(tenantId, userId);
+  const { canPerformReleaseAction } = usePermissions(appId, userId);
   const canUpload = canPerformReleaseAction(release?.releasePilotAccountId || null);
 
   // Fetch artifacts to detect when fetch completes
@@ -75,7 +75,7 @@ export function ManualBuildUploadWidget({
     }
   }, [stage]);
 
-  const artifactsQuery = useBuildArtifacts(tenantId, releaseId, { buildStage });
+  const artifactsQuery = useBuildArtifacts(appId, releaseId, { buildStage });
 
   // Clear loading state when artifacts fetch completes
   useEffect(() => {
@@ -239,7 +239,7 @@ export function ManualBuildUploadWidget({
                   )}
                   {isTestFlightVerification && platform === Platform.IOS ? (
                     <TestFlightVerificationSection
-                      tenantId={tenantId}
+                      appId={appId}
                       releaseId={releaseId}
                       stage={stage}
                       release={release}
@@ -251,7 +251,7 @@ export function ManualBuildUploadWidget({
                     />
                   ) : (
                     <FileUploadSection
-                      tenantId={tenantId}
+                      appId={appId}
                       releaseId={releaseId}
                       stage={stage}
                       availablePlatforms={[platform]} // Single platform for this widget instance

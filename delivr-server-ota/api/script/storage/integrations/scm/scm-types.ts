@@ -28,7 +28,7 @@ export enum VerificationStatus {
 
 export interface TenantSCMIntegration {
   id: string;
-  tenantId: string;
+  appId: string;
   
   // Provider type
   scmType: SCMType;
@@ -72,7 +72,7 @@ export interface TenantSCMIntegration {
  * DTO for creating a new SCM integration
  */
 export interface CreateSCMIntegrationDto {
-  tenantId: string;
+  appId: string;
   scmType?: SCMType;                // Defaults to GITHUB
   displayName: string;
   
@@ -145,7 +145,7 @@ export interface SafeSCMIntegration extends Omit<
 // ============================================================================
 
 export interface SCMIntegrationFilters {
-  tenantId?: string;
+  appId?: string;
   scmType?: SCMType;
   isActive?: boolean;
   verificationStatus?: VerificationStatus;

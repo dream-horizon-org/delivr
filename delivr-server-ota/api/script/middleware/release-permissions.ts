@@ -3,7 +3,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { Storage } from '../storage/storage';
-import { getUserTenantPermission } from './tenant-permissions';
+import { getUserAppPermission } from './tenant-permissions';
 
 /**
  * Release-level permission middleware
@@ -61,11 +61,11 @@ export async function getUserReleasePermission(
       };
     }
     
-    // Fallback to tenant-level permission
-    const tenantPermission = await getUserTenantPermission(
+    // Fallback to app-level permission (appId field contains appId)
+    const tenantPermission = await getUserAppPermission(
       storage,
       userId,
-      release.dataValues.tenantId
+      release.dataValues.appId  // This is actually appId now
     );
     
     if (!tenantPermission) {

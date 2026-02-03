@@ -1,11 +1,17 @@
-export type Organization = {
+/**
+ * App entity (renamed from Organization)
+ */
+export type App = {
   id: string;
-  orgName: string;
+  name: string;
+  displayName: string;
   isAdmin: boolean;
+  role?: string;
 };
 
+
 export type SidebarProps = {
-  organizations: Organization[];
+  organizations: App[];
   currentOrgId?: string;
   currentAppId?: string;
   userEmail: string;

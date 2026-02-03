@@ -89,7 +89,7 @@ export class ReleaseNotificationService {
 
       // 7. Create notification record with delivery response (AFTER successful sending)
       const notification = await this.notificationRepo.create({
-        tenantId: payload.tenantId,
+        appId: payload.appId,
         releaseId: payload.releaseId,
         notificationType: payload.type,
         isSystemGenerated: payload.isSystemGenerated ?? true,

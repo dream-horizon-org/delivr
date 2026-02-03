@@ -9,7 +9,7 @@ import { useState } from "react";
 import { CreateDeploymentForm } from "~/components/Pages/components/CreateDeploymentForm";
 import { useGetDeploymentsForApp } from "~/components/Pages/DeploymentList/hooks/getDeploymentsForApp";
 import { CTAButton } from "~/components/Common/CTAButton";
-import { useGetOrgList } from "~/components/Pages/components/OrgListNavbar/hooks/useGetOrgList";
+import { useGetAppList } from "~/components/Pages/components/OrgListNavbar/hooks/useGetAppList";
 import { useGetAppListForOrg } from "~/components/Pages/components/AppList/hooks/useGetAppListForOrg";
 
 export const loader = authenticateLoaderRequest();
@@ -24,14 +24,16 @@ export default function AppDetails() {
   const [activeTab, setActiveTab] = useState<string | null>("deployments");
 
   const { refetch: refetchDeployments } = useGetDeploymentsForApp();
-  const { data: orgs = [] } = useGetOrgList();
-  const { data: apps = [] } = useGetAppListForOrg({
-    orgId: params.org ?? "",
+  const { data: apps = [] } = useGetAppList();
+  const { data: dotaApps = [] } = useGetAppListForOrg({
+    orgId: params.org ?? "", // orgId is actually appId (the App entity ID)
     userEmail: user.user.email,
   });
 
-  const currentOrg = orgs.find((org) => org.id === params.org);
-  const currentApp = apps.find((app) => app.id === params.app);
+  // Find the App entity (parent) - params.org is the App entity ID
+  const currentAppEntity = apps.find((app) => app.id === params.org);
+  // Find the DOTA app - params.app is the DOTA app identifier
+  const currentDotaApp = dotaApps.find((dotaApp) => dotaApp.id === params.app || dotaApp.name === params.app);
 
   const iconStyle = { width: rem(16), height: rem(16) };
 
@@ -47,27 +49,27 @@ export default function AppDetails() {
             style={{ cursor: "pointer" }}
             onClick={() => navigate("/dashboard")}
           >
-            {currentOrg?.orgName || "Organization"}
+            {currentAppEntity?.displayName || "App"}
           </Text>
           <IconChevronRight size={14} color={theme.colors.slate[4]} />
           <Text
             size="sm"
             c={theme.colors.slate[5]}
             style={{ cursor: "pointer" }}
-            onClick={() => navigate(`/dashboard/${params.org}/ota/apps`)}
+            onClick={() => navigate(`/dashboard/${params.org}/ota/apps`)} // params.org is the App entity ID
           >
             Applications
           </Text>
           <IconChevronRight size={14} color={theme.colors.slate[4]} />
           <Text size="sm" fw={500} c={theme.colors.slate[8]}>
-            {currentApp?.name || "App"}
+            {currentDotaApp?.name || params.app || "App"}
           </Text>
         </Group>
 
         {/* Title and Actions */}
         <Group justify="space-between" align="center">
           <Text size="xl" fw={700} c={theme.colors.slate[9]}>
-            {currentApp?.name || "Application"}
+            {currentDotaApp?.name || params.app || "Application"}
           </Text>
 
           <Group gap="sm">

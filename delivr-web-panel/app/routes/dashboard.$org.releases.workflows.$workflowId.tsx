@@ -49,7 +49,7 @@ export const loader = authenticateLoaderRequest(async ({ params, request, user }
   }
   
   // Check permissions - only editors and owners can access
-  const isEditor = await PermissionService.isTenantEditor(org, user.user.id);
+  const isEditor = await PermissionService.isAppEditor(org, user.user.id);
   if (!isEditor) {
     throw redirect(`/dashboard/${org}/releases`);
   }
@@ -58,7 +58,7 @@ export const loader = authenticateLoaderRequest(async ({ params, request, user }
   
   // Load existing workflow
   try {
-    const endpoint = `/api/v1/tenants/${org}/workflows/${workflowId}`;
+    const endpoint = `/api/v1/apps/${org}/workflows/${workflowId}`;
     const url = new URL(request.url);
     const result = await apiGet<{ workflow?: CICDWorkflow }>(
       `${url.protocol}//${url.host}${endpoint}`,
@@ -91,7 +91,7 @@ export const loader = authenticateLoaderRequest(async ({ params, request, user }
   try {
     const url = new URL(request.url);
     const result = await apiGet<{ workflows?: CICDWorkflow[] }>(
-      `${url.protocol}//${url.host}/api/v1/tenants/${org}/workflows`,
+      `${url.protocol}//${url.host}/api/v1/apps/${org}/workflows`,
       {
         headers: {
           'Cookie': request.headers.get('Cookie') || '',
@@ -131,7 +131,7 @@ export const action = authenticateActionRequest({
     }
     
     // Check permissions - only editors and owners can edit workflows
-    const isEditor = await PermissionService.isTenantEditor(org, user.user.id);
+    const isEditor = await PermissionService.isAppEditor(org, user.user.id);
     if (!isEditor) {
       return json({ error: 'Only editors and owners can edit workflows' }, { status: 403 });
     }
@@ -286,7 +286,7 @@ export default function EditWorkflowPage() {
   return (
     <Box>
       <WorkflowForm
-        tenantId={organizationId}
+        appId={organizationId}
         onSubmit={handleSubmit}
         onCancel={handleCancel}
         availableIntegrations={availableIntegrations}

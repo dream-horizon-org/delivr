@@ -6,68 +6,59 @@
 import type { QueryClient } from 'react-query';
 
 /**
- * Invalidate tenant config cache
- * This will trigger a refetch of tenant configuration including connected integrations
- * 
+ * Invalidate app config cache (getApp / useAppConfig).
+ * Triggers a refetch of app configuration including connected integrations.
+ *
  * @param queryClient - React Query client instance
- * @param tenantId - Tenant ID to invalidate cache for
- * 
- * @example
- * ```tsx
- * import { invalidateTenantConfig } from '~/utils/cache-invalidation';
- * import { useQueryClient } from 'react-query';
- * 
- * const queryClient = useQueryClient();
- * await invalidateTenantConfig(queryClient, tenantId);
- * ```
+ * @param appId - app id to invalidate cache for
  */
-export async function invalidateTenantConfig(
+export async function invalidateAppConfig(
   queryClient: QueryClient,
-  tenantId: string
+  appId: string
 ): Promise<void> {
-  await queryClient.invalidateQueries(['tenant', tenantId, 'config']);
+  await queryClient.invalidateQueries(['app', appId, 'config']);
 }
 
 /**
- * Refetch tenant config in the background (non-blocking)
- * Use this after integration create/update/delete operations to ensure UI reflects latest changes
- * 
+ * Refetch app config in the background (non-blocking).
+ * Use after integration add/update/delete so UI reflects latest connected integrations.
+ *
  * @param queryClient - React Query client instance
- * @param tenantId - Tenant ID to refetch config for
- * 
- * @example
- * ```tsx
- * import { refetchTenantConfigInBackground } from '~/utils/cache-invalidation';
- * import { useQueryClient } from 'react-query';
- * 
- * const queryClient = useQueryClient();
- * // After successful integration operation:
- * refetchTenantConfigInBackground(queryClient, tenantId);
- * ```
+ * @param appId - app id to refetch config for
  */
-export function refetchTenantConfigInBackground(
+export function refetchAppConfigInBackground(
   queryClient: QueryClient,
-  tenantId: string
+  appId: string
 ): void {
-  // Fire and forget - refetch in background without blocking
-  void invalidateTenantConfig(queryClient, tenantId).catch((error) => {
-    // Silently handle errors - background refetch failures shouldn't break the UI
-    console.warn('[Cache Invalidation] Failed to refetch tenant config in background:', error);
+  void invalidateAppConfig(queryClient, appId).catch((error) => {
+    console.warn('[Cache Invalidation] Failed to refetch app config in background:', error);
   });
 }
 
 /**
- * Invalidate release configs cache
- * This will trigger a refetch of all release configurations for a tenant
- * 
+ * Invalidate release configs cache (useReleaseConfigs).
+ *
  * @param queryClient - React Query client instance
- * @param tenantId - Tenant ID to invalidate cache for
+ * @param appId - app id to invalidate cache for
  */
 export async function invalidateReleaseConfigs(
   queryClient: QueryClient,
-  tenantId: string
+  appId: string
 ): Promise<void> {
-  await queryClient.invalidateQueries(['tenant', tenantId, 'release-configs']);
+  await queryClient.invalidateQueries(['releaseConfigs', appId]);
+}
+
+/**
+ * Invalidate app collaborators cache (GET /api/v1/apps/:appId/collaborators).
+ *
+ * @param queryClient - React Query client instance
+ * @param appId - app id to invalidate cache for
+ */
+export async function invalidateAppCollaborators(
+  queryClient: QueryClient,
+  appId: string
+): Promise<void> {
+  await queryClient.invalidateQueries(['app-collaborators', appId]);
 }
 
 /**
@@ -83,17 +74,17 @@ export async function invalidateSystemMetadata(
 }
 
 /**
- * Invalidate releases cache
- * This will trigger a refetch of all releases for a tenant
- * 
+ * Invalidate releases cache (useReleases).
+ * Triggers a refetch of all releases for the app.
+ *
  * @param queryClient - React Query client instance
- * @param tenantId - Tenant ID to invalidate cache for
+ * @param appId - app id to invalidate cache for
  */
 export async function invalidateReleases(
   queryClient: QueryClient,
-  tenantId: string
+  appId: string
 ): Promise<void> {
-  await queryClient.invalidateQueries(['releases', tenantId]);
+  await queryClient.invalidateQueries(['releases', appId]);
 }
 
 /**
@@ -101,7 +92,7 @@ export async function invalidateReleases(
  * This will trigger a refetch of activity logs after user actions
  * 
  * @param queryClient - React Query client instance
- * @param tenantId - Tenant ID
+ * @param appId - app id
  * @param releaseId - Release ID
  * 
  * @example
@@ -110,32 +101,32 @@ export async function invalidateReleases(
  * import { useQueryClient } from 'react-query';
  * 
  * const queryClient = useQueryClient();
- * await invalidateActivityLogs(queryClient, tenantId, releaseId);
+ * await invalidateActivityLogs(queryClient, appId, releaseId);
  * ```
  */
 export async function invalidateActivityLogs(
   queryClient: QueryClient,
-  tenantId: string,
+  appId: string,
   releaseId: string
 ): Promise<void> {
-  await queryClient.invalidateQueries(['release-process', 'activity', tenantId, releaseId]);
+  await queryClient.invalidateQueries(['release-process', 'activity', appId, releaseId]);
 }
 
 /**
- * Invalidate all tenant-related caches
- * Useful after major operations like switching tenants or updating global settings
- * 
+ * Invalidate all app-related caches (app config, release configs, releases).
+ * Useful after major operations like switching app or updating global settings.
+ *
  * @param queryClient - React Query client instance
- * @param tenantId - Tenant ID to invalidate cache for
+ * @param appId - app id to invalidate cache for
  */
-export async function invalidateAllTenantCaches(
+export async function invalidateAllAppCaches(
   queryClient: QueryClient,
-  tenantId: string
+  appId: string
 ): Promise<void> {
   await Promise.all([
-    invalidateTenantConfig(queryClient, tenantId),
-    invalidateReleaseConfigs(queryClient, tenantId),
-    invalidateReleases(queryClient, tenantId),
+    invalidateAppConfig(queryClient, appId),
+    invalidateReleaseConfigs(queryClient, appId),
+    invalidateReleases(queryClient, appId),
   ]);
 }
 

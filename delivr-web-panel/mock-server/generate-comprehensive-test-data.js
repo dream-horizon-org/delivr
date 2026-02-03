@@ -55,7 +55,7 @@ function createDistribution(version, androidSub, iosSub) {
   
   const release = {
     id: releaseId,
-    tenantId: 'EkgmIbgGQx',
+    appId: 'EkgmIbgGQx',
     version,
     branch: `release/${version}`,
     createdAt: daysAgo(10),
@@ -64,7 +64,7 @@ function createDistribution(version, androidSub, iosSub) {
   
   const distribution = {
     id: distId,
-    tenantId: 'EkgmIbgGQx',
+    appId: 'EkgmIbgGQx',
     releaseId,
     status: calculateDistributionStatus(androidSub, iosSub),
     createdAt: daysAgo(10),

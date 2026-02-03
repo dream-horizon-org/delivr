@@ -22,7 +22,7 @@ export function createSCMIntegrationModel(sequelize: Sequelize) {
     
     // Primary fields
     declare id: string;
-    declare tenantId: string;
+    declare appId: string;
     declare scmType: SCMType;
     declare displayName: string;
     
@@ -69,16 +69,16 @@ export function createSCMIntegrationModel(sequelize: Sequelize) {
       // ========================================================================
       // FOREIGN KEY - TENANT
       // ========================================================================
-      tenantId: {
+      appId: {
         type: DataTypes.UUID,
         allowNull: false,
         references: {
-          model: 'tenants',
+          model: 'apps',  // Changed from 'tenants' to 'apps' (renamed table)
           key: 'id',
         },
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
-        comment: 'Reference to tenants table',
+        comment: 'Reference to apps table (renamed from tenants)',
       },
       
       // ========================================================================
@@ -235,7 +235,7 @@ export function createSCMIntegrationModel(sequelize: Sequelize) {
         // Most common query: active integrations by tenant
         {
           name: 'idx_scm_tenant',
-          fields: ['tenantId', 'isActive'],
+          fields: ['appId', 'isActive'],
         },
         // Query by GitHub org/repo
         {

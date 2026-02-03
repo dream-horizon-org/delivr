@@ -9,8 +9,6 @@ import {
   INTEGRATION_CONNECTION_STATUS,
   INTEGRATION_VERIFICATION_STATUS,
   PROVIDER_ID,
-  TENANT_PLATFORMS,
-  TENANT_TARGETS,
   TENANT_RELEASE_TYPES,
   SYSTEM_USER,
 } from './tenant-metadata.constants';
@@ -100,7 +98,7 @@ export function sanitizeTestManagementIntegration(integration: any): SanitizedIn
     id: integration.id,
     providerType: integration.providerType,
     name: integration.name,
-    tenantId: integration.tenantId,
+    appId: integration.appId,
     createdAt: integration.createdAt,
     updatedAt: integration.updatedAt,
     // Note: config (including authToken) is intentionally excluded (never sent to client)
@@ -298,7 +296,7 @@ export async function transformTestManagementIntegrationsForConfig(
         config: {
           name: i.name,
           providerType: i.providerType,
-          tenantId: i.tenantId,
+          appId: i.appId,
           baseUrl: i.config?.baseUrl,
           orgId: i.config?.orgId,
           // Don't expose sensitive config data (like authToken)
@@ -387,16 +385,19 @@ export async function transformAppDistributionIntegrationsForConfig(
 }
 
 /**
- * Build tenant config response
+ * Build tenant config response.
+ * enabledPlatforms and enabledTargets are derived from app's configured platform targets (appPlatformTargets).
+ * If appPlatformTargets is empty, fallback to empty arrays (no WEB; app has not completed onboarding).
  */
-export async function buildTenantConfig(
+export async function buildAppConfig(
   scmIntegrations: any[],
   slackIntegration: any | null,
   cicdIntegrations: any[],
   testManagementIntegrations: any[],
   projectManagementIntegrations: any[],
   storeIntegrations: any[],
-  storage: storageTypes.Storage
+  storage: storageTypes.Storage,
+  appPlatformTargets: Array<{ platform: string; target: string }> = []
 ): Promise<TenantConfigResponse> {
   const [
     transformedScmIntegrations,
@@ -414,6 +415,15 @@ export async function buildTenantConfig(
     transformAppDistributionIntegrationsForConfig(storeIntegrations, storage)
   ]);
 
+  const enabledPlatforms =
+    appPlatformTargets.length > 0
+      ? [...new Set(appPlatformTargets.map((pt) => pt.platform))]
+      : [];
+  const enabledTargets =
+    appPlatformTargets.length > 0
+      ? [...new Set(appPlatformTargets.map((pt) => pt.target))]
+      : [];
+
   return {
     connectedIntegrations: {
       SOURCE_CONTROL: transformedScmIntegrations,
@@ -423,9 +433,9 @@ export async function buildTenantConfig(
       PROJECT_MANAGEMENT: transformedProjectManagementIntegrations,
       APP_DISTRIBUTION: transformedStoreIntegrations,
     },
-    enabledPlatforms: [TENANT_PLATFORMS.ANDROID, TENANT_PLATFORMS.IOS], // TODO: Make this dynamic based on tenant settings
-    enabledTargets: [TENANT_TARGETS.APP_STORE, TENANT_TARGETS.PLAY_STORE, TENANT_TARGETS.WEB], // TODO: Make this dynamic
-    allowedReleaseTypes: [TENANT_RELEASE_TYPES.MINOR, TENANT_RELEASE_TYPES.HOTFIX, TENANT_RELEASE_TYPES.MAJOR], // TODO: Make this dynamic
+    enabledPlatforms,
+    enabledTargets,
+    allowedReleaseTypes: [TENANT_RELEASE_TYPES.MINOR, TENANT_RELEASE_TYPES.HOTFIX, TENANT_RELEASE_TYPES.MAJOR],
   };
 }
 

@@ -28,7 +28,7 @@ import {
 
 export type BuildAttributes = {
   id: string;
-  tenantId: string;
+  appId: string;
   createdAt: Date;
   updatedAt: Date;
   buildNumber: string | null;
@@ -65,15 +65,17 @@ export const createBuildModel = (
         primaryKey: true,
         allowNull: false
       },
-      tenantId: {
+      appId: {
         type: DataTypes.UUID,
         allowNull: false,
-        field: 'tenantId',
+        field: 'appId',
         references: {
-          model: 'tenants',
+          model: 'apps',  // Changed from 'tenants' to 'apps'
           key: 'id'
         },
-        comment: 'FK to tenants table'
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+        comment: 'Reference to apps table (renamed from tenants)'
       },
       createdAt: {
         type: DataTypes.DATE,

@@ -19,10 +19,10 @@ export class JenkinsWorkflowService extends WorkflowService {
    * Discover parameter definitions for a Jenkins job URL.
    * Validates tenant credentials and host match before forwarding to provider.
    */
-  fetchJobParameters = async (tenantId: string, workflowUrl: string): Promise<{ parameters: Array<{
+  fetchJobParameters = async (appId: string, workflowUrl: string): Promise<{ parameters: Array<{
     name: string; type: 'boolean' | 'string' | 'choice'; description?: string; defaultValue?: unknown; options?: string[];
   }>}> => {
-    const integration = await this.integrationRepository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
+    const integration = await this.integrationRepository.findByAppAndProvider(appId, CICDProviderType.JENKINS);
     if (!integration) throw new Error(ERROR_MESSAGES.JENKINS_CONNECTION_NOT_FOUND);
     const hasBasicCreds = integration.authType === AuthType.BASIC && !!integration.username && !!integration.apiToken;
     if (!hasBasicCreds) throw new Error(ERROR_MESSAGES.JENKINS_BASIC_REQUIRED);
@@ -56,7 +56,7 @@ export class JenkinsWorkflowService extends WorkflowService {
    * Accepts either workflowId or (workflowType + platform) to resolve the workflow.
    * Validates Jenkins BASIC credentials and host alignment.
    */
-  trigger = async (tenantId: string, input: {
+  trigger = async (appId: string, input: {
     workflowId?: string;
     workflowType?: string;
     platform?: string;
@@ -69,12 +69,12 @@ export class JenkinsWorkflowService extends WorkflowService {
     let workflow: any;
     if (hasWorkflowId) {
       const item = await this.workflowRepository.findById(input.workflowId as string);
-      const invalid = !item || item.tenantId !== tenantId || item.providerType !== CICDProviderType.JENKINS;
+      const invalid = !item || item.appId !== appId || item.providerType !== CICDProviderType.JENKINS;
       if (invalid) throw new Error(ERROR_MESSAGES.WORKFLOW_NOT_FOUND);
       workflow = item;
     } else {
       const items = await this.workflowRepository.findAll({
-        tenantId,
+        appId,
         providerType: CICDProviderType.JENKINS as any,
         workflowType: input.workflowType as any,
         platform: normalizePlatform(input.platform)
@@ -123,13 +123,13 @@ export class JenkinsWorkflowService extends WorkflowService {
    * Poll Jenkins queue status and return status with executable URL when available.
    * The executableUrl is the ciRunId that should be stored in the build table.
    * 
-   * @param tenantId - Tenant identifier for credential lookup
+   * @param appId - Tenant identifier for credential lookup
    * @param queueUrl - Jenkins queue item URL (queueLocation from trigger)
    * @returns Status and executableUrl (ciRunId) when job has started
    */
-  getQueueStatus = async (tenantId: string, queueUrl: string): Promise<JenkinsQueueStatusResult> => {
+  getQueueStatus = async (appId: string, queueUrl: string): Promise<JenkinsQueueStatusResult> => {
     const urlObj = new URL(queueUrl);
-    const integration = await this.integrationRepository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
+    const integration = await this.integrationRepository.findByAppAndProvider(appId, CICDProviderType.JENKINS);
     const integrationNotFound = !integration;
     if (integrationNotFound) {
       throw new Error(ERROR_MESSAGES.JENKINS_CONNECTION_NOT_FOUND);
@@ -163,13 +163,13 @@ export class JenkinsWorkflowService extends WorkflowService {
    * Check status of a running Jenkins build using its build URL (ciRunId).
    * Use this after a build has started running (when you have ciRunId from getQueueStatus).
    * 
-   * @param tenantId - Tenant identifier for credential lookup
+   * @param appId - Tenant identifier for credential lookup
    * @param buildUrl - Jenkins build URL (ciRunId from build table)
    * @returns Build status (running, completed, failed) and result info
    */
-  getBuildStatus = async (tenantId: string, buildUrl: string): Promise<JenkinsBuildStatusResult> => {
+  getBuildStatus = async (appId: string, buildUrl: string): Promise<JenkinsBuildStatusResult> => {
     const urlObj = new URL(buildUrl);
-    const integration = await this.integrationRepository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
+    const integration = await this.integrationRepository.findByAppAndProvider(appId, CICDProviderType.JENKINS);
     const integrationNotFound = !integration;
     if (integrationNotFound) {
       throw new Error(ERROR_MESSAGES.JENKINS_CONNECTION_NOT_FOUND);

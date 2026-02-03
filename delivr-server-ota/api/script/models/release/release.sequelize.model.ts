@@ -9,7 +9,7 @@ export type ReleaseAttributes = {
   id: string;
   releaseId: string; // User-facing release ID (e.g., "REL-001")
   releaseConfigId: string | null; // FK to release_configurations table
-  tenantId: string;
+  appId: string;
   status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
   type: 'MINOR' | 'HOTFIX' | 'MAJOR';
   branch: string | null; // Release branch name (e.g., "release/v1.0.0")
@@ -61,14 +61,17 @@ export const createReleaseModel = (
         },
         comment: 'FK to release_configurations table'
       },
-      tenantId: {
+      appId: {
         type: DataTypes.UUID,
         allowNull: false,
-        field: 'tenantId',
+        field: 'appId',
         references: {
-          model: 'tenants',
+          model: 'apps',  // Changed from 'tenants' to 'apps'
           key: 'id'
-        }
+        },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+        comment: 'Reference to apps table (renamed from tenants)'
       },
       status: {
         type: DataTypes.ENUM('PENDING', 'IN_PROGRESS', 'PAUSED', 'SUBMITTED', 'COMPLETED', 'ARCHIVED'),

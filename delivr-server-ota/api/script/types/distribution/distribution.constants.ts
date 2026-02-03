@@ -55,7 +55,7 @@ export type DistributionStoreType = typeof DISTRIBUTION_STORE_TYPE[keyof typeof 
 // ============================================================================
 
 export const DISTRIBUTION_ERROR_MESSAGES = {
-  TENANT_ID_REQUIRED: 'Distribution operation failed: tenantId is required',
+  APP_ID_REQUIRED: 'Distribution operation failed: appId is required',
   RELEASE_ID_REQUIRED: 'Distribution operation failed: releaseId is required',
   BRANCH_REQUIRED: 'Distribution operation failed: branch is required',
   PLATFORMS_REQUIRED: 'Distribution operation failed: configuredListOfPlatforms is required',

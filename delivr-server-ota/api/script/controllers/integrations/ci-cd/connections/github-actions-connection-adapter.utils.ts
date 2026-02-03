@@ -33,7 +33,7 @@ export const createGitHubActionsConnectionAdapter = (): ConnectionAdapter => {
 
   // prepareVerifyOnUpdate removed; update handled via service.update
 
-  const create: ConnectionAdapter["create"] = async (tenantId, accountId, body) => {
+  const create: ConnectionAdapter["create"] = async (appId, accountId, body) => {
     const displayName = body.displayName as string | undefined;
     const apiToken = body.apiToken as string | undefined; // Store encrypted value
     const tokenInvalid = !apiToken || typeof apiToken !== 'string' || apiToken.trim().length === 0;
@@ -46,11 +46,11 @@ export const createGitHubActionsConnectionAdapter = (): ConnectionAdapter => {
     const backendEncryptedApiToken = encryptForStorage(decryptedData.apiToken);
     
     console.log('[GitHub Actions] Storing apiToken with backend storage encryption (double-layer security)');
-    const created = await service.create(tenantId, accountId, { displayName, apiToken: backendEncryptedApiToken });
+    const created = await service.create(appId, accountId, { displayName, apiToken: backendEncryptedApiToken });
     return created;
   };
 
-  const update = async (tenantId: string, updateData: UpdateCICDIntegrationDto): Promise<SafeCICDIntegration> => {
+  const update = async (appId: string, updateData: UpdateCICDIntegrationDto): Promise<SafeCICDIntegration> => {
     // Double-layer encryption: Decrypt frontend-encrypted apiToken if provided, then encrypt with backend storage key
     const processedUpdateData = { ...updateData };
     
@@ -61,7 +61,7 @@ export const createGitHubActionsConnectionAdapter = (): ConnectionAdapter => {
       console.log('[GitHub Actions] Updating apiToken with backend storage encryption (double-layer security)');
     }
     
-    const safe = await service.update(tenantId, processedUpdateData);
+    const safe = await service.update(appId, processedUpdateData);
     return safe;
   };
 

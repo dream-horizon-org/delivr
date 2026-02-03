@@ -49,7 +49,7 @@ import { formatStatus } from '~/utils/distribution/distribution-ui.utils';
 export type CancelSubmissionDialogProps = {
   opened: boolean;
   onClose: () => void;
-  tenantId: string;
+  appId: string;
   releaseId: string;
   submissionId: string;
   platform: string;
@@ -66,7 +66,7 @@ type CancelResponse = {
 export function CancelSubmissionDialog({
   opened,
   onClose,
-  tenantId,
+  appId,
   releaseId,
   submissionId,
   platform,
@@ -107,10 +107,10 @@ export function CancelSubmissionDialog({
 
     fetcher.submit(JSON.stringify(payload), {
       method: 'patch',
-      action: API_ROUTES.cancelSubmission(tenantId, releaseId, submissionId, platform),
+      action: API_ROUTES.cancelSubmission(appId, releaseId, submissionId, platform),
       encType: 'application/json',
     });
-  }, [tenantId, releaseId, submissionId, platform, reason, fetcher]);
+  }, [appId, releaseId, submissionId, platform, reason, fetcher]);
 
   const handleClose = useCallback(() => {
     setReason('');

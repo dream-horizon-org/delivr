@@ -5,7 +5,7 @@
  * 
  * TRANSFORMATIONS PERFORMED:
  * 1. ✅ Platform mapping: testManagement platforms (ANDROID → ANDROID_PLAY_STORE)
- * 2. ✅ Inject system fields: tenantId, createdByAccountId, name (for nested configs)
+ * 2. ✅ Inject system fields: appId, createdByAccountId, name (for nested configs)
  * 4. ✅ platformTargets: Combine platforms + targets or pass through
  * 5. ✅ Extract from UI wrappers: providerConfig, slack, etc.
  * 6. ✅ Nest/Unnest: Project management parameters
@@ -30,7 +30,7 @@ interface PlatformTarget {
 
 interface BackendWorkflow {
   id?: string;
-  tenantId?: string;
+  appId?: string;
   providerType: string;
   integrationId: string;
   displayName: string;
@@ -79,7 +79,7 @@ interface TestManagementPlatformConfig {
 
 interface TestManagementConfigData {
   id?: string;
-  tenantId?: string;
+  appId?: string;
   name?: string;
   enabled?: boolean;
   provider?: string;
@@ -122,7 +122,7 @@ interface ProjectManagementPlatformConfig {
 
 interface ProjectManagementConfigData {
   id?: string;
-  tenantId?: string;
+  appId?: string;
   name?: string;
   description?: string;
   integrationId?: string;
@@ -134,7 +134,7 @@ interface ProjectManagementConfigData {
 
 interface CommunicationConfigData {
   id?: string;
-  tenantId?: string;
+  appId?: string;
   integrationId?: string;
   channelData?: Record<string, unknown>;
   createdAt?: string | Date;
@@ -153,7 +153,7 @@ interface InitialVersionItem {
 }
 
 interface BackendReleaseConfig {
-  tenantId: string;
+  appId: string;
   name: string;
   description?: string;
   releaseType: string;
@@ -225,12 +225,12 @@ function mapWorkflowType(environment: string): string {
  */
 function transformBackendFormatWorkflow(
   workflow: BackendWorkflow,
-  tenantId: string,
+  appId: string,
   userId: string
 ): BackendWorkflow {
   return {
     ...workflow,
-    tenantId: workflow.tenantId || tenantId,
+    appId: workflow.appId || appId,
     createdByAccountId: workflow.createdByAccountId || userId,
   };
 }
@@ -242,7 +242,7 @@ function transformBackendFormatWorkflow(
  */
 function transformFrontendFormatWorkflow(
   workflow: FrontendWorkflow,
-  tenantId: string,
+  appId: string,
   userId: string
 ): BackendWorkflow {
   const { name, provider, environment, providerConfig, platform, id } = workflow;
@@ -289,7 +289,7 @@ function transformFrontendFormatWorkflow(
   
   return {
     ...(id && { id }),
-    tenantId,
+    appId,
     providerType: provider,
     integrationId,
     displayName: name,
@@ -302,13 +302,13 @@ function transformFrontendFormatWorkflow(
   };
 }
 
-function transformWorkflowToBackend(tenantId: string, userId: string) {
+function transformWorkflowToBackend(appId: string, userId: string) {
   return (workflow: FrontendWorkflow | BackendWorkflow): BackendWorkflow => {
     const isBackendFormat = 'displayName' in workflow || 
                            ('providerType' in workflow && !('providerConfig' in workflow));
     return isBackendFormat
-      ? transformBackendFormatWorkflow(workflow as BackendWorkflow, tenantId, userId)
-      : transformFrontendFormatWorkflow(workflow as FrontendWorkflow, tenantId, userId);
+      ? transformBackendFormatWorkflow(workflow as BackendWorkflow, appId, userId)
+      : transformFrontendFormatWorkflow(workflow as FrontendWorkflow, appId, userId);
   };
 }
 
@@ -334,10 +334,10 @@ function transformTestManagementPlatformConfigs(
 
 function transformTestManagementConfig(
   config: ReleaseConfiguration,
-  tenantId: string,
+  appId: string,
   userId: string
 ): {
-  tenantId: string;
+  appId: string;
   integrationId: string;
   name: string;
   passThresholdPercent: number;
@@ -348,7 +348,7 @@ function transformTestManagementConfig(
   const tmConfig = config.testManagementConfig;
   if (!tmConfig?.enabled || !tmConfig.integrationId) return undefined;
   return {
-    tenantId,
+    appId,
     integrationId: tmConfig.integrationId,
     name: `Test Management for ${config.name || 'Release Config'}`,
     passThresholdPercent: tmConfig.passThresholdPercent || 100,
@@ -363,9 +363,9 @@ function transformTestManagementConfig(
 
 function transformCommunicationConfig(
   config: ReleaseConfiguration,
-  tenantId: string
+  appId: string
 ): {
-  tenantId: string;
+  appId: string;
   integrationId: string;
   channelData: Record<string, unknown>;
   id?: string;
@@ -373,7 +373,7 @@ function transformCommunicationConfig(
   const commConfig = config.communicationConfig;
   if (!commConfig?.enabled || !commConfig.integrationId || !commConfig.channelData) return undefined;
   return {
-    tenantId,
+    appId,
     integrationId: commConfig.integrationId,
     channelData: commConfig.channelData as unknown as Record<string, unknown>,
     ...(commConfig.id && { id: commConfig.id }),
@@ -392,10 +392,10 @@ function transformProjectManagementPlatformConfigs(
 
 function transformProjectManagementConfig(
   config: ReleaseConfiguration,
-  tenantId: string,
+  appId: string,
   userId: string
 ): {
-  tenantId: string;
+  appId: string;
   integrationId: string;
   name: string;
   description?: string;
@@ -407,7 +407,7 @@ function transformProjectManagementConfig(
   if (!pmConfig?.enabled || !pmConfig.integrationId) return undefined;
   const pmConfigId = (pmConfig as { id?: string }).id;
   return {
-    tenantId,
+    appId,
     integrationId: pmConfig.integrationId,
     name: `PM Config for ${config.name || 'Release Config'}`,
     ...(config.description && { description: config.description }),
@@ -477,7 +477,7 @@ function transformReleaseSchedule(
 
 function transformCIConfig(
   config: ReleaseConfiguration,
-  tenantId: string,
+  appId: string,
   userId: string
 ): {
   id?: string;
@@ -486,17 +486,17 @@ function transformCIConfig(
   if (!config.ciConfig?.workflows || config.ciConfig.workflows.length === 0) return undefined;
   return {
     ...(config.ciConfig.id && { id: config.ciConfig.id }),
-    workflows: config.ciConfig.workflows.map(transformWorkflowToBackend(tenantId, userId)),
+    workflows: config.ciConfig.workflows.map(transformWorkflowToBackend(appId, userId)),
   };
 }
 
 export function prepareReleaseConfigPayload(
   config: ReleaseConfiguration,
-  tenantId: string,
+  appId: string,
   userId: string
 ): BackendReleaseConfig {
   const payload: BackendReleaseConfig = {
-    tenantId,
+    appId,
     name: config.name,
     releaseType: config.releaseType,
     platformTargets: config.platformTargets || [],
@@ -506,15 +506,15 @@ export function prepareReleaseConfigPayload(
     ...(config.isActive !== undefined && { isActive: config.isActive }),
     ...(config.baseBranch && { baseBranch: config.baseBranch }),
   };
-  const testManagementConfig = transformTestManagementConfig(config, tenantId, userId);
+  const testManagementConfig = transformTestManagementConfig(config, appId, userId);
   if (testManagementConfig) payload.testManagementConfig = testManagementConfig;
-  const communicationConfig = transformCommunicationConfig(config, tenantId);
+  const communicationConfig = transformCommunicationConfig(config, appId);
   if (communicationConfig) payload.communicationConfig = communicationConfig;
-  const projectManagementConfig = transformProjectManagementConfig(config, tenantId, userId);
+  const projectManagementConfig = transformProjectManagementConfig(config, appId, userId);
   if (projectManagementConfig) payload.projectManagementConfig = projectManagementConfig;
   const releaseSchedule = transformReleaseSchedule(config);
   if (releaseSchedule) payload.releaseSchedule = releaseSchedule;
-  const ciConfig = transformCIConfig(config, tenantId, userId);
+  const ciConfig = transformCIConfig(config, appId, userId);
   if (ciConfig) payload.ciConfig = ciConfig;
   return payload;
 }
@@ -615,7 +615,7 @@ function reverseTransformTestManagementConfig(
   filterType: string;
   id?: string;
   // Preserve backend metadata
-  tenantId?: string;
+  appId?: string;
   name?: string;
   createdByAccountId?: string;
   createdAt?: string;
@@ -634,7 +634,7 @@ function reverseTransformTestManagementConfig(
     filterType: (testManagementData as { filterType?: string }).filterType || 'AND',
     ...(testManagementData.id && { id: testManagementData.id }),
     // Preserve backend metadata
-    ...(testManagementData.tenantId && { tenantId: testManagementData.tenantId }),
+    ...(testManagementData.appId && { appId: testManagementData.appId }),
     ...(testManagementData.name && { name: testManagementData.name }),
     ...(testManagementData.createdByAccountId && { createdByAccountId: testManagementData.createdByAccountId }),
     ...(testManagementData.createdAt && { 
@@ -676,7 +676,7 @@ function reverseTransformProjectManagementConfig(
   linkBuildsToIssues: boolean;
   id?: string;
   // Preserve backend metadata
-  tenantId?: string;
+  appId?: string;
   name?: string;
   description?: string;
   createdByAccountId?: string;
@@ -695,7 +695,7 @@ function reverseTransformProjectManagementConfig(
     linkBuildsToIssues: true,
     ...(projectManagementData.id && { id: projectManagementData.id }),
     // Preserve backend metadata
-    ...(projectManagementData.tenantId && { tenantId: projectManagementData.tenantId }),
+    ...(projectManagementData.appId && { appId: projectManagementData.appId }),
     ...(projectManagementData.name && { name: projectManagementData.name }),
     ...(projectManagementData.description && { description: projectManagementData.description }),
     ...(projectManagementData.createdByAccountId && { createdByAccountId: projectManagementData.createdByAccountId }),
@@ -720,7 +720,7 @@ function reverseTransformCommunicationConfig(
   channelData: Record<string, unknown>;
   id?: string;
   // Preserve backend metadata
-  tenantId?: string;
+  appId?: string;
   createdAt?: string;
   updatedAt?: string;
 } | undefined {
@@ -735,7 +735,7 @@ function reverseTransformCommunicationConfig(
     channelData: communicationData.channelData || {},
     ...(communicationData.id && { id: communicationData.id }),
     // Preserve backend metadata
-    ...(communicationData.tenantId && { tenantId: communicationData.tenantId }),
+    ...(communicationData.appId && { appId: communicationData.appId }),
     ...(communicationData.createdAt && { 
       createdAt: typeof communicationData.createdAt === 'string' 
         ? communicationData.createdAt 
@@ -800,8 +800,8 @@ async function reverseTransformCIConfig(
     }
     return undefined;
   }
-  const tenantId = backendConfig.tenantId;
-  if (!tenantId || !userId) {
+  const appId = backendConfig.appId;
+  if (!appId || !userId) {
     return {
       ...(ciConfig.id && { id: ciConfig.id }),
       workflowIds,
@@ -809,7 +809,7 @@ async function reverseTransformCIConfig(
     };
   }
   try {
-    const workflowsResult = await CICDIntegrationService.listAllWorkflows(tenantId, userId);
+    const workflowsResult = await CICDIntegrationService.listAllWorkflows(appId, userId);
     if (workflowsResult.success && workflowsResult.workflows) {
       const matchingWorkflows = workflowsResult.workflows.filter((wf) => workflowIds.includes(wf.id));
       const workflows = matchingWorkflows.map(convertCICDWorkflowToWorkflow);
@@ -859,11 +859,11 @@ export async function transformFromBackend(
  */
 export function prepareUpdatePayload(
   updates: Partial<ReleaseConfiguration>,
-  tenantId: string,
+  appId: string,
   userId: string
 ): Partial<BackendReleaseConfig> {
   // Always transform since UI always sends frontend format (from GET transformation)
-  return prepareReleaseConfigPayload(updates as ReleaseConfiguration, tenantId, userId);
+  return prepareReleaseConfigPayload(updates as ReleaseConfiguration, appId, userId);
 }
 
 /**

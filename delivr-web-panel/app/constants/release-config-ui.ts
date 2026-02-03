@@ -56,6 +56,7 @@ export const TARGET_PLATFORM_LABELS = {
   PLAY_STORE: 'Play Store',
   APP_STORE: 'App Store',
   WEB: 'Web',
+  DOTA: 'Over-the-Air',
 } as const;
 
 // ============================================================================

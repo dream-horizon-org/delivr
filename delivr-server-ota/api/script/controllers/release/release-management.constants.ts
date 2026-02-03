@@ -12,7 +12,7 @@ import { VALID_UPLOAD_STAGES } from '../../constants/upload-stage';
  * Error messages for release management operations
  * 
  * Convention:
- * - Use camelCase for field names (e.g., releaseId, tenantId)
+ * - Use camelCase for field names (e.g., releaseId, appId)
  * - No trailing periods
  * - Field validation: "[fieldName] is required"
  */

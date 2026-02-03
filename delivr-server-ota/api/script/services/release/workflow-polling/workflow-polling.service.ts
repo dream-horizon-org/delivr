@@ -29,8 +29,8 @@ const log = createScopedLogger('WorkflowPolling');
  * Provider-specific status checker interface
  */
 type ProviderStatusChecker = {
-  checkQueueStatus: (tenantId: string, queueLocation: string) => Promise<WorkflowStatusCheckResult>;
-  checkBuildStatus: (tenantId: string, ciRunId: string) => Promise<WorkflowStatusCheckResult>;
+  checkQueueStatus: (appId: string, queueLocation: string) => Promise<WorkflowStatusCheckResult>;
+  checkBuildStatus: (appId: string, ciRunId: string) => Promise<WorkflowStatusCheckResult>;
 };
 
 export class WorkflowPollingService {
@@ -82,14 +82,14 @@ export class WorkflowPollingService {
    * Jenkins: Check queue status
    */
   private checkJenkinsQueueStatus = async (
-    tenantId: string,
+    appId: string,
     queueLocation: string
   ): Promise<WorkflowStatusCheckResult> => {
     if(!queueLocation || queueLocation.trim().length === 0) {
-      log.error('Jenkins queueLocation is missing or empty', { tenantId });
+      log.error('Jenkins queueLocation is missing or empty', { appId });
       throw new Error('Jenkins queueLocation is required for status check');
     }
-    const result = await this.jenkinsService.getQueueStatus(tenantId, queueLocation);
+    const result = await this.jenkinsService.getQueueStatus(appId, queueLocation);
     return {
       status: result.status,
       ciRunId: result.executableUrl
@@ -100,10 +100,10 @@ export class WorkflowPollingService {
    * Jenkins: Check build status
    */
   private checkJenkinsBuildStatus = async (
-    tenantId: string,
+    appId: string,
     ciRunId: string
   ): Promise<WorkflowStatusCheckResult> => {
-    const result = await this.jenkinsService.getBuildStatus(tenantId, ciRunId);
+    const result = await this.jenkinsService.getBuildStatus(appId, ciRunId);
     return { status: result.status, ciRunId };
   };
 
@@ -111,16 +111,16 @@ export class WorkflowPollingService {
    * GitHub Actions: Check queue status (queueLocation IS the run URL)
    */
   private checkGitHubActionsQueueStatus = async (
-    tenantId: string,
+    appId: string,
     queueLocation: string
   ): Promise<WorkflowStatusCheckResult> => {
     const queueLocationMissing = !queueLocation || queueLocation.trim().length === 0;
     if (queueLocationMissing) {
-      log.error('GitHub Actions queueLocation is missing or empty', { tenantId });
+      log.error('GitHub Actions queueLocation is missing or empty', { appId });
       throw new Error('GitHub Actions queueLocation is required for status check');
     }
     
-    const status = await this.ghaService.getRunStatus(tenantId, { runUrl: queueLocation });
+    const status = await this.ghaService.getRunStatus(appId, { runUrl: queueLocation });
     return {
       status,
       ciRunId: queueLocation
@@ -134,10 +134,10 @@ export class WorkflowPollingService {
    * GHA conclusion is properly mapped to 'failed' for failure/cancelled/timed_out
    */
   private checkGitHubActionsBuildStatus = async (
-    tenantId: string,
+    appId: string,
     ciRunId: string
   ): Promise<WorkflowStatusCheckResult> => {
-    const status = await this.ghaService.getRunStatus(tenantId, { runUrl: ciRunId });
+    const status = await this.ghaService.getRunStatus(appId, { runUrl: ciRunId });
     return { status, ciRunId };
   };
 
@@ -157,7 +157,7 @@ export class WorkflowPollingService {
    */
   private checkQueueStatus = async (
     ciRunType: CiRunType,
-    tenantId: string,
+    appId: string,
     queueLocation: string
   ): Promise<WorkflowStatusCheckResult> => {
     const checker = this.providerCheckers[ciRunType];
@@ -165,7 +165,7 @@ export class WorkflowPollingService {
     if (checkerNotFound) {
       throw new Error(`${WORKFLOW_POLLING_ERROR_MESSAGES.UNSUPPORTED_PROVIDER}: ${ciRunType}`);
     }
-    return checker.checkQueueStatus(tenantId, queueLocation);
+    return checker.checkQueueStatus(appId, queueLocation);
   };
 
   /**
@@ -173,7 +173,7 @@ export class WorkflowPollingService {
    */
   private checkBuildStatus = async (
     ciRunType: CiRunType,
-    tenantId: string,
+    appId: string,
     ciRunId: string
   ): Promise<WorkflowStatusCheckResult> => {
     const checker = this.providerCheckers[ciRunType];
@@ -181,7 +181,7 @@ export class WorkflowPollingService {
     if (checkerNotFound) {
       throw new Error(`${WORKFLOW_POLLING_ERROR_MESSAGES.UNSUPPORTED_PROVIDER}: ${ciRunType}`);
     }
-    return checker.checkBuildStatus(tenantId, ciRunId);
+    return checker.checkBuildStatus(appId, ciRunId);
   };
 
   // ===========================================================================
@@ -195,7 +195,7 @@ export class WorkflowPollingService {
    */
   pollPendingWorkflows = async (
     releaseId: string,
-    tenantId: string
+    appId: string
   ): Promise<PollPendingResult> => {
     const pendingBuilds = await this.buildRepo.findCiCdBuildsByReleaseAndWorkflowStatus(
       releaseId,
@@ -207,7 +207,7 @@ export class WorkflowPollingService {
     let updated = 0;
 
     for (const build of pendingBuilds) {
-      const result = await this.checkPendingBuild(build, tenantId);
+      const result = await this.checkPendingBuild(build, appId);
       results.push(result);
 
       if (result.updated) {
@@ -260,7 +260,7 @@ export class WorkflowPollingService {
    */
   pollRunningWorkflows = async (
     releaseId: string,
-    tenantId: string
+    appId: string
   ): Promise<PollRunningResult> => {
     const runningBuilds = await this.buildRepo.findCiCdBuildsByReleaseAndWorkflowStatus(
       releaseId,
@@ -272,7 +272,7 @@ export class WorkflowPollingService {
     let updated = 0;
 
     for (const build of runningBuilds) {
-      const result = await this.checkRunningBuild(build, tenantId);
+      const result = await this.checkRunningBuild(build, appId);
       results.push(result);
 
       if (result.updated) {
@@ -324,7 +324,7 @@ export class WorkflowPollingService {
    */
   private checkPendingBuild = async (
     build: Build,
-    tenantId: string
+    appId: string
   ): Promise<BuildPollResult> => {
     const buildId = build.id;
     const previousStatus = build.workflowStatus;
@@ -359,7 +359,7 @@ export class WorkflowPollingService {
       // TypeScript knows queueLocation and ciRunType are defined
       const statusResult = await this.checkQueueStatus(
         ciRunType,
-        tenantId,
+        appId,
         queueLocation
       );
 
@@ -447,7 +447,7 @@ export class WorkflowPollingService {
    */
   private checkRunningBuild = async (
     build: Build,
-    tenantId: string
+    appId: string
   ): Promise<BuildPollResult> => {
     const buildId = build.id;
     const previousStatus = build.workflowStatus;
@@ -482,7 +482,7 @@ export class WorkflowPollingService {
       // TypeScript knows ciRunId and ciRunType are defined
       const statusResult = await this.checkBuildStatus(
         ciRunType,
-        tenantId,
+        appId,
         ciRunId
       );
 

@@ -39,7 +39,7 @@ export class JsonStorage implements storage.Storage {
   public static NextIdNumber: number = 0;
   public accounts: { [id: string]: storage.Account } = {};
   public apps: { [id: string]: storage.App } = {};
-  public tenants: {[id: string]: storage.Organization} = {};
+  public tenants: {[id: string]: storage.OrgApp} = {};
   public deployments: { [id: string]: storage.Deployment } = {};
   public packages: { [id: string]: storage.Package } = {};
   public blobs: { [id: string]: string } = {};
@@ -167,24 +167,24 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(clone(this.accounts[accountId]));
   }
 
-  public removeTenant(accountId: string, tenantId: string): Promise<void> {
-    if (!this.accounts[accountId] || !this.tenants[tenantId]) {
+  public removeTenant(accountId: string, appId: string): Promise<void> {
+    if (!this.accounts[accountId] || !this.tenants[appId]) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
 
-    const _tenant = this.tenants[tenantId];
+    const _tenant = this.tenants[appId];
     const tenantAccounts = this.accountToTenantsMap[accountId];
-    if (tenantAccounts.indexOf(tenantId) !== -1) {
-      tenantAccounts.splice(tenantAccounts.indexOf(tenantId), 1);
+    if (tenantAccounts.indexOf(appId) !== -1) {
+      tenantAccounts.splice(tenantAccounts.indexOf(appId), 1);
     }
 
-    delete this.tenants[tenantId];
+    delete this.tenants[appId];
     this.saveStateAsync();
 
     return Promise.resolve(<void>null);
   }
 
-  public getTenants(accountId: string): Promise<storage.Organization[]> {
+  public getTenants(accountId: string): Promise<storage.OrgApp[]> {
     const tenantIds = this.accountToTenantsMap[accountId];
     if (tenantIds) {
       const tenants = tenantIds.map((id: string) => {
@@ -196,7 +196,7 @@ export class JsonStorage implements storage.Storage {
     return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
   }
 
-  public addTenant(accountId: string, tenant: storage.Organization): Promise<storage.Organization> {
+  public addTenant(accountId: string, tenant: storage.OrgApp): Promise<storage.OrgApp> {
     tenant = clone(tenant);
     tenant.id = this.newId();
     tenant.createdBy = accountId;
@@ -229,6 +229,35 @@ export class JsonStorage implements storage.Storage {
 
   public removeTenantCollaborator(_tenantId: string, _email: string): Promise<void> {
     return Promise.resolve(<void>null);
+  }
+
+  // OrgApp methods (stubs - not implemented, use S3Storage instead)
+  public getOrgApps(_accountId: string): Promise<storage.OrgApp[]> {
+    return Promise.reject(new Error('JsonStorage: getOrgApps not implemented - use S3Storage'));
+  }
+
+  public addOrgApp(_accountId: string, _orgApp: storage.OrgApp): Promise<storage.OrgApp> {
+    return Promise.reject(new Error('JsonStorage: addOrgApp not implemented - use S3Storage'));
+  }
+
+  public removeOrgApp(_accountId: string, _appId: string): Promise<void> {
+    return Promise.reject(new Error('JsonStorage: removeOrgApp not implemented - use S3Storage'));
+  }
+
+  public getOrgAppCollaborators(_appId: string): Promise<storage.CollaboratorMap> {
+    return Promise.reject(new Error('JsonStorage: getOrgAppCollaborators not implemented - use S3Storage'));
+  }
+
+  public addOrgAppCollaborator(_appId: string, _email: string, _permission: string): Promise<void> {
+    return Promise.reject(new Error('JsonStorage: addOrgAppCollaborator not implemented - use S3Storage'));
+  }
+
+  public updateOrgAppCollaborator(_appId: string, _email: string, _permission: string): Promise<void> {
+    return Promise.reject(new Error('JsonStorage: updateOrgAppCollaborator not implemented - use S3Storage'));
+  }
+
+  public removeOrgAppCollaborator(_appId: string, _email: string): Promise<void> {
+    return Promise.reject(new Error('JsonStorage: removeOrgAppCollaborator not implemented - use S3Storage'));
   }
 
   public getAccountByEmail(email: string): Promise<storage.Account> {

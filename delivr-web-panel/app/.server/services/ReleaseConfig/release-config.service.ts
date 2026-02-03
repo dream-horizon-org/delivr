@@ -17,18 +17,18 @@ export class ReleaseConfigService {
    */
   static async create(
     config: ReleaseConfiguration,
-    tenantId: string,
+    appId: string,
     userId: string
   ): Promise<{ success: boolean; data?: Partial<ReleaseConfiguration>; error?: string }> {
     try {
-      const payload = prepareReleaseConfigPayload(config, tenantId, userId);
+      const payload = prepareReleaseConfigPayload(config, appId, userId);
       
       // Log transformation for debugging
       if (process.env.NODE_ENV === 'development') {
         logTransformation(config, payload, 'create');
       }
 
-      const url = `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/release-configs`;
+      const url = `${BACKEND_API_URL}/api/v1/apps/${appId}/release-configs`;
       const requestBody = JSON.stringify(payload);
       
       console.log('[ReleaseConfigService] POST to:', url, " payload: ", JSON.stringify(payload, null, 2));
@@ -91,12 +91,12 @@ export class ReleaseConfigService {
    * Workaround: Frontend uses optimistic updates and doesn't refetch after archive to keep the cached state
    */
   static async list(
-    tenantId: string,
+    appId: string,
     userId: string
   ): Promise<{ success: boolean; data?: Partial<ReleaseConfiguration>[]; error?: string }> {
     try {
-      const url = `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/release-configs?includeArchived=true`;
-      console.log('[ReleaseConfigService] Listing configs for tenant:', tenantId, 'from:', url);
+      const url = `${BACKEND_API_URL}/api/v1/apps/${appId}/release-configs?includeArchived=true`;
+      console.log('[ReleaseConfigService] Listing configs for tenant:', appId, 'from:', url);
 
       const response = await fetch(url, {
         method: 'GET',
@@ -147,14 +147,14 @@ export class ReleaseConfigService {
    */
   static async getById(
     configId: string,
-    tenantId: string,
+    appId: string,
     userId: string
   ): Promise<{ success: boolean; data?: Partial<ReleaseConfiguration>; error?: string }> {
     try {
       console.log('[ReleaseConfigService] Fetching config:', configId);
 
       const response = await fetch(
-        `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/release-configs/${configId}`,
+        `${BACKEND_API_URL}/api/v1/apps/${appId}/release-configs/${configId}`,
         {
           method: 'GET',
           headers: {
@@ -195,12 +195,12 @@ export class ReleaseConfigService {
   static async update(
     configId: string,
     updates: Partial<ReleaseConfiguration>,
-    tenantId: string,
+    appId: string,
     userId: string
   ): Promise<{ success: boolean; data?: Partial<ReleaseConfiguration>; error?: string }> {
     try {
       console.log('[ReleaseConfigService] Update request - configId:', configId, 'updates:', updates);
-      const payload = prepareUpdatePayload(updates, tenantId, userId);
+      const payload = prepareUpdatePayload(updates, appId, userId);
       console.log('[ReleaseConfigService] Prepared payload:', payload);
       
       // Log transformation for debugging
@@ -208,7 +208,7 @@ export class ReleaseConfigService {
         logTransformation(updates, payload, 'update');
       }
 
-      const url = `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/release-configs/${configId}`;
+      const url = `${BACKEND_API_URL}/api/v1/apps/${appId}/release-configs/${configId}`;
       console.log('[ReleaseConfigService] PUT to:', url);
       
       const response = await fetch(url, {
@@ -256,13 +256,13 @@ export class ReleaseConfigService {
   static async archive(
     configId: string,
     payload: any,
-    tenantId: string,
+    appId: string,
     userId: string
   ): Promise<{ success: boolean; data?: Partial<ReleaseConfiguration>; error?: string }> {
     try {
       console.log('[ReleaseConfigService] Archive request - configId:', configId, 'payload:', payload);
 
-      const url = `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/release-configs/${configId}`;
+      const url = `${BACKEND_API_URL}/api/v1/apps/${appId}/release-configs/${configId}`;
       console.log('[ReleaseConfigService] PUT to:', url);
       
       const response = await fetch(url, {
@@ -309,13 +309,13 @@ export class ReleaseConfigService {
   static async unarchive(
     configId: string,
     payload: any,
-    tenantId: string,
+    appId: string,
     userId: string
   ): Promise<{ success: boolean; data?: Partial<ReleaseConfiguration>; error?: string }> {
     try {
       console.log('[ReleaseConfigService] Unarchive request - configId:', configId, 'payload:', payload);
 
-      const url = `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/release-configs/${configId}`;
+      const url = `${BACKEND_API_URL}/api/v1/apps/${appId}/release-configs/${configId}`;
       console.log('[ReleaseConfigService] PUT to:', url);
       
       const response = await fetch(url, {
@@ -360,14 +360,14 @@ export class ReleaseConfigService {
    */
   static async delete(
     configId: string,
-    tenantId: string,
+    appId: string,
     userId: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
       console.log('[ReleaseConfigService] Deleting config:', configId);
 
       const response = await fetch(
-        `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/release-configs/${configId}`,
+        `${BACKEND_API_URL}/api/v1/apps/${appId}/release-configs/${configId}`,
         {
           method: 'DELETE',
           headers: {

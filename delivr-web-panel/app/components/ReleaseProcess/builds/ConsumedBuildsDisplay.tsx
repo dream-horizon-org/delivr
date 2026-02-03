@@ -432,14 +432,14 @@ function BuildDisplayItem({
   const effectiveJobUrl = jobUrl || build.ciRunId || undefined;
 
   const handleDownload = async () => {
-    if (!build.artifactPath || !build.tenantId) {
+    if (!build.artifactPath || !build.appId) {
       showErrorToast(BUILD_DOWNLOAD_MESSAGES.DOWNLOAD_ERROR);
       return;
     }
 
     try {
       await downloadMutation.mutateAsync({
-        tenantId: build.tenantId,
+        appId: build.appId,
         buildId: build.id,
       });
     } catch (error) {

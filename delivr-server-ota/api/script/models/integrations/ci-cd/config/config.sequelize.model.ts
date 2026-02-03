@@ -8,7 +8,7 @@ export const createCICDConfigModel = (sequelize: Sequelize) => {
     implements TenantCICDConfig
   {
     declare id: string;
-    declare tenantId: string;
+    declare appId: string;
     declare workflowIds: string[];
     declare createdByAccountId: string;
     declare createdAt: Date;
@@ -23,12 +23,13 @@ export const createCICDConfigModel = (sequelize: Sequelize) => {
         allowNull: false,
         comment: 'Unique identifier (shortid)'
       },
-      tenantId: {
+      appId: {
         type: DataTypes.UUID,
         allowNull: false,
-        references: { model: 'tenants', key: 'id' },
+        references: { model: 'apps', key: 'id' },  // Changed from 'tenants' to 'apps'
         onDelete: 'CASCADE',
-        onUpdate: 'CASCADE'
+        onUpdate: 'CASCADE',
+        comment: 'Reference to apps table (renamed from tenants)'
       },
       workflowIds: {
         type: DataTypes.JSON,
@@ -58,7 +59,7 @@ export const createCICDConfigModel = (sequelize: Sequelize) => {
       tableName: 'tenant_ci_cd_config',
       timestamps: true,
       indexes: [
-        { fields: ['tenantId'], name: 'idx_tenant_ci_cd_config_tenant' }
+        { fields: ['appId'], name: 'idx_tenant_ci_cd_config_tenant' }
       ]
     }
   );

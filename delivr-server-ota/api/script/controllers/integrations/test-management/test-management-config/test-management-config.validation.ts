@@ -155,21 +155,21 @@ export const validateConfigName = (value: unknown): string | null => {
 };
 
 /**
- * Validate tenant ID
+ * Validate app id
  * Returns error message if invalid, null if valid
  */
-export const validateTenantId = (value: unknown): string | null => {
+export const validateAppId = (value: unknown): string | null => {
   const isString = typeof value === 'string';
 
   if (!isString) {
-    return 'tenantId must be a string';
+    return 'appId must be a string';
   }
 
   const idLength = value.length;
   const idEmpty = idLength === 0;
 
   if (idEmpty) {
-    return 'tenantId cannot be empty';
+    return 'appId cannot be empty';
   }
 
   return null;

@@ -79,7 +79,7 @@ function PipelineEditModalComponent({
   fixedPlatform,
   fixedEnvironment,
   workflows = [],
-  tenantId,
+  appId,
 }: PipelineEditModalProps) {
   const isEditing = !!pipeline;
   
@@ -159,13 +159,13 @@ function PipelineEditModalComponent({
 
   // Handle creating a new workflow via WorkflowCreateModal
   const handleCreateWorkflow = useCallback(async (workflowData: any) => {
-    if (!tenantId) return;
+    if (!appId) return;
     
     setIsCreatingWorkflow(true);
     try {
       // Create workflow via API
       const result = await apiPost<{ success: boolean; error?: string; workflowId?: string }>(
-        `/api/v1/tenants/${tenantId}/workflows`,
+        `/api/v1/apps/${appId}/workflows`,
         workflowData
       );
       if (result.success) {
@@ -178,7 +178,7 @@ function PipelineEditModalComponent({
           // Create workflow object with the returned ID
           const createdWorkflow: CICDWorkflow = {
             id: workflowId, // Use the ID returned from backend
-            tenantId,
+            appId,
             providerType: workflowData.providerType,
             integrationId: workflowData.integrationId,
             displayName: workflowData.displayName,
@@ -225,7 +225,7 @@ function PipelineEditModalComponent({
     } finally {
       setIsCreatingWorkflow(false);
     }
-  }, [tenantId, fixedPlatform, fixedEnvironment, onSave, onClose]);
+  }, [appId, fixedPlatform, fixedEnvironment, onSave, onClose]);
 
   // Handle selecting existing workflow
   const handleSelectExisting = useCallback(() => {
@@ -340,7 +340,7 @@ function PipelineEditModalComponent({
         onClose={handleCloseWorkflowModal}
         onSave={handleCreateWorkflow}
         availableIntegrations={availableIntegrations}
-        tenantId={tenantId || ''}
+        appId={appId || ''}
         workflows={workflows}
         existingWorkflow={null}
         fixedPlatform={fixedPlatform}

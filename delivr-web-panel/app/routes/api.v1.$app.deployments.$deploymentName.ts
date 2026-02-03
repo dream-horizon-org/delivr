@@ -35,7 +35,7 @@ export const loader = authenticateLoaderRequest(async ({ user, params, request }
       userId: user.user.id,
       appId: params.app ?? "",
       deploymentName: params.deploymentName ?? "",
-      tenant: request.headers.get("tenant") ?? "",
+      tenant: request.headers.get("app") ?? request.headers.get("tenant") ?? "",
     }
   );
   return json(data, { status });

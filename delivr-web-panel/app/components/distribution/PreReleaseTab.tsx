@@ -5,7 +5,7 @@
 
 import { Button, Card, Group, Stack, Text, Title } from '@mantine/core';
 import { IconRocket } from '@tabler/icons-react';
-import { BuildStatusCard, ExtraCommitsWarning, PMApprovalStatus } from '~/components/Distribution';
+import { BuildStatusCard, ExtraCommitsWarning, PMApprovalStatus } from '~/components/distribution';
 import { DS_COLORS, DS_SPACING, DS_TYPOGRAPHY } from '~/constants/distribution/distribution-design.constants';
 import { BUTTON_LABELS } from '~/constants/distribution/distribution.constants';
 import type { ExtraCommitsResponse, PMStatusResponse } from '~/types/distribution/distribution.types';

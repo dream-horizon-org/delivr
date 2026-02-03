@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Database service
+  # Database service (host 33060 to avoid conflict with local MySQL on 3306)
   db:
     image: mysql:5.7
     platform: linux/amd64
@@ -9,32 +9,32 @@ services:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: codepushdb
     ports:
-      - "3306:3306"
+      - "33060:3306"
     volumes:
       - db_data:/var/lib/mysql
     restart: unless-stopped
 
-  # Redis service
+  # Redis service (host 63790 to avoid conflict with local Redis on 6379)
   redis:
     image: redis:alpine
     ports:
-      - "6379:6379"
+      - "63790:6379"
     restart: unless-stopped
 
-  # Memcached service
+  # Memcached service (host 11212 to avoid conflict with local Memcached on 11211)
   memcached:
     image: memcached:alpine
     ports:
-      - "11211:11211"
+      - "11212:11211"
     restart: unless-stopped
 
-  # LocalStack service (for S3)
+  # LocalStack service (for S3; host 45660 to avoid conflict with other LocalStack on 4566)
   localstack:
     image: localstack/localstack
     environment:
       - SERVICES=s3
     ports:
-      - "4566:4566"
+      - "45660:4566"
     restart: unless-stopped
 
   # Backend API service
@@ -111,7 +111,7 @@ services:
                 echo \"DELIVR_BACKEND_URL converted to: $$DELIVR_BACKEND_URL\"
               fi &&
               echo '🚀 Starting Delivr Web Panel...' &&
-              docker-entrypoint.sh pnpm start &
+              NODE_ENV=production node server.mjs &
               CMD_PID=$$! &&
               PORT=$${PORT:-3000} &&
               sleep 3 &&
