@@ -597,4 +597,17 @@ export const validateConfigWorkflowTriggerBody = (req: Request, res: Response, n
   next();
 };
 
+/**
+ * Pure validation function for Jenkins update payload
+ */
+export async function validateJenkinsUpdatePayload(data: unknown): Promise<ValidationResult<unknown>> {
+  return validateWithYup(jenkinsUpdateSchema, data);
+}
+
+/**
+ * Pure validation function for GitHub Actions update payload
+ */
+export async function validateGHAUpdatePayload(data: unknown): Promise<ValidationResult<unknown>> {
+  return validateWithYup(githubActionsUpdateSchema, data);
+}
 

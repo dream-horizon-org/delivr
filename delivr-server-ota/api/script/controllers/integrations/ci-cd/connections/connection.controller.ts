@@ -8,14 +8,15 @@ import {
   detailedErrorResponse,
   notFoundResponse,
   simpleErrorResponse,
-  getErrorStatusCode
+  getErrorStatusCode,
+  validationErrorsResponse
 } from "~utils/response.utils";
 import { getStorage } from "../../../../storage/storage-instance";
 import type { CICDIntegrationRepository } from "~models/integrations/ci-cd/connection/connection.repository";
 import type { TenantCICDIntegration, UpdateCICDIntegrationDto, SafeCICDIntegration } from "~types/integrations/ci-cd/connection.interface";
 import { CICDProviderType } from "~types/integrations/ci-cd/connection.interface";
 import { getConnectionAdapter } from "./connection-adapter.utils";
-import { validateUpdateJenkinsBody, validateUpdateGHABody } from "~middleware/validate-cicd";
+import { validateJenkinsUpdatePayload, validateGHAUpdatePayload } from "~middleware/validate-cicd";
 
 const toSafe = (integration: TenantCICDIntegration): SafeCICDIntegration => {
   const { apiToken, headerValue, ...rest } = integration;
@@ -79,17 +80,29 @@ export const updateIntegrationById = async (req: Request, res: Response): Promis
       );
     }
     
-    // Handle Yup validation for Jenkins and GitHub Actions
+    // Validate request body based on provider type
     // Validation must be done here (not in middleware) because provider type comes from DB
     const provider = existing.providerType;
     if (provider === CICDProviderType.JENKINS) {
-      await validateUpdateJenkinsBody(req, res, () => {});
-      // If validation failed, response was already sent
-      if (res.headersSent) return;
+      const validationResult = await validateJenkinsUpdatePayload(updateData);
+      if (validationResult.success === false) {
+        const errorsWithCode = validationResult.errors.map(err => ({ ...err, errorCode: 'validation_failed' }));
+        return res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorsResponse('Request validation failed', errorsWithCode)
+        );
+      }
+      // Use validated and trimmed data
+      Object.assign(updateData, validationResult.data);
     } else if (provider === CICDProviderType.GITHUB_ACTIONS) {
-      await validateUpdateGHABody(req, res, () => {});
-      // If validation failed, response was already sent
-      if (res.headersSent) return;
+      const validationResult = await validateGHAUpdatePayload(updateData);
+      if (validationResult.success === false) {
+        const errorsWithCode = validationResult.errors.map(err => ({ ...err, errorCode: 'validation_failed' }));
+        return res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorsResponse('Request validation failed', errorsWithCode)
+        );
+      }
+      // Use validated and trimmed data
+      Object.assign(updateData, validationResult.data);
     }
     
     // Delegate update to provider adapter (which uses the appropriate service)
