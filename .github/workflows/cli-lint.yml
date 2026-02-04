@@ -1,0 +1,36 @@
+name: CLI Lint
+
+on:
+  pull_request:
+    paths:
+      - 'delivr-cli/**'
+
+jobs:
+  lint:
+    name: ESLint
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./delivr-cli
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: 'delivr-cli/.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: 'delivr-cli/package-lock.json'
+
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential libbz2-dev
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run ESLint
+        run: npm run lint
+
