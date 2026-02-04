@@ -87,16 +87,26 @@ export const ENV_DEFAULTS = {
 
 /**
  * NODE_ENV values
- * Use these constants instead of hardcoded strings when checking process.env.NODE_ENV
- * 
- * Usage:
- *   import { NODE_ENV_VALUES } from '~constants/env';
- *   if (process.env.NODE_ENV === NODE_ENV_VALUES.DEV) { ... }
  */
 export const NODE_ENV_VALUES = {
   DEV: 'dev',
   PROD: 'prod'
 } as const;
+
+/**
+ * Environment mode checks
+ * 
+ * These are evaluated once at module load time.
+ * Use these instead of inline process.env.NODE_ENV checks.
+ * NODE_ENV comparison is case-insensitive (e.g., 'DEV', 'dev', 'Dev' all work).
+ * 
+ * Usage:
+ *   import { isDevEnv, isProdEnv } from '~constants/env';
+ *   if (isDevEnv) { ... }
+ */
+const nodeEnv = (process.env.NODE_ENV ?? '').toLowerCase();
+export const isDevEnv = nodeEnv === NODE_ENV_VALUES.DEV;
+export const isProdEnv = nodeEnv === NODE_ENV_VALUES.PROD;
 
 /**
  * Get numeric environment variable with default fallback.

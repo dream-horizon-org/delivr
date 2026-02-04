@@ -13,7 +13,7 @@
  *   logger.error('Operation failed', { error: message, taskId });
  */
 
-import { NODE_ENV_VALUES } from '~constants/env';
+import { isProdEnv } from '~constants/env';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -32,9 +32,7 @@ type LogEntry = {
  * In production: JSON for parsing
  */
 const formatLogEntry = (entry: LogEntry): string => {
-  const isProd = process.env.NODE_ENV === NODE_ENV_VALUES.PROD;
-
-  if (isProd) {
+  if (isProdEnv) {
     // JSON format for production (easier to parse in log aggregators)
     return JSON.stringify(entry);
   }
