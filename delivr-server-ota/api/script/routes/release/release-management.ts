@@ -464,5 +464,50 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     createBuildDownloadArtifactHandler(storage)
   );
 
+  // ============================================================================
+  // AD-HOC NOTIFICATIONS
+  // ============================================================================
+
+  // Check if required services are available
+  if (
+    storageWithServices.releaseRetrievalService &&
+    (storage as any).releaseConfigService &&
+    (storage as any).commConfigService &&
+    (storage as any).messagingService &&
+    (storage as any).releaseNotificationRepository &&
+    storageWithServices.releaseActivityLogService &&
+    storageWithServices.releaseStatusService &&
+    storageWithServices.releaseTaskRepository
+  ) {
+    const { createAdHocNotificationController } = require(
+      '../../controllers/release-management/notifications/adhoc-notification.controller'
+    );
+
+    const adhocNotificationController = createAdHocNotificationController(
+      storageWithServices.releaseRetrievalService,
+      (storage as any).releaseConfigService,
+      (storage as any).commConfigService,
+      (storage as any).messagingService,
+      (storage as any).releaseNotificationRepository,
+      storageWithServices.releaseActivityLogService,
+      storageWithServices.releaseStatusService,
+      storageWithServices.releaseTaskRepository,
+      (storage as any).projectManagementTicketService,
+      (storage as any).releasePlatformTargetMappingRepository
+    );
+
+    /**
+     * Send ad-hoc notification (custom message or template)
+     * POST /tenants/:tenantId/releases/:releaseId/notify
+     */
+    router.post(
+      "/tenants/:tenantId/releases/:releaseId/notify",
+      tenantPermissions.requireEditor({ storage }),
+      adhocNotificationController.sendNotification
+    );
+  } else {
+    console.warn('[Release Management Routes] Ad-hoc notification dependencies not available');
+  }
+
   return router;
 }

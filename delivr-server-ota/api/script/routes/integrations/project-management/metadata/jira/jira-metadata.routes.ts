@@ -26,6 +26,17 @@ export const createJiraMetadataRoutes = (
     controller.getProjects
   );
 
+  /**
+   * GET /tenants/:tenantId/integrations/project-management/:integrationId/jira/metadata/project-metadata?projectKey=PROJ
+   * Fetch statuses AND issue types for a Jira project in one call
+   * This is the combined endpoint that reduces network calls from 2 to 1
+   */
+  router.get(
+    '/tenants/:tenantId/integrations/project-management/:integrationId/jira/metadata/project-metadata',
+    tenantPermissions.requireEditor({ storage }),
+    controller.getProjectMetadata
+  );
+
   return router;
 };
 

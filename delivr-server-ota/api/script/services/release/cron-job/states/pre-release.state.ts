@@ -12,7 +12,7 @@
 
 import { ICronJobState } from './cron-job-state.interface';
 import { CronJobStateMachine } from '../cron-job-state-machine';
-import { StageStatus, TaskStage, CronStatus, ReleaseStatus, PlatformName, PauseType } from '~models/release/release.interface';
+import { StageStatus, TaskStage, CronStatus, ReleaseStatus, PlatformName, PauseType, TaskType, TaskStatus, CronJob, ReleaseTask, ReleasePlatformTargetMapping } from '~models/release/release.interface';
 import { hasSequelize } from '~types/release/api-types';
 import { checkIntegrationAvailability } from '~utils/integration-availability.utils';
 import { createStage3Tasks } from '~utils/task-creation';
@@ -21,6 +21,8 @@ import { processAwaitingManualBuildTasks } from '~utils/awaiting-manual-build.ut
 import { deleteWorkflowPollingJobs } from '~services/release/workflow-polling';
 import { NotificationType } from '~types/release-notification';
 import { buildDelivrUrl } from '../../task-executor/task-executor.utils';
+import type { StorageWithReleaseServices } from '~types/release/storage-with-services.interface';
+import type { Platform } from '~types/integrations/project-management';
 
 export class PreReleaseState implements ICronJobState {
   constructor(public context: CronJobStateMachine) {}
@@ -250,6 +252,16 @@ export class PreReleaseState implements ICronJobState {
         }
       }
 
+      // After executing tasks, re-fetch tasks to get latest status (tasks may have completed during this run)
+      const updatedStage3Tasks = await releaseTaskRepo.findByReleaseIdAndStage(releaseId, TaskStage.PRE_RELEASE);
+      
+      // Check if we should send PM approval notification
+      await this.sendProjectManagementApprovalNotification(
+        cronJob,
+        updatedStage3Tasks,
+        integrationAvailability
+      );
+
     } catch (error) {
       console.error(`[${instanceId}] [PreReleaseState] Error during execution:`, error);
     }
@@ -386,6 +398,159 @@ export class PreReleaseState implements ICronJobState {
       // Log but don't throw - notification failure shouldn't block stage completion
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`[PreReleaseState] Failed to send approval request notification:`, errorMessage);
+    }
+  }
+
+  /**
+   * Send PROJECT_MANAGEMENT_APPROVAL notification if:
+   * 1. Project management is configured
+   * 2. Base tasks + at least one platform task are complete
+   * 3. Project management tickets are NOT approved
+   * 4. Notification not already sent
+   */
+  private async sendProjectManagementApprovalNotification(
+    cronJob: CronJob,
+    existingStage3Tasks: ReleaseTask[],
+    integrationAvailability: { hasProjectManagementIntegration: boolean }
+  ): Promise<void> {
+    try {
+      const releaseId = this.context.getReleaseId();
+      
+      // Get storage once for all service access
+      const storage = this.context.getStorage() as StorageWithReleaseServices;
+      const storageAny = storage as any;
+      
+      // 1. Check if notification already sent (using release_notifications table)
+      const notificationRepo = storageAny.releaseNotificationRepository;
+      
+      if (!notificationRepo) {
+        return;
+      }
+      
+      const existingSystemNotifications = await notificationRepo.findWithFilters({
+        releaseId,
+        notificationType: NotificationType.PROJECT_MANAGEMENT_APPROVAL,
+        isSystemGenerated: true
+      });
+      
+      if (existingSystemNotifications.length > 0) {
+        return;
+      }
+      
+      // 2. Check if project management is configured
+      if (!integrationAvailability.hasProjectManagementIntegration) {
+        return;
+      }
+      
+      // 3. Check if base tasks + at least one platform task are complete
+      const baseTasks = existingStage3Tasks.filter(t => 
+        t.taskType === TaskType.CREATE_RELEASE_TAG || 
+        t.taskType === TaskType.CREATE_FINAL_RELEASE_NOTES
+      );
+      const platformTasks = existingStage3Tasks.filter(t =>
+        t.taskType === TaskType.TRIGGER_TEST_FLIGHT_BUILD ||
+        t.taskType === TaskType.CREATE_AAB_BUILD
+      );
+      
+      const allBaseTasksComplete = baseTasks.length === 2 && 
+        baseTasks.every(t => t.taskStatus === TaskStatus.COMPLETED);
+      const atLeastOnePlatformTaskComplete = platformTasks.some(
+        t => t.taskStatus === TaskStatus.COMPLETED
+      );
+      
+      if (!allBaseTasksComplete || !atLeastOnePlatformTaskComplete) {
+        return;
+      }
+      
+      // 4. Check if tickets are NOT approved
+      const releaseStatusService = storage.releaseStatusService;
+      
+      if (!releaseStatusService) {
+        return;
+      }
+      
+      const ticketsApproved = await releaseStatusService.allPlatformsPassingProjectManagement(releaseId);
+      
+      if (ticketsApproved) {
+        return;
+      }
+      
+      // 5. Fetch ticket URLs
+      const release = await this.context.getReleaseRepo().findById(releaseId);
+      if (!release) {
+        return;
+      }
+      
+      // Access services directly from storage (they're public properties on S3Storage)
+      const releaseConfigService = storageAny.releaseConfigService;
+      if (!releaseConfigService) {
+        return;
+      }
+      
+      const releaseConfig = await releaseConfigService.getConfigById(release.releaseConfigId);
+      const pmConfigId = releaseConfig?.projectManagementConfigId;
+      
+      if (!pmConfigId) {
+        return;
+      }
+      
+      // Get ticket URLs for each platform
+      const links: string[] = [];
+      const storageWithSequelize = this.context.getStorage();
+      if (!hasSequelize(storageWithSequelize)) {
+        return;
+      }
+      
+      const PlatformTargetMappingModel = storageWithSequelize.sequelize.models.PlatformTargetMapping;
+      const mappingsRaw = await PlatformTargetMappingModel.findAll({
+        where: { releaseId },
+        raw: true
+      });
+      const mappings = mappingsRaw as unknown as ReleasePlatformTargetMapping[];
+      
+      const pmTicketService = storageAny.projectManagementTicketService;
+      if (!pmTicketService) {
+        return;
+      }
+      
+      for (const mapping of mappings) {
+        if (mapping.projectManagementRunId) {
+          try {
+            const ticketUrl = await pmTicketService.getTicketUrl({
+              pmConfigId,
+              platform: mapping.platform as Platform,
+              ticketKey: mapping.projectManagementRunId
+            });
+            links.push(ticketUrl);
+          } catch (error) {
+            console.error(`[PreReleaseState] Error getting ticket URL for ${mapping.platform}:`, error);
+          }
+        }
+      }
+      
+      if (links.length === 0) {
+        return;
+      }
+      
+      // 6. Send notification
+      const delivrUrl = buildDelivrUrl(release.tenantId, releaseId);
+      const releaseNotificationService = this.context.getReleaseNotificationService();
+      
+      await releaseNotificationService.notify({
+        type: NotificationType.PROJECT_MANAGEMENT_APPROVAL,
+        tenantId: release.tenantId,
+        releaseId: releaseId,
+        delivrUrl: delivrUrl,
+        links: links,
+        isSystemGenerated: true
+      });
+      
+      // 7. Notification is automatically recorded in release_notifications table by ReleaseNotificationService
+      // No need to update cron_jobs table - the notification record serves as the sent flag
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[PreReleaseState] Failed to send PROJECT_MANAGEMENT_APPROVAL notification:`, errorMessage);
+      // Don't throw - notification failure shouldn't block execution
     }
   }
 

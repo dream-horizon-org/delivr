@@ -19,6 +19,8 @@ export const JIRA_ERROR_MESSAGES = {
   CREATE_ISSUE_FAILED: 'Failed to create JIRA issue',
   GET_ISSUE_FAILED: 'Failed to get JIRA issue',
   GET_PROJECTS_FAILED: 'Failed to get JIRA projects',
+  GET_STATUSES_FAILED: 'Failed to get JIRA project statuses',
+  GET_ISSUE_TYPES_FAILED: 'Failed to get JIRA project issue types',
   INVALID_PROJECT_KEY: 'Invalid JIRA project key',
   INVALID_ISSUE_KEY: 'Invalid JIRA issue key'
 } as const;

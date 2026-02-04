@@ -30,3 +30,11 @@ export type {
   NotificationResult
 } from './release-notification.interface';
 
+// Ad-hoc notification types
+export type {
+  AdHocNotificationRequest,
+  ChannelValidationResult,
+  AdHocNotificationResponse,
+  AdHocNotificationErrorResponse
+} from './adhoc-notification.interface';
+

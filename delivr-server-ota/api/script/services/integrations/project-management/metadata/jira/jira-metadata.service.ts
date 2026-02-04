@@ -13,6 +13,24 @@ export type JiraProject = {
   name: string;
 };
 
+export type JiraProjectStatus = {
+  id: string;
+  name: string;
+  category: string;
+};
+
+export type JiraProjectIssueType = {
+  id: string;
+  name: string;
+  subtask: boolean;
+  description?: string;
+};
+
+export type JiraProjectMetadata = {
+  statuses: JiraProjectStatus[];
+  issueTypes: JiraProjectIssueType[];
+};
+
 export class JiraMetadataService {
   constructor(
     private readonly integrationRepo: ProjectManagementIntegrationRepository
@@ -53,6 +71,42 @@ export class JiraMetadataService {
     const projects = await provider.getProjects(integration.config);
     
     return projects;
+  }
+
+  /**
+   * Get combined metadata (statuses AND issue types) for a Jira project
+   * Fetches both in parallel using Promise.all to minimize latency
+   */
+  async getProjectMetadata(
+    integrationId: string,
+    projectKey: string,
+    tenantId?: string
+  ): Promise<JiraProjectMetadata> {
+    const integration = await this.integrationRepo.findById(integrationId);
+    
+    if (!integration) {
+      throw new Error(`Integration not found: ${integrationId}`);
+    }
+
+    // Validate tenant ownership if tenantId provided
+    if (tenantId && integration.tenantId !== tenantId) {
+      throw new Error(`Integration ${integrationId} does not belong to tenant ${tenantId}`);
+    }
+
+    this.validateJiraIntegration(integration.providerType, integrationId);
+
+    const provider = new JiraProvider();
+    
+    // Fetch both statuses and issue types in parallel
+    const [statuses, issueTypes] = await Promise.all([
+      provider.getProjectStatuses(integration.config, projectKey),
+      provider.getProjectIssueTypes(integration.config, projectKey)
+    ]);
+    
+    return {
+      statuses,
+      issueTypes
+    };
   }
 }
 

@@ -38,6 +38,7 @@ export interface ICommService {
    * @param parameters - Array of values to replace placeholders {0}, {1}, {2}...
    * @param fileUrl - Optional: URL of file to download and attach to the message
    * @param platform - Optional: platform for platform-specific templates (e.g., Platform.IOS)
+   * @param channelIds - Optional: specific channel IDs to send to (for ad-hoc notifications). If not provided, uses configured channels.
    * @returns Map of channel IDs to message responses
    */
   sendMessage(
@@ -45,7 +46,8 @@ export interface ICommService {
     task: Task,
     parameters: string[],
     fileUrl?: string,
-    platform?: Platform
+    platform?: Platform,
+    channelIds?: string[]
   ): Promise<Map<string, MessageResponse>>;
 
   /**

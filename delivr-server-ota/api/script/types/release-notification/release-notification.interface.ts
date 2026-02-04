@@ -16,6 +16,7 @@ export enum NotificationType {
   PRE_KICKOFF_REMINDER = 'PRE_KICKOFF_REMINDER',
   BRANCH_FORKOUT = 'BRANCH_FORKOUT',
   PROJECT_MANAGEMENT_LINKS = 'PROJECT_MANAGEMENT_LINKS',
+  PROJECT_MANAGEMENT_APPROVAL = 'PROJECT_MANAGEMENT_APPROVAL',
   TEST_MANAGEMENT_LINKS = 'TEST_MANAGEMENT_LINKS',
   PREREGRESSION_BUILDS = 'PREREGRESSION_BUILDS',
   PREREGRESSION_BUILDS_FAILED = 'PREREGRESSION_BUILDS_FAILED',
@@ -32,19 +33,19 @@ export enum NotificationType {
   REGRESSION_STAGE_APPROVAL_REQUEST = 'REGRESSION_STAGE_APPROVAL_REQUEST',
   PRE_RELEASE_STAGE_APPROVAL_REQUEST = 'PRE_RELEASE_STAGE_APPROVAL_REQUEST',
   TARGET_DATE_CHANGED = 'TARGET_DATE_CHANGED',
-  IOS_APPSTORE_BUILD_SUBMITTED = 'IOS_APPSTORE_BUILD_SUBMITTED',
-  ANDROID_PLAYSTORE_BUILD_SUBMITTED = 'ANDROID_PLAYSTORE_BUILD_SUBMITTED',
-  IOS_APPSTORE_LIVE = 'IOS_APPSTORE_LIVE',
-  ANDROID_PLAYSTORE_LIVE = 'ANDROID_PLAYSTORE_LIVE',
-  ANDROID_WEB_LIVE = 'ANDROID_WEB_LIVE',
+  
+  BUILD_SUBMITTED = 'BUILD_SUBMITTED',
+  BUILD_RESUBMITTED = 'BUILD_RESUBMITTED',
+  BUILD_LIVE = 'BUILD_LIVE',
   TASK_FAILED = 'TASK_FAILED',
   MANUAL_BUILD_UPLOAD_REMINDER = 'MANUAL_BUILD_UPLOAD_REMINDER',
-  IOS_APPSTORE_BUILD_RESUBMITTED = 'IOS_APPSTORE_BUILD_RESUBMITTED',
-  ANDROID_PLAYSTORE_BUILD_RESUBMITTED = 'ANDROID_PLAYSTORE_BUILD_RESUBMITTED',
-  IOS_APPSTORE_BUILD_REJECTED = 'IOS_APPSTORE_BUILD_REJECTED',
-  IOS_APPSTORE_BUILD_CANCELLED = 'IOS_APPSTORE_BUILD_CANCELLED',
-  ANDROID_PLAYSTORE_USER_ACTION_PENDING = 'ANDROID_PLAYSTORE_USER_ACTION_PENDING',
-  ANDROID_PLAYSTORE_SUSPENDED = 'ANDROID_PLAYSTORE_SUSPENDED',
+  BUILD_REJECTED = 'BUILD_REJECTED',
+  BUILD_CANCELLED = 'BUILD_CANCELLED',
+  BUILD_USER_ACTION_PENDING = 'BUILD_USER_ACTION_PENDING',
+  BUILD_SUSPENDED = 'BUILD_SUSPENDED',
+  
+  // Ad-hoc notifications
+  AD_HOC_CUSTOM = 'AD_HOC_CUSTOM',
 }
 
 // Array of all notification types for validation
@@ -304,6 +305,12 @@ export type PreReleaseStageApprovalRequestPayload = BaseNotificationPayload & {
   delivrUrl: string;   // {0} - link to review page
 };
 
+export type ProjectManagementApprovalPayload = BaseNotificationPayload & {
+  type: NotificationType.PROJECT_MANAGEMENT_APPROVAL;
+  delivrUrl: string;   // {0} - link to review page
+  links: string[];   // {1} - array of links, will be joined with newlines
+};
+
 // ============================================================================
 // RELEASE LIFECYCLE PAYLOADS
 // ============================================================================
@@ -314,80 +321,67 @@ export type TargetDateChangedPayload = BaseNotificationPayload & {
   newDate: string;        // {1}
 };
 
-export type IosAppstoreBuildSubmittedPayload = BaseNotificationPayload & {
-  type: NotificationType.IOS_APPSTORE_BUILD_SUBMITTED;
-  version: string;   // {0}
-  testflightBuild: string;   // {1}
-  submittedBy: string;   // {2}
+export type BuildSubmittedPayload = BaseNotificationPayload & {
+  type: NotificationType.BUILD_SUBMITTED;
+  platform: PlatformName;      // {0} - Used to generate display name
+  version: string;             // {1}
+  buildNumber: string;         // {2} - normalized from testflightBuild/versionCode
+  target: TargetName;          // {3} - Used to generate display name
+  submittedBy: string;         // {4}
 };
 
-export type AndroidPlaystoreBuildSubmittedPayload = BaseNotificationPayload & {
-  type: NotificationType.ANDROID_PLAYSTORE_BUILD_SUBMITTED;
-  version: string;   // {0}
-  versionCode: string;   // {1}
-  submittedBy: string;   // {2}
+export type BuildResubmittedPayload = BaseNotificationPayload & {
+  type: NotificationType.BUILD_RESUBMITTED;
+  platform: PlatformName;      // {0} - Used to generate display name
+  version: string;             // {1}
+  buildNumber: string;         // {2} - normalized from testflightBuild/versionCode
+  target: TargetName;          // {3} - Used to generate display name
+  submittedBy: string;         // {4}
 };
 
-export type IosAppstoreLivePayload = BaseNotificationPayload & {
-  type: NotificationType.IOS_APPSTORE_LIVE;
-  version: string;   // {0}
-  testflightBuild: string;   // {1}
+export type BuildLivePayload = BaseNotificationPayload & {
+  type: NotificationType.BUILD_LIVE;
+  platform: PlatformName;      // {0}
+  version: string;             // {1}
+  buildNumber: string | null;  // {2} - null for WEB, formatted as " (123)" or ""
+  target: TargetName;          // {3}
 };
 
-export type AndroidPlaystoreLivePayload = BaseNotificationPayload & {
-  type: NotificationType.ANDROID_PLAYSTORE_LIVE;
-  version: string;   // {0}
-  versionCode: string;   // {1}
+export type BuildRejectedPayload = BaseNotificationPayload & {
+  type: NotificationType.BUILD_REJECTED;
+  platform: PlatformName;      // {0}
+  version: string;             // {1}
+  buildNumber: string;         // {2}
+  target: TargetName;          // {3}
+  reason: string;              // {4}
 };
 
-export type AndroidWebLivePayload = BaseNotificationPayload & {
-  type: NotificationType.ANDROID_WEB_LIVE;
-  version: string;   // {0}
+export type BuildCancelledPayload = BaseNotificationPayload & {
+  type: NotificationType.BUILD_CANCELLED;
+  platform: PlatformName;      // {0}
+  version: string;             // {1}
+  buildNumber: string;         // {2}
+  cancelledBy: string;         // {3}
+  reason: string;              // {4}
 };
 
-
-export type IosAppstoreBuildResubmittedPayload = BaseNotificationPayload & {
-  type: NotificationType.IOS_APPSTORE_BUILD_RESUBMITTED;
-  version: string;   // {0}
-  testflightBuild: string;   // {1}
-  submittedBy: string;   // {2}
+export type BuildUserActionPendingPayload = BaseNotificationPayload & {
+  type: NotificationType.BUILD_USER_ACTION_PENDING;
+  platform: PlatformName;      // {0}
+  version: string;             // {1}
+  buildNumber: string;         // {2}
+  submittedBy: string;         // {3}
+  target: TargetName;          // {4} - Used to generate store console name
 };
 
-export type AndroidPlaystoreBuildResubmittedPayload = BaseNotificationPayload & {
-  type: NotificationType.ANDROID_PLAYSTORE_BUILD_RESUBMITTED;
-  version: string;   // {0}
-  versionCode: string;   // {1}
-  submittedBy: string;   // {2}
+export type BuildSuspendedPayload = BaseNotificationPayload & {
+  type: NotificationType.BUILD_SUSPENDED;
+  platform: PlatformName;      // {0}
+  version: string;             // {1}
+  buildNumber: string;         // {2}
+  submittedBy: string;         // {3}
 };
 
-export type IosAppstoreBuildRejectedPayload = BaseNotificationPayload & {
-  type: NotificationType.IOS_APPSTORE_BUILD_REJECTED;
-  version: string;   // {0}
-  testflightBuild: string;   // {1}
-  reason: string;   // {2}
-};
-
-export type IosAppstoreBuildCancelledPayload = BaseNotificationPayload & {
-  type: NotificationType.IOS_APPSTORE_BUILD_CANCELLED;
-  version: string;   // {0}
-  testflightBuild: string;   // {1}
-  cancelledBy: string;   // {2}
-  reason: string;   // {3}
-};
-
-export type AndroidPlaystoreUserActionPendingPayload = BaseNotificationPayload & {
-  type: NotificationType.ANDROID_PLAYSTORE_USER_ACTION_PENDING;
-  version: string;   // {0}
-  versionCode: string;   // {1}
-  submittedBy: string;   // {2}
-};
-
-export type AndroidPlaystoreSuspendedPayload = BaseNotificationPayload & {
-  type: NotificationType.ANDROID_PLAYSTORE_SUSPENDED;
-  version: string;   // {0}
-  versionCode: string;   // {1}
-  submittedBy: string;   // {2}
-};
 
 // ============================================================================
 // ERROR PAYLOADS
@@ -454,19 +448,16 @@ export type NotificationPayload =
   | WhatsNewPayload
   | RegressionStageApprovalRequestPayload
   | PreReleaseStageApprovalRequestPayload
+  | ProjectManagementApprovalPayload
   // Release Lifecycle
   | TargetDateChangedPayload
-  | IosAppstoreBuildSubmittedPayload
-  | AndroidPlaystoreBuildSubmittedPayload
-  | IosAppstoreBuildResubmittedPayload
-  | AndroidPlaystoreBuildResubmittedPayload
-  | IosAppstoreLivePayload
-  | AndroidPlaystoreLivePayload
-  | AndroidWebLivePayload
-  | IosAppstoreBuildRejectedPayload
-  | IosAppstoreBuildCancelledPayload
-  | AndroidPlaystoreUserActionPendingPayload
-  | AndroidPlaystoreSuspendedPayload
+  | BuildSubmittedPayload
+  | BuildResubmittedPayload
+  | BuildLivePayload
+  | BuildRejectedPayload
+  | BuildCancelledPayload
+  | BuildUserActionPendingPayload
+  | BuildSuspendedPayload
   // Errors
   | TaskFailedPayload
   // Reminders

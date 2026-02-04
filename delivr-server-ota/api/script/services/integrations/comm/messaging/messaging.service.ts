@@ -34,6 +34,7 @@ export class MessagingService {
    * @param parameters - Array of values to replace placeholders
    * @param fileUrl - Optional: URL of file to download and attach
    * @param platform - Optional: platform for platform-specific templates
+   * @param channelIds - Optional: specific channel IDs to send to (for ad-hoc notifications). If not provided, uses configured channels.
    * @returns Map of channel IDs to message responses
    */
   async sendMessage(
@@ -41,7 +42,8 @@ export class MessagingService {
     task: Task,
     parameters: string[],
     fileUrl?: string,
-    platform?: Platform
+    platform?: Platform,
+    channelIds?: string[]
   ): Promise<Map<string, MessageResponse>> {
     // 1. Get channel configuration by configId
     const channelConfig = await this.commConfigService.getConfigById(configId);
@@ -74,7 +76,8 @@ export class MessagingService {
       task,
       parameters,
       fileUrl,
-      platform
+      platform,
+      channelIds
     );
   }
 
@@ -213,5 +216,6 @@ export class MessagingService {
     // 4. Delegate to provider
     return await provider.healthCheck();
   }
-  }
+
+}
 
