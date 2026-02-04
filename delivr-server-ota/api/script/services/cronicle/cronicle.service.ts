@@ -12,7 +12,8 @@ import type {
   CronicleTimingConfig,
   CronicleApiResponse,
   CronicleJobInfo,
-  CronicleCategoryInfo
+  CronicleCategoryInfo,
+  CreateCategoryRequest
 } from './cronicle.interface';
 import { isCronTiming } from './cronicle.interface';
 import {
@@ -58,7 +59,7 @@ export class CronicleServiceImpl implements CronicleService {
    */
   createJob = async (request: CreateCronicleJobRequest): Promise<string> => {
     // Ensure category exists (creates if needed, falls back to 'general')
-    const category = await this.ensureCategoryForJob(request.category);
+    const category = await this.ensureCategoryForJob(request.category, request.categoryMaxChildren);
     
     // Build payload with resolved category
     const requestWithCategory = { ...request, category };
@@ -83,13 +84,14 @@ export class CronicleServiceImpl implements CronicleService {
    * The `category` parameter is the category **title** (e.g., "Release Scheduling").
    * Cronicle auto-generates the ID from the title.
    * 
-   * Falls back to 'general' category if the specified category is not found.
-   * Categories must be created manually in Cronicle UI (Admin → Categories).
+   * Creates the category if it doesn't exist.
+   * Falls back to 'general' category only if category creation fails.
    * 
    * @param categoryTitle - The category title (not ID)
+   * @param maxChildren - Max concurrent jobs in this category (0 = unlimited, default 0)
    * @returns The category ID to use in job creation
    */
-  private ensureCategoryForJob = async (categoryTitle: string): Promise<string> => {
+  private ensureCategoryForJob = async (categoryTitle: string, maxChildren?: number): Promise<string> => {
     const FALLBACK_CATEGORY = 'general';
     
     // If using 'general', return as-is (it's both ID and title)
@@ -104,13 +106,55 @@ export class CronicleServiceImpl implements CronicleService {
       return existingCategoryId;
     }
 
-    // Category not found - fall back to 'general' (no auto-creation)
-    console.warn(
-      `[CronicleService] Category '${categoryTitle}' not found in Cronicle. ` +
-      `Using '${FALLBACK_CATEGORY}' category instead. ` +
-      `To organize jobs properly, create the '${categoryTitle}' category manually in Cronicle UI (Admin → Categories).`
+    // Category not found - try to create it
+    console.log(`[CronicleService] Category '${categoryTitle}' not found. Attempting to create...`);
+    
+    try {
+      const newCategoryId = await this.createCategory({ title: categoryTitle, options: { maxChildren } });
+      console.log(`[CronicleService] Created category '${categoryTitle}' with ID '${newCategoryId}'`);
+      return newCategoryId;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.warn(
+        `[CronicleService] Failed to create category '${categoryTitle}': ${errorMessage}. ` +
+        `Using '${FALLBACK_CATEGORY}' category instead.`
+      );
+      return FALLBACK_CATEGORY;
+    }
+  };
+
+  /**
+   * Create a new category in Cronicle
+   * 
+   * @param request - Category creation request
+   * @param request.title - The category title (Cronicle auto-generates ID from title)
+   * @param request.options - Optional configuration for the category
+   * @param request.options.description - Description for the category
+   * @param request.options.maxChildren - Max concurrent jobs in this category (0 = unlimited, default 0)
+   * @returns The created category ID
+   */
+  private createCategory = async (request: CreateCategoryRequest): Promise<string> => {
+    const { title, options = {} } = request;
+    const { description, maxChildren = 0 } = options;
+    
+    const payload = {
+      title,
+      description: description ?? `Auto-created category for ${title} jobs`,
+      max_children: maxChildren,  // 0 = unlimited concurrent jobs in this category
+      enabled: 1                  // 1 = enabled, 0 = disabled
+    };
+
+    const response = await this.callApi<{ id: string }>(
+      CRONICLE_API_ENDPOINTS.CREATE_CATEGORY,
+      payload
     );
-    return FALLBACK_CATEGORY;
+
+    const isError = response.code !== CRONICLE_RESPONSE_CODES.SUCCESS;
+    if (isError) {
+      throw new Error(`${CRONICLE_ERROR_MESSAGES.CREATE_CATEGORY_FAILED}: ${response.description}`);
+    }
+
+    return response.id!;
   };
 
   /**

@@ -1,5 +1,6 @@
 import { S3 } from 'aws-sdk';
 import { Readable } from 'stream';
+import { isDevEnv } from '~constants/env';
 
 /**
  * Minimal S3 upload utility.
@@ -17,7 +18,7 @@ const DEFAULT_CONTENT_TYPE = 'application/octet-stream';
 
 const createS3Client = (): S3 => {
   const region = process.env.S3_REGION;
-  if (process.env.NODE_ENV === 'local' || process.env.NODE_ENV === 'dev') {
+  if (isDevEnv) {
     return new S3({
       region,
       endpoint: process.env.S3_ENDPOINT,

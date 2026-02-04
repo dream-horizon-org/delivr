@@ -3,6 +3,7 @@ import * as cookieSession from "cookie-session";
 import { Request, Response, Router, RequestHandler } from "express";
 import * as storage from "../storage/storage";
 import { sendErrorToDatadog } from "../utils/tracer";
+import { isDevEnv, ENV_VARS, getEnvBoolean } from "../constants/env";
 
 // Replace with your actual Google Client ID (from Google Developer Console)
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "<Your Google Client ID>";
@@ -114,28 +115,34 @@ export class Authentication {
 
   // Middleware to authenticate requests using Google ID token
   public async authenticate(req: Request, res: Response, next: (err?: Error) => void) {
-    // Bypass authentication in development mode
-    if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") {
-      // Check for userid in headers first (for testing with different users)
-      const userId = Array.isArray(req.headers.userid) ? req.headers.userid[0] : req.headers.userid;
+    // In development mode, check AUTH_ENABLED to determine authentication behavior
+    if (isDevEnv) {
+      const authEnabled = getEnvBoolean(ENV_VARS.AUTH_ENABLED, false);
       
-      if (userId) {
-        // Custom user provided via header
-        req.user = {
-          id: userId,
-        };
-      } else if (req.body.user !== undefined) {
-        // User provided via body
-        req.user = req.body.user;
+      if (authEnabled) {
+        // AUTH_ENABLED=true: Fall through to production authentication (expects Bearer token)
+        // Continue to the try block below
       } else {
-        // Default test user
-        req.user = {
-          id: "id_0",
-          email: "user1@example.com",
-          name: "User One",
-        };
+        // AUTH_ENABLED=false: Use simplified dev authentication
+        const userId = Array.isArray(req.headers.userid) ? req.headers.userid[0] : req.headers.userid;
+        
+        if (userId) {
+          // Custom user provided via header
+          req.user = {
+            id: userId,
+          };
+        } else if (req.body.user !== undefined && req.body.user !== null) {
+          // User provided via body
+          req.user = req.body.user;
+        } else {
+          req.user = {
+            id: "admin_user_001",
+            email: "admin@delivr.live",
+            name: "Admin User",
+          };
+        }
+        return next();
       }
-      return next();
     }
 
     // In production, validate the Google ID token

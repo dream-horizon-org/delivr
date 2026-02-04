@@ -58,7 +58,9 @@ export const ENV_VARS = {
   // ============================================================================
   NODE_ENV: 'NODE_ENV',
   DEBUG: 'DEBUG',
-  LOG_LEVEL: 'LOG_LEVEL'
+  LOG_LEVEL: 'LOG_LEVEL',
+  /** Enable authentication in development mode (default: false) */
+  AUTH_ENABLED: 'AUTH_ENABLED'
 } as const;
 
 /**
@@ -82,6 +84,29 @@ export const ENV_DEFAULTS = {
   GHA_RUN_POLL_DELAY_MS: 2000,
   GHA_DEFAULT_REF: 'main'
 } as const;
+
+/**
+ * NODE_ENV values
+ */
+export const NODE_ENV_VALUES = {
+  DEV: 'dev',
+  PROD: 'prod'
+} as const;
+
+/**
+ * Environment mode checks
+ * 
+ * These are evaluated once at module load time.
+ * Use these instead of inline process.env.NODE_ENV checks.
+ * NODE_ENV comparison is case-insensitive (e.g., 'DEV', 'dev', 'Dev' all work).
+ * 
+ * Usage:
+ *   import { isDevEnv, isProdEnv } from '~constants/env';
+ *   if (isDevEnv) { ... }
+ */
+const nodeEnv = (process.env.NODE_ENV ?? '').toLowerCase();
+export const isDevEnv = nodeEnv === NODE_ENV_VALUES.DEV;
+export const isProdEnv = nodeEnv === NODE_ENV_VALUES.PROD;
 
 /**
  * Get numeric environment variable with default fallback.

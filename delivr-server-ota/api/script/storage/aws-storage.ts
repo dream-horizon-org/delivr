@@ -81,6 +81,7 @@ import { SCMService } from "../services/integrations/scm/scm.service";
 import { ReleaseActivityLogService } from "../services/release/release-activity-log.service";
 import { CronJobService } from "../services/release/cron-job/cron-job.service";
 import { BuildArtifactService } from "../services/release/build/build-artifact.service";
+import { isDevEnv } from "../constants/env";
 import { BuildNotificationService } from "../services/release/build/build-notification.service";
 import { TaskExecutor } from "../services/release/task-executor/task-executor";
 import { GlobalSchedulerService, type StateMachineFactory } from "../services/release/cron-job/global-scheduler.service";
@@ -934,7 +935,7 @@ export class S3Storage implements storage.Storage {
           region: process.env.S3_REGION, 
         }
 
-        if (process.env.NODE_ENV === "local" || process.env.NODE_ENV === "dev") {
+        if (isDevEnv) {
           // These additional configurations are passed due to AWS SDK Version issue on local
           this.s3 = new S3({
             ...s3Config,
@@ -956,6 +957,7 @@ export class S3Storage implements storage.Storage {
             password: process.env.DB_PASS || DB_PASS,
             host: process.env.DB_HOST || DB_HOST,
             dialect: 'mysql',
+            logging: false,
             replication: {
                 write: {
                     host: process.env.DB_HOST || DB_HOST,
@@ -2649,7 +2651,7 @@ export class S3Storage implements storage.Storage {
         return this.setupPromise
           .then(() => {
 
-            if(process.env.NODE_ENV === "development") {
+            if (isDevEnv) {
               // Get the signed URL from S3
               return this.s3.getSignedUrlPromise('getObject', {
                 Bucket: this.bucketName,

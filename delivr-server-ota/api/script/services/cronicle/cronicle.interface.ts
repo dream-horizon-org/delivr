@@ -73,6 +73,7 @@ export type CreateCronicleJobRequest = {
   title: string;                    // Job display name
   enabled?: boolean;                // Default true
   category: CronicleJobCategory;    // Category for organization
+  categoryMaxChildren?: number;     // Max concurrent jobs in this category (0 = unlimited, default 0)
   timing: CronicleTimingConfig;     // When to run
   timezone?: string;                // e.g., 'Asia/Kolkata'
   params: CronicleWebhookParams;    // Webhook configuration
@@ -162,6 +163,22 @@ export type CreateCronicleCategoryRequest = {
   description?: string;   // Category description
   enabled?: boolean;      // Default true
   maxChildren?: number;   // Max concurrent jobs (0 = unlimited)
+};
+
+/**
+ * Options for creating a category
+ */
+export type CreateCategoryOptions = {
+  description?: string;   // Category description
+  maxChildren?: number;   // Max concurrent jobs in this category (0 = unlimited, default 0)
+};
+
+/**
+ * Request parameters for creating a category
+ */
+export type CreateCategoryRequest = {
+  title: string;          // The category title (Cronicle auto-generates ID from title)
+  options?: CreateCategoryOptions;  // Optional configuration for the category
 };
 
 // ─────────────────────────────────────────────────────────────

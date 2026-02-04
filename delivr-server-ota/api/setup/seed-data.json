@@ -1,0 +1,99 @@
+{
+  "_comment": "Seed data for local development. Timestamps are auto-generated at runtime.",
+  
+  "accounts": [
+    {
+      "id": "admin_user_001",
+      "email": "admin@delivr.live",
+      "name": "Admin User",
+      "picture": null,
+      "createdTime": 0
+    }
+  ],
+
+  "tenants": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "displayName": "Development Organization",
+      "createdBy": "admin_user_001"
+    }
+  ],
+
+  "apps": [
+    {
+      "id": "app_dev_001",
+      "name": "Demo App",
+      "accountId": "admin_user_001",
+      "tenantId": "00000000-0000-0000-0000-000000000001",
+      "createdTime": 0
+    }
+  ],
+
+  "collaborators": [
+    {
+      "email": "admin@delivr.live",
+      "accountId": "admin_user_001",
+      "tenantId": "00000000-0000-0000-0000-000000000001",
+      "appId": null,
+      "permission": "Owner",
+      "isCreator": true
+    }
+  ],
+
+  "deployments": [
+    {
+      "id": "deployment_prod_001",
+      "name": "Production",
+      "key": "demo-production-key-abc123",
+      "appId": "app_dev_001",
+      "packageId": null,
+      "createdTime": 0
+    },
+    {
+      "id": "deployment_staging_001",
+      "name": "Staging",
+      "key": "demo-staging-key-xyz789",
+      "appId": "app_dev_001",
+      "packageId": null,
+      "createdTime": 0
+    }
+  ],
+
+  "accessKeys": [
+    {
+      "id": "access_key_001",
+      "name": "dev_admin_key_abcd1234",
+      "accountId": "admin_user_001",
+      "createdBy": "admin@delivr.live",
+      "createdTime": 0,
+      "friendlyName": "Admin Development Key",
+      "expires": 1893456000000,
+      "scope": "All",
+      "isSession": false,
+      "description": "Development access key for local testing"
+    }
+  ],
+
+  "platforms": [
+    { "id": "platform_android", "name": "ANDROID" },
+    { "id": "platform_ios", "name": "IOS" }
+  ],
+
+  "targets": [
+    { "id": "target_play_store", "name": "PLAY_STORE" },
+    { "id": "target_app_store", "name": "APP_STORE" }
+  ],
+
+  "platformStoreMappings": [
+    {
+      "id": "mapping_android",
+      "platform": "ANDROID",
+      "allowedStoreTypes": ["PLAY_STORE", "MICROSOFT_STORE", "FIREBASE", "WEB"]
+    },
+    {
+      "id": "mapping_ios",
+      "platform": "IOS",
+      "allowedStoreTypes": ["APP_STORE", "TESTFLIGHT", "FIREBASE"]
+    }
+  ]
+}
