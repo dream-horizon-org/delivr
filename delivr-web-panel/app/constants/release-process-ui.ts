@@ -155,6 +155,99 @@ export const BUTTON_LABELS = {
 } as const;
 
 // ============================================================================
+// Notification Templates Configuration
+// ============================================================================
+
+/**
+ * Notification Templates Configuration
+ */
+export const NOTIFICATION_TEMPLATES = {
+  TEST_RESULTS_SUMMARY: {
+    id: 'test-results-summary' as const,
+    label: 'Test Results Summary',
+    description: 'Send a summary of current test results and regression status',
+    icon: 'IconChartBar',
+    previewText: 'Sends test completion stats, pass/fail rates, and regression cycle status',
+    messageTemplate: `*{{platform}} Test Results*
+
+*Total Tests:* {{totalTests}}
+*Passed:* {{passed}} ✅
+*Failed:* {{failed}} ❌
+*Skipped:* {{skipped}} ⏭️
+
+*Pass Rate:* {{passRate}}%
+
+<{{reportUrl}}|View Full Report>`,
+  },
+  PROJECT_MANAGEMENT_APPROVAL: {
+    id: 'project-management-approval' as const,
+    label: 'Project Management Approval',
+    description: 'Request approval for project management tasks or tickets',
+    icon: 'IconCheck',
+    previewText: 'Sends approval request with project management ticket details and current status',
+    messageTemplate: `⏳ *Project Management Approval Pending*
+
+✅ Pre-release tasks are complete
+⚠️ Project management tickets are not yet approved
+
+📋 *Tickets to approve:*
+{{ticketList}}
+
+<{{releaseUrl}}|Review and approve in Delivr>`,
+  },
+  MANUAL_BUILD_UPLOAD_REMINDER: {
+    id: 'manual-build-upload-reminder' as const,
+    label: 'Manual Build Upload Reminder',
+    description: 'Remind team to upload manual builds for the release',
+    icon: 'IconUpload',
+    previewText: 'Sends reminder with build upload requirements and deadlines',
+    messageTemplate: `The release process is paused. Please upload the {{platform}} {{buildType}} build to resume the release process.
+
+<{{releaseUrl}}|Check on Delivr>`,
+  },
+} as const;
+
+/**
+ * Ad-Hoc Notification UI Labels
+ */
+export const AD_HOC_NOTIFICATION_LABELS = {
+  // Modal
+  MODAL_TITLE: 'Send Notification',
+  MODE_TEMPLATE: 'Template',
+  MODE_CUSTOM: 'Custom',
+  
+  // Template View
+  TEMPLATE_SECTION_TITLE: 'Select Message Template',
+  
+  // Custom View
+  CUSTOM_MESSAGE_LABEL: 'Custom Message',
+  CUSTOM_MESSAGE_PLACEHOLDER: 'Type your notification message here...',
+  CUSTOM_MESSAGE_DESCRIPTION: 'Send a custom message to selected channels',
+  CHARACTER_LIMIT: 1000,
+  CHARACTER_COUNTER: (current: number, max: number) => `${current}/${max} characters`,
+  
+  // Channels
+  CHANNELS_SECTION_TITLE: 'Select Channels',
+  CHANNELS_DESCRIPTION: 'Choose which Slack channels should receive this notification',
+  NO_CHANNELS_CONFIGURED: 'No Slack channels configured. Please configure channels in your release settings.',
+  
+  // Actions
+  BUTTON_CANCEL: 'Cancel',
+  BUTTON_SEND: 'Send Notification',
+  BUTTON_SENDING: 'Sending...',
+  
+  // Validation
+  ERROR_NO_TEMPLATE: 'Please select a message template',
+  ERROR_NO_MESSAGE: 'Please enter a message',
+  ERROR_MESSAGE_TOO_LONG: 'Message exceeds character limit',
+  ERROR_NO_CHANNELS: 'Please select at least one channel',
+  
+  // Success
+  SUCCESS_MESSAGE: 'Notification sent successfully',
+  SUCCESS_DETAIL: (channels: string[]) => `Sent to ${channels.join(', ')}`,
+} as const;
+
+// ============================================================================
 // Build Upload Labels
 // ============================================================================
 

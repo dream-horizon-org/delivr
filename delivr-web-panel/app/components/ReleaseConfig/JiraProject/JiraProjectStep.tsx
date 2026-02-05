@@ -330,6 +330,7 @@ export function JiraProjectStep({
                               handlePlatformConfigChange(platformConfig.platform, updatedConfig)
                             }
                             integrationId={config.integrationId || ''}
+                            tenantId={tenantId}
                             projects={projects}
                           />
                         ))}

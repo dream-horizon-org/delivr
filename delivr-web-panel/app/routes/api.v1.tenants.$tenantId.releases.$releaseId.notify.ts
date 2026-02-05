@@ -1,10 +1,16 @@
 /**
- * Remix API Route: Send Release Notification
+ * Remix API Route: Send Ad-Hoc Release Notification
  * POST /api/v1/tenants/:tenantId/releases/:releaseId/notify
  * 
+ * Supports both template and custom notifications
  * BFF route that proxies to ReleaseProcessService
  * Backend contract: POST /api/v1/tenants/:tenantId/releases/:releaseId/notify
- * Matches API contract API #27: Send Release Notification
+ * 
+ * Request Body:
+ * - type: "template" | "custom"
+ * - messageType: required if type="template"
+ * - customMessage: required if type="custom"
+ * - channels: array of Slack channel IDs (required)
  */
 
 import { json } from '@remix-run/node';
@@ -12,7 +18,7 @@ import type { ActionFunctionArgs } from '@remix-run/node';
 import { authenticateActionRequest, type AuthenticatedActionFunction } from '~/utils/authenticate';
 import { ReleaseProcessService } from '~/.server/services/ReleaseProcess';
 import { createValidationError, handleAxiosError, logApiError, validateRequired } from '~/utils/api-route-helpers';
-import type { NotificationRequest } from '~/types/release-process.types';
+import type { AdHocNotificationRequest } from '~/types/release-process.types';
 
 const sendNotification: AuthenticatedActionFunction = async ({ params, request, user }) => {
   const { tenantId, releaseId } = params;
@@ -26,13 +32,34 @@ const sendNotification: AuthenticatedActionFunction = async ({ params, request, 
   }
 
   try {
-    const body = await request.json() as NotificationRequest;
+    const body = await request.json() as AdHocNotificationRequest;
 
-    if (!body.messageType) {
-      return createValidationError('messageType is required');
+    // Validate based on notification type
+    if (!body.type) {
+      return createValidationError('type is required (must be "template" or "custom")');
     }
 
-    console.log('[BFF] Sending notification for release:', releaseId, { messageType: body.messageType });
+    if (!body.channels || body.channels.length === 0) {
+      return createValidationError('At least one channel is required');
+    }
+
+    // Validate template-specific fields
+    if (body.type === 'template' && !body.messageType) {
+      return createValidationError('messageType is required for template notifications');
+    }
+
+    // Validate custom-specific fields
+    if (body.type === 'custom' && !body.customMessage) {
+      return createValidationError('customMessage is required for custom notifications');
+    }
+
+    console.log('[BFF] Sending ad-hoc notification for release:', releaseId, { 
+      type: body.type, 
+      messageType: body.messageType,
+      hasCustomMessage: !!body.customMessage,
+      channelCount: body.channels.length 
+    });
+    
     const response = await ReleaseProcessService.sendNotification(tenantId, releaseId, body, user.user.id);
     console.log('[BFF] Send notification response:', response.data);
     

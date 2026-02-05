@@ -51,7 +51,7 @@ function formatValue(val: any): string {
 /**
  * Format complete activity log message
  * Returns a single formatted message instead of separate label + description
- * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL, RELEASE_ARCHIVED, RELEASE_CREATED, MANUAL_BUILD_UPLOADED, TASK_RETRIED, TESTFLIGHT_BUILD_VERIFIED
+ * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL, RELEASE_ARCHIVED, RELEASE_CREATED, MANUAL_BUILD_UPLOADED, TASK_RETRIED, TESTFLIGHT_BUILD_VERIFIED, AD_HOC_NOTIFICATION
  */
 export function formatActivityLogMessage(log: ActivityLog): string {
   const { type, previousValue, newValue } = log;
@@ -212,6 +212,44 @@ export function formatActivityLogMessage(log: ActivityLog): string {
         return `TestFlight build verified for ${platform} ${version}${testflightNumber ? ` (#${testflightNumber})` : ''}${stage ? ` in ${stage}` : ''}`;
       }
       return 'TestFlight build verified';
+
+    case 'AD_HOC_NOTIFICATION':
+      if (newValue) {
+        const notificationType = newValue.type || 'custom';
+        const channels = newValue.channels || [];
+        
+        // Format channel list - handle both old (string[]) and new (SlackChannelRef[]) formats
+        const channelList = channels.length > 0 
+          ? channels.map((ch: any) => {
+              // New format: {id, name}
+              if (typeof ch === 'object' && ch.name) {
+                return `#${ch.name}`;
+              }
+              // Old format: just string ID
+              return `#${ch}`;
+            }).join(', ')
+          : 'Slack';
+        
+        // Format based on notification type
+        if (notificationType === 'custom') {
+          const message = newValue.message || newValue.customMessage || '';
+          const truncatedMessage = message.length > 50 ? `${message.substring(0, 50)}...` : message;
+          return `Sent custom notification to ${channelList}${truncatedMessage ? `: "${truncatedMessage}"` : ''}`;
+        } else if (notificationType === 'template') {
+          const templateType = newValue.messageType || newValue.templateType || 'template';
+          // Convert kebab-case or snake_case to readable format
+          const templateName = templateType
+            .replace(/-/g, ' ')
+            .replace(/_/g, ' ')
+            .split(' ')
+            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+          return `Sent ${templateName} notification to ${channelList}`;
+        }
+        
+        return `Sent notification to ${channelList}`;
+      }
+      return 'Notification sent';
 
     default:
       // Fallback for unknown types
