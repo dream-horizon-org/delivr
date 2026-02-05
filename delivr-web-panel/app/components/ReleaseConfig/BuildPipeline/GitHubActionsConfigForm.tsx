@@ -3,10 +3,11 @@
  * Captures GitHub Actions-specific build configuration with dynamic parameter fetching
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { TextInput, Select, Stack, Button, Text, Alert, LoadingOverlay, Card, Group } from '@mantine/core';
 import { IconPlus, IconTrash, IconRefresh, IconCheck, IconAlertCircle } from '@tabler/icons-react';
-import { apiPost, getApiErrorMessage } from '~/utils/api-client';
+import { apiPost } from '~/utils/api-client';
+import { extractApiErrorWithResponse } from '~/utils/api-error-utils';
 import type { GitHubActionsConfig } from '~/types/release-config';
 import type { GitHubActionsConfigFormProps } from '~/types/release-config-props';
 import type { WorkflowParameter } from '~/.server/services/ReleaseManagement/integrations';
@@ -32,6 +33,8 @@ export function GitHubActionsConfigForm({
   const [fetchedParameters, setFetchedParameters] = useState<WorkflowParameter[]>([]);
   
   const inputs = config.inputs || {};
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previousUrlRef = useRef<string | undefined>(undefined);
   
   // Auto-select integration if only one exists
   useEffect(() => {
@@ -44,9 +47,8 @@ export function GitHubActionsConfigForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availableIntegrations.length, availableIntegrations[0]?.id]);
 
-  // Restore parameterDefinitions and auto-fetch if missing
+  // Restore parameterDefinitions immediately if they exist
   useEffect(() => {
-    // If parameterDefinitions exist in config, restore them
     if (config.parameterDefinitions && Array.isArray(config.parameterDefinitions)) {
       const restoredParams = config.parameterDefinitions.map((param: WorkflowParameter) => {
         const hasChoices = (param as any).choices && (param as any).choices.length > 0;
@@ -61,17 +63,34 @@ export function GitHubActionsConfigForm({
       
       setFetchedParameters(restoredParams);
       setParametersFetched(true);
-    } else {
-      const workflowUrl = config.workflowUrl || config.workflowPath;
-      if (workflowUrl && config.integrationId && tenantId && !parametersFetched && !fetchingParams) {
-        // Auto-fetch if we have workflowUrl and integrationId but no parameterDefinitions
-        // This handles edit mode where workflow was created with manual parameters
-        handleFetchParameters();
-      }
     }
+  }, [config.parameterDefinitions]);
+
+  // Clear parameters and inputs when URL changes
+  useEffect(() => {
+    const workflowUrl = config.workflowUrl || config.workflowPath;
+    
+    // If URL changed (or became empty) and we have fetched parameters, clear them
+    const urlChanged = previousUrlRef.current !== workflowUrl && previousUrlRef.current !== undefined;
+    const urlCleared = !workflowUrl && previousUrlRef.current;
+    
+    if ((urlChanged || urlCleared) && (parametersFetched || config.parameterDefinitions)) {
+      setFetchedParameters([]);
+      setParametersFetched(false);
+      setFetchError(null);
+      
+      // Clear inputs and parameterDefinitions
+      onChange({
+        ...config,
+        inputs: {},
+        parameterDefinitions: undefined,
+      } as any);
+    }
+    
+    previousUrlRef.current = workflowUrl;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.parameterDefinitions, config.workflowUrl, config.workflowPath, config.integrationId]);
-  
+  }, [config.workflowUrl, config.workflowPath]);
+
   // Manual input handlers - DISABLED
   // const handleAddInput = () => {
   //   if (newInputKey && newInputValue) {
@@ -183,13 +202,57 @@ export function GitHubActionsConfigForm({
         setParametersFetched(true);
       } else {
         setFetchError('Failed to fetch workflow inputs');
+        // Clear inputs and parameters on failure
+        setFetchedParameters([]);
+        setParametersFetched(false);
+        onChange({
+          ...config,
+          inputs: {},
+          parameterDefinitions: undefined,
+        } as any);
       }
     } catch (error) {
-      setFetchError(getApiErrorMessage(error, 'Failed to fetch workflow inputs'));
+      // Extract user-friendly error message using utility function
+      const errorMessage = extractApiErrorWithResponse(error, 'Failed to fetch workflow inputs');
+      setFetchError(errorMessage);
+      // Clear inputs and parameters on failure
+      setFetchedParameters([]);
+      setParametersFetched(false);
+      onChange({
+        ...config,
+        inputs: {},
+        parameterDefinitions: undefined,
+      } as any);
     } finally {
       setFetchingParams(false);
     }
   };
+
+  // Debounced auto-fetch when URL/integrationId changes
+  useEffect(() => {
+    // Clear any existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    const workflowUrl = config.workflowUrl || config.workflowPath;
+    // Only auto-fetch if we don't have parameterDefinitions and have required fields
+    // The clear effect handles resetting state when URL changes, so we just need to check if we should fetch
+    if (!config.parameterDefinitions && workflowUrl && config.integrationId && tenantId && !parametersFetched && !fetchingParams) {
+      // Debounce the fetch by 1000ms
+      debounceTimeoutRef.current = setTimeout(() => {
+        handleFetchParameters();
+      }, 1000);
+    }
+
+    // Cleanup timeout on unmount or when dependencies change
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.workflowUrl, config.workflowPath, config.integrationId, config.parameterDefinitions, parametersFetched]);
   
   const handleInputValueChange = (inputName: string, value: string) => {
     onChange({

@@ -18,6 +18,7 @@ import { apiGet, apiPost, apiPut, getApiErrorMessage } from '~/utils/api-client'
 import { extractApiErrorMessage } from '~/utils/api-error-utils';
 import { TEST_PROVIDERS } from '~/types/release-config-constants';
 import { CHECKMATE_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
+import { trimIntegrationFields } from '~/utils/integration-helpers';
 import { ActionButtons } from './shared/ActionButtons';
 import { ConnectionAlert } from './shared/ConnectionAlert';
 import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
@@ -146,12 +147,12 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
       // Encrypt the auth token before sending
       const encryptedAuthToken = await encrypt(formData.authToken);
       
-      const verifyPayload = {
+      const verifyPayload = trimIntegrationFields({
         baseUrl: formData.baseUrl,
         authToken: encryptedAuthToken,
         orgId: parseInt(formData.orgId, 10),
         _encrypted: true, // Flag to indicate encryption
-      };
+      });
       
       const endpoint = `/api/v1/tenants/${tenantId}/integrations/test-management/verify`;
       
@@ -192,7 +193,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
         encryptedAuthToken = await encrypt(formData.authToken);
       }
       
-      const payload: any = {
+      const payload: any = trimIntegrationFields({
         name: formData.name || `${TEST_PROVIDERS.CHECKMATE} - ${formData.baseUrl}`,
         providerType: TEST_PROVIDERS.CHECKMATE.toLowerCase(),
         config: {
@@ -201,7 +202,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
           orgId: parseInt(formData.orgId, 10) || undefined, // Convert to number
           _encrypted: !!encryptedAuthToken, // Flag to indicate encryption
         }
-      };
+      });
 
 
       // Only include authToken if provided (required for create, optional for update)

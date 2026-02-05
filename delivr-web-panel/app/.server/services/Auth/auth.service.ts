@@ -48,19 +48,28 @@ export class Auth {
         },
         async (args) => {
           try {
-            // Validate required OAuth parameters
-            if (!args.extraParams.id_token) {
+            const idToken = (args as any).id_token || args.extraParams.id_token;
+            
+            if (!idToken) {
               throw new Error('Missing ID token from Google OAuth response');
             }
             
-            const user = await CodepushService.getUser(args.extraParams.id_token);
+            // Extract refresh token from top-level (remix-auth-google provides it there)
+            const refreshToken = args.refreshToken || null;
             
+            if (!refreshToken) {
+              console.warn('[Auth] ⚠️ No refresh token received. User will need to re-authenticate when token expires.');
+            } else {
+              console.log('[Auth] ✅ Refresh token received successfully');
+            }
+            
+            const user = await CodepushService.getUser(idToken);
             return {
               ...user,
               user: {
                 ...user.user,
-                idToken: args.extraParams.id_token,
-                refreshToken: args.extraParams.refresh_token ? String(args.extraParams.refresh_token) : null,
+                idToken: idToken,
+                refreshToken: refreshToken ? String(refreshToken) : null,
                 tokenExpiresAt: Date.now() + AUTH_CONFIG.TOKEN_EXPIRY_MS
               }
             };

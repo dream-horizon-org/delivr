@@ -7,7 +7,7 @@
  * Follows cursor rules: No 'any' or 'unknown' types, uses constants
  */
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, forwardRef, useImperativeHandle } from 'react';
 import {
   Stack,
   Box,
@@ -42,7 +42,11 @@ interface RegressionSlotsManagerProps {
   onEditingSlotChange?: (slot: RegressionBuildSlotBackend | null, index: number) => void;
 }
 
-export function RegressionSlotsManager({
+export interface RegressionSlotsManagerRef {
+  closeEditingSlot: () => void;
+}
+
+export const RegressionSlotsManager = forwardRef<RegressionSlotsManagerRef, RegressionSlotsManagerProps>(({
   regressionBuildSlots,
   kickOffDate,
   kickOffTime,
@@ -55,13 +59,25 @@ export function RegressionSlotsManager({
   disableAddSlot = false,
   isEditMode = false,
   onEditingSlotChange,
-}: RegressionSlotsManagerProps) {
+}, ref) => {
   const theme = useMantineTheme();
   const [editingSlotIndex, setEditingSlotIndex] = useState<number | null>(null);
   
   // Track pending slot (slot being added/edited but not yet saved)
   const [pendingSlot, setPendingSlot] = useState<RegressionBuildSlotBackend | null>(null);
   const [isPendingNew, setIsPendingNew] = useState(false);
+
+  // Expose closeEditingSlot method to parent via ref
+  useImperativeHandle(ref, () => ({
+    closeEditingSlot: () => {
+      setEditingSlotIndex(null);
+      setPendingSlot(null);
+      setIsPendingNew(false);
+      if (onEditingSlotChange) {
+        onEditingSlotChange(null, -1);
+      }
+    },
+  }));
   
   // Committed slots (already saved)
   const committedSlots = regressionBuildSlots;
@@ -200,6 +216,18 @@ export function RegressionSlotsManager({
     setIsPendingNew(false);
     setEditingSlotIndex(null);
   };
+
+  // Expose method to close editing slot from parent
+  useImperativeHandle(ref, () => ({
+    closeEditingSlot: () => {
+      setPendingSlot(null);
+      setIsPendingNew(false);
+      setEditingSlotIndex(null);
+      if (onEditingSlotChange) {
+        onEditingSlotChange(null, -1);
+      }
+    },
+  }));
 
   // Handle updating existing slot
   const handleUpdateSlot = (index: number, updatedSlot: RegressionBuildSlotBackend) => {
@@ -365,4 +393,4 @@ export function RegressionSlotsManager({
       </Stack>
     </Box>
   );
-}
+});

@@ -21,6 +21,7 @@ import { IconCheck, IconAlertCircle, IconInfoCircle } from '@tabler/icons-react'
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { BUILD_PROVIDERS } from '~/types/release-config-constants';
 import { JENKINS_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
+import { trimIntegrationFields } from '~/utils/integration-helpers';
 import { ActionButtons } from './shared/ActionButtons';
 import { ConnectionAlert } from './shared/ConnectionAlert';
 import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
@@ -129,7 +130,7 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
       // Encrypt the API token before sending
       const encryptedApiToken = await encrypt(formData.apiToken);
       
-      const verifyPayload = {
+      const verifyPayload = trimIntegrationFields({
         displayName: formData.displayName || undefined,
         hostUrl: formData.hostUrl,
         username: formData.username,
@@ -139,7 +140,7 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
           useCrumb: formData.useCrumb,
           crumbPath: formData.crumbPath
         }
-      };
+      });
       
       const endpoint = `/api/v1/tenants/${tenantId}/integrations/ci-cd/${BUILD_PROVIDERS.JENKINS.toLowerCase()}/verify`;
       
@@ -184,7 +185,7 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
     isInFlowRef.current = true;
 
     try {
-      const payload: any = {
+      const payload: any = trimIntegrationFields({
         displayName: formData.displayName || `${formData.hostUrl}`,
         hostUrl: formData.hostUrl,
         username: formData.username,
@@ -192,7 +193,7 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
           useCrumb: formData.useCrumb,
           crumbPath: formData.crumbPath
         }
-      };
+      });
 
       if (formData.apiToken) {
         // Encrypt the API token before sending

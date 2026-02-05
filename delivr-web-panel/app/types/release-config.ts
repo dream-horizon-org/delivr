@@ -42,6 +42,14 @@ export interface JenkinsConfig {
   integrationId: string; // Reference to connected Jenkins integration
   jobUrl: string;
   parameters: Record<string, string>; // Key-value pairs for job parameters
+  parameterDefinitions?: Array<{
+    name: string;
+    type: string;
+    description?: string;
+    defaultValue?: unknown;
+    options?: string[];
+    required?: boolean;
+  }>; // Job parameter definitions fetched from Jenkins
 }
 
 export interface GitHubActionsConfig {

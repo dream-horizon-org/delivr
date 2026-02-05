@@ -44,7 +44,7 @@ import {
 import { workflowTypeToEnvironment, environmentToWorkflowType, getEnvironmentsForPlatform } from '~/types/workflow-mappings';
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
-import { validateWorkflowName } from '~/utils/workflow-validation';
+import { validateWorkflowName, areMandatoryFieldsFilled as checkMandatoryFieldsFilled, isUrlValid as checkUrlValid } from '~/utils/workflow-validation';
 
 const platformOptions = [
   { value: PLATFORMS.ANDROID, label: PLATFORM_LABELS.ANDROID },
@@ -279,6 +279,11 @@ export function WorkflowForm({
     return Object.keys(newErrors).length === 0;
   }, [name, provider, providerConfig, workflows, existingWorkflow, workflowId, isEditMode]);
 
+  // Check if URL is valid for the current provider
+  const isUrlValid = useMemo(() => {
+    return checkUrlValid(provider, providerConfig);
+  }, [provider, providerConfig]);
+
   const handleSave = useCallback(async () => {
     if (!validate()) {
       return;
@@ -409,6 +414,10 @@ export function WorkflowForm({
     org: tenantId,
     isEditMode,
   });
+  const areMandatoryFieldsFilled = useMemo(() => {
+    return checkMandatoryFieldsFilled(name, provider, providerConfig);
+  }, [name, provider, providerConfig]);
+  
 
   return (
     <Container size="xl" py={16}>
@@ -600,7 +609,7 @@ export function WorkflowForm({
             <Button
               onClick={handleSave}
               color="brand"
-              disabled={availableProviders.length === 0 || isSaving}
+              disabled={availableProviders.length === 0 || isSaving || !areMandatoryFieldsFilled || !isUrlValid}
               loading={isSaving}
               leftSection={!isSaving && <IconCheck size={16} />}
             >

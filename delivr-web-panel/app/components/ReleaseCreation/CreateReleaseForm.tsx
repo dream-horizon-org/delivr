@@ -18,6 +18,7 @@ import { useVersionSuggestions } from '~/hooks/useVersionSuggestions';
 import { ConfigurationSelector } from './ConfigurationSelector';
 import { ReleaseDetailsForm } from './ReleaseDetailsForm';
 import { ReleaseSchedulingPanel } from './ReleaseSchedulingPanel';
+import type { RegressionSlotsManagerRef } from './RegressionSlotsManager';
 import { ReleaseReviewModal } from './ReleaseReviewModal';
 import type { ReleaseCreationState, CronConfig, PlatformTargetWithVersion } from '~/types/release-creation-backend';
 import type { ReleaseConfiguration } from '~/types/release-config';
@@ -90,6 +91,7 @@ export function CreateReleaseForm({
   const [isFormValid, setIsFormValid] = useState(false);
   const [editingSlot, setEditingSlot] = useState<{ slot: any; index: number } | null>(null);
   const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
+  const regressionSlotsManagerRef = useRef<RegressionSlotsManagerRef>(null);
 
   // Initialize form state from existing release if in edit mode
   const initialReleaseState: Partial<ReleaseCreationState> = isEditMode && existingRelease
@@ -674,6 +676,21 @@ export function CreateReleaseForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, isEditMode, activeStatus, hasAttemptedValidation, touchedFields]);
 
+  // Handle cancel - closes any open editing slot before navigating
+  const handleCancel = () => {
+    // If a slot is being edited, close it first using the ref
+    if (editingSlot && regressionSlotsManagerRef.current) {
+      regressionSlotsManagerRef.current.closeEditingSlot();
+      setEditingSlot(null);
+    }
+    // Navigate immediately (slot closing is synchronous via ref)
+    if (onCancel) {
+      onCancel();
+    } else {
+      navigate(`/dashboard/${org}/releases`);
+    }
+  };
+
   // Handle review and submit
   const handleReviewAndSubmit = () => {
     // Mark that validation has been attempted
@@ -884,6 +901,7 @@ export function CreateReleaseForm({
             <Divider mb="xl" />
             {!isEditMode || isUpcoming ? (
               <ReleaseSchedulingPanel
+                slotsManagerRef={regressionSlotsManagerRef}
                 state={state}
                 onChange={handleStateChange}
                 config={selectedConfig}
@@ -895,6 +913,7 @@ export function CreateReleaseForm({
               />
             ) : isAfterKickoff ? (
               <ReleaseSchedulingPanel
+                slotsManagerRef={regressionSlotsManagerRef}
                 state={state}
                 onChange={handleStateChange}
                 config={selectedConfig}
@@ -955,13 +974,7 @@ export function CreateReleaseForm({
               <Button
                 variant="subtle"
                 leftSection={<IconArrowLeft size={18} />}
-                onClick={() => {
-                  // If a slot is being edited, cancel it first (same as cancel button behavior)
-                  if (editingSlot) {
-                    setEditingSlot(null);
-                  }
-                  onCancel();
-                }}
+                onClick={handleCancel}
                 disabled={isSubmitting}
                 size="md"
               >
@@ -972,13 +985,7 @@ export function CreateReleaseForm({
               <Button
                 variant="subtle"
                 leftSection={<IconArrowLeft size={18} />}
-                onClick={() => {
-                  // If a slot is being edited, cancel it first (same as cancel button behavior)
-                  if (editingSlot) {
-                    setEditingSlot(null);
-                  }
-                  navigate(`/dashboard/${org}/releases`);
-                }}
+                onClick={handleCancel}
                 size="md"
               >
                 Cancel

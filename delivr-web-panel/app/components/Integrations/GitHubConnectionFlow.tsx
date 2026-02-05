@@ -3,6 +3,7 @@ import { TextInput, Alert, PasswordInput, Stack, Box, Text, Anchor, List, ThemeI
 import { IconCheck, IconAlertCircle, IconExternalLink, IconBrandGithub } from '@tabler/icons-react';
 import { useParams } from '@remix-run/react';
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
+import { trimIntegrationFields } from '~/utils/integration-helpers';
 import { SCM_TYPES } from '~/constants/integrations';
 import { GITHUB_LABELS, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
 import { ActionButtons } from './shared/ActionButtons';
@@ -97,13 +98,13 @@ export function GitHubConnectionFlow({
       // Encrypt the access token before sending
       const encryptedToken = await encrypt(token);
       
-      const verifyPayload = {
+      const verifyPayload = trimIntegrationFields({
         scmType,
         owner,
         repo: repoName,
         accessToken: encryptedToken,
         _encrypted: true, // Flag to indicate encryption
-      };
+      });
       
       const endpoint = `/api/v1/tenants/${org}/integrations/scm/verify`;
       const result = await apiPost(
@@ -148,12 +149,12 @@ export function GitHubConnectionFlow({
     setError(null);
 
     try {
-      const payload: any = {
+      const payload: any = trimIntegrationFields({
         scmType,
         owner,
         repo: repoName,
         displayName: `${owner}/${repoName}`,
-      };
+      });
 
       if (token) {
         // Encrypt the access token before sending

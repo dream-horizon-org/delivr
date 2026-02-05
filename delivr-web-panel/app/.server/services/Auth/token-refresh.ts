@@ -83,6 +83,7 @@ export async function ensureFreshToken(user: User): Promise<User> {
   if (needsTokenRefresh(user)) {
     return await refreshGoogleToken(user);
   }
+  console.log("need refresh token", user)
   return user;
 }
 
