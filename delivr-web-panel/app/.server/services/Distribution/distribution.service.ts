@@ -314,6 +314,9 @@ class Distribution {
           request instanceof FormData
             ? { 'Content-Type': 'multipart/form-data' }
             : { 'Content-Type': 'application/json' },
+        // Override timeout for AAB bundle uploads (can take longer, especially for large files)
+        // Matches pre-release phase TASK_TIMEOUT_MS: 600000 (10 minutes)
+        timeout: 600000, // 10 minutes
       }
     );
   }

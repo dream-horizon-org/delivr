@@ -23,6 +23,7 @@ import * as express from "express";
 import { S3Storage } from "./storage/aws-storage";
 import { createWorkflowPollingRoutes } from "./routes/workflow-polling.routes";
 import { createCronWebhookRoutes } from "~routes/release/cron-webhook.routes";
+import { createStoreProductionStateRoute } from "./routes/store-integrations";
 const domain = require("express-domain-middleware");
 const csrf = require('lusca').csrf;
 
@@ -185,6 +186,12 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
       const releaseOrchestrationRoutes = createCronWebhookRoutes(storage);
       app.use(releaseOrchestrationRoutes);
       console.log('[Server] Release Orchestration routes mounted (internal, no user auth)');
+
+      // Store Production State Route (internal, uses cronicleAuthMiddleware only)
+      // Mounted with /api/v1 prefix but WITHOUT auth.authenticate middleware
+      const storeProductionStateRoute = createStoreProductionStateRoute(storage);
+      app.use('/api/v1', storeProductionStateRoute);
+      console.log('[Server] Store production state route mounted (internal, no user auth)');
 
       if (process.env.DISABLE_MANAGEMENT !== "true") {
         if (process.env.DEBUG_DISABLE_AUTH === "true") {

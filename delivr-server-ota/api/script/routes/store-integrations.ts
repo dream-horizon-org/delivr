@@ -5,6 +5,7 @@ import { fileUploadMiddleware } from '../file-upload-manager';
 import * as tenantPermissions from '../middleware/tenant-permissions';
 import * as releasePermissions from '../middleware/release-permissions';
 import type { Storage } from '../storage/storage';
+import { cronicleAuthMiddleware } from '../middleware/cronicle-auth.middleware';
   export function createStoreIntegrationRoutes( storage: Storage ): Router {
   const router = Router();
 
@@ -83,9 +84,28 @@ import type { Storage } from '../storage/storage';
     storeControllers.getPlayStoreListings
   );
 
+  // NOTE: Production state route removed - mounted separately in default-server.ts
+  // to avoid auth.authenticate middleware (uses only cronicleAuthMiddleware)
+
+  return router;
+}
+
+/**
+ * Create store production state route (internal, uses cronicleAuthMiddleware only)
+ * 
+ * This route is mounted separately in default-server.ts with /api/v1 prefix
+ * but WITHOUT auth.authenticate middleware, so it only uses cronicleAuthMiddleware.
+ * 
+ * @param storage - Storage instance
+ * @returns Express Router with production state route
+ */
+export function createStoreProductionStateRoute(storage: Storage): Router {
+  const router = Router();
+
   // Get Play Store production state for a submission
   router.get(
     '/integrations/store/play-store/production-state',
+    cronicleAuthMiddleware,
     validateStore.validatePlayStoreProductionStateQuery,
     storeControllers.getPlayStoreProductionState
   );

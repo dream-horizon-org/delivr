@@ -89,7 +89,7 @@ export interface TaskExecutionContext {
  * @param internalTrackLink - URL like "https://play.google.com/apps/test/{packageName}/{versionCode}"
  * @returns versionCode string or null if URL is invalid/null
  */
-const extractVersionCodeFromInternalTrackLink = (internalTrackLink: string | null | undefined): string | null => {
+export const extractVersionCodeFromInternalTrackLink = (internalTrackLink: string | null | undefined): string | null => {
   const linkIsNullOrUndefined = internalTrackLink === null || internalTrackLink === undefined;
   if (linkIsNullOrUndefined) {
     return null;
