@@ -9,8 +9,10 @@ import type { ReleaseConfigService } from '~services/release-configs';
 import type { ReleaseConfigActivityLogService } from '~services/release-configs';
 import type { CreateReleaseConfigRequest } from '~types/release-configs';
 import type { PlatformTargetMappingAttributes } from '~models/release';
-import { errorResponse, getErrorStatusCode, notFoundResponse, successResponse, validationErrorResponse } from '~utils/response.utils';
+import { getErrorStatusCode, successResponse, simpleErrorResponse, detailedErrorResponse, notFoundResponse, forbiddenResponse, unauthorizedResponse, buildValidationErrorResponse } from '~utils/response.utils';
 import { RELEASE_CONFIG_ERROR_MESSAGES, RELEASE_CONFIG_SUCCESS_MESSAGES, VALID_PLATFORMS, VALID_TARGETS } from './constants';
+import { validateCreateConfig, validateUpdateConfig } from '~services/release-configs/release-config.validation';
+import { getStorage } from '~storage/storage-instance';
 
 type AuthenticatedRequest = Request & {
   user?: {
@@ -60,62 +62,141 @@ const createConfigHandler = (service: ReleaseConfigService) =>
       const currentUserId = req.user?.id || 'default-user';
       console.log('createConfigHandler requestBody:', requestBody);
 
-      // Validate required fields
-      if (!requestBody.name) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('name', 'Configuration name is required')
-        );
-        return;
-      }
+      // Validate platform values
+      if (requestBody.platformTargets && Array.isArray(requestBody.platformTargets)) {
+        for (const pt of requestBody.platformTargets) {
+          if (pt.platform) {
+            const isValidPlatform = VALID_PLATFORMS.includes(pt.platform as PlatformTargetMappingAttributes['platform']);
+            if (!isValidPlatform) {
+              res.status(HTTP_STATUS.BAD_REQUEST).json(
+                detailedErrorResponse(
+                  'Invalid platform',
+                  'invalid_platform',
+                  [`Invalid platform: ${pt.platform}. Must be one of: ${VALID_PLATFORMS.join(', ')}`]
+                )
+              );
+              return;
+            }
+          }
 
-      if (!requestBody.releaseType) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('releaseType', 'Release type is required')
-        );
-        return;
-      }
-
-      if (!requestBody.platformTargets || !Array.isArray(requestBody.platformTargets) || requestBody.platformTargets.length === 0) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('platformTargets', 'platformTargets must be a non-empty array')
-        );
-        return;
-      }
-
-      // Validate each platform-target pair
-      for (const pt of requestBody.platformTargets) {
-        if (!pt.platform || !pt.target) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('platformTargets', 'Each platformTarget must have platform and target fields')
-          );
-          return;
+          if (pt.target) {
+            const isValidTarget = VALID_TARGETS.includes(pt.target as PlatformTargetMappingAttributes['target']);
+            if (!isValidTarget) {
+              res.status(HTTP_STATUS.BAD_REQUEST).json(
+                detailedErrorResponse(
+                  'Invalid target',
+                  'invalid_target',
+                  [`Invalid target: ${pt.target}. Must be one of: ${VALID_TARGETS.join(', ')}`]
+                )
+              );
+              return;
+            }
+          }
         }
+      }
 
-        // Type-safe validation: check if platform is in valid list
-        const isValidPlatform = VALID_PLATFORMS.includes(pt.platform as PlatformTargetMappingAttributes['platform']);
-        if (!isValidPlatform) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('platformTargets', `Invalid platform: ${pt.platform}. Must be one of: ${VALID_PLATFORMS.join(', ')}`)
-          );
-          return;
+      // Validate request body using Yup
+      const validationResult = await validateCreateConfig(requestBody);
+      if (validationResult.success === false) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          buildValidationErrorResponse('Request validation failed', validationResult.errors)
+        );
+        return;
+      }
+
+      const validated = validationResult.data;
+
+      // ========================================================================
+      // STEP 1: Validate integration configs exist and belong to tenant
+      // ========================================================================
+      const storage = getStorage();
+
+      // Validate CI/CD config if provided
+      if (validated.ciConfigId) {
+        const ciConfigService = (storage as any).cicdConfigService;
+        if (ciConfigService) {
+          const ciConfig = await ciConfigService.findById(validated.ciConfigId);
+          if (!ciConfig) {
+            res.status(HTTP_STATUS.NOT_FOUND).json(
+              notFoundResponse('CI/CD configuration', 'config_not_found')
+            );
+            return;
+          }
+          if (ciConfig.tenantId !== tenantId) {
+            res.status(HTTP_STATUS.FORBIDDEN).json(
+              forbiddenResponse('CI/CD configuration does not belong to this tenant', 'config_access_denied')
+            );
+            return;
+          }
         }
+      }
 
-        // Type-safe validation: check if target is in valid list
-        const isValidTarget = VALID_TARGETS.includes(pt.target as PlatformTargetMappingAttributes['target']);
-        if (!isValidTarget) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(
-            validationErrorResponse('platformTargets', `Invalid target: ${pt.target}. Must be one of: ${VALID_TARGETS.join(', ')}`)
-          );
-          return;
+      // Validate Test Management config if provided
+      if (validated.testManagementConfigId) {
+        const testMgmtConfigRepository = (storage as any).testManagementConfigRepository;
+        if (testMgmtConfigRepository) {
+          const testMgmtConfig = await testMgmtConfigRepository.findById(validated.testManagementConfigId);
+          if (!testMgmtConfig) {
+            res.status(HTTP_STATUS.NOT_FOUND).json(
+              notFoundResponse('Test Management configuration', 'config_not_found')
+            );
+            return;
+          }
+          if (testMgmtConfig.tenantId !== tenantId) {
+            res.status(HTTP_STATUS.FORBIDDEN).json(
+              forbiddenResponse('Test Management configuration does not belong to this tenant', 'config_access_denied')
+            );
+            return;
+          }
+        }
+      }
+
+      // Validate Project Management config if provided
+      if (validated.projectManagementConfigId) {
+        const projectMgmtConfigRepository = (storage as any).projectManagementConfigRepository;
+        if (projectMgmtConfigRepository) {
+          const projectMgmtConfig = await projectMgmtConfigRepository.findById(validated.projectManagementConfigId);
+          if (!projectMgmtConfig) {
+            res.status(HTTP_STATUS.NOT_FOUND).json(
+              notFoundResponse('Project Management configuration', 'config_not_found')
+            );
+            return;
+          }
+          if (projectMgmtConfig.tenantId !== tenantId) {
+            res.status(HTTP_STATUS.FORBIDDEN).json(
+              forbiddenResponse('Project Management configuration does not belong to this tenant', 'config_access_denied')
+            );
+            return;
+          }
+        }
+      }
+
+      // Validate Communication config if provided
+      if (validated.commsConfigId) {
+        const commConfigRepository = (storage as any).commConfigRepository;
+        if (commConfigRepository) {
+          const commConfig = await commConfigRepository.findById(validated.commsConfigId);
+          if (!commConfig) {
+            res.status(HTTP_STATUS.NOT_FOUND).json(
+              notFoundResponse('Communication configuration', 'config_not_found')
+            );
+            return;
+          }
+          if (commConfig.tenantId !== tenantId) {
+            res.status(HTTP_STATUS.FORBIDDEN).json(
+              forbiddenResponse('Communication configuration does not belong to this tenant', 'config_access_denied')
+            );
+            return;
+          }
         }
       }
 
       // ========================================================================
-      // STEP 1: Create release config with integration orchestration
+      // STEP 2: Create release config with integration orchestration
       // ========================================================================
 
       // Override body's tenantId with URL param (security: prevent tenant spoofing)
-      const requestWithTenant = { ...requestBody, tenantId };
+      const requestWithTenant = { ...validated, tenantId } as any;
       const result = await service.createConfig(requestWithTenant, currentUserId);
       
       if (!result.success) {
@@ -130,12 +211,13 @@ const createConfigHandler = (service: ReleaseConfigService) =>
           errorDetails: errorResult.error.details
         }, null, 2));
         
-        res.status(HTTP_STATUS.BAD_REQUEST).json({
-          success: false,
-          error: errorResult.error.message,
-          code: errorResult.error.code,
-          details: errorResult.error.details
-        });
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          detailedErrorResponse(
+            errorResult.error.message,
+            errorResult.error.code || 'config_create_failed',
+            Array.isArray(errorResult.error.details) ? errorResult.error.details : [errorResult.error.message]
+          )
+        );
         return;
       }
 
@@ -144,10 +226,19 @@ const createConfigHandler = (service: ReleaseConfigService) =>
       res.status(HTTP_STATUS.CREATED).json(
         successResponse(verboseConfig, RELEASE_CONFIG_SUCCESS_MESSAGES.CONFIG_CREATED)
       );
-    } catch (error) {
+    } catch (error: unknown) {
       const statusCode = getErrorStatusCode(error);
+      const errorMessage = error instanceof Error ? error.message : RELEASE_CONFIG_ERROR_MESSAGES.CREATE_CONFIG_FAILED;
+      const errorCode = (error instanceof Error && 'code' in error && typeof (error as any).code === 'string') 
+        ? (error as any).code 
+        : 'config_create_failed';
+      
       res.status(statusCode).json(
-        errorResponse(error, RELEASE_CONFIG_ERROR_MESSAGES.CREATE_CONFIG_FAILED)
+        detailedErrorResponse(
+          errorMessage,
+          errorCode,
+          [errorMessage]
+        )
       );
     }
   };
@@ -164,17 +255,26 @@ const getConfigByIdHandler = (service: ReleaseConfigService) =>
 
       if (!config) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
-          notFoundResponse('Release configuration')
+          notFoundResponse('Release configuration', 'config_not_found')
         );
         return;
       }
 
       // For verbose response, we don't use toSafeConfig as we want full nested objects
       res.status(HTTP_STATUS.OK).json(successResponse(config));
-    } catch (error) {
+    } catch (error: unknown) {
       const statusCode = getErrorStatusCode(error);
+      const errorMessage = error instanceof Error ? error.message : RELEASE_CONFIG_ERROR_MESSAGES.GET_CONFIG_FAILED;
+      const errorCode = (error instanceof Error && 'code' in error && typeof (error as any).code === 'string') 
+        ? (error as any).code 
+        : 'config_fetch_failed';
+      
       res.status(statusCode).json(
-        errorResponse(error, RELEASE_CONFIG_ERROR_MESSAGES.GET_CONFIG_FAILED)
+        detailedErrorResponse(
+          errorMessage,
+          errorCode,
+          [errorMessage]
+        )
       );
     }
   };
@@ -190,7 +290,7 @@ const listConfigsByTenantHandler = (service: ReleaseConfigService) =>
 
       if (!tenantId) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('tenantId', 'tenantId parameter is required')
+          simpleErrorResponse('Tenant ID is required', 'missing_tenant_id')
         );
         return;
       }
@@ -199,10 +299,19 @@ const listConfigsByTenantHandler = (service: ReleaseConfigService) =>
       const verboseConfigs = await service.listConfigsByTenantVerbose(tenantId, includeArchived);
 
       res.status(HTTP_STATUS.OK).json(successResponse(verboseConfigs));
-    } catch (error) {
+    } catch (error: unknown) {
       const statusCode = getErrorStatusCode(error);
+      const errorMessage = error instanceof Error ? error.message : RELEASE_CONFIG_ERROR_MESSAGES.LIST_CONFIGS_FAILED;
+      const errorCode = (error instanceof Error && 'code' in error && typeof (error as any).code === 'string') 
+        ? (error as any).code 
+        : 'config_list_failed';
+      
       res.status(statusCode).json(
-        errorResponse(error, RELEASE_CONFIG_ERROR_MESSAGES.LIST_CONFIGS_FAILED)
+        detailedErrorResponse(
+          errorMessage,
+          errorCode,
+          [errorMessage]
+        )
       );
     }
   };
@@ -214,6 +323,7 @@ const updateConfigHandler = (service: ReleaseConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { configId } = req.params;
+      const { tenantId } = req.params;
       // Strip tenantId from update data - configs cannot change tenant (defense in depth)
       const { tenantId: _ignoredTenantId, ...rawUpdateData } = req.body;
       // Normalize releaseSchedule.releaseFrequency to uppercase
@@ -223,13 +333,154 @@ const updateConfigHandler = (service: ReleaseConfigService) =>
       
       if (!currentUserId) {
         res.status(HTTP_STATUS.UNAUTHORIZED).json(
-          errorResponse(new Error('User ID not found'), 'Authentication required')
+          unauthorizedResponse('User ID not found in request')
         );
         return;
       }
 
+      // Validate platform values if being updated
+      if (updateData.platformTargets && Array.isArray(updateData.platformTargets)) {
+        for (const pt of updateData.platformTargets) {
+          if (pt.platform) {
+            const isValidPlatform = VALID_PLATFORMS.includes(pt.platform as PlatformTargetMappingAttributes['platform']);
+            if (!isValidPlatform) {
+              res.status(HTTP_STATUS.BAD_REQUEST).json(
+                detailedErrorResponse(
+                  'Invalid platform',
+                  'invalid_platform',
+                  [`Invalid platform: ${pt.platform}. Must be one of: ${VALID_PLATFORMS.join(', ')}`]
+                )
+              );
+              return;
+            }
+          }
+
+          if (pt.target) {
+            const isValidTarget = VALID_TARGETS.includes(pt.target as PlatformTargetMappingAttributes['target']);
+            if (!isValidTarget) {
+              res.status(HTTP_STATUS.BAD_REQUEST).json(
+                detailedErrorResponse(
+                  'Invalid target',
+                  'invalid_target',
+                  [`Invalid target: ${pt.target}. Must be one of: ${VALID_TARGETS.join(', ')}`]
+                )
+              );
+              return;
+            }
+          }
+        }
+      }
+
+      // Validate request body using Yup
+      const validationResult = await validateUpdateConfig(updateData);
+      if (validationResult.success === false) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          buildValidationErrorResponse('Request validation failed', validationResult.errors)
+        );
+        return;
+      }
+
+      const validated = validationResult.data;
+
+      // Get existing config to check tenant
+      const existingConfig = await service.getConfigByIdVerbose(configId);
+      if (!existingConfig) {
+        res.status(HTTP_STATUS.NOT_FOUND).json(
+          notFoundResponse('Release configuration', 'config_not_found')
+        );
+        return;
+      }
+
+      // Use tenantId from existing config for integration validation
+      const configTenantId = existingConfig.tenantId;
+
+      // ========================================================================
+      // Validate integration configs exist and belong to tenant (if being updated)
+      // ========================================================================
+      const storage = getStorage();
+
+      // Validate CI/CD config if being updated
+      if (validated.ciConfigId) {
+        const ciConfigService = (storage as any).cicdConfigService;
+        if (ciConfigService) {
+          const ciConfig = await ciConfigService.findById(validated.ciConfigId);
+          if (!ciConfig) {
+            res.status(HTTP_STATUS.NOT_FOUND).json(
+              notFoundResponse('CI/CD configuration', 'config_not_found')
+            );
+            return;
+          }
+          if (ciConfig.tenantId !== configTenantId) {
+            res.status(HTTP_STATUS.FORBIDDEN).json(
+              forbiddenResponse('CI/CD configuration does not belong to this tenant', 'config_access_denied')
+            );
+            return;
+          }
+        }
+      }
+
+      // Validate Test Management config if being updated
+      if (validated.testManagementConfigId) {
+        const testMgmtConfigRepository = (storage as any).testManagementConfigRepository;
+        if (testMgmtConfigRepository) {
+          const testMgmtConfig = await testMgmtConfigRepository.findById(validated.testManagementConfigId);
+          if (!testMgmtConfig) {
+            res.status(HTTP_STATUS.NOT_FOUND).json(
+              notFoundResponse('Test Management configuration', 'config_not_found')
+            );
+            return;
+          }
+          if (testMgmtConfig.tenantId !== configTenantId) {
+            res.status(HTTP_STATUS.FORBIDDEN).json(
+              forbiddenResponse('Test Management configuration does not belong to this tenant', 'config_access_denied')
+            );
+            return;
+          }
+        }
+      }
+
+      // Validate Project Management config if being updated
+      if (validated.projectManagementConfigId) {
+        const projectMgmtConfigRepository = (storage as any).projectManagementConfigRepository;
+        if (projectMgmtConfigRepository) {
+          const projectMgmtConfig = await projectMgmtConfigRepository.findById(validated.projectManagementConfigId);
+          if (!projectMgmtConfig) {
+            res.status(HTTP_STATUS.NOT_FOUND).json(
+              notFoundResponse('Project Management configuration', 'config_not_found')
+            );
+            return;
+          }
+          if (projectMgmtConfig.tenantId !== configTenantId) {
+            res.status(HTTP_STATUS.FORBIDDEN).json(
+              forbiddenResponse('Project Management configuration does not belong to this tenant', 'config_access_denied')
+            );
+            return;
+          }
+        }
+      }
+
+      // Validate Communication config if being updated
+      if (validated.commsConfigId) {
+        const commConfigRepository = (storage as any).commConfigRepository;
+        if (commConfigRepository) {
+          const commConfig = await commConfigRepository.findById(validated.commsConfigId);
+          if (!commConfig) {
+            res.status(HTTP_STATUS.NOT_FOUND).json(
+              notFoundResponse('Communication configuration', 'config_not_found')
+            );
+            return;
+          }
+          if (commConfig.tenantId !== configTenantId) {
+            res.status(HTTP_STATUS.FORBIDDEN).json(
+              forbiddenResponse('Communication configuration does not belong to this tenant', 'config_access_denied')
+            );
+            return;
+          }
+        }
+      }
+
       // Update returns ServiceResult to handle validation errors
-      const result = await service.updateConfig(configId, updateData, currentUserId);
+      const result = await service.updateConfig(configId, validated as any, currentUserId);
 
       // Handle errors (NOT_FOUND, VALIDATION_ERROR, etc.)
       const isError = result.success === false;
@@ -249,12 +500,13 @@ const updateConfigHandler = (service: ReleaseConfigService) =>
           errorDetails: result.error.details
         }, null, 2));
         
-        res.status(statusCode).json({
-          success: false,
-          error: result.error.message,
-          code: result.error.code,
-          details: result.error.details
-        });
+        res.status(statusCode).json(
+          detailedErrorResponse(
+            result.error.message,
+            result.error.code || 'config_update_failed',
+            Array.isArray(result.error.details) ? result.error.details : [result.error.message]
+          )
+        );
         return;
       }
 
@@ -264,10 +516,19 @@ const updateConfigHandler = (service: ReleaseConfigService) =>
       res.status(HTTP_STATUS.OK).json(
         successResponse(verboseConfig, RELEASE_CONFIG_SUCCESS_MESSAGES.CONFIG_UPDATED)
       );
-    } catch (error) {
+    } catch (error: unknown) {
       const statusCode = getErrorStatusCode(error);
+      const errorMessage = error instanceof Error ? error.message : RELEASE_CONFIG_ERROR_MESSAGES.UPDATE_CONFIG_FAILED;
+      const errorCode = (error instanceof Error && 'code' in error && typeof (error as any).code === 'string') 
+        ? (error as any).code 
+        : 'config_update_failed';
+      
       res.status(statusCode).json(
-        errorResponse(error, RELEASE_CONFIG_ERROR_MESSAGES.UPDATE_CONFIG_FAILED)
+        detailedErrorResponse(
+          errorMessage,
+          errorCode,
+          [errorMessage]
+        )
       );
     }
   };
@@ -288,7 +549,7 @@ const deleteConfigHandler = (service: ReleaseConfigService) =>
 
       if (!deleted) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
-          notFoundResponse('Release configuration')
+          notFoundResponse('Release configuration', 'config_not_found')
         );
         return;
       }
@@ -296,10 +557,19 @@ const deleteConfigHandler = (service: ReleaseConfigService) =>
       res.status(HTTP_STATUS.OK).json(
         successResponse(undefined, RELEASE_CONFIG_SUCCESS_MESSAGES.CONFIG_DELETED)
       );
-    } catch (error) {
+    } catch (error: unknown) {
       const statusCode = getErrorStatusCode(error);
+      const errorMessage = error instanceof Error ? error.message : RELEASE_CONFIG_ERROR_MESSAGES.DELETE_CONFIG_FAILED;
+      const errorCode = (error instanceof Error && 'code' in error && typeof (error as any).code === 'string') 
+        ? (error as any).code 
+        : 'config_delete_failed';
+      
       res.status(statusCode).json(
-        errorResponse(error, RELEASE_CONFIG_ERROR_MESSAGES.DELETE_CONFIG_FAILED)
+        detailedErrorResponse(
+          errorMessage,
+          errorCode,
+          [errorMessage]
+        )
       );
     }
   };
@@ -314,7 +584,7 @@ const getActivityLogsHandler = (activityLogService: ReleaseConfigActivityLogServ
 
       if (!configId) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('configId', 'configId is required')
+          simpleErrorResponse('Configuration ID is required', 'missing_config_id')
         );
         return;
       }
@@ -325,11 +595,20 @@ const getActivityLogsHandler = (activityLogService: ReleaseConfigActivityLogServ
       res.status(HTTP_STATUS.OK).json(
         successResponse(logs)
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[Get Activity Logs] Error:', error);
       const statusCode = getErrorStatusCode(error);
+      const errorMessage = error instanceof Error ? error.message : RELEASE_CONFIG_ERROR_MESSAGES.GET_CONFIG_FAILED;
+      const errorCode = (error instanceof Error && 'code' in error && typeof (error as any).code === 'string') 
+        ? (error as any).code 
+        : 'activity_logs_fetch_failed';
+      
       res.status(statusCode).json(
-        errorResponse(error, RELEASE_CONFIG_ERROR_MESSAGES.GET_CONFIG_FAILED)
+        detailedErrorResponse(
+          errorMessage,
+          errorCode,
+          [errorMessage]
+        )
       );
     }
   };

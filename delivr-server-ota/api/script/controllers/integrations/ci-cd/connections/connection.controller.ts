@@ -1,12 +1,22 @@
 import { Request, Response } from "express";
 import { HTTP_STATUS, RESPONSE_STATUS } from "~constants/http";
 import { ERROR_MESSAGES } from "../constants";
-import { formatErrorMessage } from "~utils/error.utils";
+import { formatErrorMessage, hasErrorCode } from "~utils/error.utils";
+import {
+  successResponse,
+  successMessageResponse,
+  detailedErrorResponse,
+  notFoundResponse,
+  simpleErrorResponse,
+  getErrorStatusCode,
+  validationErrorsResponse
+} from "~utils/response.utils";
 import { getStorage } from "../../../../storage/storage-instance";
 import type { CICDIntegrationRepository } from "~models/integrations/ci-cd/connection/connection.repository";
 import type { TenantCICDIntegration, UpdateCICDIntegrationDto, SafeCICDIntegration } from "~types/integrations/ci-cd/connection.interface";
 import { CICDProviderType } from "~types/integrations/ci-cd/connection.interface";
 import { getConnectionAdapter } from "./connection-adapter.utils";
+import { validateJenkinsUpdatePayload, validateGHAUpdatePayload } from "~middleware/validate-cicd";
 
 const toSafe = (integration: TenantCICDIntegration): SafeCICDIntegration => {
   const { apiToken, headerValue, ...rest } = integration;
@@ -29,12 +39,22 @@ export const getIntegrationById = async (req: Request, res: Response): Promise<a
     const integration = await repo.findById(integrationId);
     const notFoundOrMismatch = !integration || integration.tenantId !== tenantId;
     if (notFoundOrMismatch) {
-      return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND });
+      return res.status(HTTP_STATUS.NOT_FOUND).json(
+        detailedErrorResponse(
+          ERROR_MESSAGES.INTEGRATION_NOT_FOUND,
+          'integration_not_found',
+          ['The integration does not exist or does not belong to this tenant']
+        )
+      );
     }
-    return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, data: toSafe(integration) });
-  } catch (e: unknown) {
-    const message = formatErrorMessage(e, ERROR_MESSAGES.INTEGRATION_FETCH_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
+    return res.status(HTTP_STATUS.OK).json(
+      successResponse(toSafe(integration))
+    );
+  } catch (error) {
+    const message = formatErrorMessage(error, ERROR_MESSAGES.INTEGRATION_FETCH_FAILED);
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      detailedErrorResponse(message, 'internal_error', [message])
+    );
   }
 };
 
@@ -55,19 +75,60 @@ export const updateIntegrationById = async (req: Request, res: Response): Promis
     const existing = await repo.findById(integrationId);
     const notFoundOrMismatch = !existing || existing.tenantId !== tenantId;
     if (notFoundOrMismatch) {
-      return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND });
+      return res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse('CI/CD integration', 'integration_not_found')
+      );
     }
-    // Delegate update to provider adapter (which uses the appropriate service)
+    
+    // Validate request body based on provider type
+    // Validation must be done here (not in middleware) because provider type comes from DB
     const provider = existing.providerType;
+    if (provider === CICDProviderType.JENKINS) {
+      const validationResult = await validateJenkinsUpdatePayload(updateData);
+      if (validationResult.success === false) {
+        const errorsWithCode = validationResult.errors.map(err => ({ ...err, errorCode: 'validation_failed' }));
+        return res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorsResponse('Request validation failed', errorsWithCode)
+        );
+      }
+      // Use validated and trimmed data
+      Object.assign(updateData, validationResult.data);
+    } else if (provider === CICDProviderType.GITHUB_ACTIONS) {
+      const validationResult = await validateGHAUpdatePayload(updateData);
+      if (validationResult.success === false) {
+        const errorsWithCode = validationResult.errors.map(err => ({ ...err, errorCode: 'validation_failed' }));
+        return res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorsResponse('Request validation failed', errorsWithCode)
+        );
+      }
+      // Use validated and trimmed data
+      Object.assign(updateData, validationResult.data);
+    }
+    
+    // Delegate update to provider adapter (which uses the appropriate service)
     const adapter = getConnectionAdapter(provider);
     if (!adapter.update) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED });
+      return res.status(HTTP_STATUS.BAD_REQUEST).json(
+        detailedErrorResponse(
+          ERROR_MESSAGES.OPERATION_NOT_SUPPORTED,
+          'unsupported_operation',
+          ['This provider does not support updates']
+        )
+      );
     }
     const safe = await adapter.update(tenantId, updateData);
-    return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, data: safe });
+    return res.status(HTTP_STATUS.OK).json(
+      successResponse(safe)
+    );
   } catch (e: unknown) {
+    const errorCode = hasErrorCode(e) ? e.code : 'update_failed';
+    const statusCode = getErrorStatusCode(e);
     const message = formatErrorMessage(e, ERROR_MESSAGES.INTEGRATION_UPDATE_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
+    const details = hasErrorCode(e) && e.details ? e.details : [e instanceof Error ? e.message : 'Unknown error'];
+    
+    return res.status(statusCode).json(
+      detailedErrorResponse(message, errorCode, details)
+    );
   }
 };
 
@@ -92,24 +153,41 @@ export const deleteIntegrationById = async (req: Request, res: Response): Promis
     const existing = await repo.findById(integrationId);
     const notFoundOrMismatch = !existing || existing.tenantId !== tenantId;
     if (notFoundOrMismatch) {
-      return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND });
+      return res.status(HTTP_STATUS.NOT_FOUND).json(
+        detailedErrorResponse(
+          ERROR_MESSAGES.INTEGRATION_NOT_FOUND,
+          'integration_not_found',
+          ['The integration does not exist or does not belong to this tenant']
+        )
+      );
     }
 
     // Check if any workflows reference this integration
     const workflows = await workflowRepo.findAll({ integrationId });
     const hasWorkflows = workflows.length > 0;
     if (hasWorkflows) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-        success: RESPONSE_STATUS.FAILURE, 
-        error: ERROR_MESSAGES.INTEGRATION_HAS_WORKFLOWS 
-      });
+      return res.status(HTTP_STATUS.BAD_REQUEST).json(
+        detailedErrorResponse(
+          ERROR_MESSAGES.INTEGRATION_HAS_WORKFLOWS,
+          'integration_in_use',
+          [`Cannot delete integration with ${workflows.length} workflow(s) still using it`]
+        )
+      );
     }
 
     await repo.delete(integrationId);
-    return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS });
+    return res.status(HTTP_STATUS.OK).json(
+      successMessageResponse('Integration deleted successfully')
+    );
   } catch (e: unknown) {
     const message = formatErrorMessage(e, ERROR_MESSAGES.INTEGRATION_DELETE_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      detailedErrorResponse(
+        message,
+        'internal_error',
+        [e instanceof Error ? e.message : 'Unknown error']
+      )
+    );
   }
 };
 
@@ -118,22 +196,53 @@ export const deleteIntegrationById = async (req: Request, res: Response): Promis
  *
  * @param req Express request (expects params.providerType; body varies per provider)
  * @param res Express response
- * @returns 200 if valid, 401 if invalid, 400 if unsupported/malformed
+ * @returns 200 if valid, 400 if invalid, 400 if unsupported/malformed
  */
 export const verifyConnectionByProvider = async (req: Request, res: Response): Promise<any> => {
   try {
     const providerType = String(req.params.providerType || '').toUpperCase().replace('-', '_') as keyof typeof CICDProviderType;
     const provider = CICDProviderType[providerType] as CICDProviderType | undefined;
     if (!provider) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ verified: false, message: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED });
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        ...detailedErrorResponse(
+          ERROR_MESSAGES.OPERATION_NOT_SUPPORTED,
+          'unsupported_provider',
+          ['This provider type is not supported']
+        ),
+        verified: false
+      });
     }
+    
+    // Validation is handled by middleware (validateConnectionVerifyBody)
     const adapter = getConnectionAdapter(provider);
     const result = await adapter.verify(req.body || {});
-    const status = result.isValid ? HTTP_STATUS.OK : HTTP_STATUS.UNAUTHORIZED;
-    return res.status(status).json({ verified: result.isValid, message: result.message });
+    
+    if (result.success === true) {
+      return res.status(HTTP_STATUS.OK).json({
+        ...successResponse({ verified: true, ...(result.details && { details: result.details }) }),
+        message: result.message
+      });
+    }
+    
+    // TypeScript now knows: result.statusCode, result.errorCode, result.details exist
+    return res.status(result.statusCode).json({
+      ...detailedErrorResponse(
+        result.message,
+        result.errorCode,
+        result.details || []
+      ),
+      verified: false
+    });
   } catch (e: unknown) {
     const message = formatErrorMessage(e, ERROR_MESSAGES.FAILED_VERIFY_GHA);
-    return res.status(HTTP_STATUS.UNAUTHORIZED).json({ verified: false, message });
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      ...detailedErrorResponse(
+        message,
+        'verification_failed',
+        [e instanceof Error ? e.message : 'Unknown error']
+      ),
+      verified: false
+    });
   }
 };
 
@@ -151,14 +260,30 @@ export const createConnectionByProvider = async (req: Request, res: Response): P
     const providerType = String(req.params.providerType || '').toUpperCase().replace('-', '_') as keyof typeof CICDProviderType;
     const provider = CICDProviderType[providerType] as CICDProviderType | undefined;
     if (!provider) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED });
+      return res.status(HTTP_STATUS.BAD_REQUEST).json(
+        detailedErrorResponse(
+          ERROR_MESSAGES.OPERATION_NOT_SUPPORTED,
+          'unsupported_provider',
+          ['This provider type is not supported']
+        )
+      );
     }
+    
+    // Validation is handled by middleware (validateConnectionCreateBody)
     const adapter = getConnectionAdapter(provider);
     const created = await adapter.create(tenantId, accountId, req.body || {});
-    return res.status(HTTP_STATUS.CREATED).json({ success: RESPONSE_STATUS.SUCCESS, integration: created });
+    return res.status(HTTP_STATUS.CREATED).json(
+      successResponse({ integration: created })
+    );
   } catch (e: unknown) {
+    const errorCode = hasErrorCode(e) ? e.code : 'internal_error';
+    const statusCode = hasErrorCode(e) && e.statusCode ? e.statusCode : HTTP_STATUS.INTERNAL_SERVER_ERROR;
     const message = formatErrorMessage(e, ERROR_MESSAGES.FAILED_SAVE_GHA);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
+    const details = hasErrorCode(e) && e.details ? e.details : [e instanceof Error ? e.message : 'Unknown error'];
+    
+    return res.status(statusCode).json(
+      detailedErrorResponse(message, errorCode, details)
+    );
   }
 };
 

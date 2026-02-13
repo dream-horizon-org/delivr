@@ -13,19 +13,19 @@ import type {
   SlackChannel
 } from '~types/integrations/comm';
 import {
-  errorResponse,
   getErrorStatusCode,
-  notFoundResponse,
   successMessageResponse,
   successResponse,
-  validationErrorResponse
+  simpleErrorResponse,
+  notFoundResponse,
+  detailedErrorResponse,
+  buildValidationErrorResponse
 } from '~utils/response.utils';
+import { hasErrorCode } from '~utils/error.utils';
 import { COMM_CONFIG_ERROR_MESSAGES, COMM_CONFIG_SUCCESS_MESSAGES } from './comm-config.constants';
 import {
-  validateChannelsArray,
-  validateStageChannelMapping,
-  validateStageName,
-  validateUpdateAction
+  validateCreateConfig,
+  validateUpdateConfig
 } from './comm-config.validation';
 
 /**
@@ -38,28 +38,45 @@ const createConfigHandler = (service: CommConfigService) =>
       const { tenantId } = req.params;
       const { channelData } = req.body;
 
-      // Build DTO
-      const data: CreateChannelConfigDto = {
+      // Validate with Yup schema
+      const validationResult = await validateCreateConfig({
         tenantId,
-        channelData: channelData as StageChannelMapping
-      };
+        channelData
+      });
 
-      // Validate using service method
-      const validationResult = service.validateConfig(data);
-
-      // If validation failed, return structured validation response
-      if (!validationResult.isValid) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(validationResult);
+      // If validation failed, send error response
+      if (validationResult.success === false) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          buildValidationErrorResponse('Request validation failed', validationResult.errors)
+        );
         return;
       }
+
+      const validated = validationResult.data;
+
+      // Build DTO
+      const data: CreateChannelConfigDto = {
+        tenantId: validated.tenantId,
+        channelData: validated.channelData as StageChannelMapping
+      };
 
       const config = await service.createConfig(data);
 
       res.status(HTTP_STATUS.CREATED).json(successResponse(config));
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error('[Comm Config] Failed to create config:', error);
+
+      // Handle errors with proper status code
       const statusCode = getErrorStatusCode(error);
+      const errorCode = hasErrorCode(error) ? error.code : 'config_create_failed';
+      const errorMessage = error instanceof Error ? error.message : COMM_CONFIG_ERROR_MESSAGES.CREATE_CONFIG_FAILED;
+      
       res.status(statusCode).json(
-        errorResponse(error, COMM_CONFIG_ERROR_MESSAGES.CREATE_CONFIG_FAILED)
+        detailedErrorResponse(
+          errorMessage,
+          errorCode,
+          [errorMessage]
+        )
       );
     }
   };
@@ -75,17 +92,25 @@ const listConfigsHandler = (service: CommConfigService) =>
 
       if (!tenantId) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('tenantId', 'Tenant ID is required')
+          simpleErrorResponse('Tenant ID is required in request parameters', 'missing_tenant_id')
         );
         return;
       }
 
       const configs = await service.listConfigsByTenant(tenantId);
       res.status(HTTP_STATUS.OK).json(successResponse(configs));
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error('[Comm Config] Failed to list configs:', error);
       const statusCode = getErrorStatusCode(error);
+      const errorCode = hasErrorCode(error) ? error.code : 'config_fetch_failed';
+      const errorMessage = error instanceof Error ? error.message : COMM_CONFIG_ERROR_MESSAGES.FETCH_CONFIG_FAILED;
+      
       res.status(statusCode).json(
-        errorResponse(error, COMM_CONFIG_ERROR_MESSAGES.FETCH_CONFIG_FAILED)
+        detailedErrorResponse(
+          errorMessage,
+          errorCode,
+          [errorMessage]
+        )
       );
     }
   };
@@ -101,7 +126,7 @@ const getConfigHandler = (service: CommConfigService) =>
 
       if (!id) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('id', 'Configuration ID is required')
+          simpleErrorResponse('Configuration ID is required in request body', 'missing_config_id')
         );
         return;
       }
@@ -110,16 +135,24 @@ const getConfigHandler = (service: CommConfigService) =>
 
       if (!config) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
-          notFoundResponse('Channel configuration')
+          notFoundResponse('Channel configuration', 'config_not_found')
         );
         return;
       }
 
       res.status(HTTP_STATUS.OK).json(successResponse(config));
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error('[Comm Config] Failed to get config:', error);
       const statusCode = getErrorStatusCode(error);
+      const errorCode = hasErrorCode(error) ? error.code : 'config_fetch_failed';
+      const errorMessage = error instanceof Error ? error.message : COMM_CONFIG_ERROR_MESSAGES.FETCH_CONFIG_FAILED;
+      
       res.status(statusCode).json(
-        errorResponse(error, COMM_CONFIG_ERROR_MESSAGES.FETCH_CONFIG_FAILED)
+        detailedErrorResponse(
+          errorMessage,
+          errorCode,
+          [errorMessage]
+        )
       );
     }
   };
@@ -135,7 +168,7 @@ const deleteConfigHandler = (service: CommConfigService) =>
 
       if (!id) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('id', 'Configuration ID is required')
+          simpleErrorResponse('Configuration ID is required in request body', 'missing_config_id')
         );
         return;
       }
@@ -144,7 +177,7 @@ const deleteConfigHandler = (service: CommConfigService) =>
 
       if (!deleted) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
-          notFoundResponse('Channel configuration')
+          notFoundResponse('Channel configuration', 'config_not_found')
         );
         return;
       }
@@ -152,10 +185,18 @@ const deleteConfigHandler = (service: CommConfigService) =>
       res.status(HTTP_STATUS.OK).json(
         successMessageResponse(COMM_CONFIG_SUCCESS_MESSAGES.CONFIG_DELETED)
       );
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error('[Comm Config] Failed to delete config:', error);
       const statusCode = getErrorStatusCode(error);
+      const errorCode = hasErrorCode(error) ? error.code : 'config_delete_failed';
+      const errorMessage = error instanceof Error ? error.message : COMM_CONFIG_ERROR_MESSAGES.DELETE_CONFIG_FAILED;
+      
       res.status(statusCode).json(
-        errorResponse(error, COMM_CONFIG_ERROR_MESSAGES.DELETE_CONFIG_FAILED)
+        detailedErrorResponse(
+          errorMessage,
+          errorCode,
+          [errorMessage]
+        )
       );
     }
   };
@@ -169,58 +210,55 @@ const updateConfigHandler = (service: CommConfigService) =>
     try {
       const { id, stage, action, channels } = req.body;
 
-      if (!id) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('id', 'Configuration ID is required')
-        );
-        return;
-      }
-
-      const stageError = validateStageName(stage);
-      if (stageError) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('stage', stageError)
-        );
-        return;
-      }
-
-      const actionError = validateUpdateAction(action);
-      if (actionError) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('action', actionError)
-        );
-        return;
-      }
-
-      const channelsError = validateChannelsArray(channels);
-      if (channelsError) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('channels', channelsError)
-        );
-        return;
-      }
-
-      const data: UpdateStageChannelsDto = {
+      // Validate with Yup schema
+      const validationResult = await validateUpdateConfig({
         id,
         stage,
-        action: action as 'add' | 'remove',
-        channels: channels as SlackChannel[]
+        action,
+        channels
+      });
+
+      // If validation failed, send error response
+      if (validationResult.success === false) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          buildValidationErrorResponse('Request validation failed', validationResult.errors)
+        );
+        return;
+      }
+
+      const validated = validationResult.data;
+
+      const data: UpdateStageChannelsDto = {
+        id: validated.id,
+        stage: validated.stage,
+        action: validated.action as 'add' | 'remove',
+        channels: validated.channels as SlackChannel[]
       };
 
       const updatedConfig = await service.updateStageChannels(data);
 
       if (!updatedConfig) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
-          notFoundResponse('Channel configuration')
+          notFoundResponse('Channel configuration', 'config_not_found')
         );
         return;
       }
 
       res.status(HTTP_STATUS.OK).json(successResponse(updatedConfig));
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error('[Comm Config] Failed to update config:', error);
+
+      // Handle errors with proper status code
       const statusCode = getErrorStatusCode(error);
+      const errorCode = hasErrorCode(error) ? error.code : 'config_update_failed';
+      const errorMessage = error instanceof Error ? error.message : COMM_CONFIG_ERROR_MESSAGES.UPDATE_CONFIG_FAILED;
+      
       res.status(statusCode).json(
-        errorResponse(error, COMM_CONFIG_ERROR_MESSAGES.UPDATE_CONFIG_FAILED)
+        detailedErrorResponse(
+          errorMessage,
+          errorCode,
+          [errorMessage]
+        )
       );
     }
   };

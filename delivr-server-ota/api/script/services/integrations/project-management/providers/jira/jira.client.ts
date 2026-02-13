@@ -31,8 +31,17 @@ export class JiraClient {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`JIRA API Error: ${response.status} - ${errorText}`);
+      const errorText = await response.text().catch(() => 'Unknown error');
+      const status = response.status;
+
+      // Throw error with detailed status information for caller to handle
+      const error = new Error(`JIRA API Error: ${status} - ${errorText}`) as Error & { 
+        status?: number; 
+        responseText?: string;
+      };
+      error.status = status;
+      error.responseText = errorText;
+      throw error;
     }
 
     return (await response.json()) as T;
@@ -40,14 +49,85 @@ export class JiraClient {
 
   /**
    * Test connection
+   * Returns detailed error information for different HTTP status codes
    */
-  async testConnection(): Promise<void> {
+  async testConnection(): Promise<{ success: boolean; message: string; details?: any }> {
     try {
       await this.makeRequest('/myself', { method: 'GET' });
+      return {
+        success: true,
+        message: 'Successfully connected to Jira'
+      };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : JIRA_ERROR_MESSAGES.CONNECTION_FAILED;
-      throw new Error(errorMessage);
+      const status = error.status;
+      const errorText = error.responseText || error.message;
+
+      // Handle specific HTTP status codes
+      if (status === 401) {
+        return {
+          success: false,
+          message: 'Invalid Jira credentials or wrong base URL. Please verify your email, API token, and base URL are correct.',
+          details: {
+            errorCode: 'invalid_credentials',
+            message: 'Check: 1) Email matches your Jira account, 2) API token is valid (generate from Jira → Account Settings → Security → API Tokens), 3) Base URL matches your Jira instance'
+          }
+        };
+      }
+
+      if (status === 403) {
+        return {
+          success: false,
+          message: 'Jira credentials are valid but lack required permissions.',
+          details: {
+            errorCode: 'insufficient_permissions',
+            message: 'Ensure your Jira user has permission to access projects and create issues.'
+          }
+        };
+      }
+
+      if (status === 404) {
+        return {
+          success: false,
+          message: 'Jira instance not found. Please verify the base URL is correct.',
+          details: {
+            errorCode: 'instance_not_found',
+            message: 'For Cloud: https://yourcompany.atlassian.net, For Server: https://jira.yourcompany.com'
+          }
+        };
+      }
+
+      if (status >= 500 && status < 600) {
+        return {
+          success: false,
+          message: `Jira service temporarily unavailable (${status}). Please try again later.`,
+          details: {
+            errorCode: 'service_unavailable',
+            message: "Jira's servers are experiencing issues. This is not a credentials problem - retry in a few minutes."
+          }
+        };
+      }
+
+      // Network/timeout errors (no status code)
+      if (!status) {
+        return {
+          success: false,
+          message: 'Cannot connect to Jira. Please check the base URL and network connectivity.',
+          details: {
+            errorCode: 'network_error',
+            message: 'Verify the base URL is correct and accessible from your network.'
+          }
+        };
+      }
+
+      // Other errors
+      return {
+        success: false,
+        message: `Jira API error (${status}): ${errorText}`,
+        details: {
+          errorCode: 'api_error',
+          message: errorText
+        }
+      };
     }
   }
 

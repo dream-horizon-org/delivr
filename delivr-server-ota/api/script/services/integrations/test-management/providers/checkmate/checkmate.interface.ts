@@ -131,3 +131,14 @@ export type CheckmateSquadsResponse = {
   data: CheckmateSquad[];
 };
 
+/**
+ * Result object for metadata API operations
+ * Used for consistent error handling across all metadata endpoints
+ */
+export type CheckmateMetadataResult<T> = {
+  success: boolean;
+  data?: T;
+  message?: string;
+  statusCode?: number;
+};
+

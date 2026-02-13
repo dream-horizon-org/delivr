@@ -4,7 +4,19 @@ import { createJenkinsConnectionAdapter } from "./jenkins-connection-adapter.uti
 import { createGitHubActionsConnectionAdapter } from "./github-actions-connection-adapter.utils";
 import type { UpdateCICDIntegrationDto, SafeCICDIntegration } from "~types/integrations/ci-cd/connection.interface";
 
-export type VerifyResult = { isValid: boolean; message: string };
+export type VerifyResult = 
+  | { 
+      success: true; 
+      message: string;
+      details?: Record<string, unknown>;
+    }
+  | { 
+      success: false; 
+      message: string;
+      statusCode: number;
+      errorCode: string;
+      details?: string[];
+    };
 
 export type ConnectionAdapter = {
   verify: (body: Record<string, unknown>) => Promise<VerifyResult>;

@@ -4,6 +4,13 @@ import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "../constants";
 import { getStorage } from "../../../../storage/storage-instance";
 import { normalizePlatform, validateGitHubWorkflowUrl, validateJenkinsWorkflowUrl } from "../../../../services/integrations/ci-cd/utils/cicd.utils";
 import { formatErrorMessage } from "~utils/error.utils";
+import {
+  successResponse,
+  successMessageResponse,
+  detailedErrorResponse,
+  simpleErrorResponse,
+  notFoundResponse
+} from "~utils/response.utils";
 import type { CreateWorkflowDto, UpdateWorkflowDto, WorkflowType } from "~types/integrations/ci-cd/workflow.interface";
 import shortid = require("shortid");
 import { CICDProviderType } from "~types/integrations/ci-cd";
@@ -80,7 +87,9 @@ export const createWorkflow = async (req: Request, res: Response): Promise<any> 
    */
   const missingRequired = !body.providerType || !body.integrationId || !body.workflowUrl || !body.displayName || !body.platform || !body.workflowType;
   if (missingRequired) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_CREATE_REQUIRED });
+    return res.status(HTTP_STATUS.BAD_REQUEST).json(
+      simpleErrorResponse(ERROR_MESSAGES.WORKFLOW_CREATE_REQUIRED, 'missing_required_fields')
+    );
   }
 
   try {
@@ -88,7 +97,9 @@ export const createWorkflow = async (req: Request, res: Response): Promise<any> 
     const integration = await cicd.findById(body.integrationId);
     const invalidIntegration = !integration || integration.id !== body.integrationId;
     if (invalidIntegration || integration.tenantId !== tenantId || integration.providerType !== body.providerType) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_INTEGRATION_INVALID });
+      return res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse(ERROR_MESSAGES.WORKFLOW_INTEGRATION_INVALID, 'invalid_integration')
+      );
     }
 
     // Validate workflow URL based on provider type
@@ -100,14 +111,18 @@ export const createWorkflow = async (req: Request, res: Response): Promise<any> 
         validateGitHubWorkflowUrl(body.workflowUrl as string);
       } catch (validationError: unknown) {
         const errorMessage = validationError instanceof Error ? validationError.message : ERROR_MESSAGES.GHA_INVALID_WORKFLOW_URL;
-        return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: errorMessage });
+        return res.status(HTTP_STATUS.BAD_REQUEST).json(
+          simpleErrorResponse(errorMessage, 'invalid_workflow_url')
+        );
       }
     } else if (isJenkins) {
       try {
         validateJenkinsWorkflowUrl(body.workflowUrl as string);
       } catch (validationError: unknown) {
         const errorMessage = validationError instanceof Error ? validationError.message : ERROR_MESSAGES.JENKINS_INVALID_WORKFLOW_URL;
-        return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: errorMessage });
+        return res.status(HTTP_STATUS.BAD_REQUEST).json(
+          simpleErrorResponse(errorMessage, 'invalid_workflow_url')
+        );
       }
     }
 
@@ -121,14 +136,29 @@ export const createWorkflow = async (req: Request, res: Response): Promise<any> 
       );
       
       if (parameterValidationError) {
-        return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-          success: RESPONSE_STATUS.FAILURE, 
-          error: parameterValidationError 
-        });
+        return res.status(HTTP_STATUS.BAD_REQUEST).json(
+          simpleErrorResponse(parameterValidationError, 'invalid_parameters')
+        );
       }
     }
 
     const wfRepository = getWorkflowRepository();
+
+    // Check for duplicate workflow name within the tenant
+    const existingWorkflows = await wfRepository.findAll({ tenantId });
+    const duplicateName = existingWorkflows.some(
+      workflow => workflow.displayName.toLowerCase() === body.displayName?.toLowerCase()
+    );
+    
+    if (duplicateName) {
+      return res.status(HTTP_STATUS.CONFLICT).json(
+        detailedErrorResponse(
+          ERROR_MESSAGES.WORKFLOW_DUPLICATE_NAME,
+          'duplicate_workflow_name',
+          [`Workflow name "${body.displayName}" is already in use for this tenant. Please choose a different name.`]
+        )
+      );
+    }
 
     const createdWorkflow = await wfRepository.create({
       id: shortid.generate(),
@@ -144,13 +174,14 @@ export const createWorkflow = async (req: Request, res: Response): Promise<any> 
       createdByAccountId: accountId,
     });
 
-    return res.status(HTTP_STATUS.CREATED).json({ 
-      success: RESPONSE_STATUS.SUCCESS,
-      workflowId: createdWorkflow.id
-    });
-  } catch (e: unknown) {
-    const message = formatErrorMessage(e, ERROR_MESSAGES.WORKFLOW_CREATE_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
+    return res.status(HTTP_STATUS.CREATED).json(
+      successResponse({ workflowId: createdWorkflow.id })
+    );
+  } catch (error) {
+    const message = formatErrorMessage(error, ERROR_MESSAGES.WORKFLOW_CREATE_FAILED);
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse(message, 'workflow_create_failed')
+    );
   }
 };
 
@@ -170,10 +201,14 @@ export const listWorkflows = async (req: Request, res: Response): Promise<any> =
       platform: normalizePlatform(platform),
       workflowType: workflowType as any,
     });
-    return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, workflows: items });
-  } catch (e: unknown) {
-    const message = formatErrorMessage(e, ERROR_MESSAGES.WORKFLOW_LIST_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
+    return res.status(HTTP_STATUS.OK).json(
+      successResponse({ workflows: items })
+    );
+  } catch (error) {
+    const message = formatErrorMessage(error, ERROR_MESSAGES.WORKFLOW_LIST_FAILED);
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse(message, 'workflow_list_failed')
+    );
   }
 };
 
@@ -188,12 +223,18 @@ export const getWorkflowById = async (req: Request, res: Response): Promise<any>
     const item = await wfRepository.findById(id);
     const notFound = !item || item.tenantId !== tenantId;
     if (notFound) {
-      return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_NOT_FOUND });
+      return res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse('Workflow', 'workflow_not_found')
+      );
     }
-    return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, workflow: item });
-  } catch (e: unknown) {
-    const message = formatErrorMessage(e, ERROR_MESSAGES.WORKFLOW_FETCH_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
+    return res.status(HTTP_STATUS.OK).json(
+      successResponse({ workflow: item })
+    );
+  } catch (error) {
+    const message = formatErrorMessage(error, ERROR_MESSAGES.WORKFLOW_FETCH_FAILED);
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse(message, 'workflow_fetch_failed')
+    );
   }
 };
 
@@ -209,7 +250,9 @@ export const updateWorkflow = async (req: Request, res: Response): Promise<any> 
     const existing = await wfRepository.findById(id);
     const notFound = !existing || existing.tenantId !== tenantId;
     if (notFound) {
-      return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_NOT_FOUND });
+      return res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse('Workflow', 'workflow_not_found')
+      );
     }
 
     // Validate workflow URL based on provider type if being updated
@@ -224,14 +267,18 @@ export const updateWorkflow = async (req: Request, res: Response): Promise<any> 
           validateGitHubWorkflowUrl(body.workflowUrl as string);
         } catch (validationError: unknown) {
           const errorMessage = validationError instanceof Error ? validationError.message : ERROR_MESSAGES.GHA_INVALID_WORKFLOW_URL;
-          return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: errorMessage });
+          return res.status(HTTP_STATUS.BAD_REQUEST).json(
+            simpleErrorResponse(errorMessage, 'invalid_workflow_url')
+          );
         }
       } else if (isJenkins) {
         try {
           validateJenkinsWorkflowUrl(body.workflowUrl as string);
         } catch (validationError: unknown) {
           const errorMessage = validationError instanceof Error ? validationError.message : ERROR_MESSAGES.JENKINS_INVALID_WORKFLOW_URL;
-          return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: errorMessage });
+          return res.status(HTTP_STATUS.BAD_REQUEST).json(
+            simpleErrorResponse(errorMessage, 'invalid_workflow_url')
+          );
         }
       }
     }
@@ -247,18 +294,39 @@ export const updateWorkflow = async (req: Request, res: Response): Promise<any> 
       );
       
       if (parameterValidationError) {
-        return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-          success: RESPONSE_STATUS.FAILURE, 
-          error: parameterValidationError 
-        });
+        return res.status(HTTP_STATUS.BAD_REQUEST).json(
+          simpleErrorResponse(parameterValidationError, 'invalid_parameters')
+        );
+      }
+    }
+
+    // Check for duplicate workflow name if displayName is being updated
+    if (body.displayName !== undefined && body.displayName !== existing.displayName) {
+      const existingWorkflows = await wfRepository.findAll({ tenantId });
+      const duplicateName = existingWorkflows.some(
+        workflow => workflow.id !== id && workflow.displayName.toLowerCase() === body.displayName?.toLowerCase()
+      );
+      
+      if (duplicateName) {
+        return res.status(HTTP_STATUS.CONFLICT).json(
+          detailedErrorResponse(
+            ERROR_MESSAGES.WORKFLOW_DUPLICATE_NAME,
+            'duplicate_workflow_name',
+            [`Workflow name "${body.displayName}" is already in use for this tenant. Please choose a different name.`]
+          )
+        );
       }
     }
 
     const updated = await wfRepository.update(id, body);
-    return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, workflow: updated });
-  } catch (e: unknown) {
-    const message = formatErrorMessage(e, ERROR_MESSAGES.WORKFLOW_UPDATE_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
+    return res.status(HTTP_STATUS.OK).json(
+      successResponse({ workflow: updated })
+    );
+  } catch (error) {
+    const message = formatErrorMessage(error, ERROR_MESSAGES.WORKFLOW_UPDATE_FAILED);
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse(message, 'workflow_update_failed')
+    );
   }
 };
 
@@ -278,7 +346,9 @@ export const deleteWorkflow = async (req: Request, res: Response): Promise<any> 
     const existing = await wfRepository.findById(workflowId);
     const notFound = !existing || existing.tenantId !== tenantId;
     if (notFound) {
-      return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_NOT_FOUND });
+      return res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse('Workflow', 'workflow_not_found')
+      );
     }
 
     // Check if workflow is referenced by any config
@@ -289,17 +359,20 @@ export const deleteWorkflow = async (req: Request, res: Response): Promise<any> 
     });
 
     if (isWorkflowReferenced) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-        success: RESPONSE_STATUS.FAILURE, 
-        error: ERROR_MESSAGES.WORKFLOW_IN_USE_BY_CONFIG 
-      });
+      return res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse(ERROR_MESSAGES.WORKFLOW_IN_USE_BY_CONFIG, 'workflow_in_use')
+      );
     }
 
     await wfRepository.delete(workflowId);
-    return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, message: SUCCESS_MESSAGES.WORKFLOW_DELETED });
-  } catch (e: unknown) {
-    const message = formatErrorMessage(e, ERROR_MESSAGES.WORKFLOW_DELETE_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
+    return res.status(HTTP_STATUS.OK).json(
+      successMessageResponse(SUCCESS_MESSAGES.WORKFLOW_DELETED)
+    );
+  } catch (error) {
+    const message = formatErrorMessage(error, ERROR_MESSAGES.WORKFLOW_DELETE_FAILED);
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse(message, 'workflow_delete_failed')
+    );
   }
 };
 

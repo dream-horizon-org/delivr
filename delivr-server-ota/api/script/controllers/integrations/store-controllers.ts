@@ -31,6 +31,15 @@ import {
 import { HTTP_STATUS, RESPONSE_STATUS } from '../../constants/http';
 import { ERROR_MESSAGES, PLAY_STORE_UPLOAD_ERROR_MESSAGES, PLAY_STORE_UPLOAD_CONSTANTS } from '../../constants/store';
 import { getErrorMessage } from '../../utils/error.utils';
+import {
+  successResponse,
+  successMessageResponse,
+  simpleErrorResponse,
+  detailedErrorResponse,
+  notFoundResponse,
+  unauthorizedResponse,
+  forbiddenResponse
+} from '~utils/response.utils';
 import type { StoreIntegration } from '../../storage/integrations/store/store-types';
 import { ReleasePlatformTargetMappingRepository } from '~models/release/release-platform-target-mapping.repository';
 import { createPlatformTargetMappingModel } from '~models/release/platform-target-mapping.sequelize.model';
@@ -40,6 +49,36 @@ import { AndroidSubmissionBuildRepository } from '~models/distribution';
 import { DistributionRepository } from '~models/distribution';
 import { decryptIfEncrypted, encryptForStorage, decryptFromStorage } from '../../utils/encryption';
 import { BUILD_PLATFORM, STORE_TYPE } from '~types/release-management/builds/build.constants';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+/**
+ * Store Verification Result - Discriminated Union
+ * Similar to SCMVerifyResult pattern used in GitHub controller
+ */
+export type StoreVerifyResult = 
+  | { 
+      success: true; 
+      message: string;
+      details?: {
+        issuerId?: string;
+        keyId?: string;
+        appId?: string;
+        appIdentifier?: string;
+        accessibleAppsCount?: number;
+        projectId?: string;
+        clientEmail?: string;
+      };
+    }
+  | { 
+      success: false; 
+      message: string;
+      statusCode: number;
+      errorCode: string;
+      details?: string[];
+    };
 
 const isNonEmptyString = (value: unknown): value is string => {
   const isString = typeof value === 'string';
@@ -170,7 +209,7 @@ export const generateAppStoreConnectJWT = (
 
 const verifyAppStoreConnect = async (
   payload: AppStoreConnectPayload
-): Promise<{ isValid: boolean; message: string; details?: any }> => {
+): Promise<StoreVerifyResult> => {
   try {
     const { issuerId, keyId, targetAppId, appIdentifier } = payload;
     let { privateKeyPem } = payload;
@@ -183,14 +222,13 @@ const verifyAppStoreConnect = async (
       
       // Verify decryption worked (should now start with -----BEGIN)
       if (!decrypted.startsWith('-----BEGIN')) {
-        return {
-          isValid: false,
-          message: 'Failed to decrypt private key. Please check ENCRYPTION_KEY environment variable is set correctly on the backend.',
-          details: {
-            error: 'Decryption did not produce valid PEM format',
-            hint: 'Ensure ENCRYPTION_KEY matches between frontend and backend',
-          },
-        };
+      return {
+        success: false,
+        message: 'Failed to decrypt private key. Please check ENCRYPTION_KEY environment variable is set correctly on the backend.',
+        statusCode: 500,
+        errorCode: 'decryption_failed',
+        details: ['Decryption did not produce valid PEM format', 'Ensure ENCRYPTION_KEY matches between frontend and backend'],
+      };
       }
       
       privateKeyPem = decrypted;
@@ -204,13 +242,11 @@ const verifyAppStoreConnect = async (
 
     if (isIssuerIdMissing || isKeyIdMissing || isPrivateKeyMissing) {
       return {
-        isValid: false,
+        success: false,
         message: 'Missing required App Store Connect credentials (issuerId, keyId, or privateKeyPem)',
-        details: {
-          hasIssuerId: !isIssuerIdMissing,
-          hasKeyId: !isKeyIdMissing,
-          hasPrivateKey: !isPrivateKeyMissing,
-        },
+        statusCode: 400,
+        errorCode: 'missing_credentials',
+        details: ['Required credentials are missing'],
       };
     }
 
@@ -219,12 +255,11 @@ const verifyAppStoreConnect = async (
       console.error('[AppStore] Private key is not in PEM format after decryption');
       console.error('[AppStore] Key starts with:', privateKeyPem.substring(0, 50) + '...');
       return {
-        isValid: false,
+        success: false,
         message: 'Private key is not in valid PEM format. Ensure you are providing a valid .p8 private key from App Store Connect.',
-        details: {
-          error: 'Expected PEM format starting with -----BEGIN PRIVATE KEY-----',
-          received: privateKeyPem.substring(0, 50) + '...',
-        },
+        statusCode: 400,
+        errorCode: 'invalid_key_format',
+        details: ['Expected PEM format starting with -----BEGIN PRIVATE KEY-----'],
       };
     }
 
@@ -243,12 +278,11 @@ const verifyAppStoreConnect = async (
       const jwtErrorMessage = jwtError instanceof Error ? jwtError.message : 'Unknown JWT error';
       console.error('[AppStore] JWT generation failed:', jwtErrorMessage);
       return {
-        isValid: false,
+        success: false,
         message: `Failed to generate JWT token: ${jwtErrorMessage}`,
-        details: { 
-          error: jwtErrorMessage,
-          hint: 'Ensure the private key is a valid ES256 key from App Store Connect (.p8 file)'
-        },
+        statusCode: 500,
+        errorCode: 'jwt_generation_failed',
+        details: [jwtErrorMessage, 'Ensure the private key is a valid ES256 key from App Store Connect (.p8 file)'],
       };
     }
 
@@ -265,30 +299,50 @@ const verifyAppStoreConnect = async (
     });
 
     const responseStatus = response.status;
-    const isUnauthorized = responseStatus === 401;
-    const isForbidden = responseStatus === 403;
+      // Handle 401 - Invalid credentials
+      if (responseStatus === 401) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        return {
+          success: false,
+          message: 'Invalid App Store Connect credentials. Please verify your Issuer ID, Key ID, and Private Key are correct.',
+          statusCode: 401,
+          errorCode: 'invalid_credentials',
+          details: ['Credentials are incorrect. Generate new API keys from App Store Connect → Users and Access → Keys'],
+        };
+      }
 
-    if (isUnauthorized || isForbidden) {
+      // Handle 403 - Valid credentials but insufficient permissions
+      if (responseStatus === 403) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        return {
+          success: false,
+          message: 'App Store Connect credentials are valid but lack required permissions.',
+          statusCode: 403,
+          errorCode: 'insufficient_permissions',
+          details: ['Update the API key permissions in App Store Connect. Required: Admin or App Manager role with access to this app.'],
+        };
+      }
+
+      // Handle 5xx - Apple server errors
+    if (responseStatus >= 500 && responseStatus < 600) {
       const errorText = await response.text().catch(() => 'Unknown error');
       return {
-        isValid: false,
-        message: `App Store Connect authentication failed (${responseStatus}): Invalid credentials or insufficient permissions`,
-        details: {
-          status: responseStatus,
-          error: errorText,
-        },
+        success: false,
+        message: `App Store Connect service temporarily unavailable (${responseStatus}). Please try again later.`,
+        statusCode: 503,
+        errorCode: 'service_unavailable',
+        details: ['Apple\'s servers are experiencing issues. This is not a credentials problem - retry in a few minutes.'],
       };
     }
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
       return {
-        isValid: false,
+        success: false,
         message: `App Store Connect API error (${responseStatus}): ${errorText}`,
-        details: {
-          status: responseStatus,
-          error: errorText,
-        },
+        statusCode: responseStatus,
+        errorCode: 'api_error',
+        details: [errorText],
       };
     }
 
@@ -301,18 +355,17 @@ const verifyAppStoreConnect = async (
       const appExists = apps.some((app: any) => app.id === targetAppId);
       if (!appExists) {
         return {
-          isValid: false,
+          success: false,
           message: `App with ID ${targetAppId} not found or not accessible with these credentials`,
-          details: {
-            targetAppId,
-            accessibleAppsCount: apps.length,
-          },
+          statusCode: 404,
+          errorCode: 'app_not_found',
+          details: [`App with ID ${targetAppId} not found`, `Accessible apps count: ${apps.length}`],
         };
       }
     }
 
     return {
-      isValid: true,
+      success: true,
       message: 'App Store Connect credentials verified successfully',
       details: {
         issuerId,
@@ -327,12 +380,11 @@ const verifyAppStoreConnect = async (
     const errorStack = error instanceof Error ? error.stack : undefined;
     
     return {
-      isValid: false,
+      success: false,
       message: `App Store Connect verification failed: ${errorMessage}`,
-      details: {
-        error: errorMessage,
-        stack: errorStack,
-      },
+      statusCode: 503,
+      errorCode: 'network_error',
+      details: [errorMessage],
     };
   }
 };
@@ -347,7 +399,7 @@ const verifyAppStoreConnect = async (
 
 const verifyGooglePlayStore = async (
   payload: GooglePlayStorePayload
-): Promise<{ isValid: boolean; message: string; details?: any }> => {
+): Promise<StoreVerifyResult> => {
   try {
     const serviceAccountJson = payload.serviceAccountJson as any;
     const { appIdentifier } = payload;
@@ -356,10 +408,31 @@ const verifyGooglePlayStore = async (
     if (serviceAccountJson._encrypted && serviceAccountJson.private_key) {
       console.log('[PlayStore] Encrypted private_key detected, attempting decryption...');
       console.log('[PlayStore] Encrypted key length:', serviceAccountJson.private_key.length);
+      
       // Decrypt frontend-encrypted value (Layer 1)
       const decrypted = decryptIfEncrypted(serviceAccountJson.private_key, 'private_key');
-      console.log('[PlayStore] Decryption successful, decrypted key length:', decrypted.length);
+      console.log('[PlayStore] Decryption complete, decrypted key length:', decrypted.length);
+      console.log('[PlayStore] Decrypted key starts with:', decrypted.substring(0, 30) + '...');
+      
+      // Verify decryption worked (should start with -----BEGIN PRIVATE KEY-----)
+      if (!decrypted.startsWith('-----BEGIN')) {
+        console.error('[PlayStore] Decrypted key is not in PEM format');
+        console.error('[PlayStore] First 100 chars:', decrypted.substring(0, 100));
+        return {
+          success: false,
+          message: 'Failed to decrypt private key. The decrypted key is not in valid PEM format.',
+          statusCode: 500,
+          errorCode: 'decryption_failed',
+          details: [
+            'Decryption did not produce valid PEM format',
+            'Ensure ENCRYPTION_KEY matches between frontend and backend',
+            'Private key should start with -----BEGIN PRIVATE KEY-----'
+          ],
+        };
+      }
+      
       serviceAccountJson.private_key = decrypted;
+      console.log('[PlayStore] Private key decrypted and validated successfully');
       // Remove the encryption flag
       delete serviceAccountJson._encrypted;
     }
@@ -386,16 +459,11 @@ const verifyGooglePlayStore = async (
     if (isServiceAccountMissing || isAppIdentifierMissing || isTypeMissing || 
         isClientEmailMissing || isPrivateKeyMissing) {
       return {
-        isValid: false,
+        success: false,
         message: 'Missing required Google Play Store credentials (serviceAccountJson with type, client_email, private_key, or appIdentifier)',
-        details: {
-          hasServiceAccount: !isServiceAccountMissing,
-          hasAppIdentifier: !isAppIdentifierMissing,
-          hasType: !isTypeMissing,
-          hasClientEmail: !isClientEmailMissing,
-          hasPrivateKey: !isPrivateKeyMissing,
-          hasProjectId: !isProjectIdMissing,
-        },
+        statusCode: 400,
+        errorCode: 'missing_credentials',
+        details: ['Required credentials are missing'],
       };
     }
 
@@ -458,9 +526,11 @@ const verifyGooglePlayStore = async (
       
       if (tokenMissing) {
         return {
-          isValid: false,
+          success: false,
           message: 'Failed to obtain access token from Google service account',
-          details: { error: 'No access token returned' },
+          statusCode: 401,
+          errorCode: 'token_generation_failed',
+          details: ['No access token returned'],
         };
       }
       
@@ -469,9 +539,11 @@ const verifyGooglePlayStore = async (
       const authErrorMessage = authError instanceof Error ? authError.message : 'Unknown error';
       console.error('Google authentication failed: ', authErrorMessage);
       return {
-        isValid: false,
+        success: false,
         message: `Google authentication failed: ${authErrorMessage}`,
-        details: { error: authErrorMessage },
+        statusCode: 401,
+        errorCode: 'authentication_failed',
+        details: [authErrorMessage],
       };
     }
 
@@ -491,43 +563,61 @@ const verifyGooglePlayStore = async (
     });
 
     const responseStatus = response.status;
-    const isUnauthorized = responseStatus === 401;
-    const isForbidden = responseStatus === 403;
     const isNotFound = responseStatus === 404;
 
-    if (isUnauthorized || isForbidden) {
+    if (responseStatus === 401) {
       const errorText = await response.text().catch(() => 'Unknown error');
       return {
-        isValid: false,
-        message: `Google Play Store authentication failed (${responseStatus}): Invalid credentials or insufficient permissions`,
-        details: {
-          status: responseStatus,
-          error: errorText,
-        },
+        success: false,
+        message: 'Invalid Google Play Store credentials. Please verify your service account JSON is correct.',
+        statusCode: 401,
+        errorCode: 'invalid_credentials',
+        details: ['Service account credentials are incorrect. Verify: 1) JSON structure is valid, 2) private_key is correct, 3) client_email matches the service account'],
+      };
+    }
+    
+    // Handle 403 - Valid credentials but insufficient permissions
+    if (responseStatus === 403) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      return {
+        success: false,
+        message: 'Google Play Store credentials are valid but lack required permissions.',
+        statusCode: 403,
+        errorCode: 'insufficient_permissions',
+        details: ['Grant access to the service account in Google Play Console → Settings → API Access → Link service account. Required permission: View app information and download bulk reports (read-only) or Admin (full access)'],
       };
     }
 
     if (isNotFound) {
       return {
-        isValid: false,
+        success: false,
         message: `App with package name ${appIdentifier} not found or not accessible with these credentials. Please verify: 1) App exists in Google Play Console, 2) Service account has been granted access in Play Console > Settings > API Access, 3) Package name matches exactly`,
-        details: {
-          appIdentifier,
-          status: responseStatus,
-          hint: 'Check Google Play Console > Settings > API Access to ensure service account is linked',
-        },
+        statusCode: 404,
+        errorCode: 'app_not_found',
+        details: ['Check Google Play Console > Settings > API Access to ensure service account is linked'],
       };
     }
 
+
+    if (responseStatus >= 500 && responseStatus < 600) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      return {
+        success: false,
+        message: `Google Play Developer API temporarily unavailable (${responseStatus}). Please try again later.`,
+        statusCode: 503,
+        errorCode: 'service_unavailable',
+        details: ['Google\'s servers are experiencing issues. This is not a credentials problem - retry in a few minutes.'],
+      };
+    }
+    
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
       return {
-        isValid: false,
+        success: false,
         message: `Google Play Developer API error (${responseStatus}): ${errorText}`,
-        details: {
-          status: responseStatus,
-          error: errorText,
-        },
+        statusCode: responseStatus,
+        errorCode: 'api_error',
+        details: [errorText],
       };
     }
 
@@ -545,14 +635,14 @@ const verifyGooglePlayStore = async (
             'Authorization': `Bearer ${accessToken}`,
           },
         });
-      } catch (deleteError) {
+      } catch (deleteError: unknown) {
         // Ignore delete errors - edit will expire automatically
         console.warn('Failed to delete temporary edit, it will expire automatically');
       }
     }
     
     return {
-      isValid: true,
+      success: true,
       message: 'Google Play Store credentials verified successfully',
       details: {
         appIdentifier,
@@ -565,12 +655,11 @@ const verifyGooglePlayStore = async (
     const errorStack = error instanceof Error ? error.stack : undefined;
     
     return {
-      isValid: false,
+      success: false,
       message: `Google Play Store verification failed: ${errorMessage}`,
-      details: {
-        error: errorMessage,
-        stack: errorStack,
-      },
+      statusCode: 503,
+      errorCode: 'network_error',
+      details: [errorMessage],
     };
   }
 };
@@ -588,7 +677,7 @@ export const verifyStore = async (req: Request, res: Response): Promise<void> =>
     const isAppStore = mappedStoreType === StoreType.APP_STORE || mappedStoreType === StoreType.TESTFLIGHT;
     const isPlayStore = mappedStoreType === StoreType.PLAY_STORE;
 
-    let verificationResult: { isValid: boolean; message: string; details?: any };
+    let verificationResult: StoreVerifyResult;
 
     if (isAppStore) {
       const appStorePayload = payload as AppStoreConnectPayload;
@@ -598,28 +687,39 @@ export const verifyStore = async (req: Request, res: Response): Promise<void> =>
       verificationResult = await verifyGooglePlayStore(playStorePayload);
     } else {
       res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
-        verified: false,
-        error: ERROR_MESSAGES.INVALID_STORE_TYPE,
+        ...detailedErrorResponse(
+          ERROR_MESSAGES.INVALID_STORE_TYPE,
+          'invalid_store_type',
+          ['Store type must be APP_STORE, TESTFLIGHT, or PLAY_STORE']
+        ),
+        verified: false
       });
       return;
     }
 
-    const isVerified = verificationResult.isValid;
-    const statusCode = isVerified ? HTTP_STATUS.OK : HTTP_STATUS.UNAUTHORIZED;
+    if (verificationResult.success === false) {
+      res.status(verificationResult.statusCode).json({
+        ...detailedErrorResponse(
+          verificationResult.message,
+          verificationResult.errorCode,
+          verificationResult.details || [verificationResult.message]
+        ),
+        verified: false
+      });
+      return;
+    }
 
-    res.status(statusCode).json({
-      success: isVerified ? RESPONSE_STATUS.SUCCESS : RESPONSE_STATUS.FAILURE,
-      verified: isVerified,
-      message: verificationResult.message,
-      details: verificationResult.details,
+    res.status(HTTP_STATUS.OK).json({
+      ...successResponse(verificationResult.details || {}),
+      verified: true,
+      message: verificationResult.message
     });
-  } catch (error) {
+  } catch (error: unknown) {
     const message = getErrorMessage(error, ERROR_MESSAGES.VERIFICATION_FAILED);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: RESPONSE_STATUS.FAILURE,
-      verified: false,
-      error: message,
+      ...detailedErrorResponse(message, 'internal_error', [errorMessage]),
+      verified: false
     });
   }
 };
@@ -652,7 +752,7 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
     const isAppStoreType = mappedStoreType === StoreType.APP_STORE || mappedStoreType === StoreType.TESTFLIGHT;
     const isPlayStoreType = mappedStoreType === StoreType.PLAY_STORE;
 
-    let verificationResult: { isValid: boolean; message: string; details?: any };
+    let verificationResult: StoreVerifyResult;
 
     if (isAppStoreType) {
       const appStorePayload = payload as AppStoreConnectPayload;
@@ -661,20 +761,24 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
       const playStorePayload = payload as GooglePlayStorePayload;
       verificationResult = await verifyGooglePlayStore(playStorePayload);
     } else {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: ERROR_MESSAGES.INVALID_STORE_TYPE,
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        detailedErrorResponse(
+          ERROR_MESSAGES.INVALID_STORE_TYPE,
+          'invalid_store_type',
+          ['Store type must be APP_STORE, TESTFLIGHT, or PLAY_STORE']
+        )
+      );
       return;
     }
 
-    const isVerified = verificationResult.isValid;
-    if (!isVerified) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: `Verification failed: ${verificationResult.message}`,
-        details: verificationResult.details,
-      });
+    if (verificationResult.success === false) {
+      res.status(verificationResult.statusCode).json(
+        detailedErrorResponse(
+          `Verification failed: ${verificationResult.message}`,
+          verificationResult.errorCode,
+          verificationResult.details || [verificationResult.message]
+        )
+      );
       return;
     }
 
@@ -702,10 +806,13 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
         
         if (!trackIsValid) {
           const errorMessage = getInvalidTrackErrorMessage(mappedStoreType, mappedTrack);
-          res.status(HTTP_STATUS.BAD_REQUEST).json({
-            success: RESPONSE_STATUS.FAILURE,
-            error: errorMessage,
-          });
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            detailedErrorResponse(
+              errorMessage,
+              'invalid_track',
+              ['The specified track is not valid for this store type']
+            )
+          );
           return;
         }
       }
@@ -727,10 +834,13 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
 
       const updateFailed = !updatedIntegration;
       if (updateFailed) {
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-          success: RESPONSE_STATUS.FAILURE,
-          error: ERROR_MESSAGES.INTEGRATION_UPDATE_FAILED,
-        });
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+          detailedErrorResponse(
+            ERROR_MESSAGES.INTEGRATION_UPDATE_FAILED,
+            'update_failed',
+            ['Failed to update integration in database']
+          )
+        );
         return;
       }
 
@@ -752,10 +862,13 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
         
         if (!trackIsValid) {
           const errorMessage = getInvalidTrackErrorMessage(mappedStoreType, mappedTrack);
-          res.status(HTTP_STATUS.BAD_REQUEST).json({
-            success: RESPONSE_STATUS.FAILURE,
-            error: errorMessage,
-          });
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            detailedErrorResponse(
+              errorMessage,
+              'invalid_track',
+              ['The specified track is not valid for this store type']
+            )
+          );
           return;
         }
       }
@@ -782,17 +895,6 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
 
       // Update status to VERIFIED since verification passed
       await integrationController.updateStatus(integrationId, IntegrationStatus.VERIFIED);
-
-      const createFailed = !newIntegration;
-      if (createFailed) {
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-          success: RESPONSE_STATUS.FAILURE,
-          error: ERROR_MESSAGES.INTEGRATION_CREATE_FAILED,
-        });
-        return;
-      }
-
-      integrationId = newIntegration.id;
     }
 
     // Create credentials based on store type
@@ -856,16 +958,12 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
       status: IntegrationStatus.VERIFIED,
     };
 
-    res.status(HTTP_STATUS.CREATED).json({
-      success: RESPONSE_STATUS.SUCCESS,
-      data: response,
-    });
-  } catch (error) {
+    res.status(HTTP_STATUS.CREATED).json(successResponse(response));
+  } catch (error: unknown) {
     const message = getErrorMessage(error, ERROR_MESSAGES.INTEGRATION_CREATE_FAILED);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: RESPONSE_STATUS.FAILURE,
-      error: message,
-    });
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse(message, 'integration_create_failed')
+    );
   }
 };
 
@@ -887,24 +985,21 @@ export const patchStoreIntegration = async (req: Request, res: Response): Promis
 
     const integrationNotFound = !existingIntegration;
     if (integrationNotFound) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND,
-      });
+      res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse('Store integration', 'integration_not_found')
+      );
       return;
     }
 
     // If payload is empty or not provided, return success (no changes)
     const isPayloadEmpty = !payload || Object.keys(payload).length === 0;
     if (isPayloadEmpty) {
-      res.status(HTTP_STATUS.OK).json({
-        success: RESPONSE_STATUS.SUCCESS,
-        data: {
+      res.status(HTTP_STATUS.OK).json(
+        successResponse({
           integrationId: existingIntegration.id,
           status: existingIntegration.status,
-        },
-        message: 'No changes provided. Integration unchanged.',
-      });
+        }, 'No changes provided. Integration unchanged.')
+      );
       return;
     }
 
@@ -916,10 +1011,12 @@ export const patchStoreIntegration = async (req: Request, res: Response): Promis
     const existingCredential = await credentialController.findByIntegrationId(existingIntegration.id);
 
     if (!existingCredential) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: 'No existing credentials found for this integration. Use PUT /integrations/store/connect to create credentials.',
-      });
+      res.status(HTTP_STATUS.NOT_FOUND).json(
+        simpleErrorResponse(
+          'No existing credentials found for this integration. Use PUT /integrations/store/connect to create credentials.',
+          'credentials_not_found'
+        )
+      );
       return;
     }
 
@@ -936,11 +1033,10 @@ export const patchStoreIntegration = async (req: Request, res: Response): Promis
       }
       
       existingCredentialData = JSON.parse(decryptedPayload);
-    } catch (error) {
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: 'Failed to decrypt or parse existing credentials',
-      });
+    } catch (error: unknown) {
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+        simpleErrorResponse('Failed to decrypt or parse existing credentials', 'decryption_failed')
+      );
       return;
     }
 
@@ -963,10 +1059,9 @@ export const patchStoreIntegration = async (req: Request, res: Response): Promis
       
       if (!trackIsValid) {
         const errorMessage = getInvalidTrackErrorMessage(existingIntegration.storeType, defaultTrackValue);
-        res.status(HTTP_STATUS.BAD_REQUEST).json({
-          success: RESPONSE_STATUS.FAILURE,
-          error: errorMessage,
-        });
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          simpleErrorResponse(errorMessage, 'invalid_track')
+        );
         return;
       }
       
@@ -1025,15 +1120,14 @@ export const patchStoreIntegration = async (req: Request, res: Response): Promis
     }
 
     // If verification fails, return error WITHOUT saving anything
-    if (!verificationResult || !verificationResult.isValid) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: 'Verification failed',
-        details: {
-          message: verificationResult?.message,
-          ...verificationResult?.details,
-        },
-      });
+    if (!verificationResult || !verificationResult.success) {
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        detailedErrorResponse(
+          'Verification failed',
+          verificationResult?.details?.errorCode || 'verification_failed',
+          [verificationResult?.message || 'Unknown error']
+        )
+      );
       return;
     }
 
@@ -1059,10 +1153,9 @@ export const patchStoreIntegration = async (req: Request, res: Response): Promis
     
     const updateFailed = !updatedIntegration;
     if (updateFailed) {
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: ERROR_MESSAGES.INTEGRATION_UPDATE_FAILED,
-      });
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+        simpleErrorResponse(ERROR_MESSAGES.INTEGRATION_UPDATE_FAILED, 'update_failed')
+      );
       return;
     }
 
@@ -1079,20 +1172,17 @@ export const patchStoreIntegration = async (req: Request, res: Response): Promis
     });
 
     // STEP 6: Return success
-    res.status(HTTP_STATUS.OK).json({
-      success: RESPONSE_STATUS.SUCCESS,
-      data: {
+    res.status(HTTP_STATUS.OK).json(
+      successResponse({
         integrationId: updatedIntegration.id,
         status: updatedIntegration.status,
-      },
-      message: 'Store integration updated successfully',
-    });
-  } catch (error) {
+      }, 'Store integration updated successfully')
+    );
+  } catch (error: unknown) {
     const message = getErrorMessage(error, ERROR_MESSAGES.INTEGRATION_UPDATE_FAILED);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: RESPONSE_STATUS.FAILURE,
-      error: message,
-    });
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse(message, 'integration_update_failed')
+    );
   }
 };
 
@@ -1121,10 +1211,12 @@ export const getPlatformStoreTypes = async (
     
     const isPlatformMissing = !platform;
     if (isPlatformMissing) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: 'platform query parameter is required (e.g., ?platform=ANDROID or ?platform=ANDROID,IOS)',
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse(
+          'platform query parameter is required (e.g., ?platform=ANDROID or ?platform=ANDROID,IOS)',
+          'missing_platform'
+        )
+      );
       return;
     }
 
@@ -1136,19 +1228,20 @@ export const getPlatformStoreTypes = async (
     } else if (typeof platform === 'string') {
       platforms = platform.split(',').map(p => p.trim());
     } else {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: 'platform must be a string or array (e.g., ?platform=ANDROID,IOS)',
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse(
+          'platform must be a string or array (e.g., ?platform=ANDROID,IOS)',
+          'invalid_platform_format'
+        )
+      );
       return;
     }
 
     const isPlatformsEmpty = platforms.length === 0;
     if (isPlatformsEmpty) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: 'At least one platform is required',
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse('At least one platform is required', 'empty_platforms')
+      );
       return;
     }
 
@@ -1159,10 +1252,12 @@ export const getPlatformStoreTypes = async (
     
     const hasInvalidPlatforms = invalidPlatforms.length > 0;
     if (hasInvalidPlatforms) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: `Invalid platform(s): ${invalidPlatforms.join(', ')}. Must be one of: ANDROID, IOS`,
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse(
+          `Invalid platform(s): ${invalidPlatforms.join(', ')}. Must be one of: ANDROID, IOS`,
+          'invalid_platforms'
+        )
+      );
       return;
     }
 
@@ -1171,10 +1266,9 @@ export const getPlatformStoreTypes = async (
     const modelsMissing = !models;
     
     if (modelsMissing) {
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: 'Database models not initialized',
-      });
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+        simpleErrorResponse('Database models not initialized', 'db_not_initialized')
+      );
       return;
     }
 
@@ -1182,10 +1276,9 @@ export const getPlatformStoreTypes = async (
     const modelMissing = !PlatformStoreMapping;
     
     if (modelMissing) {
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: 'PlatformStoreMapping model not found',
-      });
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+        simpleErrorResponse('PlatformStoreMapping model not found', 'model_not_found')
+      );
       return;
     }
 
@@ -1198,10 +1291,12 @@ export const getPlatformStoreTypes = async (
 
     const mappingsFound = mappings.length > 0;
     if (!mappingsFound) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: `No store type mappings found for platforms: ${normalizedPlatforms.join(', ')}`,
-      });
+      res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse(
+          `Store type mappings for platforms: ${normalizedPlatforms.join(', ')}`,
+          'mappings_not_found'
+        )
+      );
       return;
     }
 
@@ -1217,16 +1312,12 @@ export const getPlatformStoreTypes = async (
       return platformOrder[a.platform] - platformOrder[b.platform];
     });
 
-    res.status(HTTP_STATUS.OK).json({
-      success: RESPONSE_STATUS.SUCCESS,
-      data: responseData,
-    });
-  } catch (error) {
+    res.status(HTTP_STATUS.OK).json(successResponse(responseData));
+  } catch (error: unknown) {
     const message = getErrorMessage(error, 'Failed to get platform store types');
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: RESPONSE_STATUS.FAILURE,
-      error: message,
-    });
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse(message, 'fetch_platform_types_failed')
+    );
   }
 };
 
@@ -1267,10 +1358,9 @@ export const getStoreIntegrationsByTenant = async (
     
     const isTenantIdMissing = !tenantId || typeof tenantId !== 'string';
     if (isTenantIdMissing) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: ERROR_MESSAGES.TENANT_ID_REQUIRED,
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse(ERROR_MESSAGES.TENANT_ID_REQUIRED, 'tenant_id_required')
+      );
       return;
     }
 
@@ -1341,16 +1431,12 @@ export const getStoreIntegrationsByTenant = async (
       responseData.ANDROID = groupedByPlatform.ANDROID;
     }
 
-    res.status(HTTP_STATUS.OK).json({
-      success: RESPONSE_STATUS.SUCCESS,
-      data: responseData,
-    });
-  } catch (error) {
+    res.status(HTTP_STATUS.OK).json(successResponse(responseData));
+  } catch (error: unknown) {
     const message = getErrorMessage(error, 'Failed to get store integrations by tenant');
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: RESPONSE_STATUS.FAILURE,
-      error: message,
-    });
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse(message, 'fetch_integrations_failed')
+    );
   }
 };
 
@@ -1383,28 +1469,28 @@ export const revokeStoreIntegrations = async (
     
     const isTenantIdMissing = !tenantId || typeof tenantId !== 'string';
     if (isTenantIdMissing) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: ERROR_MESSAGES.TENANT_ID_REQUIRED,
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse(ERROR_MESSAGES.TENANT_ID_REQUIRED, 'tenant_id_required')
+      );
       return;
     }
 
     const isStoreTypeMissing = !storeType || typeof storeType !== 'string';
     if (isStoreTypeMissing) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: ERROR_MESSAGES.STORE_TYPE_REQUIRED,
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse(ERROR_MESSAGES.STORE_TYPE_REQUIRED, 'store_type_required')
+      );
       return;
     }
 
     const isPlatformMissing = !platform || typeof platform !== 'string';
     if (isPlatformMissing) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: 'platform query parameter is required (e.g., ?platform=ANDROID or ?platform=IOS)',
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse(
+          'platform query parameter is required (e.g., ?platform=ANDROID or ?platform=IOS)',
+          'platform_required'
+        )
+      );
       return;
     }
 
@@ -1414,10 +1500,12 @@ export const revokeStoreIntegrations = async (
     
     const isValidPlatform = platformUpper === 'ANDROID' || platformUpper === 'IOS';
     if (!isValidPlatform) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: 'platform must be either ANDROID or IOS (case-insensitive)',
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse(
+          'platform must be either ANDROID or IOS (case-insensitive)',
+          'invalid_platform'
+        )
+      );
       return;
     }
 
@@ -1433,10 +1521,12 @@ export const revokeStoreIntegrations = async (
 
     const noIntegrationsFound = integrations.length === 0;
     if (noIntegrationsFound) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: `No store integrations found for tenantId: ${tenantId}, storeType: ${mappedStoreType}, platform: ${platformUpper}`,
-      });
+      res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse(
+          `Store integrations for tenant ${tenantId}, store ${mappedStoreType}, platform ${platformUpper}`,
+          'integrations_not_found'
+        )
+      );
       return;
     }
 
@@ -1462,27 +1552,23 @@ export const revokeStoreIntegrations = async (
     const deletedCount = deletedIntegrations.length;
     const deleteFailed = deletedCount === 0;
     if (deleteFailed) {
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: 'Failed to delete store integrations',
-      });
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+        simpleErrorResponse('Failed to delete store integrations', 'delete_failed')
+      );
       return;
     }
 
-    res.status(HTTP_STATUS.OK).json({
-      success: RESPONSE_STATUS.SUCCESS,
-      data: {
+    res.status(HTTP_STATUS.OK).json(
+      successResponse({
         deletedCount,
         integrations: deletedIntegrations,
-      },
-      message: `Successfully deleted ${deletedCount} store integration(s)`,
-    });
-  } catch (error) {
+      }, `Successfully deleted ${deletedCount} store integration(s)`)
+    );
+  } catch (error: unknown) {
     const message = getErrorMessage(error, 'Failed to delete store integrations');
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: RESPONSE_STATUS.FAILURE,
-      error: message,
-    });
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse(message, 'delete_integrations_failed')
+    );
   }
 };
 
@@ -1521,10 +1607,9 @@ export const getStoreIntegrationById = async (
     
     const isIntegrationIdMissing = !integrationId || typeof integrationId !== 'string';
     if (isIntegrationIdMissing) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: 'integrationId is required in path parameters',
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse('integrationId is required in path parameters', 'integration_id_required')
+      );
       return;
     }
 
@@ -1535,10 +1620,9 @@ export const getStoreIntegrationById = async (
 
     const integrationNotFound = !integration;
     if (integrationNotFound) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND,
-      });
+      res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse('Store integration', 'integration_not_found')
+      );
       return;
     }
 
@@ -1560,16 +1644,12 @@ export const getStoreIntegrationById = async (
       updatedAt: integration.updatedAt,
     };
 
-    res.status(HTTP_STATUS.OK).json({
-      success: RESPONSE_STATUS.SUCCESS,
-      data: responseData,
-    });
-  } catch (error) {
+    res.status(HTTP_STATUS.OK).json(successResponse(responseData));
+  } catch (error: unknown) {
     const message = getErrorMessage(error, 'Failed to get store integration');
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: RESPONSE_STATUS.FAILURE,
-      error: message,
-    });
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse(message, 'fetch_integration_failed')
+    );
   }
 };
 
@@ -1600,7 +1680,7 @@ const getGoogleAuthClientFromIntegration = async (
       // Fallback: treat as string and try to decrypt
       decryptedPayload = decryptFromStorage(String(buffer));
     }
-  } catch (readError) {
+  } catch (readError: unknown) {
     throw new Error('Failed to decrypt existing credentials');
   }
 
@@ -1608,7 +1688,7 @@ const getGoogleAuthClientFromIntegration = async (
   let credentialData: any;
   try {
     credentialData = JSON.parse(decryptedPayload);
-  } catch (parseError) {
+  } catch (parseError: unknown) {
     throw new Error('Failed to parse existing credential data');
   }
 
@@ -1923,7 +2003,7 @@ export const uploadAabToPlayStoreInternal = async (
       packageName,
       versionName,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     // Clean up: Delete edit if it was created
     console.log('Deleting the edit with editId', editId);
     try {
@@ -1934,7 +2014,7 @@ export const uploadAabToPlayStoreInternal = async (
           'Authorization': `Bearer ${accessToken}`,
         },
       });
-    } catch (deleteError) {
+    } catch (deleteError: unknown) {
       // Ignore delete errors - edit will expire automatically
       console.warn('Failed to delete edit after error, it will expire automatically');
     }
@@ -1953,10 +2033,9 @@ export const uploadAabToPlayStore = async (req: Request, res: Response): Promise
     const aabFileMissing = !aabFile || !aabFile.buffer;
     
     if (aabFileMissing) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: PLAY_STORE_UPLOAD_ERROR_MESSAGES.AAB_FILE_REQUIRED,
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse(PLAY_STORE_UPLOAD_ERROR_MESSAGES.AAB_FILE_REQUIRED, 'aab_file_required')
+      );
       return;
     }
 
@@ -1979,17 +2058,14 @@ export const uploadAabToPlayStore = async (req: Request, res: Response): Promise
       releaseNotes
     );
 
-    res.status(HTTP_STATUS.OK).json({
-      success: RESPONSE_STATUS.SUCCESS,
-      data: result,
-      message: 'AAB uploaded to Play Store Internal track successfully',
-    });
-  } catch (error) {
+    res.status(HTTP_STATUS.OK).json(
+      successResponse(result, 'AAB uploaded to Play Store Internal track successfully')
+    );
+  } catch (error: unknown) {
     const message = getErrorMessage(error, PLAY_STORE_UPLOAD_ERROR_MESSAGES.PLAY_STORE_UPLOAD_FAILED);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: RESPONSE_STATUS.FAILURE,
-      error: message,
-    });
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse(message, 'play_store_upload_failed')
+    );
   }
 };
 
@@ -2011,10 +2087,12 @@ export const getPlayStoreListings = async (req: Request, res: Response): Promise
     const isAndroid = platformUpper === BUILD_PLATFORM.ANDROID;
 
     if (!isPlayStore || !isAndroid) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: `storeType must be "play_store" (${STORE_TYPE.PLAY_STORE}) and platform must be "${BUILD_PLATFORM.ANDROID}"`,
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse(
+          `storeType must be "play_store" (${STORE_TYPE.PLAY_STORE}) and platform must be "${BUILD_PLATFORM.ANDROID}"`,
+          'invalid_store_or_platform'
+        )
+      );
       return;
     }
 
@@ -2027,10 +2105,9 @@ export const getPlayStoreListings = async (req: Request, res: Response): Promise
     });
 
     if (integrations.length === 0) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: PLAY_STORE_UPLOAD_ERROR_MESSAGES.INTEGRATION_NOT_FOUND_FOR_UPLOAD,
-      });
+      res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse('Play Store integration', 'integration_not_found')
+      );
       return;
     }
 
@@ -2094,16 +2171,13 @@ export const getPlayStoreListings = async (req: Request, res: Response): Promise
         headers: {
           'Authorization': `Bearer ${accessToken}`,
         },
-      }).catch(() => {
+      }).catch((_error: unknown) => {
         // Ignore delete errors - edit will expire automatically
         console.warn('Failed to delete edit, it will expire automatically');
       });
 
-      res.status(HTTP_STATUS.OK).json({
-        success: RESPONSE_STATUS.SUCCESS,
-        data: listingsData,
-      });
-    } catch (error) {
+      res.status(HTTP_STATUS.OK).json(successResponse(listingsData));
+    } catch (error: unknown) {
       // Clean up edit on error
       try {
         const deleteEditUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editId}`;
@@ -2113,18 +2187,17 @@ export const getPlayStoreListings = async (req: Request, res: Response): Promise
             'Authorization': `Bearer ${accessToken}`,
           },
         });
-      } catch (deleteError) {
+      } catch (deleteError: unknown) {
         // Ignore delete errors
         console.warn('Failed to delete edit after error, it will expire automatically');
       }
       throw error;
     }
-  } catch (error) {
+  } catch (error: unknown) {
     const message = getErrorMessage(error, 'Failed to get Play Store listings');
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: RESPONSE_STATUS.FAILURE,
-      error: message,
-    });
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse(message, 'fetch_listings_failed')
+    );
   }
 };
 
@@ -2151,10 +2224,12 @@ export const getPlayStoreProductionState = async (req: Request, res: Response): 
     const isAndroid = platformUpper === BUILD_PLATFORM.ANDROID;
     
     if (!isPlayStore || !isAndroid) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: `storeType must be "play_store" and platform must be "${BUILD_PLATFORM.ANDROID}"`,
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse(
+          `storeType must be "play_store" and platform must be "${BUILD_PLATFORM.ANDROID}"`,
+          'invalid_store_or_platform'
+        )
+      );
       return;
     }
 
@@ -2173,10 +2248,9 @@ export const getPlayStoreProductionState = async (req: Request, res: Response): 
     
     const submission = await androidSubmissionRepo.findById(submissionId);
     if (!submission) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: `Android submission not found for submissionId: ${submissionId}`,
-      });
+      res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse(`Android submission ${submissionId}`, 'submission_not_found')
+      );
       return;
     }
 
@@ -2189,10 +2263,9 @@ export const getPlayStoreProductionState = async (req: Request, res: Response): 
     
     const distribution = await distributionRepo.findById(distributionId);
     if (!distribution) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: `Distribution not found for distributionId: ${distributionId}`,
-      });
+      res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse(`Distribution ${distributionId}`, 'distribution_not_found')
+      );
       return;
     }
 
@@ -2207,20 +2280,18 @@ export const getPlayStoreProductionState = async (req: Request, res: Response): 
     });
 
     if (integrations.length === 0) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: PLAY_STORE_UPLOAD_ERROR_MESSAGES.INTEGRATION_NOT_FOUND_FOR_UPLOAD,
-      });
+      res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse('Play Store integration', 'integration_not_found')
+      );
       return;
     }
 
     // Find VERIFIED integration
     const verifiedIntegration = integrations.find(i => i.status === IntegrationStatus.VERIFIED);
     if (!verifiedIntegration) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: 'No verified Play Store integration found for this tenant',
-      });
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse('No verified Play Store integration found for this tenant', 'integration_not_verified')
+      );
       return;
     }
 
@@ -2284,10 +2355,12 @@ export const getPlayStoreProductionState = async (req: Request, res: Response): 
     // Return response based on status
     if (!productionStateResponse.ok) {
       const errorText = await productionStateResponse.text().catch(() => 'Unknown error');
-      res.status(productionStateResponse.status).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: `Failed to get production state: ${productionStateResponse.status} ${errorText}`,
-      });
+      res.status(productionStateResponse.status).json(
+        simpleErrorResponse(
+          `Failed to get production state: ${productionStateResponse.status} ${errorText}`,
+          'fetch_production_state_failed'
+        )
+      );
       return;
     }
 
@@ -2309,17 +2382,18 @@ export const getPlayStoreProductionState = async (req: Request, res: Response): 
       } else {
         console.warn('[getPlayStoreProductionState] SubmissionService not available in storage');
       }
-    } catch (statusUpdateError) {
+    } catch (statusUpdateError: unknown) {
       // Log error but don't fail the request - production state data is still valid
       console.error('[getPlayStoreProductionState] Failed to update submission status:', statusUpdateError);
     }
 
-    res.status(HTTP_STATUS.OK).json({
-      success: RESPONSE_STATUS.SUCCESS,
-      data: productionStateData,
-      statusUpdate: statusUpdateResult
-    });
-  } catch (error) {
+    res.status(HTTP_STATUS.OK).json(
+      successResponse({
+        data: productionStateData,
+        statusUpdate: statusUpdateResult
+      })
+    );
+  } catch (error: unknown) {
     // Clean up edit on error if it was created
     if (editId && packageName && accessToken) {
       try {
@@ -2331,17 +2405,16 @@ export const getPlayStoreProductionState = async (req: Request, res: Response): 
             'Authorization': `Bearer ${accessToken}`,
           },
         });
-      } catch (deleteError) {
+      } catch (deleteError: unknown) {
         // Ignore delete errors - edit will expire automatically
         console.warn('Failed to delete edit after error, it will expire automatically');
       }
     }
 
     const message = getErrorMessage(error, 'Failed to get Play Store production state');
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: RESPONSE_STATUS.FAILURE,
-      error: message,
-    });
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse(message, 'fetch_production_state_failed')
+    );
   }
 };
 

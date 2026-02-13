@@ -41,3 +41,14 @@ export type JiraCreateIssueRequest = {
   assignee?: string;
 };
 
+/**
+ * Result object for metadata API operations
+ * Used for consistent error handling across all metadata endpoints
+ */
+export type JiraMetadataResult<T> = {
+  success: boolean;
+  data?: T;
+  message?: string;
+  statusCode?: number;
+};
+

@@ -48,6 +48,7 @@ export const ERROR_MESSAGES = {
 
   WORKFLOW_CREATE_REQUIRED: 'providerType, integrationId, displayName, platform, workflowType, workflowUrl are required',
   WORKFLOW_INTEGRATION_INVALID: 'Invalid integrationId for tenant/provider',
+  WORKFLOW_DUPLICATE_NAME: 'A workflow with this name already exists',
   WORKFLOW_CREATE_FAILED: 'Failed to create workflow',
   WORKFLOW_LIST_FAILED: 'Failed to list workflows',
   WORKFLOW_FETCH_FAILED: 'Failed to fetch workflow',

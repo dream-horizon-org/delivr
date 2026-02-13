@@ -8,7 +8,9 @@ import {
   notFoundResponse,
   successMessageResponse,
   successResponse,
-  validationErrorResponse
+  validationErrorResponse,
+  detailedErrorResponse,
+  buildValidationErrorResponse
 } from '~utils/response.utils';
 import { TEST_MANAGEMENT_ERROR_MESSAGES, TEST_MANAGEMENT_SUCCESS_MESSAGES } from '../constants';
 import { TEST_MANAGEMENT_PROVIDERS } from './tenant-integration.constants';
@@ -16,8 +18,12 @@ import {
   validateConfigStructure,
   validatePartialConfigStructure,
   validateIntegrationName,
-  validateProviderType
+  validateProviderType,
+  validateVerifyRequest,
+  validateCheckmateConfig,
+  validateCheckmateUpdateConfig
 } from './tenant-integration.validation';
+import { TestManagementProviderType } from '~types/integrations/test-management';
 
 type AuthenticatedRequest = Request & {
   user?: {
@@ -58,28 +64,49 @@ const createIntegrationHandler = (service: TestManagementIntegrationService) =>
         return;
       }
 
-      // Validate config structure (JSONB)
-      const configError = validateConfigStructure(config, providerType);
-      if (configError) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(validationErrorResponse('config', configError));
-        return;
+      // Validate config structure for CHECKMATE (Yup validation)
+      // TODO: Implement Yup validation for TESTRAIL and other providers
+      let validatedConfig = config;
+      if (providerType === TestManagementProviderType.CHECKMATE) {
+        const validationResult = await validateCheckmateConfig(config);
+        if (validationResult.success === false) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            buildValidationErrorResponse('Config validation failed', validationResult.errors)
+          );
+          return;
+        }
+        validatedConfig = validationResult.data;
       }
 
+      // Config validation (connection test) happens in service layer
       const data: CreateTenantTestManagementIntegrationDto = {
         tenantId,
         name,
         providerType,
-        config,
+        config: validatedConfig,
         createdByAccountId: req.user?.id
       };
 
       const integration = await service.createTenantIntegration(data);
 
       res.status(HTTP_STATUS.CREATED).json(successResponse(integration));
-    } catch (error) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        errorResponse(error, TEST_MANAGEMENT_ERROR_MESSAGES.CREATE_INTEGRATION_FAILED)
-      );
+    } catch (error: unknown) {
+      const statusCode = getErrorStatusCode(error);
+      const errorMessage = error instanceof Error ? error.message : TEST_MANAGEMENT_ERROR_MESSAGES.CREATE_INTEGRATION_FAILED;
+      const errorCode = (error && typeof error === 'object' && 'code' in error) ? String(error.code) : 'integration_create_failed';
+      const errorDetails = (error && typeof error === 'object' && 'details' in error) ? error.details : null;
+      
+      if (errorDetails) {
+        res.status(statusCode).json(errorDetails);
+      } else {
+        res.status(statusCode).json(
+          detailedErrorResponse(
+            errorMessage,
+            errorCode,
+            [errorMessage]
+          )
+        );
+      }
     }
   };
 
@@ -178,10 +205,25 @@ const updateIntegrationHandler = (service: TestManagementIntegrationService) =>
           return;
         }
 
-        const configError = validatePartialConfigStructure(config, existing.providerType);
-        if (configError) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json(validationErrorResponse('config', configError));
-          return;
+        // Use Yup validation for Checkmate
+        // TODO: Implement Yup validation for TESTRAIL and other providers
+        if (existing.providerType === TestManagementProviderType.CHECKMATE) {
+          const validationResult = await validateCheckmateUpdateConfig(config);
+          if (validationResult.success === false) {
+            res.status(HTTP_STATUS.BAD_REQUEST).json(
+              buildValidationErrorResponse('Config validation failed', validationResult.errors)
+            );
+            return;
+          }
+          // Replace config with validated (trimmed, transformed) data
+          req.body.config = validationResult.data;
+        } else {
+          // Fallback validation for non-Checkmate providers (not implemented yet)
+          const configError = validatePartialConfigStructure(config, existing.providerType);
+          if (configError) {
+            res.status(HTTP_STATUS.BAD_REQUEST).json(validationErrorResponse('config', configError));
+            return;
+          }
         }
       }
 
@@ -200,10 +242,23 @@ const updateIntegrationHandler = (service: TestManagementIntegrationService) =>
       }
 
       res.status(HTTP_STATUS.OK).json(successResponse(integration));
-    } catch (error) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        errorResponse(error, TEST_MANAGEMENT_ERROR_MESSAGES.UPDATE_INTEGRATION_FAILED)
-      );
+    } catch (error: unknown) {
+      const statusCode = getErrorStatusCode(error);
+      const errorMessage = error instanceof Error ? error.message : TEST_MANAGEMENT_ERROR_MESSAGES.UPDATE_INTEGRATION_FAILED;
+      const errorCode = (error && typeof error === 'object' && 'code' in error) ? String(error.code) : 'integration_update_failed';
+      const errorDetails = (error && typeof error === 'object' && 'details' in error) ? error.details : null;
+      
+      if (errorDetails) {
+        res.status(statusCode).json(errorDetails);
+      } else {
+        res.status(statusCode).json(
+          detailedErrorResponse(
+            errorMessage,
+            errorCode,
+            [errorMessage]
+          )
+        );
+      }
     }
   };
 
@@ -294,23 +349,65 @@ const verifyCredentialsHandler = (service: TestManagementIntegrationService) =>
         return;
       }
 
-      // Validate config structure
-      const configError = validateConfigStructure(config, providerType);
-      if (configError) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(validationErrorResponse('config', configError));
+      // Unified validation (handles CHECKMATE Yup and others manual validation internally)
+      const validationResult = await validateVerifyRequest(req.body, providerType as TestManagementProviderType);
+      if (validationResult.success === false) {
+        // Add "verified: false" for verify endpoint
+        const errorResponse = buildValidationErrorResponse('Request validation failed', validationResult.errors);
+        res.status(HTTP_STATUS.BAD_REQUEST).json({
+          ...errorResponse,
+          verified: false
+        });
         return;
       }
 
-      const result = await service.verifyCredentials(providerType, config);
+      const validated = validationResult.data;
+
+      const result = await service.verifyCredentials(providerType, validated.config);
       
-      // Always return 200 OK - the HTTP status indicates the API call succeeded,
-      // not whether credentials are valid. Credential validity is in result.success.
-      res.status(HTTP_STATUS.OK).json(successResponse(result));
-    } catch (error) {
+      // Return proper status codes based on verification result
+      // Explicit boolean comparison for type narrowing with discriminated union
+      if (result.success === false) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          verified: false,
+          error: result.message,
+          details: {
+            errorCode: 'verification_failed',
+            messages: [result.message],
+            ...(result.details && { metadata: result.details })
+          }
+        });
+        return;
+      }
+      
+      res.status(HTTP_STATUS.OK).json({
+        ...successResponse({ verified: true }),
+        message: result.message
+      });
+    } catch (error: unknown) {
       const statusCode = getErrorStatusCode(error);
-      res.status(statusCode).json(
-        errorResponse(error, TEST_MANAGEMENT_ERROR_MESSAGES.VERIFY_INTEGRATION_FAILED)
-      );
+      const errorMessage = error instanceof Error ? error.message : TEST_MANAGEMENT_ERROR_MESSAGES.VERIFY_INTEGRATION_FAILED;
+      const errorCode = (error && typeof error === 'object' && 'code' in error) ? String(error.code) : 'verification_failed';
+      const errorDetails = (error && typeof error === 'object' && 'details' in error && typeof error.details === 'object') ? error.details : null;
+      
+      if (errorDetails && typeof errorDetails === 'object') {
+        res.status(statusCode).json({
+          success: false,
+          verified: false,
+          ...(errorDetails as Record<string, unknown>)
+        });
+      } else {
+        res.status(statusCode).json({
+          success: false,
+          verified: false,
+          error: errorMessage,
+          details: {
+            errorCode: errorCode,
+            messages: [errorMessage]
+          }
+        });
+      }
     }
   };
 

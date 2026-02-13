@@ -1,36 +1,34 @@
+import * as yup from 'yup';
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 import { CreateWorkflowDto, WorkflowType } from '~types/integrations/ci-cd/workflow.interface';
 import { CICD_CONFIG_ALLOWED_PLATFORMS, CICD_CONFIG_ERROR_MESSAGES } from './config.constants';
 import { fetchWithTimeout, parseGitHubWorkflowUrl } from '../utils/cicd.utils';
 import { getStorage } from '../../../../storage/storage-instance';
 import { ERROR_MESSAGES, HEADERS } from '../../../../controllers/integrations/ci-cd/constants';
+import { validateWithYup } from '~utils/validation.utils';
+import type { ValidationResult } from '~types/validation/validation-result.interface';
 
 type FieldError = { field: string; message: string };
 
+/**
+ * Type for workflow data from request body (before adding server-side fields)
+ */
+export type WorkflowRequestDto = {
+  providerType: CICDProviderType;
+  integrationId: string;
+  displayName: string;
+  workflowUrl: string;
+  platform: string;
+  workflowType: WorkflowType;
+  tenantId?: string;
+};
+
+// Helper functions for GitHub validation
 const isNonEmptyString = (value: unknown): value is string => {
   const isString = typeof value === 'string';
   const trimmed = isString ? value.trim() : '';
   const isNonEmpty = trimmed.length > 0;
   return isString && isNonEmpty;
-};
-
-const toUpper = (value: string): string => value.trim().toUpperCase();
-
-const isValidPlatform = (value: unknown): boolean => {
-  if (!isNonEmptyString(value)) return false;
-  const upper = toUpper(value);
-  return (CICD_CONFIG_ALLOWED_PLATFORMS as readonly string[]).includes(upper);
-};
-
-const isValidWorkflowType = (value: unknown): boolean => {
-  if (!isNonEmptyString(value)) return false;
-  const values = Object.values(WorkflowType) as string[];
-  return values.includes(value);
-};
-
-const isValidProviderType = (value: unknown): value is CICDProviderType => {
-  const values = Object.values(CICDProviderType) as string[];
-  return typeof value === 'string' && values.includes(value);
 };
 
 const getGithubTokenForTenant = async (tenantId: string): Promise<string | null> => {
@@ -67,124 +65,165 @@ const containsWorkflowDispatch = (yaml: string): boolean => {
   return regex.test(yaml);
 };
 
-const validateGithubWorkflow = async (
-  wf: CreateWorkflowDto,
-  index: number,
+/**
+ * Workflow Schema with comprehensive validation
+ */
+const workflowSchema = yup.object().shape({
+  providerType: yup
+    .string()
+    .required('providerType is required')
+    .oneOf(
+      Object.values(CICDProviderType),
+      `providerType must be one of: ${Object.values(CICDProviderType).join(', ')}`
+    ),
+  integrationId: yup
+    .string()
+    .required('integrationId is required')
+    .min(1, 'integrationId cannot be empty'),
+  displayName: yup
+    .string()
+    .required('displayName is required')
+    .min(1, 'displayName cannot be empty'),
+  workflowUrl: yup
+    .string()
+    .required('workflowUrl is required')
+    .url('workflowUrl must be a valid URL'),
+  platform: yup
+    .string()
+    .required('platform is required')
+    .transform((value) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
+    .oneOf(
+      CICD_CONFIG_ALLOWED_PLATFORMS as unknown as string[],
+      `platform must be one of: ${CICD_CONFIG_ALLOWED_PLATFORMS.join(', ')}`
+    ),
+  workflowType: yup
+    .string()
+    .required('workflowType is required')
+    .oneOf(
+      Object.values(WorkflowType),
+      `workflowType must be one of: ${Object.values(WorkflowType).join(', ')}`
+    ),
+  tenantId: yup.string().optional()
+});
+
+/**
+ * Workflows Config Schema
+ */
+const createConfigSchema = (tenantId: string) =>
+  yup.object().shape({
+    workflows: yup
+      .array()
+      .of(workflowSchema)
+      .min(1, CICD_CONFIG_ERROR_MESSAGES.WORKFLOWS_REQUIRED)
+      .required(CICD_CONFIG_ERROR_MESSAGES.WORKFLOWS_REQUIRED)
+      .test(
+        'tenant-match',
+        CICD_CONFIG_ERROR_MESSAGES.TENANT_MISMATCH,
+        function (workflows) {
+          if (!workflows) return true;
+          
+          for (let i = 0; i < workflows.length; i++) {
+            const wf = workflows[i];
+            if (wf.tenantId && wf.tenantId !== tenantId) {
+              return this.createError({
+                path: `workflows[${i}].tenantId`,
+                message: CICD_CONFIG_ERROR_MESSAGES.TENANT_MISMATCH
+              });
+            }
+          }
+          return true;
+        }
+      )
+      .test(
+        'github-workflow-dispatch',
+        CICD_CONFIG_ERROR_MESSAGES.WORKFLOW_DISPATCH_REQUIRED,
+        async function (workflows) {
+          if (!workflows) return true;
+
+          for (let i = 0; i < workflows.length; i++) {
+            const wf = workflows[i];
+            
+            // Only validate GitHub Actions workflows
+            if (wf.providerType !== CICDProviderType.GITHUB_ACTIONS) {
+              continue;
+            }
+
+            const urlValue = wf.workflowUrl;
+            
+            // Parse GitHub URL
+            const parsed = parseGitHubWorkflowUrl(urlValue);
+            if (!parsed) {
+              return this.createError({
+                path: `workflows[${i}].workflowUrl`,
+                message: ERROR_MESSAGES.GHA_INVALID_WORKFLOW_URL
+              });
+            }
+
+            // Get GitHub token
+            const token = await getGithubTokenForTenant(tenantId);
+            if (!isNonEmptyString(token)) {
+              return this.createError({
+                path: `workflows[${i}].workflowUrl`,
+                message: ERROR_MESSAGES.GHA_NO_TOKEN_AVAILABLE
+              });
+            }
+
+            // Fetch workflow content
+            const content = await fetchGithubWorkflowContent(
+              token as string,
+              urlValue,
+              Number(process.env.GHA_INPUTS_TIMEOUT_MS || 8000)
+            );
+            
+            if (content === null) {
+              return this.createError({
+                path: `workflows[${i}].workflowUrl`,
+                message: ERROR_MESSAGES.GHA_REPO_ACCESS_FAILED
+              });
+            }
+
+            // Check for workflow_dispatch
+            const yaml = content ?? '';
+            const hasDispatch = containsWorkflowDispatch(yaml);
+            if (!hasDispatch) {
+              return this.createError({
+                path: `workflows[${i}].workflowUrl`,
+                message: CICD_CONFIG_ERROR_MESSAGES.WORKFLOW_DISPATCH_REQUIRED
+              });
+            }
+          }
+          
+          return true;
+        }
+      )
+  });
+
+/**
+ * Validate workflows for create config
+ * Returns ValidationResult with either validated data or errors
+ */
+export const validateCreateConfig = async (
+  data: unknown,
   tenantId: string
-): Promise<FieldError[]> => {
-  const errors: FieldError[] = [];
-
-  const urlValue = wf.workflowUrl;
-  const urlMissing = !isNonEmptyString(urlValue);
-  if (urlMissing) {
-    errors.push({ field: `workflows[${index}].workflowUrl`, message: ERROR_MESSAGES.GHA_INVALID_WORKFLOW_URL });
-    return errors;
-  }
-
-  const parsed = parseGitHubWorkflowUrl(urlValue as string);
-  const urlInvalid = !parsed;
-  if (urlInvalid) {
-    errors.push({ field: `workflows[${index}].workflowUrl`, message: ERROR_MESSAGES.GHA_INVALID_WORKFLOW_URL });
-    return errors;
-  }
-
-  const token = await getGithubTokenForTenant(tenantId);
-  const noToken = !isNonEmptyString(token);
-  if (noToken) {
-    errors.push({ field: `workflows[${index}].workflowUrl`, message: ERROR_MESSAGES.GHA_NO_TOKEN_AVAILABLE });
-    return errors;
-  }
-
-  const content = await fetchGithubWorkflowContent(token as string, urlValue as string, Number(process.env.GHA_INPUTS_TIMEOUT_MS || 8000));
-  const failedFetch = content === null;
-  if (failedFetch) {
-    errors.push({ field: `workflows[${index}].workflowUrl`, message: ERROR_MESSAGES.GHA_REPO_ACCESS_FAILED });
-    return errors;
-  }
-
-  const yaml = content ?? '';
-  const hasDispatch = containsWorkflowDispatch(yaml);
-  if (!hasDispatch) {
-    errors.push({ field: `workflows[${index}].workflowUrl`, message: CICD_CONFIG_ERROR_MESSAGES.WORKFLOW_DISPATCH_REQUIRED });
-  }
-
-  return errors;
+): Promise<ValidationResult<{ workflows: WorkflowRequestDto[] }>> => {
+  const schema = createConfigSchema(tenantId);
+  const result = await validateWithYup(schema, data);
+  // Type assertion is safe here because yup validates all required fields
+  return result as ValidationResult<{ workflows: WorkflowRequestDto[] }>;
 };
 
-export class CICDConfigValidationError extends Error {
-  readonly errors: FieldError[];
-  constructor(errors: FieldError[]) {
-    super('CI/CD config validation failed');
-    this.name = 'CICDConfigValidationError';
-    this.errors = errors;
-  }
-}
-
-export const validateWorkflowsForCreateConfig = async (
-  inputWorkflows: CreateWorkflowDto[],
+/**
+ * Validate workflows for update config
+ * Returns ValidationResult with either validated data or errors
+ */
+export const validateUpdateConfig = async (
+  data: unknown,
   tenantId: string
-): Promise<{ errors: FieldError[] }> => {
-  const errors: FieldError[] = [];
-
-  const isArray = Array.isArray(inputWorkflows);
-  if (!isArray || inputWorkflows.length === 0) {
-    errors.push({ field: 'workflows', message: CICD_CONFIG_ERROR_MESSAGES.WORKFLOWS_REQUIRED });
-    return { errors };
-  }
-
-  const requiredFields = ['providerType', 'integrationId', 'displayName', 'workflowUrl', 'platform', 'workflowType'] as const;
-
-  for (let i = 0; i < inputWorkflows.length; i++) {
-    const wf = inputWorkflows[i];
-    const isObject = wf !== null && typeof wf === 'object';
-    if (!isObject) {
-      errors.push({ field: `workflows[${i}]`, message: CICD_CONFIG_ERROR_MESSAGES.WORKFLOW_FIELDS_REQUIRED });
-      continue;
-    }
-
-    // Required checks
-    for (const key of requiredFields) {
-      const value = wf[key as string];
-      const missing = !isNonEmptyString(value);
-      if (missing) {
-        errors.push({ field: `workflows[${i}].${key}`, message: CICD_CONFIG_ERROR_MESSAGES.WORKFLOW_FIELDS_REQUIRED });
-      }
-    }
-
-    // Tenant mismatch if provided
-    const wfTenantId = wf.tenantId;
-    const tenantProvided = isNonEmptyString(wfTenantId);
-    const mismatch = tenantProvided && (wfTenantId as string) !== tenantId;
-    if (mismatch) {
-      errors.push({ field: `workflows[${i}].tenantId`, message: CICD_CONFIG_ERROR_MESSAGES.TENANT_MISMATCH });
-    }
-
-    // Provider/workflow type enum validation
-    const providerType = wf.providerType;
-    const workflowType = wf.workflowType;
-    const providerInvalid = !isValidProviderType(providerType);
-    const typeInvalid = !isValidWorkflowType(workflowType);
-    if (providerInvalid || typeInvalid) {
-      errors.push({ field: `workflows[${i}]`, message: CICD_CONFIG_ERROR_MESSAGES.WORKFLOW_PROVIDER_OR_TYPE_INVALID });
-    }
-
-    // Platform validation (ANDROID/IOS only, case-insensitive)
-    const platform = wf.platform;
-    const platformInvalid = !isValidPlatform(platform);
-    if (platformInvalid) {
-      errors.push({ field: `workflows[${i}].platform`, message: CICD_CONFIG_ERROR_MESSAGES.INVALID_PLATFORM });
-    }
-
-    // Provider-specific validations
-    if (isValidProviderType(providerType) && providerType === CICDProviderType.GITHUB_ACTIONS) {
-      const ghaErrors = await validateGithubWorkflow(wf, i, tenantId);
-      if (ghaErrors.length) {
-        errors.push(...ghaErrors);
-      }
-    }
-  }
-
-  return { errors };
+): Promise<ValidationResult<{ workflows: WorkflowRequestDto[] }>> => {
+  const schema = createConfigSchema(tenantId);
+  const result = await validateWithYup(schema, data);
+  // Type assertion is safe here because yup validates all required fields
+  return result as ValidationResult<{ workflows: WorkflowRequestDto[] }>;
 };
 
 

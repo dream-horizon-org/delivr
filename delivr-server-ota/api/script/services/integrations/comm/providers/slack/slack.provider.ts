@@ -6,7 +6,7 @@ import type {
   SendMessageArgs,
   MessageResponse,
   MessageFile,
-  ListChannelsResponse,
+  ListChannelsResult,
   Channel,
   VerificationResult,
   HealthCheckResult
@@ -342,7 +342,7 @@ export class SlackProvider implements ICommService {
   // CHANNEL OPERATIONS - Manage channels
   // ============================================================================
 
-  async listChannels(): Promise<ListChannelsResponse> {
+  async listChannels(): Promise<ListChannelsResult> {
     try {
       const channels: Channel[] = [];
       let cursor: string | undefined = undefined;
@@ -371,14 +371,86 @@ export class SlackProvider implements ICommService {
       }
 
       return {
+        success: true,
         channels,
         total: channels.length
       };
     } catch (error: any) {
       console.error(SLACK_ERROR_MESSAGES.LIST_CHANNELS_FAILED, error);
+      
+      // Handle Slack API errors with detailed messages (same pattern as verify method)
+      if (error.data && error.data.error) {
+        const slackError = error.data.error;
+        
+        if (slackError === 'invalid_auth' || slackError === 'not_authed') {
+          return {
+            success: false,
+            message: 'Invalid Slack credentials. Please check your bot token.',
+            error: slackError,
+            details: {
+              errorCode: 'invalid_credentials',
+              message: 'Generate a new bot token from Slack App settings if the current one is invalid'
+            }
+          };
+        }
+        
+        if (slackError === 'missing_scope') {
+          return {
+            success: false,
+            message: 'Insufficient Slack permissions to list channels.',
+            error: slackError,
+            details: {
+              errorCode: 'missing_scope',
+              message: 'Add channels:read and groups:read scopes to your Slack app'
+            }
+          };
+        }
+        
+        if (slackError === 'token_revoked') {
+          return {
+            success: false,
+            message: 'Slack bot token has been revoked.',
+            error: slackError,
+            details: {
+              errorCode: 'token_revoked',
+              message: 'Generate a new bot token from Slack App settings'
+            }
+          };
+        }
+        
+        if (slackError === 'account_inactive') {
+          return {
+            success: false,
+            message: 'Slack account is inactive.',
+            error: slackError,
+            details: {
+              errorCode: 'account_inactive',
+              message: 'Reactivate your Slack account or use a different workspace'
+            }
+          };
+        }
+        
+        // Other Slack API errors
+        return {
+          success: false,
+          message: `Slack API error: ${slackError}`,
+          error: slackError,
+          details: {
+            errorCode: 'api_error',
+            message: error.message || 'Unknown Slack API error'
+          }
+        };
+      }
+      
+      // Network/connectivity errors
       return {
-        channels: [],
-        total: 0
+        success: false,
+        message: 'Network error: Unable to connect to Slack.',
+        error: error.message,
+        details: {
+          errorCode: 'network_error',
+          message: 'Check your internet connection and try again'
+        }
       };
     }
   }
@@ -392,10 +464,67 @@ export class SlackProvider implements ICommService {
       const result = await this.client.auth.test();
 
       if (!result[SLACK_RESPONSE_FIELDS.OK]) {
+        const errorCode = result[SLACK_RESPONSE_FIELDS.ERROR];
+        
+        // Handle specific Slack API errors
+        if (errorCode === 'invalid_auth') {
+          return {
+            success: false,
+            message: 'Invalid Slack bot token. Please verify your token is correct.',
+            statusCode: 401,
+            error: errorCode,
+            details: {
+              errorCode: errorCode,
+              message: 'Generate a new bot token from Slack App settings if the current one is invalid'
+            }
+          };
+        }
+        
+        if (errorCode === 'account_inactive') {
+          return {
+            success: false,
+            message: 'Slack account is inactive.',
+            statusCode: 403,
+            error: errorCode,
+            details: {
+              errorCode: errorCode,
+              message: 'Reactivate your Slack account or use a different workspace'
+            }
+          };
+        }
+        
+        if (errorCode === 'token_revoked') {
+          return {
+            success: false,
+            message: 'Slack bot token has been revoked.',
+            statusCode: 401,
+            error: errorCode,
+            details: {
+              errorCode: errorCode,
+              message: 'Generate a new bot token from Slack App settings'
+            }
+          };
+        }
+        
+        if (errorCode === 'not_authed') {
+          return {
+            success: false,
+            message: 'No authentication token provided.',
+            statusCode: 401,
+            error: errorCode,
+            details: {
+              errorCode: errorCode,
+              message: 'Ensure the bot token is correctly configured'
+            }
+          };
+        }
+        
         return {
           success: false,
-          message: `${SLACK_ERROR_MESSAGES.VERIFICATION_FAILED}: ${result[SLACK_RESPONSE_FIELDS.ERROR] || SLACK_ERROR_MESSAGES.UNKNOWN_ERROR}`,
-          error: result[SLACK_RESPONSE_FIELDS.ERROR]
+          message: `Slack API error: ${errorCode || SLACK_ERROR_MESSAGES.UNKNOWN_ERROR}`,
+          statusCode: 500,
+          error: errorCode,
+          details: { errorCode: errorCode }
         };
       }
 
@@ -408,10 +537,73 @@ export class SlackProvider implements ICommService {
       };
     } catch (error: any) {
       console.error(SLACK_ERROR_MESSAGES.VERIFICATION_FAILED, error);
+      
+      // Check if this is a Slack API error (has data.error property)
+      if (error.data && error.data.error) {
+        const slackError = error.data.error;
+        
+        if (slackError === 'invalid_auth' || slackError === 'not_authed') {
+          return {
+            success: false,
+            message: 'Invalid Slack bot token. Please verify your token is correct.',
+            statusCode: 401,
+            error: slackError,
+            details: {
+              errorCode: 'invalid_credentials',
+              message: 'Generate a new bot token from Slack App settings if the current one is invalid'
+            }
+          };
+        }
+        
+        if (slackError === 'token_revoked') {
+          return {
+            success: false,
+            message: 'Slack bot token has been revoked.',
+            statusCode: 401,
+            error: slackError,
+            details: {
+              errorCode: 'token_revoked',
+              message: 'Generate a new bot token from Slack App settings'
+            }
+          };
+        }
+        
+        if (slackError === 'account_inactive') {
+          return {
+            success: false,
+            message: 'Slack account is inactive.',
+            statusCode: 403,
+            error: slackError,
+            details: {
+              errorCode: 'account_inactive',
+              message: 'Reactivate your Slack account or use a different workspace'
+            }
+          };
+        }
+        
+        // Other Slack API errors
+        return {
+          success: false,
+          message: `Slack API error: ${slackError}`,
+          statusCode: 500,
+          error: slackError,
+          details: {
+            errorCode: 'api_error',
+            message: error.message || 'Unknown Slack API error'
+          }
+        };
+      }
+      
+      // Actual network/connectivity errors
       return {
         success: false,
-        message: `${SLACK_ERROR_MESSAGES.CONNECTION_FAILED}: ${error.message}`,
-        error: error.message
+        message: 'Network error: Unable to connect to Slack.',
+        statusCode: 503,
+        error: error.message,
+        details: {
+          errorCode: 'network_error',
+          message: 'Check your internet connection and try again'
+        }
       };
     }
   }

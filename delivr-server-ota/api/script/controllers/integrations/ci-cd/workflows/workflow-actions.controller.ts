@@ -2,6 +2,11 @@ import { Request, Response } from "express";
 import { HTTP_STATUS, RESPONSE_STATUS } from "~constants/http";
 import { ERROR_MESSAGES } from "../constants";
 import { formatErrorMessage } from "~utils/error.utils";
+import {
+  successResponse,
+  simpleErrorResponse,
+  notFoundResponse
+} from "~utils/response.utils";
 import { getIntegrationForTenant, getWorkflowAdapter } from "./workflow-adapter.utils";
 
 export const getJobParameters = async (req: Request, res: Response): Promise<any> => {
@@ -16,16 +21,22 @@ export const getJobParameters = async (req: Request, res: Response): Promise<any
      */
     const integration = await getIntegrationForTenant(tenantId, integrationId);
     if (!integration) {
-      return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND });
+      return res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse('Integration', 'integration_not_found')
+      );
     }
 
     const adapter = getWorkflowAdapter(integration.providerType);
     const body = (req.body || {}) as { workflowUrl?: string };
     const result = await adapter.fetchParameters(tenantId, body);
-    return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, parameters: result.parameters, error: null });
-  } catch (e: unknown) {
-    const message = formatErrorMessage(e, ERROR_MESSAGES.WORKFLOW_FETCH_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
+    return res.status(HTTP_STATUS.OK).json(
+      successResponse({ parameters: result.parameters, error: null })
+    );
+  } catch (error) {
+    const message = formatErrorMessage(error, ERROR_MESSAGES.WORKFLOW_FETCH_FAILED);
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse(message, 'workflow_fetch_failed')
+    );
   }
 };
 
@@ -41,13 +52,17 @@ export const triggerWorkflow = async (req: Request, res: Response): Promise<any>
   try {
     const integration = await getIntegrationForTenant(tenantId, integrationId);
     if (!integration) {
-      return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND });
+      return res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse('Integration', 'integration_not_found')
+      );
     }
 
     const adapter = getWorkflowAdapter(integration.providerType);
     const adapterSupportsTrigger = typeof adapter.trigger === 'function';
     if (!adapterSupportsTrigger) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED });
+      return res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse(ERROR_MESSAGES.OPERATION_NOT_SUPPORTED, 'unsupported_operation')
+      );
     }
     const result = await adapter.trigger(tenantId, { workflowId, workflowType, platform, jobParameters });
     return res.status(HTTP_STATUS.CREATED).json({ success: RESPONSE_STATUS.SUCCESS, queueLocation: result.queueLocation });
@@ -68,23 +83,31 @@ export const getQueueStatus = async (req: Request, res: Response): Promise<any> 
   try {
     const integration = await getIntegrationForTenant(tenantId, integrationId);
     if (!integration) {
-      return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND });
+      return res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse('Integration', 'integration_not_found')
+      );
     }
 
     const adapter = getWorkflowAdapter(integration.providerType);
     const adapterSupportsQueue = typeof adapter.queueStatus === 'function';
     if (!adapterSupportsQueue) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED });
+      return res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse(ERROR_MESSAGES.OPERATION_NOT_SUPPORTED, 'unsupported_operation')
+      );
     }
     const status = await adapter.queueStatus(tenantId, { queueUrl });
     return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, status });
   } catch (e: unknown) {
     const isTimeout = e instanceof Error && e.name === 'AbortError';
     if (isTimeout) {
-      return res.status(HTTP_STATUS.TIMEOUT).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.JENKINS_QUEUE_TIMEOUT });
+      return res.status(HTTP_STATUS.TIMEOUT).json(
+        simpleErrorResponse(ERROR_MESSAGES.JENKINS_QUEUE_TIMEOUT, 'queue_timeout')
+      );
     }
     const message = formatErrorMessage(e, ERROR_MESSAGES.JENKINS_QUEUE_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse(message, 'queue_status_failed')
+    );
   }
 };
 
@@ -102,19 +125,25 @@ export const getRunStatus = async (req: Request, res: Response): Promise<any> =>
   try {
     const integration = await getIntegrationForTenant(tenantId, integrationId);
     if (!integration) {
-      return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND });
+      return res.status(HTTP_STATUS.NOT_FOUND).json(
+        notFoundResponse('Integration', 'integration_not_found')
+      );
     }
 
     const adapter = getWorkflowAdapter(integration.providerType);
     const adapterSupportsRunStatus = typeof adapter.runStatus === 'function';
     if (!adapterSupportsRunStatus) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED });
+      return res.status(HTTP_STATUS.BAD_REQUEST).json(
+        simpleErrorResponse(ERROR_MESSAGES.OPERATION_NOT_SUPPORTED, 'unsupported_operation')
+      );
     }
     const status = await adapter.runStatus(tenantId, { runUrl, owner, repo, runId });
     return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, status });
   } catch (e: unknown) {
     const message = formatErrorMessage(e, ERROR_MESSAGES.GHA_FETCH_RUN_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+      simpleErrorResponse(message, 'run_status_failed')
+    );
   }
 };
 

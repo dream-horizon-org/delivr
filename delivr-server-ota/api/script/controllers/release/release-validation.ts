@@ -61,7 +61,8 @@ export const validateMandatoryFields = (body: CreateReleaseRequestBody): Validat
     'type',
     'baseBranch',
     'kickOffDate',
-    'targetReleaseDate'
+    'targetReleaseDate',
+    'branch'
   ];
 
   const missingFields = mandatoryFields.filter(field => {
@@ -334,6 +335,37 @@ export const validateRegressionBuildSlots = (body: CreateReleaseRequestBody): Va
         error: 'Each regressionBuildSlots entry must have a valid date'
       };
     }
+  }
+
+  return { isValid: true };
+};
+
+/**
+ * Validates branch name follows Git branch naming rules
+ * https://git-scm.com/docs/git-check-ref-format
+ */
+export const validateBranchFormat = (
+  body: CreateReleaseRequestBody
+): ValidationResult => {
+  if (!body.branch) {
+    return { isValid: true }; // Skip if not provided
+  }
+
+  const branch = body.branch.trim();
+
+  const invalidPattern =
+    /(^\/|\/$|^-|\.lock$|\.{2}|\/\/|[~^:?*[\\\s]|@\{|[\x00-\x1F\x7F])/;
+
+  const isValid =
+    branch.length > 0 &&
+    !branch.endsWith('.') &&
+    !invalidPattern.test(branch);
+
+  if (!isValid) {
+    return {
+      isValid: false,
+      error: 'Invalid branch name format. Branch name must follow Git naming conventions.'
+    };
   }
 
   return { isValid: true };
@@ -656,6 +688,37 @@ export const validateUpdateDateSequence = (body: UpdateReleaseRequestBody): Vali
 };
 
 /**
+ * Validates branch name follows Git branch naming rules for update requests
+ * https://git-scm.com/docs/git-check-ref-format
+ */
+export const validateUpdateBranchFormat = (
+  body: UpdateReleaseRequestBody
+): ValidationResult => {
+  if (!body.branch) {
+    return { isValid: true }; // Skip if not provided
+  }
+
+  const branch = body.branch.trim();
+
+  const invalidPattern =
+    /(^\/|\/$|^-|\.lock$|\.{2}|\/\/|[~^:?*[\\\s]|@\{|[\x00-\x1F\x7F])/;
+
+  const isValid =
+    branch.length > 0 &&
+    !branch.endsWith('.') &&
+    !invalidPattern.test(branch);
+
+  if (!isValid) {
+    return {
+      isValid: false,
+      error: 'Invalid branch name format. Branch name must follow Git naming conventions.'
+    };
+  }
+
+  return { isValid: true };
+};
+
+/**
  * Master validation function for update release requests
  */
 export const validateUpdateReleaseRequest = (body: UpdateReleaseRequestBody): ValidationResult => {
@@ -666,7 +729,8 @@ export const validateUpdateReleaseRequest = (body: UpdateReleaseRequestBody): Va
     validateUpdateDateSequence(body),
     validateUpdateType(body),
     validateUpdatePlatformTargetMappings(body),
-    validateUpdateCronJob(body)
+    validateUpdateCronJob(body),
+    validateUpdateBranchFormat(body)
   ];
 
   // Return the first validation that fails
@@ -693,7 +757,8 @@ export const validateCreateReleaseRequest = (body: CreateReleaseRequestBody): Va
     validatePlatformTargets(body),
     validateDates(body),
     validateType(body),
-    validateRegressionBuildSlots(body)
+    validateRegressionBuildSlots(body),
+    validateBranchFormat(body)
   ];
 
   // Return the first validation that fails

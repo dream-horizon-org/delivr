@@ -2,161 +2,211 @@
  * Validation utilities for test management config
  */
 
-import { TEST_PLATFORMS } from '~types/integrations/test-management/platform.interface';
+import * as yup from 'yup';
+import { TEST_PLATFORMS, TestPlatform } from '~types/integrations/test-management/platform.interface';
 import { isValidTestPlatform } from '~types/integrations/test-management/platform.utils';
+import { validateWithYup } from '~utils/validation.utils';
+import type { ValidationResult } from '~types/validation/validation-result.interface';
 import type { PlatformConfiguration } from '~types/integrations/test-management/test-management-config';
-import { hasProperty } from '~utils/type-guards.utils';
 
 /**
- * Type guard to check if value is a valid platform configuration
+ * Field error structure for detailed validation feedback
  */
-const isPlatformConfiguration = (value: unknown): value is PlatformConfiguration => {
-  const hasPlatformProperty = hasProperty(value, 'platform');
-  
-  if (!hasPlatformProperty) {
-    return false;
-  }
-
-  const platformValue = value.platform;
-  
-  // Validate platform is a valid TestPlatform enum value
-  const platformIsValid = isValidTestPlatform(platformValue);
-  
-  if (!platformIsValid) {
-    return false;
-  }
-
-  const hasParametersProperty = hasProperty(value, 'parameters');
-  
-  if (!hasParametersProperty) {
-    return false;
-  }
-
-  const parametersValue = value.parameters;
-  
-  // Validate parameters is an object and not null
-  if (typeof parametersValue !== 'object' || parametersValue === null) {
-    return false;
-  }
-
-  // Validate required field: projectId must be a positive number
-  const params = parametersValue as Record<string, unknown>;
-  if (typeof params.projectId !== 'number' || params.projectId <= 0) {
-    return false;
-  }
-
-  return true;
+export type FieldError = {
+  field: string;
+  message: string;
 };
 
 /**
- * Validate platform configurations array
- * Returns error message if invalid, null if valid
+ * Custom error class for Test Management Config validation
+ * Collects all validation errors and provides structured error response
  */
-export const validatePlatformConfigurations = (
-  platformConfigurations: unknown
-): string | null => {
-  const isArray = Array.isArray(platformConfigurations);
+export class TestManagementConfigValidationError extends Error {
+  readonly integration: string = 'testManagement';
+  readonly errors: FieldError[];
 
-  if (!isArray) {
-    return 'platformConfigurations must be an array';
+  constructor(errors: FieldError[]) {
+    super('Test Management configuration validation failed');
+    this.name = 'TestManagementConfigValidationError';
+    this.errors = errors;
   }
+}
 
-  const arrayIsEmpty = platformConfigurations.length === 0;
+/* ==================== YUP VALIDATION SCHEMAS ==================== */
 
-  if (arrayIsEmpty) {
-    return 'platformConfigurations must contain at least one configuration';
-  }
+/**
+ * Platform configuration schema (nested in array)
+ */
+const platformConfigSchema = yup.object({
+  platform: yup
+    .string()
+    .required('platform is required')
+    .test('valid-platform', `platform must be one of: ${TEST_PLATFORMS.join(', ')}`, (value) => {
+      return value ? isValidTestPlatform(value) : false;
+    })
+    .transform((value) => value as TestPlatform),
+  parameters: yup
+    .object({
+      projectId: yup
+        .number()
+        .required('projectId is required')
+        .positive('projectId must be a positive number')
+        .typeError('projectId must be a number')
+    })
+    .required('parameters is required')
+});
 
-  // Check for duplicate platforms
-  const seenPlatforms = new Set<string>();
+/**
+ * CREATE schema - All fields required
+ */
+const testManagementConfigCreateSchema = yup.object({
+  tenantId: yup
+    .string()
+    .required('tenantId is required and must be a non-empty string')
+    .trim()
+    .min(1, 'tenantId cannot be empty'),
   
-  for (let i = 0; i < platformConfigurations.length; i++) {
-    const config = platformConfigurations[i];
-    const configIsValid = isPlatformConfiguration(config);
-
-    if (!configIsValid) {
-      const validPlatforms = TEST_PLATFORMS.join(', ');
-      return `Invalid configuration at index ${i}: must have 'platform' (one of: ${validPlatforms}) and 'parameters' (object with required 'projectId' as positive number)`;
-    }
-    
-    // Check for duplicate platform
-    const platform = config.platform;
-    if (seenPlatforms.has(platform)) {
-      return `Duplicate platform '${platform}' found at index ${i}. Each platform can only be configured once.`;
-    }
-    seenPlatforms.add(platform);
-  }
-
-  return null;
-};
+  integrationId: yup
+    .string()
+    .required('integrationId is required and must be a non-empty string')
+    .trim()
+    .min(1, 'integrationId cannot be empty'),
+  
+  name: yup
+    .string()
+    .required('name is required')
+    .trim()
+    .min(1, 'name cannot be empty')
+    .max(255, 'name cannot exceed 255 characters'),
+  
+  passThresholdPercent: yup
+    .number()
+    .required('passThresholdPercent is required')
+    .typeError('passThresholdPercent must be a number')
+    .integer('passThresholdPercent must be an integer (decimals not supported)')
+    .min(0, 'passThresholdPercent must be between 0 and 100')
+    .max(100, 'passThresholdPercent must be between 0 and 100'),
+  
+  platformConfigurations: yup
+    .array()
+    .of(platformConfigSchema)
+    .required('platformConfigurations is required')
+    .min(1, 'platformConfigurations must contain at least one configuration')
+    .test('unique-platforms', 'Duplicate platform detected. Each platform can only be configured once.', function(value) {
+      if (!value || value.length === 0) return true;
+      
+      const platforms = value.map((v) => (v as { platform: string }).platform);
+      const uniquePlatforms = new Set(platforms);
+      
+      if (platforms.length !== uniquePlatforms.size) {
+        // Find the duplicate platform for better error message
+        const seen = new Set<string>();
+        const duplicate = platforms.find((p: string) => {
+          if (seen.has(p)) return true;
+          seen.add(p);
+          return false;
+        });
+        
+        return this.createError({
+          message: `Duplicate platform '${duplicate}'. Each platform can only be configured once.`
+        });
+      }
+      
+      return true;
+    })
+});
 
 /**
- * Validate pass threshold percent
- * Returns error message if invalid, null if valid
- * 
- * Note: Must be an integer (0-100) to match database INT type
+ * UPDATE schema - All fields optional but validated if present
  */
-export const validatePassThresholdPercent = (value: unknown): string | null => {
-  const isNumber = typeof value === 'number';
-
-  if (!isNumber) {
-    return 'passThresholdPercent must be a number';
-  }
-
-  const isNaN = Number.isNaN(value);
-
-  if (isNaN) {
-    return 'passThresholdPercent must be a valid number';
-  }
-
-  const isInteger = Number.isInteger(value);
-
-  if (!isInteger) {
-    return 'passThresholdPercent must be an integer (decimals not supported)';
-  }
-
-  const isBelowZero = value < 0;
-  const isAboveHundred = value > 100;
-  const isOutOfRange = isBelowZero || isAboveHundred;
-
-  if (isOutOfRange) {
-    return 'passThresholdPercent must be between 0 and 100';
-  }
-
-  return null;
-};
+const testManagementConfigUpdateSchema = yup.object({
+  name: yup
+    .string()
+    .optional()
+    .trim()
+    .min(1, 'name cannot be empty if provided'),
+  
+  passThresholdPercent: yup
+    .number()
+    .optional()
+    .typeError('passThresholdPercent must be a number')
+    .integer('passThresholdPercent must be an integer (decimals not supported)')
+    .min(0, 'passThresholdPercent must be between 0 and 100')
+    .max(100, 'passThresholdPercent must be between 0 and 100'),
+  
+  platformConfigurations: yup
+    .array()
+    .of(platformConfigSchema)
+    .optional()
+    .min(1, 'platformConfigurations must contain at least one configuration if provided')
+    .test('unique-platforms', 'Duplicate platform detected. Each platform can only be configured once.', function(value) {
+      if (!value || value.length === 0) return true;
+      
+      const platforms = value.map((v) => (v as { platform: string }).platform);
+      const uniquePlatforms = new Set(platforms);
+      
+      if (platforms.length !== uniquePlatforms.size) {
+        // Find the duplicate platform for better error message
+        const seen = new Set<string>();
+        const duplicate = platforms.find((p: string) => {
+          if (seen.has(p)) return true;
+          seen.add(p);
+          return false;
+        });
+        
+        return this.createError({
+          message: `Duplicate platform '${duplicate}'. Each platform can only be configured once.`
+        });
+      }
+      
+      return true;
+    })
+});
 
 /**
- * Validate config name
- * Returns error message if invalid, null if valid
+ * Validated types representing the output after Yup transformation
+ * These types reflect the actual structure after .transform() is applied
  */
-export const validateConfigName = (value: unknown): string | null => {
-  const isString = typeof value === 'string';
+export type ValidatedCreateConfig = {
+  tenantId: string;
+  integrationId: string;
+  name: string;
+  passThresholdPercent: number;
+  platformConfigurations: PlatformConfiguration[];
+};
 
-  if (!isString) {
-    return 'name must be a string';
-  }
-
-  const nameLength = value.length;
-  const nameEmpty = nameLength === 0;
-
-  if (nameEmpty) {
-    return 'name cannot be empty';
-  }
-
-  const maxLength = 255;
-  const nameTooLong = nameLength > maxLength;
-
-  if (nameTooLong) {
-    return `name cannot exceed ${maxLength} characters`;
-  }
-
-  return null;
+export type ValidatedUpdateConfig = {
+  name?: string;
+  passThresholdPercent?: number;
+  platformConfigurations?: PlatformConfiguration[];
 };
 
 /**
- * Validate tenant ID
+ * Validate configuration for CREATE operation with Yup
+ * Returns ValidationResult with either validated data or errors
+ */
+export const validateCreateConfig = async (
+  data: unknown
+): Promise<ValidationResult<ValidatedCreateConfig>> => {
+  const result = await validateWithYup(testManagementConfigCreateSchema, data);
+  return result as ValidationResult<ValidatedCreateConfig>;
+};
+
+/**
+ * Validate configuration for UPDATE operation with Yup
+ * Returns ValidationResult with either validated data or errors
+ */
+export const validateUpdateConfig = async (
+  data: unknown
+): Promise<ValidationResult<ValidatedUpdateConfig>> => {
+  const result = await validateWithYup(testManagementConfigUpdateSchema, data);
+  return result as ValidationResult<ValidatedUpdateConfig>;
+};
+
+/**
+ * Validate tenant ID (simple validation for route parameters)
  * Returns error message if invalid, null if valid
+ * Used in listConfigsByTenantHandler for route parameter validation
  */
 export const validateTenantId = (value: unknown): string | null => {
   const isString = typeof value === 'string';
@@ -170,27 +220,6 @@ export const validateTenantId = (value: unknown): string | null => {
 
   if (idEmpty) {
     return 'tenantId cannot be empty';
-  }
-
-  return null;
-};
-
-/**
- * Validate integration ID
- * Returns error message if invalid, null if valid
- */
-export const validateIntegrationId = (value: unknown): string | null => {
-  const isString = typeof value === 'string';
-
-  if (!isString) {
-    return 'integrationId must be a string';
-  }
-
-  const idLength = value.length;
-  const idEmpty = idLength === 0;
-
-  if (idEmpty) {
-    return 'integrationId cannot be empty';
   }
 
   return null;

@@ -10,10 +10,19 @@ export type GHAVerifyParams = {
   timeoutMs: number;
 };
 
-export type GHAVerifyResult = {
-  isValid: boolean;
-  message: string;
-};
+export type GHAVerifyResult = 
+  | { 
+      success: true; 
+      message: string;
+      details?: Record<string, unknown>;
+    }
+  | { 
+      success: false; 
+      message: string;
+      statusCode: number;
+      errorCode: string;
+      details?: string[];
+    };
 
 export type GHAWorkflowInputsParams = {
   token: string;
